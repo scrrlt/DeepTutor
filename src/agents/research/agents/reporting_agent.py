@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ReportingAgent - Report generation Agent (DR-in-KG 2.0)
 - Deduplication and cleaning
@@ -113,7 +114,7 @@ class ReportingAgent(BaseAgent):
         # 1) Deduplication
         print("🔄 Step 1: Deduplication and cleaning...")
         cleaned_blocks = await self._deduplicate_blocks(queue.blocks)
-        print(f"✅ Cleaning completed: {len(cleaned_blocks)} topic blocks")
+        print(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
         self._notify_progress(
             progress_callback, "deduplicate_completed", kept_blocks=len(cleaned_blocks)
         )
@@ -121,7 +122,7 @@ class ReportingAgent(BaseAgent):
         # 2) Outline
         print("\n📋 Step 2: Generating outline...")
         outline = await self._generate_outline(topic, cleaned_blocks)
-        print("✅ Outline generation completed")
+        print("✓ Outline generation completed")
         self._notify_progress(
             progress_callback, "outline_completed", sections=len(outline.get("sections", []))
         )
@@ -132,7 +133,7 @@ class ReportingAgent(BaseAgent):
         # 3) Writing
         print("\n✍️  Step 3: Writing report...")
         report_markdown = await self._write_report(topic, cleaned_blocks, outline)
-        print("✅ Report writing completed")
+        print("✓ Report writing completed")
         self._notify_progress(progress_callback, "writing_completed")
 
         word_count = len(report_markdown)

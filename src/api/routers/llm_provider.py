@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from lightrag.llm.openai import openai_complete_if_cache
 from pydantic import BaseModel
 
-from src.core.llm_provider import LLMProvider, provider_manager
+from src.services.llm.provider import LLMProvider, provider_manager
 
 router = APIRouter()
 

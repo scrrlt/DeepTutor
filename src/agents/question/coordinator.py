@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Agent coordinator responsible for managing collaboration between the question-generation agent
 and the validation workflow.
@@ -21,8 +22,8 @@ from .validation_workflow import QuestionValidationWorkflow
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.core import load_config_with_main
-from src.core.logging import Logger, get_logger
+from src.services.config import load_config_with_main
+from src.logging import Logger, get_logger
 from src.tools.rag_tool import rag_search
 
 
@@ -330,13 +331,13 @@ class AgentCoordinator:
             f"The user's question generation requirement is:\n{requirement_text}\n\n"
             f"Please extract {num_queries} pure knowledge point names from it for knowledge base retrieval.\n\n"
             "Correct examples:\n"
-            "✅ Taylor theorem\n"
-            "✅ Lagrange multipliers  \n"
-            "✅ critical points\n\n"
+            "✓ Taylor theorem\n"
+            "✓ Lagrange multipliers  \n"
+            "✓ critical points\n\n"
             "Incorrect examples (do not generate):\n"
-            "❌ Apply Taylor's Theorem to approximate f(x,y)=... (This is a question)\n"
-            "❌ Find and classify critical points (This is a task)\n"
-            "❌ Use Lagrange multipliers to find maximum (This is an instruction)\n\n"
+            "✗ Apply Taylor's Theorem to approximate f(x,y)=... (This is a question)\n"
+            "✗ Find and classify critical points (This is a task)\n"
+            "✗ Use Lagrange multipliers to find maximum (This is an instruction)\n\n"
             f'Return in JSON format: {{"queries": ["knowledge point 1", "knowledge point 2", ...]}}, containing exactly {num_queries} knowledge point names.'
         )
 

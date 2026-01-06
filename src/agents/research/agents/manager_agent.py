@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ManagerAgent - Queue management Agent
 Responsible for managing DynamicTopicQueue state and task distribution
@@ -76,7 +77,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_completed(block_id)
         if success:
-            print(f"✅ ManagerAgent: Task {block_id} completed")
+            print(f"✓ ManagerAgent: Task {block_id} completed")
 
         return success
 
@@ -147,7 +148,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_failed(block_id)
         if success:
-            print(f"❌ ManagerAgent: Task {block_id} failed")
+            print(f"✗ ManagerAgent: Task {block_id} failed")
             if reason:
                 print(f"   Reason: {reason}")
 
@@ -175,7 +176,7 @@ class ManagerAgent(BaseAgent):
             return None
 
         block = self.queue.add_block(normalized, overview)
-        print(f"➕ ManagerAgent: Added new topic {block.block_id}")
+        print(f"✓ ManagerAgent: Added new topic {block.block_id}")
         print(f"   Topic: {sub_topic}")
 
         return block

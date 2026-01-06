@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ToolAgent - Tool executor
 Responsible for reading tool calls in solve-chain, actually executing tools and producing summary

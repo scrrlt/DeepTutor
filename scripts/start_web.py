@@ -156,7 +156,7 @@ def start_backend():
 
     # Get port from configuration
     try:
-        from src.core.setup import get_backend_port
+        from src.services.setup import get_backend_port
 
         backend_port = get_backend_port(Path(project_root))
         print_flush(f"✅ Backend port configured: {backend_port}")
@@ -165,7 +165,7 @@ def start_backend():
         raise
     except Exception as e:
         print_flush(f"❌ Failed to get backend port: {e}")
-        from src.core.setup import print_port_config_tutorial
+        from src.services.setup import print_port_config_tutorial
 
         print_port_config_tutorial()
         raise
@@ -250,7 +250,7 @@ def start_frontend():
     try:
         from pathlib import Path
 
-        from src.core.setup import get_frontend_port
+        from src.services.setup import get_frontend_port
 
         frontend_port = get_frontend_port(Path(project_root))
         print_flush(f"✅ Frontend port configured: {frontend_port}")
@@ -259,7 +259,7 @@ def start_frontend():
         raise
     except Exception as e:
         print_flush(f"❌ Failed to get frontend port: {e}")
-        from src.core.setup import print_port_config_tutorial
+        from src.services.setup import print_port_config_tutorial
 
         print_port_config_tutorial()
         raise
@@ -319,7 +319,7 @@ def start_frontend():
     # Get backend port for frontend API configuration
     from pathlib import Path
 
-    from src.core.setup import get_backend_port
+    from src.services.setup import get_backend_port
 
     backend_port = get_backend_port(Path(project_root))
 
@@ -415,7 +415,7 @@ if __name__ == "__main__":
             sys.path.insert(0, project_root)
         from pathlib import Path
 
-        from src.core.setup import init_user_directories
+        from src.services.setup import init_user_directories
 
         init_user_directories(Path(project_root))
     except Exception as e:
@@ -431,7 +431,7 @@ if __name__ == "__main__":
         # Get backend port for health check
         from pathlib import Path
 
-        from src.core.setup import get_backend_port
+        from src.services.setup import get_backend_port
 
         backend_port = get_backend_port(
             Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -469,7 +469,7 @@ if __name__ == "__main__":
         # Get ports for display
         from pathlib import Path
 
-        from src.core.setup import get_ports
+        from src.services.setup import get_ports
 
         backend_port, frontend_port = get_ports(
             Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

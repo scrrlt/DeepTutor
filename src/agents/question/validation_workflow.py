@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Question Validation Workflow: retrieve -> validate -> return.
 Uses unified PromptManager for prompt loading.
@@ -17,9 +18,9 @@ from openai import AsyncOpenAI
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.core import get_agent_params, load_config_with_main
-from src.core.logging import get_logger
-from src.core.prompt_manager import get_prompt_manager
+from src.services.config import get_agent_params, load_config_with_main
+from src.logging import get_logger
+from src.services.prompt import get_prompt_manager
 from src.tools.rag_tool import rag_search
 
 # Module logger

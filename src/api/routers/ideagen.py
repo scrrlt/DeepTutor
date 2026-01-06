@@ -20,8 +20,9 @@ from src.agents.ideagen.idea_generation_workflow import IdeaGenerationWorkflow
 from src.agents.ideagen.material_organizer_agent import MaterialOrganizerAgent
 from src.api.utils.notebook_manager import NotebookManager
 from src.api.utils.task_id_manager import TaskIDManager
-from src.core.core import get_llm_config, load_config_with_main
-from src.core.logging import get_logger
+from src.services.config import load_config_with_main
+from src.services.llm import get_llm_config
+from src.logging import get_logger
 
 router = APIRouter()
 
@@ -190,9 +191,9 @@ async def websocket_ideagen(websocket: WebSocket):
         )
 
         organizer = MaterialOrganizerAgent(
-            api_key=llm_config["api_key"],
-            base_url=llm_config["base_url"],
-            model=llm_config["model"],
+            api_key=llm_config.api_key,
+            base_url=llm_config.base_url,
+            model=llm_config.model,
         )
 
         knowledge_points = await organizer.process(
@@ -230,9 +231,9 @@ async def websocket_ideagen(websocket: WebSocket):
         )
 
         workflow = IdeaGenerationWorkflow(
-            api_key=llm_config["api_key"],
-            base_url=llm_config["base_url"],
-            model=llm_config["model"],
+            api_key=llm_config.api_key,
+            base_url=llm_config.base_url,
+            model=llm_config.model,
             progress_callback=None,  # We manually manage status here
         )
 

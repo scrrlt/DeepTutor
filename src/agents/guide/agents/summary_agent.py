@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 SummaryAgent - Learning Summary Generation Agent
 Generates personalized learning summary reports after users complete learning

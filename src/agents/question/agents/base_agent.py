@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Base Agent class - Implements the ReAct (Reasoning + Acting) paradigm.
 """
@@ -21,8 +22,8 @@ load_dotenv(override=False)
 project_root = Path(__file__).parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.core import get_agent_params
-from src.core.logging import get_logger
+from src.services.config import get_agent_params
+from src.logging import get_logger
 
 # Module logger
 _logger = get_logger("QuestionAgent")
@@ -164,7 +165,7 @@ class BaseAgent(ABC):
             for i in range(len(self.action_history) - recent_count, len(self.action_history)):
                 action = self.action_history[i]
                 obs = self.observation_history[i] if i < len(self.observation_history) else None
-                status = "✅ Success" if (obs and obs.success) else "❌ Failed"
+                status = "✓ Success" if (obs and obs.success) else "✗ Failed"
 
                 history_parts.append(f"  [{i + 1}] Action: {action.name} → {status}")
                 if action.params:
@@ -211,7 +212,7 @@ class BaseAgent(ABC):
 
                 if i < len(self.observation_history):
                     obs = self.observation_history[i]
-                    status = "✅ Success" if obs.success else "❌ Failed"
+                    status = "✓ Success" if obs.success else "✗ Failed"
                     history_parts.append(f"Observation: {status}")
                     if obs.message:
                         history_parts.append(f"  Message: {obs.message}")

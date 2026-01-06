@@ -12,8 +12,9 @@ from src.agents.research.agents import RephraseAgent
 from src.agents.research.research_pipeline import ResearchPipeline
 from src.api.utils.history import ActivityType, history_manager
 from src.api.utils.task_id_manager import TaskIDManager
-from src.core.core import get_llm_config, load_config_with_main
-from src.core.logging import get_logger
+from src.services.config import load_config_with_main
+from src.services.llm import get_llm_config
+from src.logging import get_logger
 
 # Force stdout to use utf-8 to prevent encoding errors with emojis on Windows
 if sys.platform == "win32":
@@ -49,8 +50,8 @@ async def optimize_topic(request: OptimizeRequest):
         # Inject API keys
         try:
             llm_config = get_llm_config()
-            api_key = llm_config["api_key"]
-            base_url = llm_config["base_url"]
+            api_key = llm_config.api_key
+            base_url = llm_config.base_url
         except Exception as e:
             return {"error": f"LLM config error: {e!s}"}
 
@@ -248,8 +249,8 @@ async def websocket_research_run(websocket: WebSocket):
         # Inject API keys from env if not in config
         try:
             llm_config = get_llm_config()
-            api_key = llm_config["api_key"]
-            base_url = llm_config["base_url"]
+            api_key = llm_config.api_key
+            base_url = llm_config.base_url
         except ValueError as e:
             await websocket.send_json({"error": f"LLM configuration error: {e!s}"})
             await websocket.close()

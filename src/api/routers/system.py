@@ -10,12 +10,9 @@ from fastapi import APIRouter
 from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from pydantic import BaseModel
 
-from src.core.core import (
-    get_embedding_config,
-    get_llm_config,
-    get_token_limit_kwargs,
-    get_tts_config,
-)
+from src.services.llm import get_llm_config, get_token_limit_kwargs
+from src.services.embedding import get_embedding_config
+from src.services.tts import get_tts_config
 
 router = APIRouter()
 
@@ -49,7 +46,7 @@ async def get_system_status():
     # Check LLM configuration
     try:
         llm_config = get_llm_config()
-        result["llm"]["model"] = llm_config.get("model")
+        result["llm"]["model"] = llm_config.model
         result["llm"]["status"] = "configured"
     except ValueError as e:
         result["llm"]["status"] = "not_configured"
@@ -61,7 +58,7 @@ async def get_system_status():
     # Check Embeddings configuration
     try:
         embedding_config = get_embedding_config()
-        result["embeddings"]["model"] = embedding_config.get("model")
+        result["embeddings"]["model"] = embedding_config.model
         result["embeddings"]["status"] = "configured"
     except ValueError as e:
         result["embeddings"]["status"] = "not_configured"
@@ -97,8 +94,8 @@ async def test_llm_connection():
 
     try:
         llm_config = get_llm_config()
-        model = llm_config["model"]
-        base_url = llm_config["base_url"].rstrip("/")
+        model = llm_config.model
+        base_url = llm_config.base_url.rstrip("/")
 
         # Sanitize Base URL (remove /chat/completions suffix if present)
         for suffix in ["/chat/completions", "/completions"]:
@@ -106,7 +103,7 @@ async def test_llm_connection():
                 base_url = base_url[: -len(suffix)]
 
         # Handle API Key (inject dummy if missing for local LLMs)
-        api_key = llm_config["api_key"]
+        api_key = llm_config.api_key
         if not api_key:
             api_key = "sk-no-key-required"
 
@@ -163,14 +160,14 @@ async def test_embeddings_connection():
 
     try:
         embedding_config = get_embedding_config()
-        model = embedding_config["model"]
-        base_url = embedding_config["base_url"].rstrip("/")
+        model = embedding_config.model
+        base_url = embedding_config.base_url.rstrip("/")
 
         # Sanitize Base URL (remove /embeddings suffix if present, though less common)
         # OpenAI client handles /embeddings automatically
 
         # Handle API Key
-        api_key = embedding_config["api_key"]
+        api_key = embedding_config.api_key
         if not api_key:
             api_key = "sk-no-key-required"
 

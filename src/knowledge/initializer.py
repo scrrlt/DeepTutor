@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Knowledge Base Initialization Script
 
@@ -30,12 +31,13 @@ from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from lightrag.utils import EmbeddingFunc
 from raganything import RAGAnything, RAGAnythingConfig
 
-from src.core.core import get_embedding_config, get_llm_config
+from src.services.llm import get_llm_config
+from src.services.embedding import get_embedding_config
 
 load_dotenv(dotenv_path=".env", override=False)
 
 # Use unified logging system
-from src.core.logging import LightRAGLogContext, get_logger
+from src.logging import LightRAGLogContext, get_logger
 
 logger = get_logger("KnowledgeInit")
 
@@ -147,7 +149,7 @@ class KnowledgeBaseInitializer:
         for source in source_files:
             source_path = Path(source)
             if not source_path.exists():
-                logger.warning(f"  ✗ Source file not found: {source}")
+                logger.warning(f"  ⚠ Source file not found: {source}")
                 continue
 
             dest_path = self.raw_dir / source_path.name
@@ -197,7 +199,7 @@ class KnowledgeBaseInitializer:
 
         # Get LLM configuration from env_config
         llm_cfg = get_llm_config()
-        llm_model = llm_cfg["model"]
+        llm_model = llm_cfg.model
 
         # Define LLM model function
         def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
@@ -279,14 +281,14 @@ class KnowledgeBaseInitializer:
 
         # Define embedding function
         embedding_cfg = self.embedding_cfg
-        embedding_api_key = embedding_cfg["api_key"] or self.api_key
-        embedding_base_url = embedding_cfg["base_url"] or self.base_url
+        embedding_api_key = embedding_cfg.api_key or self.api_key
+        embedding_base_url = embedding_cfg.base_url or self.base_url
         embedding_func = EmbeddingFunc(
-            embedding_dim=embedding_cfg["dim"],
-            max_token_size=embedding_cfg["max_tokens"],
+            embedding_dim=embedding_cfg.dim,
+            max_token_size=embedding_cfg.max_tokens,
             func=lambda texts: openai_embed(
                 texts,
-                model=embedding_cfg["model"],
+                model=embedding_cfg.model,
                 api_key=embedding_api_key,
                 base_url=embedding_base_url,
             ),

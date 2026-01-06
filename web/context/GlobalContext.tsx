@@ -203,6 +203,29 @@ interface IdeaGenState {
   progress: { current: number; total: number } | null;
 }
 
+// Chat Types
+interface ChatSource {
+  rag?: Array<{ kb_name: string; content: string }>;
+  web?: Array<{ url: string; title?: string; snippet?: string }>;
+}
+
+interface HomeChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  sources?: ChatSource;
+  isStreaming?: boolean;
+}
+
+interface ChatState {
+  sessionId: string | null;
+  messages: HomeChatMessage[];
+  isLoading: boolean;
+  selectedKb: string;
+  enableRag: boolean;
+  enableWebSearch: boolean;
+  currentStage: string | null;
+}
+
 interface GlobalContextType {
   // Solver
   solverState: SolverState;
@@ -241,6 +264,14 @@ interface GlobalContextType {
   // IdeaGen
   ideaGenState: IdeaGenState;
   setIdeaGenState: React.Dispatch<React.SetStateAction<IdeaGenState>>;
+
+  // Chat
+  chatState: ChatState;
+  setChatState: React.Dispatch<React.SetStateAction<ChatState>>;
+  sendChatMessage: (message: string) => void;
+  clearChatHistory: () => void;
+  loadChatSession: (sessionId: string) => Promise<void>;
+  newChatSession: () => void;
 
   // UI Settings
   uiSettings: { theme: "light" | "dark"; language: "en" | "zh" };
@@ -1308,6 +1339,222 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     progress: null,
   });
 
+  // --- Chat Logic ---
+  const [chatState, setChatState] = useState<ChatState>({
+    sessionId: null,
+    messages: [],
+    isLoading: false,
+    selectedKb: "",
+    enableRag: false,
+    enableWebSearch: false,
+    currentStage: null,
+  });
+  const chatWs = useRef<WebSocket | null>(null);
+
+  const sendChatMessage = (message: string) => {
+    if (!message.trim() || chatState.isLoading) return;
+
+    // Add user message
+    setChatState((prev) => ({
+      ...prev,
+      isLoading: true,
+      currentStage: "connecting",
+      messages: [...prev.messages, { role: "user", content: message }],
+    }));
+
+    // Close existing connection if any
+    if (chatWs.current) {
+      chatWs.current.close();
+    }
+
+    const ws = new WebSocket(wsUrl("/api/v1/chat"));
+    chatWs.current = ws;
+
+    let assistantMessage = "";
+
+    ws.onopen = () => {
+      // Build history from current messages (excluding the one just added)
+      const history = chatState.messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      ws.send(
+        JSON.stringify({
+          message,
+          session_id: chatState.sessionId,
+          history,
+          kb_name: chatState.selectedKb,
+          enable_rag: chatState.enableRag,
+          enable_web_search: chatState.enableWebSearch,
+        }),
+      );
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "session") {
+        // Store session ID from backend
+        setChatState((prev) => ({
+          ...prev,
+          sessionId: data.session_id,
+        }));
+      } else if (data.type === "status") {
+        setChatState((prev) => ({
+          ...prev,
+          currentStage: data.stage || data.message,
+        }));
+      } else if (data.type === "stream") {
+        assistantMessage += data.content;
+        setChatState((prev) => {
+          const messages = [...prev.messages];
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage?.role === "assistant" && lastMessage?.isStreaming) {
+            // Update existing streaming message
+            messages[messages.length - 1] = {
+              ...lastMessage,
+              content: assistantMessage,
+            };
+          } else {
+            // Add new streaming message
+            messages.push({
+              role: "assistant",
+              content: assistantMessage,
+              isStreaming: true,
+            });
+          }
+          return { ...prev, messages, currentStage: "generating" };
+        });
+      } else if (data.type === "sources") {
+        setChatState((prev) => {
+          const messages = [...prev.messages];
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage?.role === "assistant") {
+            messages[messages.length - 1] = {
+              ...lastMessage,
+              sources: { rag: data.rag, web: data.web },
+            };
+          }
+          return { ...prev, messages };
+        });
+      } else if (data.type === "result") {
+        setChatState((prev) => {
+          const messages = [...prev.messages];
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage?.role === "assistant") {
+            messages[messages.length - 1] = {
+              ...lastMessage,
+              content: data.content,
+              isStreaming: false,
+            };
+          }
+          return {
+            ...prev,
+            messages,
+            isLoading: false,
+            currentStage: null,
+          };
+        });
+        ws.close();
+      } else if (data.type === "error") {
+        setChatState((prev) => ({
+          ...prev,
+          isLoading: false,
+          currentStage: null,
+          messages: [
+            ...prev.messages,
+            { role: "assistant", content: `Error: ${data.message}` },
+          ],
+        }));
+        ws.close();
+      }
+    };
+
+    ws.onerror = () => {
+      setChatState((prev) => ({
+        ...prev,
+        isLoading: false,
+        currentStage: null,
+        messages: [
+          ...prev.messages,
+          { role: "assistant", content: "Connection error. Please try again." },
+        ],
+      }));
+    };
+
+    ws.onclose = () => {
+      if (chatWs.current === ws) {
+        chatWs.current = null;
+      }
+      setChatState((prev) => ({
+        ...prev,
+        isLoading: false,
+        currentStage: null,
+      }));
+    };
+  };
+
+  const clearChatHistory = () => {
+    setChatState((prev) => ({
+      ...prev,
+      sessionId: null,
+      messages: [],
+      currentStage: null,
+    }));
+  };
+
+  const newChatSession = () => {
+    // Close any existing WebSocket
+    if (chatWs.current) {
+      chatWs.current.close();
+      chatWs.current = null;
+    }
+    // Reset to new session
+    setChatState((prev) => ({
+      ...prev,
+      sessionId: null,
+      messages: [],
+      isLoading: false,
+      currentStage: null,
+    }));
+  };
+
+  const loadChatSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(apiUrl(`/api/v1/chat/sessions/${sessionId}`));
+      if (!response.ok) {
+        throw new Error("Session not found");
+      }
+      const session = await response.json();
+
+      // Convert session messages to HomeChatMessage format
+      const messages: HomeChatMessage[] = session.messages.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+        sources: msg.sources,
+        isStreaming: false,
+      }));
+
+      // Restore session settings
+      const settings = session.settings || {};
+
+      setChatState((prev) => ({
+        ...prev,
+        sessionId: session.session_id,
+        messages,
+        selectedKb: settings.kb_name || prev.selectedKb,
+        enableRag: settings.enable_rag ?? prev.enableRag,
+        enableWebSearch: settings.enable_web_search ?? prev.enableWebSearch,
+        isLoading: false,
+        currentStage: null,
+      }));
+    } catch (error) {
+      console.error("Failed to load session:", error);
+      throw error;
+    }
+  };
+
   return (
     <GlobalContext.Provider
       value={{
@@ -1324,6 +1571,12 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
         startResearch,
         ideaGenState,
         setIdeaGenState,
+        chatState,
+        setChatState,
+        sendChatMessage,
+        clearChatHistory,
+        loadChatSession,
+        newChatSession,
         uiSettings,
         refreshSettings,
       }}

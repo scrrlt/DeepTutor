@@ -27,9 +27,10 @@ if str(_project_root) not in sys.path:
 
 from lightrag.llm.openai import openai_complete_if_cache
 
-from src.core.core import get_agent_params, get_llm_config, get_token_limit_kwargs
-from src.core.logging import LLMStats, get_logger
-from src.core.prompt_manager import get_prompt_manager
+from src.services.config import get_agent_params
+from src.services.llm import get_llm_config, get_token_limit_kwargs
+from src.logging import LLMStats, get_logger
+from src.services.prompt import get_prompt_manager
 
 
 class BaseAgent(ABC):
@@ -79,7 +80,15 @@ class BaseAgent(ABC):
         self.module_name = module_name
         self.agent_name = agent_name
         self.language = language
-        self.config = config or {}
+        # Ensure config is always a dict (not a dataclass like LLMConfig)
+        if config is None:
+            self.config = {}
+        elif isinstance(config, dict):
+            self.config = config
+        else:
+            # If config is a dataclass (like LLMConfig), convert to empty dict
+            # The actual LLM config should be loaded via get_llm_config()
+            self.config = {}
 
         # Load agent parameters from unified config (agents.yaml)
         self._agent_params = get_agent_params(module_name)
@@ -87,9 +96,9 @@ class BaseAgent(ABC):
         # Load LLM configuration
         try:
             env_llm = get_llm_config()
-            self.api_key = api_key or env_llm.get("api_key")
-            self.base_url = base_url or env_llm.get("base_url")
-            self.model = model or env_llm.get("model")
+            self.api_key = api_key or env_llm.api_key
+            self.base_url = base_url or env_llm.base_url
+            self.model = model or env_llm.model
         except ValueError:
             # Fallback if env config not available
             self.api_key = api_key or os.getenv("LLM_BINDING_API_KEY")
@@ -98,7 +107,13 @@ class BaseAgent(ABC):
 
         # Get Agent-specific configuration (if config provided)
         self.agent_config = self.config.get("agents", {}).get(agent_name, {})
-        self.llm_config = self.config.get("llm", {})
+        llm_cfg = self.config.get("llm", {})
+        # Ensure llm_config is always a dict (handle case where LLMConfig object is passed)
+        if hasattr(llm_cfg, '__dataclass_fields__'):
+            from dataclasses import asdict
+            self.llm_config = asdict(llm_cfg)
+        else:
+            self.llm_config = llm_cfg if isinstance(llm_cfg, dict) else {}
 
         # Agent status
         self.enabled = self.agent_config.get("enabled", True)

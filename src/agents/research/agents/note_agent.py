@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 NoteAgent - Recording Agent
 Responsible for information compression and summary generation, converting raw data returned by tools into usable knowledge summaries
@@ -72,7 +73,7 @@ class NoteAgent(BaseAgent):
             tool_type=tool_type, query=query, raw_answer=raw_answer, topic=topic, context=context
         )
 
-        print(f"✅ Summary generation completed ({len(summary)} characters)")
+        print(f"✓ Summary generation completed ({len(summary)} characters)")
 
         # Create ToolTrace with the provided citation ID
         tool_id = self._generate_tool_id()

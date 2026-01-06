@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Incremental Document Addition Usage Example
 
@@ -46,7 +47,7 @@ async def example_add_single_document():
         # Update metadata
         adder.update_metadata(len(new_files))
 
-        print("\n✅ Completed!")
+        print("\n✓ Completed!")
 
 
 async def example_add_multiple_documents():
@@ -85,7 +86,7 @@ async def example_add_multiple_documents():
         # Update metadata
         adder.update_metadata(len(new_files))
 
-        print("\n✅ Completed!")
+        print("\n✓ Completed!")
 
 
 async def example_add_from_directory():
@@ -123,7 +124,7 @@ async def example_add_from_directory():
         # Update metadata
         adder.update_metadata(len(new_files))
 
-        print("\n✅ Completed!")
+        print("\n✓ Completed!")
 
 
 async def example_add_only_no_processing():
@@ -181,7 +182,7 @@ def example_with_error_handling():
         # Check if file exists
         source_file = Path("./new_chapter.pdf")
         if not source_file.exists():
-            print(f"❌ Error: Source file does not exist: {source_file}")
+            print(f"✗ Error: Source file does not exist: {source_file}")
             return
 
         # Add documents
@@ -199,14 +200,14 @@ def example_with_error_handling():
 
         asyncio.run(process())
 
-        print("\n✅ Successfully added documents!")
+        print("\n✓ Successfully added documents!")
 
     except ValueError as e:
-        print(f"❌ Configuration error: {e}")
+        print(f"✗ Configuration error: {e}")
     except FileNotFoundError as e:
-        print(f"❌ File error: {e}")
+        print(f"✗ File error: {e}")
     except Exception as e:
-        print(f"❌ Unknown error: {e}")
+        print(f"✗ Unknown error: {e}")
         import traceback
 
         traceback.print_exc()

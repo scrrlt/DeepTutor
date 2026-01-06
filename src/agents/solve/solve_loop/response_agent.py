@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ResponseAgent - Step response generator
 Based on materials in solve-chain, generates formal response for current step

@@ -26,12 +26,12 @@ def check_raganything():
 def get_env_config():
     """Get environment variable configuration (unified read from env_config)"""
     try:
-        from src.core.core import get_llm_config
+        from src.services.llm import get_llm_config
 
         cfg = get_llm_config()
         return {
-            "api_key": cfg.get("api_key"),
-            "base_url": cfg.get("base_url"),
+            "api_key": cfg.api_key,
+            "base_url": cfg.base_url,
         }
     except Exception:
         # Compatibility fallback: directly read environment variables

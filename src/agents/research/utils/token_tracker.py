@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Token Tracker - LLM Token usage and cost tracking system (DR-in-KG version)
 References student_TA/solve_agents/utils/token_tracker.py, with minor trimming and added global singleton getter method.

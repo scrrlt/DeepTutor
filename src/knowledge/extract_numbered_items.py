@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Extract numbered important content from knowledge base content_list
 Such as: Definition 1.5., Proposition 1.3., Theorem x.x., Equation x.x., Formula x.x., etc.
@@ -20,7 +21,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from dotenv import load_dotenv
 from lightrag.llm.openai import openai_complete_if_cache
 
-from src.core.core import get_llm_config
+from src.services.llm import get_llm_config
 
 load_dotenv(dotenv_path=".env", override=False)
 
@@ -28,8 +29,8 @@ load_dotenv(dotenv_path=".env", override=False)
 try:
     from pathlib import Path
 
-    from src.core.core import load_config_with_main
-    from src.core.logging import get_logger
+    from src.services.config import load_config_with_main
+    from src.logging import get_logger
 
     project_root = Path(__file__).parent.parent.parent.parent
     config = load_config_with_main(
@@ -62,7 +63,7 @@ async def _call_llm_async(
     # If model not specified, get from env_config
     if model is None:
         llm_cfg = get_llm_config()
-        model = llm_cfg["model"]
+        model = llm_cfg.model
 
     result = openai_complete_if_cache(
         model,
@@ -160,7 +161,7 @@ Answer with ONLY "YES" or "NO"."""
             base_url,
             max_tokens=10,
             temperature=0.0,
-            model=llm_cfg["model"],
+            model=llm_cfg.model,
         )
         answer = response.strip().upper()
         return answer == "YES"
@@ -436,7 +437,7 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
             base_url,
             max_tokens=4000,
             temperature=0.1,
-            model=llm_cfg["model"],
+            model=llm_cfg.model,
         )
 
         # Parse response

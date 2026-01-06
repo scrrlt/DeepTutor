@@ -11,7 +11,7 @@ import sys
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.core.prompt_manager import PromptManager, get_prompt_manager
+from src.services.prompt import PromptManager, get_prompt_manager
 
 
 class TestPromptManager:

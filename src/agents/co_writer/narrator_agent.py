@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 NarratorAgent - Note narration agent.
 Uses unified PromptManager for prompt loading.
@@ -23,9 +24,11 @@ if str(_project_root) not in sys.path:
 
 from lightrag.llm.openai import openai_complete_if_cache
 
-from src.core.core import get_agent_params, get_llm_config, get_tts_config, load_config_with_main
-from src.core.logging import get_logger
-from src.core.prompt_manager import get_prompt_manager
+from src.services.config import get_agent_params, load_config_with_main
+from src.services.llm import get_llm_config
+from src.services.tts import get_tts_config
+from src.logging import get_logger
+from src.services.prompt import get_prompt_manager
 
 # Initialize logger with config
 try:
@@ -195,13 +198,13 @@ class NarratorAgent:
 
         logger.info(f"Generating narration script with style: {style}")
 
-        model = self.llm_config["model"]
+        model = self.llm_config.model
         response = await openai_complete_if_cache(
             model=model,
             prompt=user_prompt,
             system_prompt=system_prompt,
-            api_key=self.llm_config["api_key"],
-            base_url=self.llm_config["base_url"],
+            api_key=self.llm_config.api_key,
+            base_url=self.llm_config.base_url,
             max_tokens=self._agent_params["max_tokens"],
             temperature=self._agent_params["temperature"],
         )
@@ -255,13 +258,13 @@ class NarratorAgent:
         user_prompt = user_template.format(content=content[:4000])
 
         try:
-            model = self.llm_config["model"]
+            model = self.llm_config.model
             response = await openai_complete_if_cache(
                 model=model,
                 prompt=user_prompt,
                 system_prompt=system_prompt,
-                api_key=self.llm_config["api_key"],
-                base_url=self.llm_config["base_url"],
+                api_key=self.llm_config.api_key,
+                base_url=self.llm_config.base_url,
                 max_tokens=self._agent_params["max_tokens"],
                 temperature=self._agent_params["temperature"],
             )

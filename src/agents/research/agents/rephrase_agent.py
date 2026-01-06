@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 RephraseAgent - Topic rephrasing Agent
 Responsible for rephrasing and optimizing user input
@@ -156,7 +157,7 @@ class RephraseAgent(BaseAgent):
             }
         )
 
-        print("\n✅ Rephrasing Completed:")
+        print("\n✓ Rephrasing Completed:")
         print(f"  Optimized Research Topic: {result.get('topic', '')}")
 
         return result

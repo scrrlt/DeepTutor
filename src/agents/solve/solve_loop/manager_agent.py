@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ManagerAgent - Manager (Refactored: directly plans step-level solution steps)
 Based on user question and knowledge chain, plans solution steps

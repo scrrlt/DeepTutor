@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Incrementally add documents to existing knowledge base
 
@@ -28,12 +29,13 @@ from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from lightrag.utils import EmbeddingFunc
 from raganything import RAGAnything, RAGAnythingConfig
 
-from src.core.core import get_embedding_config, get_llm_config
+from src.services.llm import get_llm_config
+from src.services.embedding import get_embedding_config
 
 load_dotenv(dotenv_path=".env", override=False)
 
 # Use unified logging system
-from src.core.logging import LightRAGLogContext, get_logger
+from src.logging import LightRAGLogContext, get_logger
 
 logger = get_logger("KnowledgeInit")
 
@@ -106,13 +108,13 @@ class DocumentAdder:
         for source in source_files:
             source_path = Path(source)
             if not source_path.exists():
-                logger.warning(f"  ✗ Source file does not exist: {source}")
+                logger.warning(f"  ⚠ Source file does not exist: {source}")
                 continue
 
             # Check if already exists
             if source_path.name in existing_files:
                 if skip_duplicates:
-                    logger.info(f"  ⊗ Skipped (already exists): {source_path.name}")
+                    logger.info(f"  → Skipped (already exists): {source_path.name}")
                     skipped_files.append(source_path.name)
                     continue
                 logger.warning(f"  ⚠ Overwriting existing file: {source_path.name}")
@@ -151,7 +153,7 @@ class DocumentAdder:
 
         # Get model configuration
         llm_cfg = get_llm_config()
-        model = llm_cfg["model"]
+        model = llm_cfg.model
 
         # Define LLM model function
         def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
@@ -233,14 +235,14 @@ class DocumentAdder:
 
         # Define embedding function
         embedding_cfg = self.embedding_cfg
-        embedding_api_key = embedding_cfg["api_key"] or self.api_key
-        embedding_base_url = embedding_cfg["base_url"] or self.base_url
+        embedding_api_key = embedding_cfg.api_key or self.api_key
+        embedding_base_url = embedding_cfg.base_url or self.base_url
         embedding_func = EmbeddingFunc(
-            embedding_dim=embedding_cfg["dim"],
-            max_token_size=embedding_cfg["max_tokens"],
+            embedding_dim=embedding_cfg.dim,
+            max_token_size=embedding_cfg.max_tokens,
             func=lambda texts: openai_embed(
                 texts,
-                model=embedding_cfg["model"],
+                model=embedding_cfg.model,
                 api_key=embedding_api_key,
                 base_url=embedding_base_url,
             ),

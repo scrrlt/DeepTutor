@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 NoteAgent - Note taker
 Based on new knowledge, generates or updates notes, annotates covered pain points and missing points

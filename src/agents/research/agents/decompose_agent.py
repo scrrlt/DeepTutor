@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 DecomposeAgent - Topic decomposition Agent
 Responsible for decomposing topics into multiple subtopics and generating overviews for each subtopic
@@ -180,7 +181,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         except Exception:
             sub_topics = []
 
-        print(f"✅ Generated {len(sub_topics)} subtopics (without RAG)")
+        print(f"✓ Generated {len(sub_topics)} subtopics (without RAG)")
 
         return {
             "main_topic": topic,
@@ -197,7 +198,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         # Step 1: Generate sub-queries
         print("\n🔍 Step 1: Generating sub-queries...")
         sub_queries = await self._generate_sub_queries(topic, num_subtopics)
-        print(f"✅ Generated {len(sub_queries)} sub-queries")
+        print(f"✓ Generated {len(sub_queries)} sub-queries")
 
         # Step 2: Execute RAG retrieval to get background knowledge
         print("\n🔍 Step 2: Executing RAG retrieval...")
@@ -253,7 +254,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             topic=topic, rag_context=combined_rag_context, num_subtopics=num_subtopics
         )
 
-        print(f"✅ Generated {len(sub_topics)} subtopics")
+        print(f"✓ Generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,
@@ -314,7 +315,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             topic=topic, rag_context=rag_context, max_subtopics=max_subtopics
         )
 
-        print(f"✅ Autonomously generated {len(sub_topics)} subtopics")
+        print(f"✓ Autonomously generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,

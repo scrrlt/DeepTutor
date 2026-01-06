@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 ResearchAgent - Research Agent
 Responsible for executing research logic and tool call decisions
@@ -564,7 +565,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                     else:
                         added = manager_agent.add_new_topic(trimmed_topic, new_overview or "")
                     if added:
-                        print(f"{block_id_prefix}   ➕ Added new topic《{trimmed_topic}》to queue")
+                        print(f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue")
                         send_progress(
                             "new_topic_added",
                             iteration=iteration,

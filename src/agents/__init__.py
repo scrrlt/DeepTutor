@@ -8,6 +8,7 @@ This module provides a unified BaseAgent class and module-specific agents:
 - ideagen: Idea generation agents (IdeaGenerationWorkflow, etc.)
 - co_writer: Co-writing agents (EditAgent, NarratorAgent)
 - question: Question generation agents (ReAct architecture, separate base)
+- chat: Lightweight conversational agent with session management
 
 Usage:
     from src.agents.base_agent import BaseAgent
@@ -18,6 +19,7 @@ Usage:
 """
 
 from .base_agent import BaseAgent
+from .chat import ChatAgent, SessionManager
 
-__all__ = ["BaseAgent"]
+__all__ = ["BaseAgent", "ChatAgent", "SessionManager"]
 
