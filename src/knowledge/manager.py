@@ -44,8 +44,6 @@ ADAPTER_TIMEOUT_S = 30.0
 ADAPTER_RETRIES = 2
 ADAPTER_BACKOFF_BASE = 0.5  # seconds
 
-from src.logging import get_logger
-
 
 class KnowledgeBaseManager:
     def __init__(self, kb_name: str, base_dir: str = "data/knowledge_bases"):

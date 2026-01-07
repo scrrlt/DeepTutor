@@ -71,6 +71,12 @@ reportlab>=3.6
 Pillow>=9.0
 
 # ============================================
+# Synthetic PDF generation (CI)
+# ============================================
+reportlab>=3.6
+Pillow>=9.0
+
+# ============================================
 # Development and testing tools
 # ============================================
 pytest>=7.0.0              # Testing framework
