@@ -4,10 +4,6 @@ KnowledgeBaseManager
 
 Streaming ingestion manager with adaptive batching, memory safety, and pluggable vector-store adapter.
 Designed for use in CI and production with APUs and constrained hosts.
-
-Patch summary:
-- FIX (blocker): adaptive batching now uses container-aware cgroup memory metrics when available,
-  falling back to psutil host memory only if cgroups are unavailable.
 """
 
 import os
@@ -25,7 +21,7 @@ try:
 except Exception:
     torch = None
 
-# Try importing psutil for fallback / RSS measurement
+# Try importing psutil for adaptive tuning
 try:
     import psutil
 except Exception:
@@ -128,103 +124,39 @@ class KnowledgeBaseManager:
         except Exception:
             return 1024
 
-    def _get_system_memory_percent(self) -> float:
-        """
-        Return memory usage percentage, preferring cgroup (container) limits over host memory.
-
-        Supports:
-        - Cgroup v2: /sys/fs/cgroup/memory.current + /sys/fs/cgroup/memory.max
-        - Cgroup v1: /sys/fs/cgroup/memory/memory.usage_in_bytes + /sys/fs/cgroup/memory/memory.limit_in_bytes
-
-        Falls back to psutil.virtual_memory().percent (host) if no cgroup limits are detectable.
-        Returns 0.0 if no signal can be determined.
-        """
-        # 1) cgroup v2
-        try:
-            cur_path = "/sys/fs/cgroup/memory.current"
-            max_path = "/sys/fs/cgroup/memory.max"
-            if os.path.exists(cur_path) and os.path.exists(max_path):
-                with open(cur_path, "r") as f:
-                    usage = int(f.read().strip())
-
-                with open(max_path, "r") as f:
-                    lim_str = f.read().strip()
-
-                if lim_str != "max":
-                    limit = int(lim_str)
-                    if limit > 0:
-                        return (usage / limit) * 100.0
-                # If "max" (no limit), fall through to other mechanisms
-        except Exception:
-            pass
-
-        # 2) cgroup v1
-        try:
-            usage_path = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
-            limit_path = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-            if os.path.exists(usage_path) and os.path.exists(limit_path):
-                with open(usage_path, "r") as f:
-                    usage = int(f.read().strip())
-
-                with open(limit_path, "r") as f:
-                    limit = int(f.read().strip())
-
-                # Some environments report an absurdly high number to represent "no limit"
-                if limit > 0 and limit < 10**15:
-                    return (usage / limit) * 100.0
-                # Otherwise fall through to host metrics
-        except Exception:
-            pass
-
-        # 3) host fallback
-        if psutil:
-            try:
-                return float(psutil.virtual_memory().percent)
-            except Exception:
-                return 0.0
-
-        return 0.0
-
     def _get_adaptive_batch_limits(
         self, current_batch_size: int, current_max_bytes: int, safe_threshold_percent: float = SAFETY_THRESHOLD_PERCENT
     ) -> Tuple[int, int]:
         """
-        Reduces or restores batch limits based on container/host memory pressure.
-
+        Reduces or restores batch limits based on system memory pressure.
         Returns (new_batch_size, new_max_bytes).
         Implements hysteresis: shrink quickly, restore slowly after several stable cycles.
         """
-        mem_percent = self._get_system_memory_percent()
-
-        # If we can't determine memory pressure, don't change limits
-        if mem_percent <= 0.0:
+        if not psutil:
             return current_batch_size, current_max_bytes
 
         try:
-            if mem_percent >= safe_threshold_percent:
+            mem = psutil.virtual_memory()
+            if mem.percent >= safe_threshold_percent:
                 # Shrink aggressively
                 new_size = max(1, current_batch_size // 2)
                 new_bytes = max(500_000, current_max_bytes // 2)
+                # Reset restore counter
                 self._adaptive_restore_counter = 0
-
                 if new_size < current_batch_size or new_bytes < current_max_bytes:
                     logger.warning(
-                        f"High Memory Pressure ({mem_percent:.1f}%). "
-                        f"Throttling: Batch {current_batch_size}->{new_size}, Bytes {current_max_bytes}->{new_bytes}"
+                        f"High Memory ({mem.percent}%). Throttling: Batch {current_batch_size}->{new_size}, Bytes {current_max_bytes}->{new_bytes}"
                     )
                 return new_size, new_bytes
 
-            # Restore slowly after several stable cycles
+            # If memory is comfortable, increment restore counter and slowly restore
             self._adaptive_restore_counter += 1
             if self._adaptive_restore_counter >= ADAPTIVE_RESTORE_CYCLES:
+                # Restore toward defaults but do not exceed defaults
                 restored_size = min(self._default_batch_size, current_batch_size * 2)
                 restored_bytes = min(self._default_max_bytes, current_max_bytes * 2)
-
                 if restored_size != current_batch_size or restored_bytes != current_max_bytes:
-                    logger.info(
-                        f"Restoring batch limits: {current_batch_size}->{restored_size}, {current_max_bytes}->{restored_bytes}"
-                    )
-
+                    logger.info(f"Restoring batch limits: {current_batch_size}->{restored_size}, {current_max_bytes}->{restored_bytes}")
                 self._adaptive_restore_counter = 0
                 return restored_size, restored_bytes
 
@@ -237,6 +169,7 @@ class KnowledgeBaseManager:
         Default stub for vector store insertion (Mock).
         Replace this with actual LightRAG/FAISS call.
         """
+        # Simulate processing time/overhead
         await asyncio.sleep(0.05)
         return {"success": True, "persisted": len(chunks), "latency_ms": 50}
 
@@ -334,30 +267,35 @@ class KnowledgeBaseManager:
             if count_trigger or size_trigger or time_trigger:
                 reason = "Count" if count_trigger else ("Size" if size_trigger else "Time")
                 logger.debug(
-                    f"Flush triggered by {reason}. Buffer: {len(chunk_buffer)} items, "
-                    f"approx {current_buffer_bytes} bytes (active limits: {active_batch_size} chunks, {active_max_bytes} bytes)"
+                    f"Flush triggered by {reason}. Buffer: {len(chunk_buffer)} items, approx {current_buffer_bytes} bytes (active limits: {active_batch_size} chunks, {active_max_bytes} bytes)"
                 )
 
-                # Critical pressure handling (container-aware)
-                mem_percent = self._get_system_memory_percent()
-                if mem_percent >= CRITICAL_THRESHOLD_PERCENT:
-                    logger.critical(f"Critical Memory Pressure ({mem_percent:.1f}%). Forcing deep cleanup and throttling.")
-                    self._cleanup_memory()
-                    active_batch_size = max(1, active_batch_size // 2)
-                    active_max_bytes = max(500_000, active_max_bytes // 2)
+                # If system is critically pressured, do a deep cleanup and reduce limits
+                if psutil:
+                    try:
+                        vm = psutil.virtual_memory()
+                        if vm.percent >= CRITICAL_THRESHOLD_PERCENT:
+                            logger.critical(f"Critical Memory Pressure ({vm.percent}%). Forcing deep cleanup and throttling.")
+                            self._cleanup_memory()
+                            active_batch_size = max(1, active_batch_size // 2)
+                            active_max_bytes = max(500_000, active_max_bytes // 2)
+                    except Exception:
+                        pass
 
+                # Flush and handle result
                 flush_result = await self._flush_batch_with_retries(chunk_buffer)
-
-                # Break references
+                # Replace buffer with a new list to break references (caller responsibility)
                 chunk_buffer = []
                 current_buffer_bytes = 0
                 last_flush_time = time.time() * 1000
 
+                # Deep Cleanup after flush
                 self._cleanup_memory()
 
                 if page_count % 50 == 0:
                     logger.info(f"Processed {page_count} pages of {file_path.name}...")
 
+        # Flush remaining chunks
         if chunk_buffer:
             await self._flush_batch_with_retries(chunk_buffer)
 

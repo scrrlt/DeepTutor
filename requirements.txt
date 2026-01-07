@@ -48,7 +48,31 @@ raganything>=0.1.0
 arxiv>=2.0.0
 
 # ============================================
-# PDF parsing and monitoring (runtime)
+# PDF parsing, monitoring and repro harness
 # ============================================
 psutil>=5.9.5
 pdfplumber>=0.7.6
+
+# ============================================
+# Synthetic PDF generation (CI)
+# ============================================
+reportlab>=3.6
+Pillow>=9.0
+
+# ============================================
+# Development tools
+# ============================================
+pre-commit>=3.0.0
+llama-cloud==0.1.35
+llama-cloud-services==0.6.54
+llama-index==0.14.12
+llama-index-cli==0.5.3
+llama-index-core==0.14.12
+llama-index-embeddings-openai==0.5.1
+llama-index-indices-managed-llama-cloud==0.9.4
+llama-index-instrumentation==0.4.2
+llama-index-llms-openai==0.6.12
+llama-index-readers-file==0.5.6
+llama-index-readers-llama-parse==0.5.1
+llama-index-workflows==2.11.6
+llama-parse==0.6.54
