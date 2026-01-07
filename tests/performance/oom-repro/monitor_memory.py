@@ -3,26 +3,29 @@
 """
 Lightweight process memory monitor for OOM repro runs.
 
-Features and improvements:
-- Aggregates RSS/VMS across the target process and its children.
+Features:
+- Aggregates RSS/VMS across the target PID and its children (recursive).
 - Sub-second sampling (default 0.2s) to capture fast OOM spikes.
-- Writes CSV time series and a JSON summary with peak RSS and metadata.
-- Attempts to detect cgroup OOM events (v1 and v2) when available.
-- Robust to AccessDenied/NoSuchProcess and supports clean shutdown.
+- Writes CSV time series and a JSON summary (peak RSS, duration, samples).
+- Captures cgroup OOM event counters (v1/v2) when available.
+- Captures cgroup memory usage/limit when available (container-aware).
+- Robust to AccessDenied/NoSuchProcess and supports SIGINT/SIGTERM shutdown.
 """
 
-import psutil
-import time
+from __future__ import annotations
+
 import argparse
 import csv
-import os
 import json
+import os
 import signal
+import time
 from datetime import datetime
+from typing import Dict, Tuple, Any, Optional
 
-# Sampling defaults
+import psutil
+
 DEFAULT_INTERVAL = 0.2  # seconds
-
 _shutdown = False
 
 
@@ -35,13 +38,71 @@ signal.signal(signal.SIGINT, _handle_sigterm)
 signal.signal(signal.SIGTERM, _handle_sigterm)
 
 
-def _read_cgroup_oom_events():
+def _read_file_int(path: str) -> Optional[int]:
+    try:
+        with open(path, "r") as f:
+            return int(f.read().strip())
+    except Exception:
+        return None
+
+
+def _read_file_str(path: str) -> Optional[str]:
+    try:
+        with open(path, "r") as f:
+            return f.read().strip()
+    except Exception:
+        return None
+
+
+def _read_cgroup_memory() -> Dict[str, Any]:
     """
-    Try to read cgroup OOM events for both cgroup v1 and v2.
-    Returns a dict with keys found and integer counts where available.
+    Best-effort container-aware memory snapshot.
+
+    Returns:
+      {
+        "mode": "cgroupv2" | "cgroupv1" | "unknown",
+        "usage_bytes": int | null,
+        "limit_bytes": int | null,
+        "percent": float | null
+      }
     """
-    events = {}
     # cgroup v2
+    try:
+        cur = _read_file_int("/sys/fs/cgroup/memory.current")
+        lim_s = _read_file_str("/sys/fs/cgroup/memory.max")
+        if cur is not None and lim_s is not None:
+            if lim_s != "max":
+                lim = int(lim_s)
+                pct = (cur / lim) * 100.0 if lim > 0 else None
+                return {"mode": "cgroupv2", "usage_bytes": cur, "limit_bytes": lim, "percent": pct}
+            return {"mode": "cgroupv2", "usage_bytes": cur, "limit_bytes": None, "percent": None}
+    except Exception:
+        pass
+
+    # cgroup v1
+    try:
+        cur = _read_file_int("/sys/fs/cgroup/memory/memory.usage_in_bytes")
+        lim = _read_file_int("/sys/fs/cgroup/memory/memory.limit_in_bytes")
+        if cur is not None and lim is not None:
+            # Some envs use absurdly high lim for "no limit"
+            if lim > 0 and lim < 10**15:
+                pct = (cur / lim) * 100.0
+                return {"mode": "cgroupv1", "usage_bytes": cur, "limit_bytes": lim, "percent": pct}
+            return {"mode": "cgroupv1", "usage_bytes": cur, "limit_bytes": None, "percent": None}
+    except Exception:
+        pass
+
+    return {"mode": "unknown", "usage_bytes": None, "limit_bytes": None, "percent": None}
+
+
+def _read_cgroup_oom_events() -> Dict[str, Any]:
+    """
+    Best-effort cgroup OOM event counters (v1 + v2).
+    Returns a dict with stable keys; values may be int/str.
+    """
+    events: Dict[str, Any] = {}
+
+    # cgroup v2: memory.events
     try:
         path_v2 = "/sys/fs/cgroup/memory.events"
         if os.path.exists(path_v2):
@@ -57,36 +118,39 @@ def _read_cgroup_oom_events():
     except Exception:
         pass
 
-    # cgroup v1 (legacy)
+    # cgroup v1: memory.oom_control (not counters, but state flags)
     try:
         path_v1 = "/sys/fs/cgroup/memory/memory.oom_control"
         if os.path.exists(path_v1):
             with open(path_v1, "r") as f:
                 content = f.read()
-                # memory.oom_control contains "oom_kill_disable" and "under_oom"
-                for line in content.splitlines():
-                    if line.strip():
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            key = parts[0].rstrip(':')
-                            val = parts[-1]
-                            try:
-                                events[f"v1:{key}"] = int(val)
-                            except ValueError:
-                                events[f"v1:{key}"] = val
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 2:
+                    key = parts[0].rstrip(":")
+                    val = parts[-1]
+                    try:
+                        events[f"v1:{key}"] = int(val)
+                    except ValueError:
+                        events[f"v1:{key}"] = val
     except Exception:
         pass
 
     return events
 
 
-def _aggregate_memory(proc):
+def _aggregate_memory(proc: psutil.Process) -> Tuple[int, int, int, int]:
     """
-    Aggregate RSS and VMS across proc and all descendants.
-    Returns (rss_bytes, vms_bytes).
+    Aggregate RSS/VMS and threads across proc and all descendants.
+    Returns (rss_bytes, vms_bytes, threads_total, procs_count).
     """
     rss = 0
     vms = 0
+    threads = 0
+    count = 0
     try:
         procs = [proc] + proc.children(recursive=True)
         for p in procs:
@@ -94,22 +158,25 @@ def _aggregate_memory(proc):
                 mi = p.memory_info()
                 rss += getattr(mi, "rss", 0)
                 vms += getattr(mi, "vms", 0)
+                threads += p.num_threads()
+                count += 1
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
     except (psutil.NoSuchProcess, psutil.AccessDenied):
-        # If parent disappears, return zeros
-        return 0, 0
-    return rss, vms
+        return 0, 0, 0, 0
+    return rss, vms, threads, count
 
 
-def monitor(pid, output_csv, output_json, interval=DEFAULT_INTERVAL):
+def monitor(pid: int, output_csv: str, output_json: str, interval: float = DEFAULT_INTERVAL) -> None:
     """
     Monitor the given PID and write CSV and JSON summary.
 
     CSV columns:
-      Timestamp, PID, RSS_MB, VIRT_MB, CPU_Percent, Swap_MB, Num_Threads, Status
+      Timestamp, PID, RSS_MB, VIRT_MB, CPU_Percent, Procs, Threads, Status, CgroupMemPercent
 
-    JSON summary includes peak_rss_mb, peak_time, samples, duration_sec, cgroup_events.
+    JSON summary includes:
+      peak_rss_mb, peak_time, samples, duration_sec, exit_reason,
+      cgroup_memory_start/end, cgroup_events_start/end.
     """
     print(f"Monitoring PID {pid} (interval={interval}s)...")
 
@@ -119,14 +186,19 @@ def monitor(pid, output_csv, output_json, interval=DEFAULT_INTERVAL):
         print(f"Process {pid} not found.")
         return
 
+    out_dir = os.path.dirname(output_csv) or "."
+    os.makedirs(out_dir, exist_ok=True)
+
     peak_rss_mb = 0.0
-    peak_time_iso = None
+    peak_time_iso: Optional[str] = None
     sample_count = 0
     start_time = time.time()
 
-    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
+    cgroup_events_start = _read_cgroup_oom_events()
+    cgroup_mem_start = _read_cgroup_memory()
 
-    # Open CSV and write header
+    exit_reason = "unknown"
+
     with open(output_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
@@ -136,40 +208,42 @@ def monitor(pid, output_csv, output_json, interval=DEFAULT_INTERVAL):
                 "RSS_MB",
                 "VIRT_MB",
                 "CPU_Percent",
-                "Swap_MB",
-                "Num_Threads",
+                "Procs",
+                "Threads",
                 "Status",
+                "CgroupMemPercent",
             ]
         )
 
+        # Warm up cpu_percent measurement
         try:
-            # Warm up cpu_percent measurement
-            try:
-                process.cpu_percent(interval=None)
-            except Exception:
-                pass
+            process.cpu_percent(interval=None)
+        except Exception:
+            pass
 
-            while process.is_running() and not _shutdown:
+        try:
+            while not _shutdown:
                 try:
-                    rss_bytes, vms_bytes = _aggregate_memory(process)
+                    if not process.is_running():
+                        exit_reason = "not_running"
+                        break
+
+                    rss_bytes, vms_bytes, threads_total, procs_count = _aggregate_memory(process)
                     rss_mb = rss_bytes / (1024 * 1024)
                     virt_mb = vms_bytes / (1024 * 1024)
 
-                    # cpu_percent with interval=None returns last computed value; call once per loop
+                    # cpu_percent with interval=None returns last computed value
                     cpu_pct = process.cpu_percent(interval=None)
 
-                    # swap may not be present on all platforms; best-effort
-                    swap_mb = 0.0
+                    status = "unknown"
                     try:
-                        # psutil.Process.memory_info() may not include swap; use system swap as fallback
-                        mi = process.memory_info()
-                        if hasattr(mi, "swap"):
-                            swap_mb = getattr(mi, "swap", 0) / (1024 * 1024)
+                        status = process.status()
                     except Exception:
-                        swap_mb = 0.0
+                        pass
 
-                    threads = process.num_threads()
-                    status = process.status()
+                    cg_mem = _read_cgroup_memory()
+                    cg_pct = cg_mem.get("percent", None)
+                    cg_pct_str = f"{cg_pct:.2f}" if isinstance(cg_pct, (float, int)) and cg_pct is not None else ""
 
                     timestamp = datetime.now().isoformat()
                     writer.writerow(
@@ -179,9 +253,10 @@ def monitor(pid, output_csv, output_json, interval=DEFAULT_INTERVAL):
                             f"{rss_mb:.2f}",
                             f"{virt_mb:.2f}",
                             f"{cpu_pct:.1f}",
-                            f"{swap_mb:.2f}",
-                            threads,
+                            procs_count,
+                            threads_total,
                             status,
+                            cg_pct_str,
                         ]
                     )
                     f.flush()
@@ -191,33 +266,40 @@ def monitor(pid, output_csv, output_json, interval=DEFAULT_INTERVAL):
                         peak_rss_mb = rss_mb
                         peak_time_iso = timestamp
 
-                    # Sleep with small granularity to be responsive to shutdown
+                    # Sleep with responsiveness to shutdown
                     slept = 0.0
                     while slept < interval and not _shutdown:
-                        time.sleep(min(0.05, interval - slept))
-                        slept += min(0.05, interval - slept)
+                        step = min(0.05, interval - slept)
+                        time.sleep(step)
+                        slept += step
 
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    exit_reason = "process_gone_or_denied"
                     break
         except KeyboardInterrupt:
-            pass
+            exit_reason = "keyboard_interrupt"
+        finally:
+            if _shutdown and exit_reason == "unknown":
+                exit_reason = "terminated"
 
     duration = time.time() - start_time
-
-    # Attempt to read cgroup oom events (best-effort)
-    cgroup_events = _read_cgroup_oom_events()
+    cgroup_events_end = _read_cgroup_oom_events()
+    cgroup_mem_end = _read_cgroup_memory()
 
     summary = {
+        "pid": pid,
         "peak_rss_mb": round(peak_rss_mb, 2),
         "peak_time": peak_time_iso,
         "samples": sample_count,
         "duration_sec": round(duration, 2),
-        "final_status": "completed" if not _shutdown else "terminated",
+        "exit_reason": exit_reason,
         "timestamp": datetime.now().isoformat(),
-        "cgroup_events": cgroup_events,
+        "cgroup_memory_start": cgroup_mem_start,
+        "cgroup_memory_end": cgroup_mem_end,
+        "cgroup_events_start": cgroup_events_start,
+        "cgroup_events_end": cgroup_events_end,
     }
 
-    # Write JSON summary
     with open(output_json, "w") as jf:
         json.dump(summary, jf, indent=2)
 
