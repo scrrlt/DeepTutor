@@ -3,7 +3,16 @@
 """
 Knowledge Base Manager
 
+<<<<<<< HEAD
 Manages multiple knowledge bases and provides utilities for accessing them.
+=======
+Streaming ingestion manager with adaptive batching, memory safety, and pluggable vector-store adapter.
+Designed for use in CI and production with APUs and constrained hosts.
+
+Patch summary:
+- FIX (blocker): adaptive batching now uses container-aware cgroup memory metrics when available,
+  falling back to psutil host memory only if cgroups are unavailable.
+>>>>>>> e8e972c (lock down runtime deps to preserve deterministic OOM behavior)
 """
 
 from datetime import datetime
@@ -56,6 +65,7 @@ class KnowledgeBaseManager:
         # Read knowledge base list from config file (this is the authoritative source)
         config_kbs = self.config.get("knowledge_bases", {})
 
+<<<<<<< HEAD
         for kb_name in config_kbs.keys():
             # Verify knowledge base directory exists
             kb_dir = self.base_dir / kb_name
@@ -300,6 +310,276 @@ class KnowledgeBaseManager:
                             )
                     except Exception:
                         pass
+=======
+        # 2. PyTorch CUDA/MPS Cache
+        if torch:
+            try:
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    torch.cuda.empty_cache()
+                    # Explicitly release IPC handles if multiprocessing is involved
+                    if hasattr(torch.cuda, "ipc_collect"):
+                        try:
+                            torch.cuda.ipc_collect()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            try:
+                if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    torch.mps.empty_cache()
+            except Exception:
+                pass
+
+    def _get_rss_mb(self) -> float:
+        if psutil:
+            try:
+                return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+            except Exception:
+                return 0.0
+        return 0.0
+
+    def _approx_bytes(self, text: str) -> int:
+        """
+        Approximate the memory footprint of a text chunk in bytes.
+        Uses utf-8 length and a multiplier to account for Python object overhead.
+        """
+        try:
+            utf8_len = len(text.encode("utf-8"))
+            approx = int(utf8_len * MEMORY_ESTIMATE_MULTIPLIER)
+            # Ensure a minimum
+            return max(256, approx)
+        except Exception:
+            return 1024
+
+    def _get_system_memory_percent(self) -> float:
+        """
+        Return memory usage percentage, preferring cgroup (container) limits over host memory.
+
+        Supports:
+        - Cgroup v2: /sys/fs/cgroup/memory.current + /sys/fs/cgroup/memory.max
+        - Cgroup v1: /sys/fs/cgroup/memory/memory.usage_in_bytes + /sys/fs/cgroup/memory/memory.limit_in_bytes
+
+        Falls back to psutil.virtual_memory().percent (host) if no cgroup limits are detectable.
+        Returns 0.0 if no signal can be determined.
+        """
+        # 1) cgroup v2
+        try:
+            cur_path = "/sys/fs/cgroup/memory.current"
+            max_path = "/sys/fs/cgroup/memory.max"
+            if os.path.exists(cur_path) and os.path.exists(max_path):
+                with open(cur_path, "r") as f:
+                    usage = int(f.read().strip())
+
+                with open(max_path, "r") as f:
+                    lim_str = f.read().strip()
+
+                if lim_str != "max":
+                    limit = int(lim_str)
+                    if limit > 0:
+                        return (usage / limit) * 100.0
+                # If "max" (no limit), fall through to other mechanisms
+        except Exception:
+            pass
+
+        # 2) cgroup v1
+        try:
+            usage_path = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+            limit_path = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+            if os.path.exists(usage_path) and os.path.exists(limit_path):
+                with open(usage_path, "r") as f:
+                    usage = int(f.read().strip())
+
+                with open(limit_path, "r") as f:
+                    limit = int(f.read().strip())
+
+                # Some environments report an absurdly high number to represent "no limit"
+                if limit > 0 and limit < 10**15:
+                    return (usage / limit) * 100.0
+                # Otherwise fall through to host metrics
+        except Exception:
+            pass
+
+        # 3) host fallback
+        if psutil:
+            try:
+                return float(psutil.virtual_memory().percent)
+            except Exception:
+                return 0.0
+
+        return 0.0
+
+    def _get_adaptive_batch_limits(
+        self, current_batch_size: int, current_max_bytes: int, safe_threshold_percent: float = SAFETY_THRESHOLD_PERCENT
+    ) -> Tuple[int, int]:
+        """
+        Reduces or restores batch limits based on container/host memory pressure.
+
+        Returns (new_batch_size, new_max_bytes).
+        Implements hysteresis: shrink quickly, restore slowly after several stable cycles.
+        """
+        mem_percent = self._get_system_memory_percent()
+
+        # If we can't determine memory pressure, don't change limits
+        if mem_percent <= 0.0:
+            return current_batch_size, current_max_bytes
+
+        try:
+            if mem_percent >= safe_threshold_percent:
+                # Shrink aggressively
+                new_size = max(1, current_batch_size // 2)
+                new_bytes = max(500_000, current_max_bytes // 2)
+                self._adaptive_restore_counter = 0
+
+                if new_size < current_batch_size or new_bytes < current_max_bytes:
+                    logger.warning(
+                        f"High Memory Pressure ({mem_percent:.1f}%). "
+                        f"Throttling: Batch {current_batch_size}->{new_size}, Bytes {current_max_bytes}->{new_bytes}"
+                    )
+                return new_size, new_bytes
+
+            # Restore slowly after several stable cycles
+            self._adaptive_restore_counter += 1
+            if self._adaptive_restore_counter >= ADAPTIVE_RESTORE_CYCLES:
+                restored_size = min(self._default_batch_size, current_batch_size * 2)
+                restored_bytes = min(self._default_max_bytes, current_max_bytes * 2)
+
+                if restored_size != current_batch_size or restored_bytes != current_max_bytes:
+                    logger.info(
+                        f"Restoring batch limits: {current_batch_size}->{restored_size}, {current_max_bytes}->{restored_bytes}"
+                    )
+
+                self._adaptive_restore_counter = 0
+                return restored_size, restored_bytes
+
+            return current_batch_size, current_max_bytes
+        except Exception:
+            return current_batch_size, current_max_bytes
+
+    async def _default_vector_adapter(self, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Default stub for vector store insertion (Mock).
+        Replace this with actual LightRAG/FAISS call.
+        """
+        await asyncio.sleep(0.05)
+        return {"success": True, "persisted": len(chunks), "latency_ms": 50}
+
+    async def process_documents(
+        self,
+        file_paths: List[str],
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+        max_wait_ms: int = DEFAULT_MAX_WAIT_MS,
+    ):
+        """
+        Process documents with strict memory controls and adaptive buffering.
+
+        Args:
+            file_paths: list of file paths
+            batch_size: initial max chunks per flush
+            max_bytes: initial max bytes per flush (heuristic)
+            max_wait_ms: max time to wait before flushing partial buffer
+        """
+        logger.info(f"Starting ingestion. Triggers: Count={batch_size}, Bytes={max_bytes}, Time={max_wait_ms}ms")
+
+        total_start = time.time()
+
+        # Runtime adaptive limits
+        active_batch_size = batch_size
+        active_max_bytes = max_bytes
+
+        for file_path in file_paths:
+            try:
+                path = Path(file_path)
+                if not path.exists():
+                    logger.error(f"File not found: {path}")
+                    continue
+
+                if path.suffix.lower() == ".pdf":
+                    # Update limits before starting file
+                    active_batch_size, active_max_bytes = self._get_adaptive_batch_limits(batch_size, max_bytes)
+                    await self._process_pdf_stream(path, active_batch_size, active_max_bytes, max_wait_ms)
+                else:
+                    self._process_text_file(path)
+
+                # Cleanup after every file
+                self._cleanup_memory()
+
+            except Exception as e:
+                logger.error(f"Failed to process file {file_path}: {e}")
+                import traceback
+
+                traceback.print_exc()
+
+        logger.info(f"All processing complete. Duration: {time.time() - total_start:.2f}s")
+
+    async def _process_pdf_stream(self, file_path: Path, batch_size: int, max_bytes: int, max_wait_ms: int):
+        """
+        Streams PDF content with multi-dimensional backpressure.
+        Expects parser.parse_generator to yield (text, page_num, byte_size) and to be truly streaming.
+        """
+        logger.info(f"Streaming processing for PDF: {file_path.name}")
+
+        chunk_buffer: List[Dict[str, Any]] = []
+        current_buffer_bytes = 0
+        last_flush_time = time.time() * 1000
+        page_count = 0
+
+        # Start with the configured limits; we'll adapt mid-stream
+        active_batch_size = batch_size
+        active_max_bytes = max_bytes
+
+        content_generator = self.parser.parse_generator(str(file_path))
+
+        for page_text, page_num, text_bytes in content_generator:
+            # Recompute adaptive limits mid-stream
+            active_batch_size, active_max_bytes = self._get_adaptive_batch_limits(active_batch_size, active_max_bytes)
+
+            if not page_text or not page_text.strip():
+                # still count page for logging but skip empty content
+                page_count += 1
+                continue
+
+            # Create chunks and estimate memory impact using a calibrated heuristic
+            new_chunks = self._chunk_text(page_text, source=file_path.name, page=page_num)
+            approx_bytes = sum(self._approx_bytes(c["content"]) for c in new_chunks)
+
+            # Append to buffer (we will replace the list on flush to break references)
+            chunk_buffer.extend(new_chunks)
+            current_buffer_bytes += approx_bytes
+            page_count += 1
+
+            # Check Triggers
+            now = time.time() * 1000
+            time_trigger = (now - last_flush_time) >= max_wait_ms
+            size_trigger = current_buffer_bytes >= active_max_bytes
+            count_trigger = len(chunk_buffer) >= active_batch_size
+
+            if count_trigger or size_trigger or time_trigger:
+                reason = "Count" if count_trigger else ("Size" if size_trigger else "Time")
+                logger.debug(
+                    f"Flush triggered by {reason}. Buffer: {len(chunk_buffer)} items, "
+                    f"approx {current_buffer_bytes} bytes (active limits: {active_batch_size} chunks, {active_max_bytes} bytes)"
+                )
+
+                # Critical pressure handling (container-aware)
+                mem_percent = self._get_system_memory_percent()
+                if mem_percent >= CRITICAL_THRESHOLD_PERCENT:
+                    logger.critical(f"Critical Memory Pressure ({mem_percent:.1f}%). Forcing deep cleanup and throttling.")
+                    self._cleanup_memory()
+                    active_batch_size = max(1, active_batch_size // 2)
+                    active_max_bytes = max(500_000, active_max_bytes // 2)
+
+                flush_result = await self._flush_batch_with_retries(chunk_buffer)
+
+                # Break references
+                chunk_buffer = []
+                current_buffer_bytes = 0
+                last_flush_time = time.time() * 1000
+
+                self._cleanup_memory()
+>>>>>>> e8e972c (lock down runtime deps to preserve deterministic OOM behavior)
 
                 if rag_stats:
                     statistics = info["statistics"]
@@ -308,7 +588,12 @@ class KnowledgeBaseManager:
             except Exception:
                 pass
 
+<<<<<<< HEAD
         return info
+=======
+        if chunk_buffer:
+            await self._flush_batch_with_retries(chunk_buffer)
+>>>>>>> e8e972c (lock down runtime deps to preserve deterministic OOM behavior)
 
     def delete_knowledge_base(self, name: str, confirm: bool = False) -> bool:
         """

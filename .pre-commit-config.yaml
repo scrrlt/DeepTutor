@@ -7,7 +7,7 @@
 #
 # Usage:
 #   pre-commit run --all-files  # Run on all files
-#   git commit  # Hooks run automatically on commit
+#   git commit                 # Hooks run automatically on commit
 
 repos:
   # ============================================
@@ -42,13 +42,14 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.7
     hooks:
+      # Ruff linting
       - id: ruff
         # Added --quiet to suppress logs; --exit-zero makes it a "soft fail" if desired
         args: [--fix, --quiet, --exit-zero]
 
+      # Ruff formatting
       - id: ruff-format
         args: [--quiet]
-
   # ============================================
   # Frontend code formatting and linting
   # ============================================
@@ -71,6 +72,7 @@ repos:
         exclude: package-lock.json
         pass_filenames: false
 
+<<<<<<< HEAD
   # Replaced Safety with pip-audit due to version 3.x breakdown
   # NOTE: pip-audit disabled due to pip-api upstream bug with non-ASCII paths on Windows
   # (UnicodeDecodeError when username contains Chinese characters)
@@ -112,3 +114,28 @@ repos:
         additional_dependencies:
           - types-PyYAML
           - types-requests
+
+  # ============================================
+  # Runtime dependency policy enforcement
+  # ============================================
+  - repo: local
+    hooks:
+      - id: forbid-runtime-image-deps
+        name: Forbid CI-only image libraries in runtime requirements
+        entry: bash -c '
+          set -euo pipefail
+          FORBIDDEN_DEPS="Pillow reportlab"
+          for dep in $FORBIDDEN_DEPS; do
+            if grep -iE "^${dep}\b" requirements.txt; then
+              echo ""
+              echo "ERROR: Forbidden runtime dependency detected: $dep"
+              echo ""
+              echo "Pillow and reportlab are CI-only dependencies."
+              echo "Move them to requirements-dev.txt."
+              echo ""
+              exit 1
+            fi
+          done
+        '
+        language: system
+        files: ^requirements\.txt$

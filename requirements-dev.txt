@@ -1,0 +1,18 @@
+# ============================================
+# DeepTutor Development & CI Dependencies
+# ============================================
+# Install: pip install -r requirements-dev.txt
+
+# Base runtime deps
+-r requirements.txt
+
+# ============================================
+# Synthetic PDF generation (CI only)
+# ============================================
+reportlab>=3.6
+Pillow>=9.0
+
+# ============================================
+# Development tools
+# ============================================
+pre-commit>=3.0.0

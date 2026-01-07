@@ -1,5 +1,5 @@
 # ============================================
-# DeepTutor Python Dependencies
+# DeepTutor Python Dependencies (Runtime)
 # ============================================
 # Python >= 3.10 required
 # Install: pip install -r requirements.txt
@@ -68,6 +68,10 @@ numpy>=1.24.0,<2.0.0  # NumPy 1.24+ required for array API, <2.0 for compatibili
 
 # PDF parsing
 PyMuPDF>=1.26.0      # For PDF text extraction (fast and reliable)
+
+# Runtime monitoring / OOM repro (lightweight)
+psutil>=5.9.5
+pdfplumber>=0.7.6
 
 # Vector search (optional but recommended for llamaindex pipeline)
 # faiss-cpu>=1.7.4   # Uncomment for CPU-only FAISS support (faster search)
