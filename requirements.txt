@@ -48,13 +48,16 @@ raganything>=0.1.0
 arxiv>=2.0.0
 
 # ============================================
-# Scientific computing (optional, for code execution)
+# PDF parsing, monitoring and repro harness
 # ============================================
-# Uncomment if users need these for code execution feature
-# numpy>=1.24.0
-# matplotlib>=3.7.0
-# scipy>=1.11.0
-# pandas>=2.0.0
+psutil>=5.9.5
+pdfplumber>=0.7.6
+
+# ============================================
+# Synthetic PDF generation (CI)
+# ============================================
+reportlab>=3.6
+Pillow>=9.0
 
 # ============================================
 # Development tools
