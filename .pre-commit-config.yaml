@@ -16,34 +16,24 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      # Remove trailing whitespace
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
         exclude: ^(assets/roster/.*\.svg|.*\.min\.(js|css)|.*\.lock|.*\.log|.*\.pdf|.*\.zip|.*\.tar\.gz)
 
-      # Ensure files end with a newline
       - id: end-of-file-fixer
         exclude: ^(assets/roster/.*\.svg|.*\.min\.(js|css)|.*\.lock|.*\.log|.*\.pdf|.*\.zip|.*\.tar\.gz)
 
-      # Check YAML files for syntax errors
       - id: check-yaml
-        args: [--unsafe]  # Allow custom tags in YAML
+        args: [--unsafe]
 
-      # Check JSON files for syntax errors
       - id: check-json
         exclude: ^(.*\.lock|.*\.log)
 
-      # Prevent committing large files
       - id: check-added-large-files
         args: [--maxkb=6144]
 
-      # Detect merge conflict markers
       - id: check-merge-conflict
-
-      # Detect case conflicts in file names
       - id: check-case-conflict
-
-      # Check for files that would conflict in case-insensitive filesystems
       - id: check-toml
 
   # ============================================
@@ -52,11 +42,8 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.7
     hooks:
-      # Ruff linting
       - id: ruff
         args: [--fix]
-
-      # Ruff formatting
       - id: ruff-format
 
   # ============================================
@@ -83,6 +70,21 @@ repos:
   # ============================================
   # Runtime dependency policy enforcement
   # ============================================
+  #
+  # CRITICAL POLICY:
+  # ----------------
+  # Pillow and reportlab MUST NOT appear in requirements.txt.
+  #
+  # These libraries:
+  #   - introduce native allocators (fonts, images, caches)
+  #   - make RSS behavior non-deterministic
+  #   - obscure ingestion-related memory signals
+  #
+  # They are CI-only tools (synthetic PDF generation) and belong
+  # exclusively in requirements-dev.txt.
+  #
+  # This hook enforces that boundary locally, before CI.
+  #
   - repo: local
     hooks:
       - id: forbid-runtime-image-deps
