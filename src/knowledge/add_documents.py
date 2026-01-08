@@ -37,7 +37,6 @@ load_dotenv(dotenv_path=".env", override=False)
 logger = get_logger("KnowledgeInit")
 
 
-
 class DocumentAdder:
     """Add documents to existing knowledge base"""
 
