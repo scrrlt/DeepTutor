@@ -1,4 +1,4 @@
-# tests/performance/oom_repro/Dockerfile
+# tests/performance/Dockerfile
 #
 # Purpose:
 #   Minimal, safe image for OOM reproduction and ingestion diagnostics.
@@ -11,16 +11,6 @@
 #
 # These libraries are used ONLY for CI tooling (synthetic PDF generation)
 # and MUST NOT be present in production or runtime images.
-#
-# Why?
-#   - They introduce native memory allocators (fonts, images, caches)
-#   - They make RSS behavior non-deterministic
-#   - They obscure ingestion-related memory signals
-#   - They increase attack surface and CVE churn
-#
-# If you believe one of these libraries is required at runtime,
-# STOP and document the exact production code path that needs it.
-# Otherwise, add it to requirements-dev.txt ONLY.
 # ------------------------------------------------------------
 
 FROM python:3.10-slim
@@ -53,21 +43,19 @@ RUN useradd -m -u 1000 tester && chown -R tester:tester /app
 # ------------------------------------------------------------
 COPY requirements.txt ./
 COPY src/ src/
-COPY tests/performance/oom_repro/ tests/performance/oom_repro/
+# Fixed: Copy all performance test files (flattened structure)
+COPY tests/performance/ tests/performance/
 
 # ------------------------------------------------------------
 # Install runtime Python dependencies ONLY
 # ------------------------------------------------------------
-# NOTE:
-# - psutil and pdfplumber are declared in requirements.txt
-# - reportlab and Pillow are intentionally excluded (CI-only)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ------------------------------------------------------------
 # Prepare writable logs directory
 # ------------------------------------------------------------
-RUN mkdir -p /app/tests/performance/oom_repro/logs \
-    && chown -R tester:tester /app/tests/performance/oom_repro
+RUN mkdir -p /app/tests/performance/logs \
+    && chown -R tester:tester /app/tests/performance
 
 USER tester
 
@@ -80,4 +68,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 # ------------------------------------------------------------
 # Default entrypoint
 # ------------------------------------------------------------
-CMD ["python3", "tests/performance/oom_repro/ingest_isolated.py", "--help"]
+CMD ["python3", "tests/performance/ingest_isolated.py", "--help"]

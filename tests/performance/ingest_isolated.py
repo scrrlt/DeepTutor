@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
-tests/performance/oom_repro/ingest_isolated.py
+tests/performance/ingest_isolated.py
 
-Process‑pool based ingestion harness for deterministic OOM reproduction.
-
+Process-pool based ingestion harness for deterministic OOM reproduction.
 Key properties:
 - Uses multiprocessing.Pool with maxtasksperchild to amortize startup cost
   while guaranteeing periodic memory reclamation.
-- Each worker self‑monitors via a sidecar monitor process.
+- Each worker self-monitors via a sidecar monitor process.
 - Explicitly breaks pdfplumber internal page references (pdf.pages[i] = None).
 - No IPC queues; workers return small, picklable result dicts only.
-- Produces per‑batch telemetry and a run manifest suitable for CI gating.
+- Produces per-batch telemetry and a run manifest suitable for CI gating.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 # Ensure project root is importable
-project_root = Path(__file__).resolve().parent.parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
@@ -36,11 +35,11 @@ from src.core.logging import get_logger
 logger = get_logger("IngestHarness")
 
 # Optional mock adapter import (CI)
+# Fixed: Corrected import path based on flat file structure
 try:
-    from tests.performance.oom_repro.mock_flush_adapter import MockFlushAdapter  # type: ignore
+    from tests.performance.mock_flush_adapter import MockFlushAdapter  # type: ignore
 except Exception:
     MockFlushAdapter = None
-
 
 # -----------------------------
 # Monitoring sidecar
@@ -49,9 +48,12 @@ def _start_monitor(pid: int, output_dir: str, batch_id: str, interval: float = 0
     batch_dir = os.path.join(output_dir, f"batch_{batch_id}")
     os.makedirs(batch_dir, exist_ok=True)
 
+    # Fixed: Corrected path to monitor_memory.py
+    monitor_script = os.path.join(os.path.dirname(__file__), "monitor_memory.py")
+    
     cmd = [
         sys.executable,
-        "tests/performance/oom_repro/monitor_memory.py",
+        monitor_script,
         "--pid",
         str(pid),
         "--output-dir",
@@ -61,7 +63,6 @@ def _start_monitor(pid: int, output_dir: str, batch_id: str, interval: float = 0
     ]
     proc = subprocess.Popen(cmd)
     return proc, batch_dir
-
 
 # -----------------------------
 # Worker task
@@ -130,7 +131,10 @@ def worker_task(args: Dict[str, Any]) -> Dict[str, Any]:
                     except Exception:
                         pass
                     # CRITICAL: break pdfplumber internal reference
-                    pdf.pages[i - 1] = None
+                    try:
+                        pdf.pages[i - 1] = None
+                    except Exception:
+                        pass
                     del page
 
     except Exception as e:
@@ -166,7 +170,6 @@ def worker_task(args: Dict[str, Any]) -> Dict[str, Any]:
         "duration_s": round(time.time() - start_time, 3),
         "monitor_summary": monitor_summary,
     }
-
 
 # -----------------------------
 # Orchestrator
@@ -251,7 +254,6 @@ def run_ingestion(
 
         logger.info(f"Wrote run manifest to {manifest_path}")
 
-
 # -----------------------------
 # CLI
 # -----------------------------
@@ -259,7 +261,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OOM repro harness (process pool)")
     parser.add_argument("--file", required=True, help="Path to PDF file")
     parser.add_argument("--batch-size", type=int, default=1, help="Pages per worker task")
-    parser.add_argument("--output-dir", default="tests/performance/oom_repro/logs")
+    parser.add_argument("--output-dir", default="tests/performance/logs")
     parser.add_argument("--use-mock-flush", action="store_true")
     args = parser.parse_args()
 

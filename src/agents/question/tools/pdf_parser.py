@@ -1,11 +1,14 @@
-import pdfplumber
+#!/usr/bin/env python
+"""
+Parse PDF files using pdfplumber with strict memory controls.
+"""
+
 import logging
 import gc
 import os
 import sys
+import pdfplumber
 from typing import Generator, Tuple
-
-# src/agents/question/tools/pdf_parser.py
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,6 @@ class PDFParser:
     def parse_generator(self, file_path: str) -> Generator[Tuple[str, int, int], None, None]:
         """
         Yields (text, page_number, byte_size) tuples.
-
         byte_size is an approximate Python-side footprint (sys.getsizeof).
         """
         if not os.path.exists(file_path):
@@ -36,23 +38,23 @@ class PDFParser:
                 # Use len() to get count without loading all pages
                 total_pages = len(pdf.pages)
                 logger.info(f"Opened PDF with {total_pages} pages: {file_path}")
-                
+
                 # Iterate by index to avoid loading all page objects into a list
                 for i in range(total_pages):
                     page = None
                     try:
                         # Lazy load single page
                         page = pdf.pages[i]
-                        
+
                         # Extract text (layout=False is faster and lighter)
                         text = page.extract_text(layout=False) or ""
 
                         # Approximate Python memory footprint
                         byte_size = sys.getsizeof(text)
-                        
+
                         # Yield result
                         yield text, (i + 1), byte_size
-                        
+
                     except Exception as e:
                         logger.error(f"Error parsing page {i + 1} of {file_path}: {e}")
                         yield "", (i + 1), 0
@@ -85,7 +87,6 @@ class PDFParser:
     def parse(self, file_path: str) -> str:
         """
         Legacy method.
-
         WARNING:
         Loads the entire document into memory.
         Use parse_generator() for large files.

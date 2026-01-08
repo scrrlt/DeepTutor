@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
-# tests/performance/oom_repro/run_in_docker.sh
+# tests/performance/run_in_docker.sh
 #
 # Robust Docker runner for OOM reproduction.
-#
-# Fixes and improvements:
-# - Correctly captures OOMKilled status (cannot inspect a container after --rm).
-# - Aggregates peak RSS across per-batch monitor summaries.
-# - Uses a CID file to inspect container state reliably.
-# - Adds safety checks for required tools (docker, jq).
-# - Cleans up temporary artifacts deterministically.
-# - Aligns flags with the pooled-worker ingest harness.
+# Fixes pathing for flat directory structure.
 
 set -euo pipefail
 
@@ -18,6 +11,7 @@ set -euo pipefail
 # -----------------------------
 command -v docker >/dev/null 2>&1 || { echo "docker is required"; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "jq is required"; exit 1; }
+# Check for uuidgen (some systems might use python fallback if missing, but let's stick to bash tools)
 command -v uuidgen >/dev/null 2>&1 || { echo "uuidgen is required"; exit 1; }
 
 # -----------------------------
@@ -42,7 +36,8 @@ fi
 # Paths & names
 # -----------------------------
 ROOT_DIR="$(pwd)"
-LOG_DIR="$ROOT_DIR/tests/performance/oom_repro/logs"
+# Fixed: Paths aligned to tests/performance/ structure
+LOG_DIR="$ROOT_DIR/tests/performance/logs"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
 MANIFEST="$LOG_DIR/manifest_$TIMESTAMP.json"
 
@@ -73,16 +68,17 @@ echo "=============================="
 # Build image
 # -----------------------------
 echo "Building Docker image..."
-docker build -f tests/performance/oom_repro/Dockerfile -t "$IMAGE_NAME" .
+# Fixed: Dockerfile is in tests/performance/Dockerfile
+docker build -f tests/performance/Dockerfile -t "$IMAGE_NAME" .
 
 # -----------------------------
 # Command inside container
 # -----------------------------
-CMD_STR="python3 tests/performance/oom_repro/ingest_isolated.py \
-  --kb_name repro_run \
+# Fixed: ingest_isolated.py is in /app/tests/performance/
+CMD_STR="python3 tests/performance/ingest_isolated.py \
   --file /data/$FILENAME \
   --batch-size 10 \
-  --output-dir /app/tests/performance/oom_repro/logs"
+  --output-dir /app/tests/performance/logs"
 
 echo "Running Command inside Container:"
 echo "$CMD_STR"
@@ -98,7 +94,7 @@ docker run \
   --memory-swap="$MEM_LIMIT" \
   --cpus="1.0" \
   -v "$(realpath "$PDF_PATH"):/data/$FILENAME:ro" \
-  -v "$LOG_DIR:/app/tests/performance/oom_repro/logs" \
+  -v "$LOG_DIR:/app/tests/performance/logs" \
   "$IMAGE_NAME" \
   bash -c "$CMD_STR"
 EXIT_CODE=$?

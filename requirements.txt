@@ -1,54 +1,64 @@
-# ============================================
-# DeepTutor Python Dependencies (Runtime)
-# ============================================
-# Python >= 3.10 required
-# Install: pip install -r requirements.txt
-
-# ============================================
-# Core dependencies
-# ============================================
+fastapi>=0.104.0
+uvicorn>=0.23.0
+pydantic>=2.4.0
 python-dotenv>=1.0.0
-PyYAML>=6.0
-tiktoken>=0.5.0
 
-# ============================================
-# HTTP and API clients
-# ============================================
-requests>=2.32.2
-openai>=1.30.0
-perplexityai>=0.1.0
-dashscope>=1.14.0
-aiohttp>=3.9.4
-httpx>=0.27.0
-urllib3>=2.2.1
+LangChain & LLM
 
-# ============================================
-# Async support
-# ============================================
-nest_asyncio>=1.5.8
+langchain>=0.0.330
+langchain-openai>=0.0.2
+openai>=1.3.0
+tiktoken>=0.5.1
 
-# ============================================
-# Web framework and server
-# ============================================
-fastapi>=0.100.0
-uvicorn[standard]>=0.24.0
-websockets>=12.0
-python-multipart>=0.0.6
-pydantic>=2.0.0
+Vector Store
 
-# ============================================
-# RAG and knowledge base
-# ============================================
-lightrag-hku>=1.0.0
+chromadb>=0.4.15
+
+Utils
+
+aiohttp>=3.8.6
+tenacity>=8.2.3
+PyYAML>=6.0.1
+regex>=2023.10.3
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+
+Research & Processing
+
+arxiv>=2.0.0
 raganything>=0.1.0
 
-# ============================================
-# Academic and research tools
-# ============================================
-arxiv>=2.0.0
+============================================
 
-# ============================================
-# PDF parsing and monitoring (runtime)
-# ============================================
+Runtime PDF Processing (Memory Safe)
+
+============================================
+
+Replaces mineru/magic-pdf with purely pythonic stack
+
+pdfplumber>=0.10.0
 psutil>=5.9.5
-pdfplumber>=0.7.6
+
+============================================
+
+Scientific computing (optional)
+
+============================================
+
+Uncomment if users need these for code execution feature
+
+numpy>=1.24.0
+
+matplotlib>=3.7.0
+
+scipy>=1.11.0
+
+pandas>=2.0.0
+
+============================================
+
+Development tools (Runtime)
+
+============================================
+
+pre-commit>=3.0.0
