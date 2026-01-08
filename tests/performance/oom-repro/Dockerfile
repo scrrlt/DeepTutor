@@ -58,8 +58,10 @@ COPY tests/performance/oom_repro/ tests/performance/oom_repro/
 # ------------------------------------------------------------
 # Install runtime Python dependencies ONLY
 # ------------------------------------------------------------
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir psutil pdfplumber
+# NOTE:
+# - psutil and pdfplumber are declared in requirements.txt
+# - reportlab and Pillow are intentionally excluded (CI-only)
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ------------------------------------------------------------
 # Prepare writable logs directory
