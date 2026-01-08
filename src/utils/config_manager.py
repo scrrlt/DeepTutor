@@ -1,13 +1,34 @@
 import os
+import logging
+import tempfile
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import yaml
+from dotenv import dotenv_values, load_dotenv
+from pydantic import ValidationError
+
+from src.config.schema import AppConfig, migrate_config
+from src.config.defaults import DEFAULTS
+from src.core.errors import ConfigError
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """Thread-safe manager for config/main.yaml and .env."""
+    """
+    Thread-safe manager for reading and writing configuration files.
+    Primarily manages config/main.yaml and reads .env.
+
+    Governance additions:
+    - Schema validation via pydantic (AppConfig); invalid configs are rejected.
+    - Versioned migrations via migrate_config.
+    - Atomic writes with temp file and os.replace; creates main.yaml.bak.
+    - Single lock guards mtime read, load, and save.
+    - Deterministic YAML dumps; returns deep copies.
+    - Layered env: .env, then .env.local (override), then process env.
+    """
 
     _instance = None
     _lock = Lock()
@@ -21,148 +42,148 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self):
-        if self._initialized:
+        if getattr(self, "_initialized", False):
             return
 
         self.project_root = Path(__file__).parent.parent.parent
         self.config_path = self.project_root / "config" / "main.yaml"
-        self._config_cache = None
-        self._last_mtime = 0
+        self._config_cache: Dict[str, Any] = {}
+        self._last_mtime: float = 0.0
         self._initialized = True
 
+        # Layered env loading
+        load_dotenv(dotenv_path=self.project_root / ".env", override=False)
+        load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
+
+    def _read_yaml(self) -> Dict[str, Any]:
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+
+    def _deep_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        for key, value in source.items():
+            if isinstance(value, dict) and isinstance(target.get(key), dict):
+                self._deep_update(target[key], value)
+            else:
+                target[key] = value
+
+    def _validate_and_migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        merged: Dict[str, Any] = {}
+        self._deep_update(merged, DEFAULTS)
+        self._deep_update(merged, raw)
+        migrated = migrate_config(merged)
+        try:
+            return AppConfig(**migrated).dict()
+        except ValidationError as e:
+            raise ConfigError("Config validation failed", context={"errors": e.errors()})
+
     def load_config(self, force_reload: bool = False) -> Dict[str, Any]:
-        """Load config/main.yaml with file-mtime caching."""
-        if not self.config_path.exists():
-            return {}
+        """
+        Load configuration from main.yaml.
+        Uses caching based on file modification time and validates against schema.
+        """
+        with self._lock:
+            if not self.config_path.exists():
+                logger.info("Config not found at %s", self.config_path)
+                self._config_cache = {}
+                self._last_mtime = 0
+                return {}
 
-        current_mtime = self.config_path.stat().st_mtime
-
-        if self._config_cache is None or force_reload or current_mtime > self._last_mtime:
-            with self._lock:
+            current_mtime = self.config_path.stat().st_mtime
+            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
                 try:
-                    with open(self.config_path, "r", encoding="utf-8") as f:
-                        self._config_cache = yaml.safe_load(f) or {}
+                    raw = self._read_yaml()
+                    validated = self._validate_and_migrate(raw)
+                    self._config_cache = validated
                     self._last_mtime = current_mtime
+                except ConfigError as ce:
+                    logger.error("%s", ce, extra={"context": getattr(ce, "context", {})})
+                    return {}
                 except Exception as e:
-                    print(f"Error loading config: {e}")
+                    logger.exception("Error loading config: %s", e)
                     return {}
 
-        return self._config_cache.copy()
+            # deep copy via dump/load for immutability
+            return yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False)) or {}
 
     def save_config(self, config: Dict[str, Any]) -> bool:
-        """Save config to main.yaml with deep merge."""
+        """
+        Save configuration to main.yaml.
+        Deep-merges provided config with existing one; writes atomically.
+        Rejects invalid configs per schema.
+        """
         try:
-            current_config = self.load_config(force_reload=True)
-
-            def deep_update(target, source):
-                for key, value in source.items():
-                    if isinstance(value, dict) and key in target and isinstance(target[key], dict):
-                        deep_update(target[key], value)
-                    else:
-                        target[key] = value
-
-            deep_update(current_config, config)
-
-            self.config_path.parent.mkdir(parents=True, exist_ok=True)
-
             with self._lock:
-                with open(self.config_path, "w", encoding="utf-8") as f:
-                    yaml.safe_dump(
-                        current_config,
-                        f,
-                        default_flow_style=False,
-                        allow_unicode=True,
-                        sort_keys=False,
-                    )
+                current = self.load_config(force_reload=True)
+                self._deep_update(current, config)
+                validated = self._validate_and_migrate(current)
 
-                self._config_cache = current_config
-                self._last_mtime = self.config_path.stat().st_mtime
+                self.config_path.parent.mkdir(parents=True, exist_ok=True)
+                yaml_str = yaml.safe_dump(
+                    validated,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
+                )
 
-            return True
+                # Atomic write with backup
+                fd, tmp_path = tempfile.mkstemp(prefix="main.yaml.", dir=str(self.config_path.parent))
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+                        tmp.write(yaml_str)
+                        tmp.flush()
+                        os.fsync(tmp.fileno())
+                    backup_path = self.config_path.with_suffix(".yaml.bak")
+                    if self.config_path.exists():
+                        try:
+                            os.replace(self.config_path, backup_path)
+                        except Exception:
+                            logger.debug("Backup replace failed; continuing.")
+                    os.replace(tmp_path, self.config_path)
+                    self._config_cache = validated
+                    self._last_mtime = self.config_path.stat().st_mtime
+                    return True
+                finally:
+                    if os.path.exists(tmp_path):
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
+        except ConfigError as ce:
+            logger.error("Refusing to save invalid config: %s", ce, extra={"context": getattr(ce, "context", {})})
+            return False
         except Exception as e:
-            print(f"Error saving config: {e}")
+            logger.exception("Error saving config: %s", e)
             return False
 
     def get_env_info(self) -> Dict[str, str]:
         """
-        Get actual LLM and Embedding configuration.
-
-        Strategy:
-        1. Try initialized services (most accurate)
-        2. Fallback to .env file parsing
-        3. Last resort: os.environ
+        Read relevant environment variables using layered .env files and process env.
+        Returns only non-sensitive metadata.
         """
-        env_vars = self._read_env_file()
-        llm_config = self._get_safe_llm_config(env_vars)
-        emb_config = self._get_safe_embedding_config(env_vars)
+        env_path = self.project_root / ".env"
+        local_path = self.project_root / ".env.local"
+        parsed_env: Dict[str, str] = {}
+        if env_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+
+        def _get(key: str, default: str = "") -> str:
+            return str(parsed_env.get(key) or os.environ.get(key, default))
 
         return {
-            "llm_model": llm_config["model"],
-            "llm_binding": llm_config["binding"],
-            "embedding_model": emb_config["model"],
-            "embedding_binding": emb_config["binding"],
-            "embedding_dim": str(emb_config["dim"]),
+            "model": _get("LLM_MODEL", DEFAULTS.get("llm", {}).get("model", "Pro/Flash")),
         }
 
-    def _read_env_file(self) -> Dict[str, str]:
-        """Parse .env file directly."""
-        env_vars = {}
+    def validate_required_env(self, keys: List[str]) -> Dict[str, List[str]]:
         env_path = self.project_root / ".env"
-
+        local_path = self.project_root / ".env.local"
+        parsed_env: Dict[str, str] = {}
         if env_path.exists():
-            try:
-                with open(env_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        if "=" in line:
-                            key, val = line.split("=", 1)
-                            env_vars[key.strip()] = val.strip().strip('"').strip("'")
-            except Exception as e:
-                print(f"Warning: Error reading .env: {e}")
-
-        return env_vars
-
-    def _get_safe_llm_config(self, env_vars: Dict[str, str]) -> Dict[str, str]:
-        """Get LLM config with fallback chain."""
-        try:
-            from src.services.llm import get_llm_config
-
-            cfg = get_llm_config()
-            return {"model": cfg.model, "binding": cfg.binding}
-        except Exception as e:
-            # Fallback to env_vars (parsed from .env file)
-            model = env_vars.get("LLM_MODEL") or os.environ.get("LLM_MODEL", "unknown")
-            binding = env_vars.get("LLM_BINDING") or os.environ.get("LLM_BINDING", "openai")
-            return {"model": model, "binding": binding}
-
-    def _get_safe_embedding_config(self, env_vars: Dict[str, str]) -> Dict[str, Any]:
-        """Get Embedding config with fallback chain."""
-        try:
-            from src.services.embedding import get_embedding_config
-
-            cfg = get_embedding_config()
-            return {
-                "model": cfg.model,
-                "binding": cfg.binding,
-                "dim": cfg.dim,
-            }
-        except Exception as e:
-            # Fallback to env_vars (parsed from .env file)
-            dim_str = env_vars.get("EMBEDDING_DIM") or os.environ.get("EMBEDDING_DIM", "1536")
-            try:
-                dim = int(dim_str)
-            except (ValueError, TypeError):
-                dim = 1536
-
-            model = env_vars.get("EMBEDDING_MODEL") or os.environ.get("EMBEDDING_MODEL", "unknown")
-            binding = env_vars.get("EMBEDDING_BINDING") or os.environ.get(
-                "EMBEDDING_BINDING", "openai"
-            )
-
-            return {
-                "model": model,
-                "binding": binding,
-                "dim": dim,
-            }
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+        missing = [k for k in keys if not (parsed_env.get(k) or os.environ.get(k))]
+        if missing:
+            logger.warning("Missing required env keys", extra={"missing": missing})
+        return {"missing": missing}
