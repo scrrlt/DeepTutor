@@ -1,13 +1,29 @@
 import logging
 import os
+<<<<<<< HEAD
 import tempfile
 from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional
+=======
+import logging
+import tempfile
+from pathlib import Path
+from threading import Lock
+from typing import Any, Dict, List
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
 
 from dotenv import dotenv_values, load_dotenv
 from pydantic import ValidationError
 import yaml
+from dotenv import dotenv_values, load_dotenv
+from pydantic import ValidationError
+
+from src.config.schema import AppConfig, migrate_config
+from src.config.defaults import DEFAULTS
+from src.core.errors import ConfigError
+
+logger = logging.getLogger(__name__)
 
 from src.config.schema import AppConfig, migrate_config
 from src.config.defaults import DEFAULTS
@@ -28,6 +44,18 @@ class ConfigManager:
     """
     Thread-safe manager for reading and writing configuration files.
     Primarily manages config/main.yaml and reads .env.
+<<<<<<< HEAD
+=======
+
+    Governance additions:
+    - Schema validation via pydantic (AppConfig); invalid configs are rejected.
+    - Versioned migrations via migrate_config.
+    - Atomic writes with temp file and os.replace; creates main.yaml.bak.
+    - Single lock guards mtime read, load, and save.
+    - Deterministic YAML dumps; returns deep copies.
+    - Layered env: .env, then .env.local (override), then process env.
+    """
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
 
     Governance additions:
     - Schema validation via pydantic (AppConfig); invalid configs are rejected.
@@ -59,7 +87,11 @@ class ConfigManager:
                     cls._instance._initialized = False
         return cls._instance
 
+<<<<<<< HEAD
     def __init__(self, project_root: Optional[Path] = None):
+=======
+    def __init__(self):
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
         if getattr(self, "_initialized", False):
             return
 
@@ -69,6 +101,7 @@ class ConfigManager:
         self._last_mtime: float = 0.0
         self._initialized = True
 
+<<<<<<< HEAD
         # By default we load .env and .env.local into process-wide os.environ.
         # Tests (or other callers) that require deterministic environment
         # variables can disable this behavior by setting the environment
@@ -162,6 +195,47 @@ class ConfigManager:
             current_mtime = self.config_path.stat().st_mtime
             if not self._config_cache or force_reload or current_mtime > self._last_mtime:
 >>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
+=======
+        # Layered env loading
+        load_dotenv(dotenv_path=self.project_root / ".env", override=False)
+        load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
+
+    def _read_yaml(self) -> Dict[str, Any]:
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+
+    def _deep_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        for key, value in source.items():
+            if isinstance(value, dict) and isinstance(target.get(key), dict):
+                self._deep_update(target[key], value)
+            else:
+                target[key] = value
+
+    def _validate_and_migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        merged: Dict[str, Any] = {}
+        self._deep_update(merged, DEFAULTS)
+        self._deep_update(merged, raw)
+        migrated = migrate_config(merged)
+        try:
+            return AppConfig(**migrated).dict()
+        except ValidationError as e:
+            raise ConfigError("Config validation failed", context={"errors": e.errors()})
+
+    def load_config(self, force_reload: bool = False) -> Dict[str, Any]:
+        """
+        Load configuration from main.yaml.
+        Uses caching based on file modification time and validates against schema.
+        """
+        with self._lock:
+            if not self.config_path.exists():
+                logger.info("Config not found at %s", self.config_path)
+                self._config_cache = {}
+                self._last_mtime = 0
+                return {}
+
+            current_mtime = self.config_path.stat().st_mtime
+            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
                 try:
                     raw = self._read_yaml()
                     validated = self._validate_and_migrate(raw)
@@ -218,8 +292,13 @@ class ConfigManager:
                     if os.path.exists(tmp_path):
                         try:
                             os.remove(tmp_path)
+<<<<<<< HEAD
                         except Exception as e:
                             logger.warning(f"Failed to remove temp file {tmp_path}: {e}")
+=======
+                        except Exception:
+                            pass
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
         except ConfigError as ce:
             logger.error("Refusing to save invalid config: %s", ce, extra={"context": getattr(ce, "context", {})})
             return False
@@ -234,8 +313,16 @@ class ConfigManager:
         """
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
+<<<<<<< HEAD
         parsed_env = self._load_env_file(env_path)
         parsed_env.update(self._load_env_file(local_path))
+=======
+        parsed_env: Dict[str, str] = {}
+        if env_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
 
         def _get(key: str, default: str = "") -> str:
             return str(parsed_env.get(key) or os.environ.get(key, default))
@@ -247,15 +334,26 @@ class ConfigManager:
     def validate_required_env(self, keys: List[str]) -> Dict[str, List[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
+<<<<<<< HEAD
         parsed_env = self._load_env_file(env_path)
         parsed_env.update(self._load_env_file(local_path))
+=======
+        parsed_env: Dict[str, str] = {}
+        if env_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
         missing = [k for k in keys if not (parsed_env.get(k) or os.environ.get(k))]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})
         return {"missing": missing}
+<<<<<<< HEAD
 
     @classmethod
     def reset_for_tests(cls) -> None:
         """Reset singleton to allow re-initialization in tests with a different project_root."""
         with cls._lock:
             cls._instance = None
+=======
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
