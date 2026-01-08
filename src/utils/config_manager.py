@@ -1,13 +1,19 @@
 import logging
 import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional
 
 from dotenv import dotenv_values, load_dotenv
 from pydantic import ValidationError
 import yaml
+
+from src.config.schema import AppConfig, migrate_config
+from src.config.defaults import DEFAULTS
+from src.core.errors import ConfigError
+
+logger = logging.getLogger(__name__)
 
 from ..config.defaults import DEFAULTS
 
@@ -22,6 +28,16 @@ class ConfigManager:
     """
     Thread-safe manager for reading and writing configuration files.
     Primarily manages config/main.yaml and reads .env.
+
+    Governance additions:
+    - Schema validation via pydantic (AppConfig); invalid configs are rejected.
+    - Versioned migrations via migrate_config.
+    - Atomic writes with temp file and os.replace; creates main.yaml.bak.
+    - Single lock guards mtime read, load, and save.
+    - Deterministic YAML dumps; returns deep copies.
+    - Layered env: .env, then .env.local (override), then process env.
+    """
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
 
     Governance additions:
     - Schema validation via pydantic (AppConfig); invalid configs are rejected.
@@ -53,7 +69,6 @@ class ConfigManager:
         self._last_mtime: float = 0.0
         self._initialized = True
 
-        # Layered env loading
         # By default we load .env and .env.local into process-wide os.environ.
         # Tests (or other callers) that require deterministic environment
         # variables can disable this behavior by setting the environment
@@ -65,11 +80,10 @@ class ConfigManager:
             self._initialize_env()
 
     def _initialize_env(self) -> None:
-        """Initialize process environment from layered .env files."""
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
+
     def _load_env_file(self, path: Path) -> Dict[str, str]:
-        """Load a .env file and return non-None values as strings."""
         if not path.exists():
             return {}
         return {k: str(v) for k, v in dotenv_values(path).items() if v is not None}
@@ -110,13 +124,49 @@ class ConfigManager:
                 self._last_mtime = 0
                 return {}
 
-            if not self._config_cache or force_reload:
+            current_mtime = self.config_path.stat().st_mtime
+            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
+    def _read_yaml(self) -> Dict[str, Any]:
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+
+    def _deep_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+        for key, value in source.items():
+            if isinstance(value, dict) and isinstance(target.get(key), dict):
+                self._deep_update(target[key], value)
+            else:
+                target[key] = value
+
+    def _validate_and_migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        merged: Dict[str, Any] = {}
+        self._deep_update(merged, DEFAULTS)
+        self._deep_update(merged, raw)
+        migrated = migrate_config(merged)
+        try:
+            return AppConfig(**migrated).dict()
+        except ValidationError as e:
+            raise ConfigError("Config validation failed", context={"errors": e.errors()})
+
+    def load_config(self, force_reload: bool = False) -> Dict[str, Any]:
+        """
+        Load configuration from main.yaml.
+        Uses caching based on file modification time and validates against schema.
+        """
+        with self._lock:
+            if not self.config_path.exists():
+                logger.info("Config not found at %s", self.config_path)
+                self._config_cache = {}
+                self._last_mtime = 0
+                return {}
+
+            current_mtime = self.config_path.stat().st_mtime
+            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
+>>>>>>> 49c03aa (config: governance foundation (schema validation, atomic writes, env layering, logging))
                 try:
                     raw = self._read_yaml()
                     validated = self._validate_and_migrate(raw)
                     self._config_cache = validated
-                    # Update mtime for bookkeeping (do not trigger auto reload based on mtime)
-                    self._last_mtime = self.config_path.stat().st_mtime
+                    self._last_mtime = current_mtime
                 except ConfigError as ce:
                     logger.error("%s", ce, extra={"context": getattr(ce, "context", {})})
                     return {}
@@ -148,9 +198,7 @@ class ConfigManager:
                 )
 
                 # Atomic write with backup
-                fd, tmp_path = tempfile.mkstemp(
-                    prefix="main.yaml.", dir=str(self.config_path.parent)
-                )
+                fd, tmp_path = tempfile.mkstemp(prefix="main.yaml.", dir=str(self.config_path.parent))
                 try:
                     with os.fdopen(fd, "w", encoding="utf-8") as tmp:
                         tmp.write(yaml_str)
@@ -173,11 +221,7 @@ class ConfigManager:
                         except Exception as e:
                             logger.warning(f"Failed to remove temp file {tmp_path}: {e}")
         except ConfigError as ce:
-            logger.error(
-                "Refusing to save invalid config: %s",
-                ce,
-                extra={"context": getattr(ce, "context", {})},
-            )
+            logger.error("Refusing to save invalid config: %s", ce, extra={"context": getattr(ce, "context", {})})
             return False
         except Exception as e:
             logger.exception("Error saving config: %s", e)
