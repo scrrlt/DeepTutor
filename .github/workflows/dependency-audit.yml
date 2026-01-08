@@ -1,0 +1,157 @@
+name: Dependency Audit
+
+on:
+  push:
+    branches: ["main", "hk-dev", "rebase/deps-hk-dev"]
+  pull_request:
+    branches: ["main", "hk-dev", "rebase/deps-hk-dev"]
+  schedule:
+    - cron: "0 6 * * *" # daily UTC
+  workflow_dispatch:
+
+jobs:
+  python-audit:
+    runs-on: ubuntu-latest
+    env:
+      FAIL_ON_VULNS: "false"  # set to "true" to fail on unwhitelisted vulns
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit cyclonedx-bom pyyaml
+          python -m pip install -r requirements.txt
+      - name: pip-audit (report only)
+        run: |
+          mkdir -p reports
+          python -m pip_audit -r requirements.txt -f json -o reports/pip-audit.json || true
+      - name: Generate Python SBOM (CycloneDX)
+        run: |
+          mkdir -p reports
+          cyclonedx-py --requirements requirements.txt --outfile reports/pip-sbom.json --output-format json || true
+      - name: Upload Python audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-audit-artifacts
+          path: |
+            reports/pip-audit.json
+            reports/pip-sbom.json
+      - name: Summarize Python audit
+        if: always()
+        run: |
+          echo "## Python Audit Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/pip-audit.json ]; then
+            echo "- pip-audit report: uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- pip-audit report: missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/pip-sbom.json ]; then
+            echo "- SBOM (CycloneDX): uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- SBOM (CycloneDX): missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Exceptions: see security/audit-exceptions.yml" >> $GITHUB_STEP_SUMMARY
+      - name: Fail on HIGH/CRITICAL (optional)
+        if: env.FAIL_ON_VULNS == 'true'
+        run: |
+          python - <<'PY'
+import json, sys, yaml, pathlib
+exc_path = pathlib.Path("security/audit-exceptions.yml")
+exceptions = set()
+if exc_path.exists():
+    data = yaml.safe_load(exc_path.read_text()) or {}
+    for item in data.get("exceptions", []):
+        if item.get("ecosystem") == "npm":
+            continue
+        adv = item.get("advisory")
+        if adv:
+            exceptions.add(adv)
+
+missing = []
+high = []
+
+report = pathlib.Path("reports/pip-audit.json")
+if report.exists():
+    findings = json.loads(report.read_text() or "[]")
+    for finding in findings:
+        for vuln in finding.get("vulns", []):
+            vid = vuln.get("id")
+            sev = (vuln.get("severity") or "").upper()
+            if vid in exceptions:
+                continue
+            if sev in {"HIGH", "CRITICAL"} or not sev:
+                high.append(vid or "UNKNOWN")
+else:
+    missing.append("pip-audit.json")
+
+if missing:
+    print(f"Missing reports: {missing}")
+if high:
+    print(f"Failing due to vulnerabilities: {sorted(set(high))}")
+    sys.exit(1)
+PY
+
+  node-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install deps (ci)
+        run: npm ci
+      - name: npm audit (report only)
+        run: |
+          mkdir -p reports
+          npm audit --json > reports/npm-audit.json || true
+      - name: Generate Node SBOM (CycloneDX)
+        run: |
+          mkdir -p reports
+          npx @cyclonedx/cyclonedx-npm --output-format json --output-file reports/npm-sbom.json || true
+      - name: Upload Node audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-artifacts
+          path: |
+            reports/npm-audit.json
+            reports/npm-sbom.json
+      - name: Summarize Node audit
+        if: always()
+        run: |
+          echo "## Node Audit Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/npm-audit.json ]; then
+            echo "- npm audit report: uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- npm audit report: missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f reports/npm-sbom.json ]; then
+            echo "- SBOM (CycloneDX): uploaded as artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- SBOM (CycloneDX): missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Exceptions: see security/audit-exceptions.yml" >> $GITHUB_STEP_SUMMARY
+      - name: Comment audit summary on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `
+## Dependency audit summary
+- Python: pip-audit + CycloneDX SBOM (artifacts: python-audit-artifacts)
+- Node: npm audit + CycloneDX SBOM (artifacts: npm-audit-artifacts)
+- Exceptions: security/audit-exceptions.yml
+See workflow run artifacts for full details.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary
+            });

@@ -1,0 +1,18 @@
+# Audit exception manifest
+# Track accepted vulnerabilities with owner, rationale, and expiry.
+# Fields:
+#   package: package name
+#   ecosystem: pip|npm
+#   advisory: CVE or GHSA identifier
+#   reason: short rationale
+#   owner: handle responsible for follow-up
+#   expires: ISO date when exception must be revisited
+#   notes: optional extra detail
+exceptions:
+  - package: jspdf
+    ecosystem: npm
+    advisory: GHSA-vhxf-7vqr-mrjg
+    reason: Breaking change to upgrade; monitored, currently not present in lock after regen
+    owner: platform-ops
+    expires: 2026-03-31
+    notes: Re-evaluate on next minor/major bump; remove when upstream ships fixed non-breaking release

@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "hk-dev", "rebase/deps-hk-dev"]
+  schedule:
+    - cron: "0 3 * * *" # nightly UTC
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-root
+      - name: Lint (ruff)
+        run: poetry run ruff check .
+      - name: Type check (mypy)
+        run: poetry run mypy .
+      - name: Tests with coverage (fail under thresholds)
+        run: |
+          poetry run pytest --maxfail=1 --disable-warnings --cov=src --cov-report=xml --cov-fail-under=70
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-python
+          path: coverage.xml
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Lint (eslint)
+        run: npm run lint --if-present
+      - name: Type check
+        run: npm run typecheck --if-present
+      - name: Tests with coverage (fail under thresholds)
+        run: |
+          npx nyc --reporter=lcov --reporter=text-summary --check-coverage --lines=70 --functions=70 --branches=60 -- npm test -- --watch=false
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node
+          path: web/coverage
+
+  playwright-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run Playwright audit (allow-fail)
+        run: |
+          npx playwright test || true

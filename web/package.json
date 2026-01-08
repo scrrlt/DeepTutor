@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "sbom": "npx @cyclonedx/cyclonedx-npm --output-format json --output-file reports/npm-sbom.json"
   },
   "dependencies": {
     "clsx": "^2.1.1",

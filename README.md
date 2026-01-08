@@ -1440,6 +1440,11 @@ python -m src.knowledge.start_kb init <kb_name> --docs <pdf_path>
 
 </details>
 
+## Governance and audits
+
+- CI/CD gates and branching rules: see [docs/quality.md](docs/quality.md).
+- Dependency audit workflow and remediation policy: see [docs/dependency-audit.md](docs/dependency-audit.md).
+
 <details>
 <summary><b>How to incrementally add documents to existing KB?</b></summary>
 
