@@ -3,15 +3,16 @@ import logging
 import tempfile
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import yaml
 from dotenv import dotenv_values, load_dotenv
 from pydantic import ValidationError
 
-from src.config.schema import AppConfig, migrate_config
-from src.config.defaults import DEFAULTS
-from src.core.errors import ConfigError
+# Use package-relative imports to avoid PYTHONPATH issues
+from ..config.schema import AppConfig, migrate_config
+from ..config.defaults import DEFAULTS
+from ..core.errors import ConfigError
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,10 @@ class ConfigManager:
     - Layered env: .env, then .env.local (override), then process env.
     """
 
-    _instance = None
+    _instance: Optional["ConfigManager"] = None
     _lock = Lock()
 
-    def __new__(cls):
+    def __new__(cls, project_root: Optional[Path] = None):
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -41,11 +42,11 @@ class ConfigManager:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, project_root: Optional[Path] = None):
         if getattr(self, "_initialized", False):
             return
 
-        self.project_root = Path(__file__).parent.parent.parent
+        self.project_root = project_root or Path(__file__).parent.parent.parent
         self.config_path = self.project_root / "config" / "main.yaml"
         self._config_cache: Dict[str, Any] = {}
         self._last_mtime: float = 0.0
@@ -187,3 +188,10 @@ class ConfigManager:
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})
         return {"missing": missing}
+
+    @classmethod
+    def reset_for_tests(cls) -> None:
+        """Reset singleton to allow re-initialization in tests with a different project_root."""
+        with cls._lock:
+            cls._instance = None
+
