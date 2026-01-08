@@ -20,6 +20,14 @@ tests/performance/oom_repro/*.sqlite
 tests/performance/oom_repro/*.tar
 tests/performance/oom_repro/*.zip
 
+# Repro harness artifacts and logs
+tests/performance/oom_repro/logs/
+tests/performance/oom_repro/*.pdf
+tests/performance/oom_repro/*.db
+tests/performance/oom_repro/*.sqlite
+tests/performance/oom_repro/*.tar
+tests/performance/oom_repro/*.zip
+
 # ============================================
 # Python Related
 # ============================================
