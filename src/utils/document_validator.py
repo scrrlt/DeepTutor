@@ -47,9 +47,9 @@ def is_printable_char(char: str) -> bool:
     if not char:
         return False
     code_point = ord(char)
-    return (
-        ASCII_PRINTABLE_MIN <= code_point <= ASCII_PRINTABLE_MAX
-        or code_point in (ASCII_TAB, ASCII_NEWLINE)
+    return ASCII_PRINTABLE_MIN <= code_point <= ASCII_PRINTABLE_MAX or code_point in (
+        ASCII_TAB,
+        ASCII_NEWLINE,
     )
 
 
@@ -130,42 +130,46 @@ class DocumentValidator:
         return sanitized.strip()
 
     @staticmethod
-    def validate_upload_safety(filename: str, file_size_bytes: int, allowed_extensions: set[str] | None = None) -> str:
+    def validate_upload_safety(
+        filename: str, file_size_bytes: int, allowed_extensions: set[str] | None = None
+    ) -> str:
         """
         Validate filename and size before file upload/write.
-        
+
         Args:
             filename: Original filename
             file_size_bytes: Size of file in bytes
-            allowed_extensions: Set of allowed file extensions (e.g., {'.pdf', '.txt'}). 
+            allowed_extensions: Set of allowed file extensions (e.g., {'.pdf', '.txt'}).
                               If None, defaults to {'.pdf'} for backward compatibility.
-            
+
         Returns:
             str: Sanitized filename
-            
+
         Raises:
             ValueError: If filename or size is invalid
         """
         if allowed_extensions is None:
-            allowed_extensions = {'.pdf'}
-            
+            allowed_extensions = {".pdf"}
+
         # Check for null bytes
-        if '\x00' in filename:
+        if "\x00" in filename:
             raise ValueError("Filename contains null bytes")
-            
+
         # Check filename length
         if len(filename) == 0:
             raise ValueError("Filename cannot be empty")
         if len(filename) > 255:  # Common filesystem limit
             raise ValueError("Filename too long (max 255 characters)")
-            
+
         # Sanitize filename - remove path components and dangerous chars
         safe_name = Path(filename).name
-        
+
         # Additional validation: only allow safe characters
-        if not re.match(r'^[a-zA-Z0-9._-]+$', safe_name):
-            raise ValueError("Filename contains invalid characters. Only alphanumeric, dots, underscores, and hyphens allowed")
-            
+        if not re.match(r"^[a-zA-Z0-9._-]+$", safe_name):
+            raise ValueError(
+                "Filename contains invalid characters. Only alphanumeric, dots, underscores, and hyphens allowed"
+            )
+
         # Check file extension against allowed extensions
         file_ext = Path(safe_name).suffix.lower()
         if file_ext not in allowed_extensions:
@@ -173,7 +177,7 @@ class DocumentValidator:
                 f"Unsupported file type: {file_ext}. "
                 f"Allowed types: {', '.join(sorted(allowed_extensions))}"
             )
-            
+
         # Check file size
         if file_size_bytes == 0:
             raise ValueError("File cannot be empty")
@@ -181,5 +185,5 @@ class DocumentValidator:
             raise ValueError(
                 f"File too large: {file_size_bytes / MB:.1f}MB > {MAX_FILE_SIZE / MB}MB"
             )
-            
+
         return safe_name

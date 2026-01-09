@@ -33,17 +33,18 @@ class _LazyValidTools:
     def _load(self) -> list[str]:
         if self._tools is not None:
             return self._tools
-        
+
         with self._lock:
             # Double-check pattern for thread safety
             if self._tools is not None:
                 return self._tools
-                
+
             try:
                 from src.services.config import (
                     PROJECT_ROOT,
                     load_config_with_main,
                 )
+
                 config = load_config_with_main("main.yaml", PROJECT_ROOT)
                 self._tools = config.get("solve", {}).get("valid_tools", self._default_tools)
             except (ImportError, FileNotFoundError, OSError, KeyError) as exc:
@@ -76,6 +77,8 @@ class _LazyValidTools:
 
 
 _VALID_TOOLS_CONFIG = _LazyValidTools(_DEFAULT_VALID_TOOLS)
+
+
 class ParseError(Exception):
     """Parse error"""
 
@@ -179,7 +182,11 @@ def safe_parse(
         return default
 
 
-def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] | None = None, config: dict[str, Any] | None = None) -> bool:
+def validate_investigate_output(
+    output: dict[str, Any],
+    valid_tools: list[str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> bool:
     """Validate InvestigateAgent output (refactored: multi-tool intent)"""
     if valid_tools is None:
         if config is not None:
@@ -188,7 +195,7 @@ def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] |
         else:
             # Fallback to lazy loading
             valid_tools = _VALID_TOOLS_CONFIG
-    
+
     required_fields = ["reasoning", "tools"]
     field_types = {"reasoning": str, "tools": list}
 
@@ -241,7 +248,7 @@ def validate_note_output(output: dict[str, Any]) -> bool:
     if "citations" in output:
         citations = output["citations"]
         # validate_output already ensures citations is a list
-            
+
         for citation in citations:
             if not isinstance(citation, dict):
                 raise ParseError(f"citation must be a dictionary, got: {type(citation)}")
@@ -269,30 +276,33 @@ def validate_reflect_output(output: dict[str, Any]) -> bool:
     return True
 
 
-def validate_none_tool_constraint(tools: list[dict[str, Any]], tool_type_key: str = "tool_type") -> None:
+def validate_none_tool_constraint(
+    tools: list[dict[str, Any]], tool_type_key: str = "tool_type"
+) -> None:
     """
     Validate that 'none' tool does not coexist with other tools.
-    
+
     Args:
         tools: List of tool dictionaries
         tool_type_key: Key to access tool type in each dict (default: "tool_type")
-        
+
     Raises:
         ParseError: If none tool constraint is violated
     """
     has_none = any(
-        isinstance(tool.get(tool_type_key), str)
-        and tool.get(tool_type_key).lower() == "none"
+        isinstance(tool.get(tool_type_key), str) and tool.get(tool_type_key).lower() == "none"
         for tool in tools
     )
-    
+
     if has_none and len(tools) > 1:
-        raise ParseError(
-            "When 'none' tool exists, no other tool intents should be provided"
-        )
+        raise ParseError("When 'none' tool exists, no other tool intents should be provided")
 
 
-def validate_solve_output(output: dict[str, Any], valid_tools: list[str] | None = None, config: dict[str, Any] | None = None) -> bool:
+def validate_solve_output(
+    output: dict[str, Any],
+    valid_tools: list[str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> bool:
     """Validate SolveAgent output (tool plan format)"""
     if valid_tools is None:
         if config is not None:
@@ -301,7 +311,7 @@ def validate_solve_output(output: dict[str, Any], valid_tools: list[str] | None 
         else:
             # Fallback to lazy loading
             valid_tools = _VALID_TOOLS_CONFIG
-    
+
     required_fields = ["tool_calls"]
     field_types = {"tool_calls": list}
 
@@ -313,7 +323,9 @@ def validate_solve_output(output: dict[str, Any], valid_tools: list[str] | None 
     )
     if has_terminating_call and len(tool_calls) > 1:
         # Check for terminating tools (none/finish) - they cannot coexist with other tools
-        terminating_tools = [call for call in tool_calls if call.get("type", "").lower() in ("none", "finish")]
+        terminating_tools = [
+            call for call in tool_calls if call.get("type", "").lower() in ("none", "finish")
+        ]
         if terminating_tools and len(tool_calls) > 1:
             raise ParseError(
                 "When terminating tools (none/finish) exist, no other tool calls should be provided"
