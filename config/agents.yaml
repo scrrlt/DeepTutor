@@ -12,6 +12,9 @@
 solve:
   temperature: 0.3
   max_tokens: 8192
+  # NOTE: Valid tools for investigate agent validation are defined in
+  #       config/main.yaml, which is the SINGLE source of truth for valid_tools.
+  #       Do not re-declare valid_tools here to avoid configuration drift.
 
 # Research Module - Deep research agents
 # Agents: rephrase_agent, decompose_agent, manager_agent, research_agent, note_agent, reporting_agent
