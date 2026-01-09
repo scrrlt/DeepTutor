@@ -8,50 +8,13 @@ import asyncio
 from collections.abc import Callable
 import functools
 import logging
-from pathlib import Path
+import threading
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Solver.error_handler")
 
 # Lazy-load valid tools configuration to avoid I/O at module import time
 _DEFAULT_VALID_TOOLS = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
-
-# Maximum directory levels to search upwards when looking for project root markers.
-# This prevents infinite loops in pathological cases while allowing reasonable
-# project structures (e.g., deeply nested submodules).
-MAX_SEARCH_DEPTH = 10
-
-
-def _find_project_root(start_path: Path) -> Path:
-    """
-    Find the project root by searching upwards for marker files.
-
-    Args:
-        start_path: Path to start searching from
-
-    Returns:
-        Path to the project root directory
-
-    Raises:
-        RuntimeError: If no project root markers are found
-    """
-    current = start_path.resolve()
-    markers = ["pyproject.toml", ".git", "README.md"]
-
-    for _ in range(MAX_SEARCH_DEPTH):  # Limit search depth to prevent infinite loops
-        if any((current / marker).exists() for marker in markers):
-            return current
-        if current.parent == current:
-            break  # Reached filesystem root
-        current = current.parent
-
-    # Fallback to original method if markers not found
-    logger.warning("Could not find project root markers, using fallback path resolution")
-    parents = start_path.parents
-    if not parents:
-        return start_path
-    safe_index = min(4, len(parents) - 1)
-    return parents[safe_index]
 
 
 class _LazyValidTools:
@@ -63,27 +26,34 @@ class _LazyValidTools:
     """
 
     def __init__(self, default_tools: list[str]):
-        self._default_tools = default_tools
+        self._default_tools = list(default_tools)  # Create a copy to prevent mutation
         self._tools: list[str] | None = None
+        self._lock = threading.Lock()
 
     def _load(self) -> list[str]:
         if self._tools is not None:
             return self._tools
-        try:
-            from src.services.config import load_config_with_main
-            project_root = _find_project_root(Path(__file__))
-            config = load_config_with_main("main.yaml", project_root)
-            self._tools = config.get("solve", {}).get("valid_tools", self._default_tools)
-        except (ImportError, FileNotFoundError, OSError, KeyError) as exc:
-            expected_config_path = _find_project_root(Path(__file__)) / "config" / "main.yaml"
-            logger.warning(
-                "Failed to load valid_tools from config/main.yaml at %s (%s). Using defaults. "
-                "Ensure the config file exists and contains solve.valid_tools. Original error: %s",
-                expected_config_path,
-                type(exc).__name__,
-                exc,
-            )
-            self._tools = self._default_tools
+        
+        with self._lock:
+            # Double-check pattern for thread safety
+            if self._tools is not None:
+                return self._tools
+                
+            try:
+                from src.services.config import (
+                    PROJECT_ROOT,
+                    load_config_with_main,
+                )
+                config = load_config_with_main("main.yaml", PROJECT_ROOT)
+                self._tools = config.get("solve", {}).get("valid_tools", self._default_tools)
+            except (ImportError, FileNotFoundError, OSError, KeyError) as exc:
+                logger.warning(
+                    "Failed to load valid_tools from config (%s). Using defaults. "
+                    "Ensure the config file exists and contains solve.valid_tools. Original error: %s",
+                    type(exc).__name__,
+                    exc,
+                )
+                self._tools = self._default_tools
         return self._tools
 
     def __iter__(self):
@@ -120,9 +90,9 @@ def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: floa
         backoff: Delay multiplier factor
     """
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             current_delay = delay
 
             for attempt in range(max_retries + 1):
@@ -209,11 +179,15 @@ def safe_parse(
         return default
 
 
-def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] | None = None) -> bool:
+def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] | None = None, config: dict[str, Any] | None = None) -> bool:
     """Validate InvestigateAgent output (refactored: multi-tool intent)"""
     if valid_tools is None:
-        # Use pre-loaded configuration to avoid repeated I/O
-        valid_tools = _VALID_TOOLS_CONFIG
+        if config is not None:
+            # Use provided config
+            valid_tools = config.get("solve", {}).get("valid_tools", _DEFAULT_VALID_TOOLS)
+        else:
+            # Fallback to lazy loading
+            valid_tools = _VALID_TOOLS_CONFIG
     
     required_fields = ["reasoning", "tools"]
     field_types = {"reasoning": str, "tools": list}
@@ -238,10 +212,6 @@ def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] |
             )
 
         if tool_type == "none":
-            if len(tools) > 1:
-                raise ParseError(
-                    "When [TOOL] none exists, no other tool intents should be provided"
-                )
             continue
 
         if not query:
@@ -250,19 +220,29 @@ def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] |
         if tool_type == "query_item" and not (identifier or query):
             raise ParseError("query_item must provide identifier or query")
 
+    # Validate none tool constraint after all tools are validated as dictionaries
+    validate_none_tool_constraint(tools, "tool_type")
+
     return True
 
 
 def validate_note_output(output: dict[str, Any]) -> bool:
     """Validate NoteAgent output (new format: only summary and citations)"""
     required_fields = ["summary"]
-    field_types = {"summary": str, "citations": list}
+    field_types = {"summary": str}
+
+    # For backward compatibility, citations is optional (may be missing in older cached data)
+    if "citations" in output:
+        field_types["citations"] = list
 
     validate_output(output, required_fields, field_types)
 
-    # Validate citations list
+    # Validate citations list if present
     if "citations" in output:
-        for citation in output["citations"]:
+        citations = output["citations"]
+        # validate_output already ensures citations is a list
+            
+        for citation in citations:
             if not isinstance(citation, dict):
                 raise ParseError(f"citation must be a dictionary, got: {type(citation)}")
 
@@ -289,38 +269,89 @@ def validate_reflect_output(output: dict[str, Any]) -> bool:
     return True
 
 
-def validate_plan_output(output: dict[str, Any]) -> bool:
-    """Validate PlanAgent output"""
-    required_fields = ["answer_style", "blocks"]
-    field_types = {"answer_style": str, "blocks": list}
+def validate_none_tool_constraint(tools: list[dict[str, Any]], tool_type_key: str = "tool_type") -> None:
+    """
+    Validate that 'none' tool does not coexist with other tools.
+    
+    Args:
+        tools: List of tool dictionaries
+        tool_type_key: Key to access tool type in each dict (default: "tool_type")
+        
+    Raises:
+        ParseError: If none tool constraint is violated
+    """
+    has_none = any(
+        isinstance(tool.get(tool_type_key), str)
+        and tool.get(tool_type_key).lower() == "none"
+        for tool in tools
+    )
+    
+    if has_none and len(tools) > 1:
+        raise ParseError(
+            "When 'none' tool exists, no other tool intents should be provided"
+        )
+
+
+def validate_solve_output(output: dict[str, Any], valid_tools: list[str] | None = None, config: dict[str, Any] | None = None) -> bool:
+    """Validate SolveAgent output (tool plan format)"""
+    if valid_tools is None:
+        if config is not None:
+            # Use provided config
+            valid_tools = config.get("solve", {}).get("valid_tools", _DEFAULT_VALID_TOOLS)
+        else:
+            # Fallback to lazy loading
+            valid_tools = _VALID_TOOLS_CONFIG
+    
+    required_fields = ["tool_calls"]
+    field_types = {"tool_calls": list}
 
     validate_output(output, required_fields, field_types)
 
-    # Validate blocks list is not empty (new)
-    if not output["blocks"] or len(output["blocks"]) == 0:
-        raise ParseError(
-            "blocks list is empty, PlanAgent must generate at least one block.\n"
-            "Possible reasons:\n"
-            "1. LLM did not output [Block-N] tags\n"
-            "2. Output format is incorrect\n"
-            "3. Prompt design has issues"
-        )
+    tool_calls = output["tool_calls"]
+    has_terminating_call = any(
+        call.get("type", "").lower() in ("none", "finish") for call in tool_calls
+    )
+    if has_terminating_call and len(tool_calls) > 1:
+        # Check for terminating tools (none/finish) - they cannot coexist with other tools
+        terminating_tools = [call for call in tool_calls if call.get("type", "").lower() in ("none", "finish")]
+        if terminating_tools and len(tool_calls) > 1:
+            raise ParseError(
+                "When terminating tools (none/finish) exist, no other tool calls should be provided"
+            )
 
-    # Validate blocks list
-    for block in output["blocks"]:
-        if not isinstance(block, dict):
-            raise ParseError(f"block must be a dictionary, got: {type(block)}")
+    # Track if we've seen a terminating tool for ordering validation
+    has_terminating_tool = False
 
-        if "block_id" not in block or "format" not in block or "steps" not in block:
-            raise ParseError("block missing required fields: block_id, format, steps")
+    for idx, tool_call in enumerate(tool_calls):
+        if not isinstance(tool_call, dict):
+            raise ParseError(f"tool_calls[{idx}] must be a dictionary")
 
-        # Validate steps list
-        for step in block["steps"]:
-            if not isinstance(step, dict):
-                raise ParseError(f"step must be a dictionary, got: {type(step)}")
+        tool_type = tool_call.get("type", "").strip().lower()
+        intent = tool_call.get("intent", "").strip()
 
-            if "step_id" not in step or "plan" not in step:
-                raise ParseError("step missing required fields: step_id, plan")
+        if not tool_type:
+            raise ParseError(f"tool_calls[{idx}] missing type")
+
+        if tool_type not in valid_tools:
+            raise ParseError(
+                f"tool_calls[{idx}] type must be one of {valid_tools}, got: {tool_type}"
+            )
+
+        # Check for terminating tools
+        if tool_type in ("none", "finish"):
+            if has_terminating_tool:
+                raise ParseError(
+                    f"tool_calls[{idx}] cannot have multiple terminating tools (none/finish)"
+                )
+            has_terminating_tool = True
+        elif has_terminating_tool:
+            raise ParseError(
+                f"tool_calls[{idx}] cannot have non-terminating tools after none/finish"
+            )
+
+        # All tools except "none" need an intent
+        if tool_type != "none" and not intent:
+            raise ParseError(f"tool_calls[{idx}] missing intent for {tool_type}")
 
     return True
 

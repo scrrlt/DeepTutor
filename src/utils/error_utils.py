@@ -61,8 +61,8 @@ def format_exception_message(exc: Exception) -> str:
             if callable(json_loader):
                 try:
                     data = json_loader()
-                except (json.JSONDecodeError, ValueError) as e:
-                    # best effort only: ignore JSON decoding issues
+                except (json.JSONDecodeError, ValueError, TypeError) as e:
+                    # best effort only: ignore JSON decoding issues and type errors
                     logger.debug(f"Failed to parse JSON from response: {e}")
                     data = None
             else:
