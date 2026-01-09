@@ -153,7 +153,9 @@ async def websocket_mimic_generate(websocket: WebSocket):
 
                 # Pre-validate filename and file size before writing
                 try:
-                    safe_name = DocumentValidator.validate_upload_safety(pdf_name, len(pdf_bytes), {'.pdf'})
+                    safe_name = DocumentValidator.validate_upload_safety(
+                        pdf_name, len(pdf_bytes), {".pdf"}
+                    )
                 except ValueError as e:
                     await websocket.send_json({"type": "error", "content": str(e)})
                     return

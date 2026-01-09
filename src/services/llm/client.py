@@ -73,14 +73,18 @@ class LLMClient:
             except Exception as e:
                 if RateLimitError and isinstance(e, RateLimitError):
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
-                        self.logger.warning(f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                        delay = base_delay * (2**attempt)
+                        self.logger.warning(
+                            f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                        )
                         await asyncio.sleep(delay)
                         continue
                 elif APITimeoutError and isinstance(e, APITimeoutError):
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
-                        self.logger.warning(f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                        delay = base_delay * (2**attempt)
+                        self.logger.warning(
+                            f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                        )
                         await asyncio.sleep(delay)
                         continue
                 # Re-raise if not retryable or max retries reached
@@ -157,14 +161,18 @@ class LLMClient:
                 except Exception as e:
                     if RateLimitError and isinstance(e, RateLimitError):
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            self.logger.warning(f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                            delay = base_delay * (2**attempt)
+                            self.logger.warning(
+                                f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            )
                             time.sleep(delay)
                             continue
                     elif APITimeoutError and isinstance(e, APITimeoutError):
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            self.logger.warning(f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                            delay = base_delay * (2**attempt)
+                            self.logger.warning(
+                                f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            )
                             time.sleep(delay)
                             continue
                     # Re-raise if not retryable or max retries reached
@@ -252,14 +260,18 @@ class LLMClient:
                 except Exception as e:
                     if RateLimitError and isinstance(e, RateLimitError):
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            self.logger.warning(f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                            delay = base_delay * (2**attempt)
+                            self.logger.warning(
+                                f"Rate limit hit, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            )
                             time.sleep(delay)
                             continue
                     elif APITimeoutError and isinstance(e, APITimeoutError):
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            self.logger.warning(f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})")
+                            delay = base_delay * (2**attempt)
+                            self.logger.warning(
+                                f"API timeout, retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            )
                             time.sleep(delay)
                             continue
                     # Re-raise if not retryable or max retries reached
