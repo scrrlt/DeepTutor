@@ -113,14 +113,17 @@ def safe_parse(
         return default
 
 
-def validate_investigate_output(output: dict[str, Any]) -> bool:
+def validate_investigate_output(output: dict[str, Any], valid_tools: list[str] | None = None) -> bool:
     """Validate InvestigateAgent output (refactored: multi-tool intent)"""
+    if valid_tools is None:
+        # Default valid tools - should be moved to config in the future
+        valid_tools = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
+    
     required_fields = ["reasoning", "tools"]
     field_types = {"reasoning": str, "tools": list}
 
     validate_output(output, required_fields, field_types)
 
-    valid_tools = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
     tools = output["tools"]
     if not tools:
         raise ParseError("tools list cannot be empty")
@@ -244,7 +247,7 @@ if __name__ == "__main__":
         print(f"✗ InvestigateAgent output validation failed: {e}")
 
     # Test missing required fields
-    test_invalid_output = {"actions": []}
+    test_invalid_output = {"tools": []}
 
     try:
         validate_investigate_output(test_invalid_output)
