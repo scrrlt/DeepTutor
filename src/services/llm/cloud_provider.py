@@ -43,7 +43,7 @@ async def complete(
     """
     Complete a prompt using cloud API providers.
 
-    Supports OpenAI-compatible APIs and Anthropic.
+    Supports OpenAI-compatible APIs, Anthropic, and Gemini.
 
     Args:
         prompt: The user prompt
@@ -52,7 +52,7 @@ async def complete(
         api_key: API key
         base_url: Base URL for the API
         api_version: API version for Azure OpenAI
-        binding: Provider binding type (openai, anthropic)
+        binding: Provider binding type (openai, anthropic, gemini)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
     Returns:
@@ -62,6 +62,16 @@ async def complete(
 
     if binding_lower in ["anthropic", "claude"]:
         return await _anthropic_complete(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        )
+    
+    if binding_lower == "gemini":
+        return await _gemini_complete(
             model=model,
             prompt=prompt,
             system_prompt=system_prompt,
@@ -98,15 +108,15 @@ async def stream(
     Stream a response from cloud API providers.
 
     Args:
-        prompt: The user prompt (ignored if messages provided)
-        system_prompt: System prompt for context
+        prompt: User prompt
+        system_prompt: System prompt
         model: Model name
         api_key: API key
-        base_url: Base URL for the API
+        base_url: Base URL
         api_version: API version for Azure OpenAI
-        binding: Provider binding type (openai, anthropic)
-        messages: Pre-built messages array (optional, overrides prompt/system_prompt)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
+        binding: Provider binding type (openai, anthropic, gemini)
+        messages: Pre-built messages array (optional)
+        **kwargs: Additional parameters
 
     Yields:
         str: Response chunks
@@ -121,6 +131,16 @@ async def stream(
             api_key=api_key,
             base_url=base_url,
             messages=messages,
+            **kwargs,
+        ):
+            yield chunk
+    elif binding_lower == "gemini":
+        async for chunk in _gemini_stream(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
             **kwargs,
         ):
             yield chunk
@@ -471,6 +491,126 @@ async def _anthropic_stream(
                         text = delta.get("text")
                         if text:
                             yield text
+                except json.JSONDecodeError:
+                    continue
+
+
+async def _gemini_complete(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    **kwargs,
+) -> str:
+    """Google Gemini API completion."""
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMAuthenticationError("Gemini API key is missing.", provider="gemini")
+
+    # Build URL - Gemini uses /models/{model}:generateContent
+    effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
+    url = f"{effective_base.rstrip('/')}/models/{model}:generateContent?key={api_key}"
+
+    headers = {"Content-Type": "application/json"}
+
+    # Build request body - Gemini format
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": kwargs.get("temperature", 0.7),
+            "maxOutputTokens": kwargs.get("max_tokens", 4096),
+        }
+    }
+
+    # Add system instruction if provided
+    if system_prompt and system_prompt != "You are a helpful assistant.":
+        data["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    timeout = aiohttp.ClientTimeout(total=120)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise LLMAPIError(
+                    f"Gemini API error: {error_text}",
+                    status_code=response.status,
+                    provider="gemini",
+                )
+
+            result = await response.json()
+            # Extract text from Gemini response format
+            if "candidates" in result and result["candidates"]:
+                candidate = result["candidates"][0]
+                if "content" in candidate and "parts" in candidate["content"]:
+                    parts = candidate["content"]["parts"]
+                    if parts and "text" in parts[0]:
+                        return parts[0]["text"]
+            
+            raise LLMAPIError("Gemini API returned unexpected response format", provider="gemini")
+
+
+async def _gemini_stream(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    **kwargs,
+) -> AsyncGenerator[str, None]:
+    """Google Gemini API streaming."""
+    import json
+
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMAuthenticationError("Gemini API key is missing.", provider="gemini")
+
+    # Build URL - Gemini streaming uses :streamGenerateContent
+    effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
+    url = f"{effective_base.rstrip('/')}/models/{model}:streamGenerateContent?key={api_key}&alt=sse"
+
+    headers = {"Content-Type": "application/json"}
+
+    # Build request body
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": kwargs.get("temperature", 0.7),
+            "maxOutputTokens": kwargs.get("max_tokens", 4096),
+        }
+    }
+
+    if system_prompt and system_prompt != "You are a helpful assistant.":
+        data["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    timeout = aiohttp.ClientTimeout(total=300)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise LLMAPIError(
+                    f"Gemini stream error: {error_text}",
+                    status_code=response.status,
+                    provider="gemini",
+                )
+
+            async for line in response.content:
+                line_str = line.decode("utf-8").strip()
+                if not line_str or not line_str.startswith("data:"):
+                    continue
+
+                data_str = line_str[5:].strip()
+                if not data_str:
+                    continue
+
+                try:
+                    chunk_data = json.loads(data_str)
+                    if "candidates" in chunk_data and chunk_data["candidates"]:
+                        candidate = chunk_data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            parts = candidate["content"]["parts"]
+                            if parts and "text" in parts[0]:
+                                yield parts[0]["text"]
                 except json.JSONDecodeError:
                     continue
 
