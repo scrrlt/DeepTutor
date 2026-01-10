@@ -702,42 +702,78 @@ async def fetch_models(
     Returns:
         List of available model names
     """
-    binding = binding.lower()
+    binding = (binding or "openai").lower()
     base_url = base_url.rstrip("/")
 
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding)
-    # Remove Content-Type for GET request
-    headers.pop("Content-Type", None)
+    # Provider-specific shortcuts and request shapes
+    if binding in ["anthropic", "claude"]:
+        # Anthropic does not expose a list endpoint; return common models
+        return [
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229",
+        ]
 
     timeout = aiohttp.ClientTimeout(total=30)
+
+    # Build URL and headers per provider
+    if binding == "gemini":
+        if not api_key:
+            return []
+        url = f"{base_url}/models?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+    elif binding == "azure_openai":
+        if not api_key:
+            return []
+        # Azure lists deployments, not models
+        api_version = "2023-05-15"
+        url = f"{base_url}/openai/deployments?api-version={api_version}"
+        headers = {"api-key": api_key}
+    else:
+        # OpenAI-compatible
+        url = f"{base_url}/models"
+        headers = build_auth_headers(api_key, binding)
+        headers.pop("Content-Type", None)
+
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
-            url = f"{base_url}/models"
             async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    
-                    # Gemini format: {"models": [{"name": "models/gemini-1.5-flash", ...}]}
-                    if "models" in data and isinstance(data["models"], list):
-                        return [
-                            m["name"].replace("models/", "") 
-                            for m in data["models"] 
-                            if "name" in m
-                        ]
-                    # OpenAI format: {"data": [{"id": "gpt-4", ...}]}
-                    elif "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
-                    # Plain list format
-                    elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                if resp.status != 200:
+                    return []
+
+                data = await resp.json()
+
+                # Gemini format: {"models": [{"name": "models/gemini-1.5-flash", ...}]}
+                if "models" in data and isinstance(data["models"], list):
+                    return [
+                        m["name"].replace("models/", "")
+                        for m in data["models"]
+                        if "name" in m
+                    ]
+
+                # Azure deployments format: {"value": [{ "model": "...", "id": "...", "name": "..." }]}
+                if "value" in data and isinstance(data["value"], list):
+                    return [
+                        m.get("model") or m.get("id") or m.get("name")
+                        for m in data["value"]
+                        if m.get("model") or m.get("id") or m.get("name")
+                    ]
+
+                # OpenAI format: {"data": [{"id": "gpt-4", ...}]}
+                if "data" in data and isinstance(data["data"], list):
+                    return [
+                        m.get("id") or m.get("name")
+                        for m in data["data"]
+                        if m.get("id") or m.get("name")
+                    ]
+
+                # Plain list format
+                if isinstance(data, list):
+                    return [
+                        m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                        for m in data
+                    ]
+
             return []
         except Exception as e:
             print(f"Error fetching models from {base_url}: {e}")
