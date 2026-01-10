@@ -20,9 +20,6 @@ from src.agents.base_agent import BaseAgent
 from src.services.config import load_config_with_main
 from src.services.tts import get_tts_config
 
-# Import shared stats from edit_agent for legacy compatibility
-from .edit_agent import get_stats
-
 # Define storage path (unified under user/co-writer/ directory)
 USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
 
@@ -42,16 +39,17 @@ class NarratorAgent(BaseAgent):
             agent_name="narrator_agent",
             language=language,
         )
-        
+
         # Override prompts to load from co_writer module
         # (narrator_agent prompts are stored under co_writer/prompts/)
         from src.services.prompt import get_prompt_manager
+
         self.prompts = get_prompt_manager().load_prompts(
             module_name="co_writer",
             agent_name="narrator_agent",
             language=language,
         )
-        
+
         # Load TTS-specific configuration
         self._load_tts_config()
 
@@ -128,7 +126,9 @@ class NarratorAgent(BaseAgent):
         self.logger.info(f"  API Key: {api_key_preview}")
         self.logger.info(f"  Default Voice: {self.default_voice}")
 
-    async def process(self, content: str, style: str = "friendly", voice: str = None, skip_audio: bool = False) -> dict[str, Any]:
+    async def process(
+        self, content: str, style: str = "friendly", voice: str = None, skip_audio: bool = False
+    ) -> dict[str, Any]:
         """
         Main processing method - alias for narrate().
 

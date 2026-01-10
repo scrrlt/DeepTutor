@@ -87,7 +87,9 @@ class EditAgent(BaseAgent):
 
         if source == "rag":
             if not kb_name:
-                self.logger.warning("RAG source selected but no kb_name provided, skipping RAG search")
+                self.logger.warning(
+                    "RAG source selected but no kb_name provided, skipping RAG search"
+                )
                 source = None
             else:
                 self.logger.info(f"Searching RAG in KB: {kb_name} for: {instruction}")
@@ -136,9 +138,7 @@ class EditAgent(BaseAgent):
                 source = None
 
         # Build prompts
-        system_prompt = self.get_prompt(
-            "system", "You are an expert editor and writing assistant."
-        )
+        system_prompt = self.get_prompt("system", "You are an expert editor and writing assistant.")
 
         action_verbs = {"rewrite": "Rewrite", "shorten": "Shorten", "expand": "Expand"}
         action_verb = action_verbs.get(action, "Rewrite")
