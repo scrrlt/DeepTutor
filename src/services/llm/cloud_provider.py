@@ -58,6 +58,15 @@ async def complete(
             base_url=base_url,
             **kwargs,
         )
+    elif binding_lower in ["azure", "azure_openai"]:
+        return await _azure_complete(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        )
 
     # Default to OpenAI-compatible endpoint
     return await _openai_complete(
@@ -100,6 +109,17 @@ async def stream(
 
     if binding_lower in ["anthropic", "claude"]:
         async for chunk in _anthropic_stream(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            messages=messages,
+            **kwargs,
+        ):
+            yield chunk
+    elif binding_lower in ["azure", "azure_openai"]:
+        async for chunk in _azure_stream(
             model=model,
             prompt=prompt,
             system_prompt=system_prompt,
@@ -216,6 +236,181 @@ async def _openai_complete(
             raise LLMTimeoutError(f"Connection failed: {str(e)}")
 
     raise LLMAPIError("Cloud completion failed: no valid configuration")
+
+
+async def _azure_complete(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    **kwargs,
+) -> str:
+    """Azure OpenAI completion."""
+    if not base_url:
+        raise LLMAPIError("Azure OpenAI requires a base_url")
+
+    if not api_key:
+        raise LLMAuthenticationError("Azure OpenAI requires an api_key")
+
+    # Azure OpenAI URL format: https://YOUR_RESOURCE.openai.azure.com/openai/deployments/{model}/chat/completions?api-version=2023-05-15
+    api_version = kwargs.get("api_version", "2023-05-15")
+    url = f"{base_url.rstrip('/')}/openai/deployments/{model}/chat/completions?api-version={api_version}"
+
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": api_key,  # Azure uses api-key header, not Authorization: Bearer
+    }
+
+    data = {
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": kwargs.get("temperature", 0.7),
+        "max_tokens": kwargs.get("max_tokens", 4096),
+    }
+
+    timeout = aiohttp.ClientTimeout(total=120)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, headers=headers, json=data) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    if "choices" in result and result["choices"]:
+                        msg = result["choices"][0].get("message", {})
+                        content = msg.get("content", "")
+                        if not content:
+                            content = (
+                                msg.get("reasoning_content")
+                                or msg.get("reasoning")
+                                or msg.get("thought")
+                                or ""
+                            )
+                        return content
+                else:
+                    error_text = await resp.text()
+
+                    # Map HTTP status codes to specific exceptions
+                    if resp.status == 401:
+                        raise LLMAuthenticationError(
+                            f"Azure OpenAI authentication failed: {error_text}"
+                        )
+                    elif resp.status == 429:
+                        raise LLMRateLimitError(
+                            f"Azure OpenAI rate limit exceeded: {error_text}",
+                            provider="azure_openai",
+                        )
+                    elif resp.status >= 500:
+                        raise LLMAPIError(
+                            f"Azure OpenAI server error: {error_text}",
+                            status_code=resp.status,
+                            provider="azure_openai",
+                        )
+                    else:
+                        raise LLMAPIError(
+                            f"Azure OpenAI API error: {resp.status} - {error_text}",
+                            status_code=resp.status,
+                            provider="azure_openai",
+                        )
+    except aiohttp.ClientError as e:
+        # Catch network/timeout errors and wrap them
+        raise LLMTimeoutError(f"Azure OpenAI connection failed: {str(e)}")
+
+    raise LLMAPIError("Azure OpenAI completion failed: no valid configuration")
+
+
+async def _azure_stream(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    messages: Optional[List[Dict[str, str]]] = None,
+    **kwargs,
+) -> AsyncGenerator[str, None]:
+    """Azure OpenAI streaming."""
+    import json
+
+    if not base_url:
+        raise LLMAPIError("Azure OpenAI requires a base_url")
+
+    if not api_key:
+        raise LLMAuthenticationError("Azure OpenAI requires an api_key")
+
+    # Azure OpenAI URL format: https://YOUR_RESOURCE.openai.azure.com/openai/deployments/{model}/chat/completions?api-version=2023-05-15
+    api_version = kwargs.get("api_version", "2023-05-15")
+    url = f"{base_url.rstrip('/')}/openai/deployments/{model}/chat/completions?api-version={api_version}"
+
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": api_key,  # Azure uses api-key header, not Authorization: Bearer
+    }
+
+    # Build messages
+    if messages:
+        msg_list = messages
+    else:
+        msg_list = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+
+    data = {
+        "messages": msg_list,
+        "temperature": kwargs.get("temperature", 0.7),
+        "stream": True,
+    }
+    if kwargs.get("max_tokens"):
+        data["max_tokens"] = kwargs["max_tokens"]
+
+    timeout = aiohttp.ClientTimeout(total=300)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=data) as resp:
+            if resp.status != 200:
+                error_text = await resp.text()
+
+                # Map HTTP status codes to specific exceptions
+                if resp.status == 401:
+                    raise LLMAuthenticationError(
+                        f"Azure OpenAI stream authentication failed: {error_text}"
+                    )
+                elif resp.status == 429:
+                    raise LLMRateLimitError(
+                        f"Azure OpenAI stream rate limit exceeded: {error_text}",
+                        provider="azure_openai",
+                    )
+                elif resp.status >= 500:
+                    raise LLMAPIError(
+                        f"Azure OpenAI stream server error: {error_text}",
+                        status_code=resp.status,
+                        provider="azure_openai",
+                    )
+                else:
+                    raise LLMAPIError(
+                        f"Azure OpenAI stream error: {resp.status} - {error_text}",
+                        status_code=resp.status,
+                        provider="azure_openai",
+                    )
+
+            async for line in resp.content:
+                line_str = line.decode("utf-8").strip()
+                if not line_str or not line_str.startswith("data:"):
+                    continue
+
+                data_str = line_str[5:].strip()
+                if data_str == "[DONE]":
+                    break
+
+                try:
+                    chunk_data = json.loads(data_str)
+                    if "choices" in chunk_data and chunk_data["choices"]:
+                        delta = chunk_data["choices"][0].get("delta", {})
+                        content = delta.get("content")
+                        if content:
+                            yield content
+                except json.JSONDecodeError:
+                    continue
 
 
 async def _openai_stream(
