@@ -77,6 +77,7 @@ async def complete(
             system_prompt=system_prompt,
             api_key=api_key,
             base_url=base_url,
+            messages=kwargs.get("messages"),
             **kwargs,
         )
 
@@ -141,6 +142,7 @@ async def stream(
             system_prompt=system_prompt,
             api_key=api_key,
             base_url=base_url,
+            messages=kwargs.get("messages"),
             **kwargs,
         ):
             yield chunk
@@ -501,9 +503,10 @@ async def _gemini_complete(
     system_prompt: str,
     api_key: Optional[str],
     base_url: Optional[str],
+    messages: Optional[List[Dict[str, str]]] = None,
     **kwargs,
 ) -> str:
-    """Google Gemini API completion."""
+    """Google Gemini API completion with multimodal support."""
     api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise LLMAuthenticationError("Gemini API key is missing.", provider="gemini")
@@ -514,9 +517,39 @@ async def _gemini_complete(
 
     headers = {"Content-Type": "application/json"}
 
+    # Build parts - handle multimodal content if messages provided
+    parts = []
+    if messages:
+        # Convert from OpenAI format to Gemini format
+        last_msg = messages[-1] if messages else None
+        if last_msg and isinstance(last_msg.get("content"), list):
+            for item in last_msg["content"]:
+                if item.get("type") == "text":
+                    parts.append({"text": item["text"]})
+                elif item.get("type") == "image_url":
+                    # Extract base64 data from data URL
+                    img_url = item["image_url"]["url"]
+                    if "," in img_url:
+                        img_data = img_url.split(",", 1)[1]
+                        parts.append({
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": img_data
+                            }
+                        })
+    
+    if not parts:
+        parts = [{"text": prompt}]
+
     # Build request body - Gemini format
     data = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": parts}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ],
         "generationConfig": {
             "temperature": kwargs.get("temperature", 0.7),
             "maxOutputTokens": kwargs.get("max_tokens", 4096),
@@ -542,6 +575,15 @@ async def _gemini_complete(
             # Extract text from Gemini response format
             if "candidates" in result and result["candidates"]:
                 candidate = result["candidates"][0]
+                
+                # Check for safety blocking
+                finish_reason = candidate.get("finishReason")
+                if finish_reason == "SAFETY":
+                    raise LLMAPIError(
+                        "Gemini blocked response due to safety filters.",
+                        provider="gemini",
+                    )
+                
                 if "content" in candidate and "parts" in candidate["content"]:
                     parts = candidate["content"]["parts"]
                     if parts and "text" in parts[0]:
@@ -556,9 +598,10 @@ async def _gemini_stream(
     system_prompt: str,
     api_key: Optional[str],
     base_url: Optional[str],
+    messages: Optional[List[Dict[str, str]]] = None,
     **kwargs,
 ) -> AsyncGenerator[str, None]:
-    """Google Gemini API streaming."""
+    """Google Gemini API streaming with multimodal support."""
     import json
 
     api_key = api_key or os.getenv("GEMINI_API_KEY")
@@ -571,9 +614,37 @@ async def _gemini_stream(
 
     headers = {"Content-Type": "application/json"}
 
+    # Build parts - handle multimodal content if messages provided
+    parts = []
+    if messages:
+        last_msg = messages[-1] if messages else None
+        if last_msg and isinstance(last_msg.get("content"), list):
+            for item in last_msg["content"]:
+                if item.get("type") == "text":
+                    parts.append({"text": item["text"]})
+                elif item.get("type") == "image_url":
+                    img_url = item["image_url"]["url"]
+                    if "," in img_url:
+                        img_data = img_url.split(",", 1)[1]
+                        parts.append({
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": img_data
+                            }
+                        })
+    
+    if not parts:
+        parts = [{"text": prompt}]
+
     # Build request body
     data = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": parts}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ],
         "generationConfig": {
             "temperature": kwargs.get("temperature", 0.7),
             "maxOutputTokens": kwargs.get("max_tokens", 4096),
@@ -646,12 +717,22 @@ async def fetch_models(
             async with session.get(url, headers=headers) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    if "data" in data and isinstance(data["data"], list):
+                    
+                    # Gemini format: {"models": [{"name": "models/gemini-1.5-flash", ...}]}
+                    if "models" in data and isinstance(data["models"], list):
+                        return [
+                            m["name"].replace("models/", "") 
+                            for m in data["models"] 
+                            if "name" in m
+                        ]
+                    # OpenAI format: {"data": [{"id": "gpt-4", ...}]}
+                    elif "data" in data and isinstance(data["data"], list):
                         return [
                             m.get("id") or m.get("name")
                             for m in data["data"]
                             if m.get("id") or m.get("name")
                         ]
+                    # Plain list format
                     elif isinstance(data, list):
                         return [
                             m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
