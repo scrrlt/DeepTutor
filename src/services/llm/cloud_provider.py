@@ -47,9 +47,9 @@ async def complete(
     Returns:
         str: The LLM response
     """
-    binding_lower = (binding or "openai").lower()
+    binding = (binding or "openai").lower()
 
-    if binding_lower in ["anthropic", "claude"]:
+    if binding in ["anthropic", "claude"]:
         return await _anthropic_complete(
             model=model,
             prompt=prompt,
@@ -58,7 +58,7 @@ async def complete(
             base_url=base_url,
             **kwargs,
         )
-    elif binding_lower in ["azure", "azure_openai"]:
+    elif binding in ["azure", "azure_openai"]:
         return await _azure_complete(
             model=model,
             prompt=prompt,
@@ -67,7 +67,7 @@ async def complete(
             base_url=base_url,
             **kwargs,
         )
-    elif binding_lower == "gemini":
+    elif binding == "gemini":
         return await _gemini_complete(
             model=model,
             prompt=prompt,
@@ -115,9 +115,9 @@ async def stream(
     Yields:
         str: Response chunks
     """
-    binding_lower = (binding or "openai").lower()
+    binding = (binding or "openai").lower()
 
-    if binding_lower in ["anthropic", "claude"]:
+    if binding in ["anthropic", "claude"]:
         async for chunk in _anthropic_stream(
             model=model,
             prompt=prompt,
@@ -128,7 +128,7 @@ async def stream(
             **kwargs,
         ):
             yield chunk
-    elif binding_lower in ["azure", "azure_openai"]:
+    elif binding in ["azure", "azure_openai"]:
         async for chunk in _azure_stream(
             model=model,
             prompt=prompt,
@@ -139,7 +139,7 @@ async def stream(
             **kwargs,
         ):
             yield chunk
-    elif binding_lower == "gemini":
+    elif binding == "gemini":
         async for chunk in _gemini_stream(
             model=model,
             prompt=prompt,

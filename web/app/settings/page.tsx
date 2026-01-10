@@ -182,8 +182,45 @@ export default function SettingsPage() {
     help_text?: string;
   }
 
-  // Local deployment presets only - cloud providers should use Environment Variables tab
+  // Provider presets (cloud + local)
   const PROVIDER_PRESETS: ProviderPreset[] = [
+    {
+      id: "openai",
+      name: "OpenAI",
+      binding: "openai",
+      base_url: "https://api.openai.com/v1",
+      default_model: "gpt-4o",
+      models: ["gpt-4o", "gpt-4o-mini"],
+      requires_key: true,
+      help_text:
+        "Official OpenAI API. API key required. Base URL: https://api.openai.com/v1",
+    },
+    {
+      id: "anthropic",
+      name: "Anthropic (Claude)",
+      binding: "anthropic",
+      base_url: "https://api.anthropic.com/v1",
+      default_model: "claude-3-5-sonnet-20241022",
+      models: [
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229",
+      ],
+      requires_key: true,
+      help_text:
+        "Anthropic Claude API. API key required. Base URL: https://api.anthropic.com/v1",
+    },
+    {
+      id: "gemini",
+      name: "Google Gemini (AI Studio)",
+      binding: "gemini",
+      base_url: "https://generativelanguage.googleapis.com/v1beta",
+      default_model: "gemini-1.5-flash",
+      models: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"],
+      requires_key: true,
+      help_text:
+        "Google Gemini via AI Studio API key. Base URL: https://generativelanguage.googleapis.com/v1beta",
+    },
     {
       id: "ollama",
       name: "Ollama",
@@ -285,7 +322,7 @@ export default function SettingsPage() {
   const [editingProvider, setEditingProvider] = useState<LLMProvider | null>(
     null,
   ); // null means adding new
-  const [selectedPresetId, setSelectedPresetId] = useState<string>("ollama");
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("openai");
   const [customModelInput, setCustomModelInput] = useState(true);
   const [showProviderForm, setShowProviderForm] = useState(false);
   const [testProviderResult, setTestProviderResult] = useState<{
@@ -390,13 +427,18 @@ export default function SettingsPage() {
 
   const fetchModels = async () => {
     if (!editingProvider || !editingProvider.base_url) return;
+    const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
+    const requiresKey = preset ? preset.requires_key : true;
+
+    if (requiresKey && !editingProvider.api_key) {
+      alert("API key required to fetch models for this provider.");
+      return;
+    }
+
     setFetchingModels(true);
     setFetchedModels([]);
 
     try {
-      const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
-      const requiresKey = preset ? preset.requires_key : true;
-
       const res = await fetch(apiUrl("/api/v1/config/llm/models/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -422,7 +464,8 @@ export default function SettingsPage() {
             );
           }
         } else {
-          alert(`No models found. ${data.message || ""}`);
+          // allow fallback to free-text
+          setCustomModelInput(true);
         }
       }
     } catch (err) {
@@ -431,7 +474,7 @@ export default function SettingsPage() {
       if (preset && preset.models.length > 0) {
         setFetchedModels(preset.models);
       } else {
-        alert("Failed to connect to backend for model fetching.");
+        setCustomModelInput(true);
       }
     } finally {
       setFetchingModels(false);
@@ -1833,7 +1876,9 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => {
-                  const defaultPreset = PROVIDER_PRESETS[0];
+                  const defaultPreset = PROVIDER_PRESETS.find(
+                    (p) => p.id === "openai",
+                  ) || PROVIDER_PRESETS[0];
                   setEditingProvider({
                     name: "",
                     binding: defaultPreset.binding,
@@ -1841,12 +1886,13 @@ export default function SettingsPage() {
                     api_key: "",
                     model: defaultPreset.default_model,
                     is_active: false,
-                    provider_type: "local",
+                    provider_type: defaultPreset.requires_key ? "api" : "local",
                     requires_key: defaultPreset.requires_key,
                   });
                   setOriginalProviderName(null);
                   setSelectedPresetId(defaultPreset.id);
                   setFetchedModels([]);
+                  setCustomModelInput(defaultPreset.models.length === 0);
                   setShowProviderForm(true);
                   setTestProviderResult(null);
                 }}
@@ -2118,6 +2164,9 @@ export default function SettingsPage() {
                               model:
                                 preset.default_model || editingProvider.model,
                               requires_key: preset.requires_key,
+                              provider_type: preset.requires_key
+                                ? "api"
+                                : "local",
                             });
                             setCustomModelInput(preset.models.length === 0);
                             setFetchedModels([]);
@@ -2192,11 +2241,13 @@ export default function SettingsPage() {
                           )
                         }
                         placeholder={
-                          selectedPresetId === "lmstudio"
+                          PROVIDER_PRESETS.find((p) => p.id === selectedPresetId)
+                            ?.base_url ||
+                          (selectedPresetId === "lmstudio"
                             ? "http://127.0.0.1:1234"
                             : selectedPresetId === "ollama"
                               ? "http://localhost:11434/v1"
-                              : "http://localhost:8080/v1"
+                              : "http://localhost:8080/v1")
                         }
                         className={`w-full p-2 bg-slate-50 dark:bg-slate-700 border rounded-lg font-mono text-xs ${
                           editingProvider.base_url.includes(
