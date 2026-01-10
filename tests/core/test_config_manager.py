@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import yaml
+
 from src.utils.config_manager import ConfigManager
 
 
@@ -58,4 +60,3 @@ def test_env_layering(tmp_path: Path):
     cm = ConfigManager(project_root=project)
     env = cm.get_env_info()
     assert env["model"] == "Override"
-

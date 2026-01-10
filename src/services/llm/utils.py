@@ -30,14 +30,14 @@ CLOUD_DOMAINS = [
 
 # Common local server ports
 LOCAL_PORTS = [
-    ":1234",   # LM Studio
+    ":1234",  # LM Studio
     ":11434",  # Ollama
-    ":8000",   # vLLM
-    ":8080",   # llama.cpp
-    ":5000",   # Common dev port
-    ":3000",   # Common dev port
-    ":8001",   # Alternative vLLM
-    ":5001",   # Alternative dev port
+    ":8000",  # vLLM
+    ":8080",  # llama.cpp
+    ":5000",  # Common dev port
+    ":3000",  # Common dev port
+    ":8001",  # Alternative vLLM
+    ":5001",  # Alternative dev port
 ]
 
 # Local hostname indicators
@@ -50,10 +50,10 @@ LOCAL_HOSTS = [
 # Ports that need /v1 suffix for OpenAI compatibility
 V1_SUFFIX_PORTS = {
     ":11434",  # Ollama
-    ":1234",   # LM Studio
-    ":8000",   # vLLM
-    ":8001",   # Alternative vLLM
-    ":8080",   # llama.cpp
+    ":1234",  # LM Studio
+    ":8000",  # vLLM
+    ":8001",  # Alternative vLLM
+    ":8080",  # llama.cpp
 }
 
 

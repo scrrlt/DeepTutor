@@ -1,5 +1,6 @@
 from typing import Callable
 
+
 class ConfigAccessor:
     def __init__(self, loader: Callable[[], dict]):
         self._loader = loader
@@ -15,4 +16,3 @@ class ConfigAccessor:
     def user_data_dir(self) -> str:
         cfg = self._loader()
         return str(cfg.get("paths", {}).get("user_data_dir", "./data/user"))
-

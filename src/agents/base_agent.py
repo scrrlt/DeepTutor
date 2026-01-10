@@ -29,9 +29,8 @@ from src.config.settings import settings
 from src.logging import LLMStats, get_logger
 from src.services.config import get_agent_params
 from src.services.llm import complete as llm_complete
-from src.services.llm import get_llm_config, get_token_limit_kwargs
+from src.services.llm import get_llm_config, get_token_limit_kwargs, supports_response_format
 from src.services.llm import stream as llm_stream
-from src.services.llm import supports_response_format
 from src.services.prompt import get_prompt_manager
 
 
@@ -368,9 +367,7 @@ class BaseAgent(ABC):
             if supports_response_format(binding, model):
                 kwargs["response_format"] = response_format
             else:
-                self.logger.debug(
-                    f"response_format not supported for {binding}/{model}, skipping"
-                )
+                self.logger.debug(f"response_format not supported for {binding}/{model}, skipping")
 
         if messages:
             kwargs["messages"] = messages

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """Manual test script for error handling features"""
+
 import asyncio
-from pathlib import Path
-import tempfile
 
 
 # Test 1: Error message formatting
@@ -20,6 +19,7 @@ def test_error_formatting():
     # Test with OpenAI-like error
     try:
         from openai import RateLimitError
+
         raise RateLimitError("Rate limit exceeded", response=None, body=None)
     except Exception as e:
         msg = format_exception_message(e)
@@ -54,7 +54,7 @@ def test_document_validation():
 
 # Test 3: Retry decorator
 async def test_retry_decorator():
-    from src.agents.solve.utils.error_handler import retry_on_parse_error, ParseError
+    from src.agents.solve.utils.error_handler import ParseError, retry_on_parse_error
 
     attempt_count = 0
 
@@ -75,18 +75,15 @@ async def test_retry_decorator():
 # Test 4: Validation functions
 def test_validation_functions():
     from src.agents.solve.utils.error_handler import (
+        ParseError,
         validate_investigate_output,
-        validate_solve_output,
-        ParseError
-        )
+    )
 
     # Valid investigate output
     valid_output = {
-            "reasoning": "Need to search for information",
-            "tools":     [
-                    {"tool_type": "rag_naive", "query": "What is AI?", "identifier": ""}
-                    ]
-            }
+        "reasoning": "Need to search for information",
+        "tools": [{"tool_type": "rag_naive", "query": "What is AI?", "identifier": ""}],
+    }
     assert validate_investigate_output(valid_output)
     print("✓ Valid investigate output passes")
 
@@ -101,12 +98,12 @@ def test_validation_functions():
     # Invalid - none tool with others
     try:
         invalid_output = {
-                "reasoning": "test",
-                "tools":     [
-                        {"tool_type": "none", "query": "", "identifier": ""},
-                        {"tool_type": "rag_naive", "query": "test", "identifier": ""}
-                        ]
-                }
+            "reasoning": "test",
+            "tools": [
+                {"tool_type": "none", "query": "", "identifier": ""},
+                {"tool_type": "rag_naive", "query": "test", "identifier": ""},
+            ],
+        }
         validate_investigate_output(invalid_output)
         assert False, "Should raise ParseError for none tool constraint"
     except ParseError as e:
