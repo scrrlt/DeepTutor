@@ -14,6 +14,7 @@ Features:
 - PDF support
 - Free tier: 10M tokens
 """
+
 from datetime import datetime
 from typing import Any
 import urllib.parse
@@ -80,9 +81,7 @@ class JinaProvider(BaseSearchProvider):
 
         if response.status_code != 200:
             self.logger.error(f"Jina API error: {response.status_code}")
-            raise Exception(
-                f"Jina API error: {response.status_code} - {response.text}"
-            )
+            raise Exception(f"Jina API error: {response.status_code} - {response.text}")
 
         data = response.json()
         self.logger.debug(f"Jina returned {len(data.get('data', []))} results")

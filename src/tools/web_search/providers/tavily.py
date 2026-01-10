@@ -11,6 +11,7 @@ Features:
 - Time range filtering (day, week, month, year)
 - Domain include/exclude lists
 """
+
 from datetime import datetime
 from typing import Any
 

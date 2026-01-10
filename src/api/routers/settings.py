@@ -841,4 +841,4 @@ async def get_rag_providers():
 
         return {"providers": providers, "current": current}
     except Exception as e:
-        raise HTTPException(status_code=500, detail =f"Failed to get RAG providers: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get RAG providers: {str(e)}")

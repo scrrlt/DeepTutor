@@ -18,6 +18,7 @@ Pricing:
 - Neural search (26-100 results): $0.025/request
 - Content text/highlight/summary: $0.001/page
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -87,9 +88,7 @@ class ExaProvider(BaseSearchProvider):
         # Build contents configuration
         contents: dict[str, Any] = {}
         if include_text:
-            contents["text"] = (
-                {"maxCharacters": max_characters} if max_characters else True
-            )
+            contents["text"] = {"maxCharacters": max_characters} if max_characters else True
         if include_highlights:
             contents["highlights"] = True
         if include_summary:
@@ -113,16 +112,13 @@ class ExaProvider(BaseSearchProvider):
         if end_published_date:
             payload["endPublishedDate"] = end_published_date
 
-        response = requests.post(
-            self.BASE_URL, headers=headers, json=payload, timeout=timeout
-        )
+        response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
 
         if response.status_code != 200:
             error_data = response.json() if response.text else {}
             self.logger.error(f"Exa API error: {response.status_code}")
             raise Exception(
-                f"Exa API error: {response.status_code} - "
-                f"{error_data.get('error', response.text)}"
+                f"Exa API error: {response.status_code} - {error_data.get('error', response.text)}"
             )
 
         data = response.json()

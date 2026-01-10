@@ -3,6 +3,7 @@ Web Search Base Provider - Abstract base class for all search providers
 
 This module defines the BaseSearchProvider class that all search providers must inherit from.
 """
+
 from abc import ABC, abstractmethod
 import os
 from typing import Any

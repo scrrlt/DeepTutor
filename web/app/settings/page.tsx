@@ -110,8 +110,8 @@ interface WebSearchConfigResponse {
   provider: string;
   consolidation: string | null;
   providers: WebSearchProvider[];
-  consolidation_types: string[];  // ["none", "template", "llm"]
-  template_providers: string[];  // Providers that support template consolidation (serper, jina, etc.)
+  consolidation_types: string[]; // ["none", "template", "llm"]
+  template_providers: string[]; // Providers that support template consolidation (serper, jina, etc.)
   config_source: "env" | "yaml" | "default";
 }
 
@@ -359,7 +359,8 @@ export default function SettingsPage() {
   const [loadingRagProviders, setLoadingRagProviders] = useState(false);
 
   // Web search config state (fetched from backend)
-  const [webSearchConfig, setWebSearchConfig] = useState<WebSearchConfigResponse | null>(null);
+  const [webSearchConfig, setWebSearchConfig] =
+    useState<WebSearchConfigResponse | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -678,7 +679,7 @@ export default function SettingsPage() {
 
   const handleEnvVarChange = (key: string, value: string) => {
     setEditedEnvVars((prev) => ({ ...prev, [key]: value }));
-    
+
     // Sync SEARCH_PROVIDER env var with config dropdown
     if (key === "SEARCH_PROVIDER" && value) {
       setEditedConfig((prev) => {
@@ -941,7 +942,11 @@ export default function SettingsPage() {
     });
 
     // Sync search provider selection with SEARCH_PROVIDER env var
-    if (section === "tools" && subSection === "web_search" && key === "provider") {
+    if (
+      section === "tools" &&
+      subSection === "web_search" &&
+      key === "provider"
+    ) {
       setEditedEnvVars((prev) => ({ ...prev, SEARCH_PROVIDER: value }));
     }
   };
@@ -1554,7 +1559,11 @@ export default function SettingsPage() {
                       {t("Search Provider")}
                     </label>
                     <select
-                      value={editedEnvVars["SEARCH_PROVIDER"] || editedConfig.tools?.web_search?.provider || "perplexity"}
+                      value={
+                        editedEnvVars["SEARCH_PROVIDER"] ||
+                        editedConfig.tools?.web_search?.provider ||
+                        "perplexity"
+                      }
                       onChange={(e) =>
                         handleConfigChange(
                           "tools",
@@ -1605,7 +1614,10 @@ export default function SettingsPage() {
                         {t("Answer Consolidation")}
                       </label>
                       <select
-                        value={editedConfig.tools?.web_search?.consolidation || "template"}
+                        value={
+                          editedConfig.tools?.web_search?.consolidation ||
+                          "template"
+                        }
                         onChange={(e) =>
                           handleConfigChange(
                             "tools",
@@ -1616,7 +1628,13 @@ export default function SettingsPage() {
                         }
                         className="w-full p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-xs text-slate-900 dark:text-slate-100"
                       >
-                        {(webSearchConfig?.consolidation_types || ["none", "template", "llm"]).map((type) => (
+                        {(
+                          webSearchConfig?.consolidation_types || [
+                            "none",
+                            "template",
+                            "llm",
+                          ]
+                        ).map((type) => (
                           <option key={type} value={type}>
                             {type.charAt(0).toUpperCase() + type.slice(1)}
                           </option>
@@ -1627,11 +1645,21 @@ export default function SettingsPage() {
                       </p>
                     </div>
 
-                    {(editedConfig.tools?.web_search?.consolidation === "template" || editedConfig.tools?.web_search?.consolidation === "llm") && (
+                    {(editedConfig.tools?.web_search?.consolidation ===
+                      "template" ||
+                      editedConfig.tools?.web_search?.consolidation ===
+                        "llm") && (
                       <div className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded space-y-1">
-                        <div>Consolidation only works with: {webSearchConfig?.template_providers?.join(", ") || "serper, jina, serper_scholar"}</div>
-                        {editedConfig.tools?.web_search?.consolidation === "llm" && (
-                          <div className="text-amber-700 dark:text-amber-300 font-medium">⚠️ LLM consolidation is an experimental feature.</div>
+                        <div>
+                          Consolidation only works with:{" "}
+                          {webSearchConfig?.template_providers?.join(", ") ||
+                            "serper, jina, serper_scholar"}
+                        </div>
+                        {editedConfig.tools?.web_search?.consolidation ===
+                          "llm" && (
+                          <div className="text-amber-700 dark:text-amber-300 font-medium">
+                            ⚠️ LLM consolidation is an experimental feature.
+                          </div>
                         )}
                       </div>
                     )}
@@ -1672,9 +1700,7 @@ export default function SettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={
-                        editedConfig.tools?.rag_tool?.kb_base_dir || ""
-                      }
+                      value={editedConfig.tools?.rag_tool?.kb_base_dir || ""}
                       onChange={(e) =>
                         handleConfigChange(
                           "tools",
@@ -1707,11 +1733,7 @@ export default function SettingsPage() {
                     type="text"
                     value={editedConfig.tts?.default_voice || "Cherry"}
                     onChange={(e) =>
-                      handleConfigChange(
-                        "tts",
-                        "default_voice",
-                        e.target.value,
-                      )
+                      handleConfigChange("tts", "default_voice", e.target.value)
                     }
                     className="w-full p-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100"
                   />
@@ -1721,17 +1743,17 @@ export default function SettingsPage() {
                     {t("Default Language")}
                   </label>
                   <input
-                      type="text"
-                      value={editedConfig.tts?.default_language || "English"}
-                      onChange={(e) =>
-                        handleConfigChange(
-                          "tts",
-                          "default_language",
-                          e.target.value,
-                        )
-                      }
-                      className="w-full p-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100"
-                    />
+                    type="text"
+                    value={editedConfig.tts?.default_language || "English"}
+                    onChange={(e) =>
+                      handleConfigChange(
+                        "tts",
+                        "default_language",
+                        e.target.value,
+                      )
+                    }
+                    className="w-full p-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100"
+                  />
                 </div>
               </div>
             </section>

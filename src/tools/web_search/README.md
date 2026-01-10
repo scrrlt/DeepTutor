@@ -322,16 +322,16 @@ class MyProvider(BaseSearchProvider):
     # =========================================================================
     # REQUIRED CLASS ATTRIBUTES
     # =========================================================================
-    
+
     # Human-readable name for UI display
     display_name = "MyProvider"
-    
+
     # Short description for UI
     description = "My custom search engine"
-    
+
     # Environment variable name for API key
     api_key_env_var = "MYPROVIDER_API_KEY"
-    
+
     # Does this provider generate LLM answers?
     # - True: AI providers (Perplexity, Tavily, Exa, Baidu)
     # - False: SERP providers (Serper, Jina) - need consolidation for answers
@@ -340,11 +340,11 @@ class MyProvider(BaseSearchProvider):
     # =========================================================================
     # OPTIONAL CLASS ATTRIBUTES
     # =========================================================================
-    
+
     # Set to False if provider has a free tier (like Jina)
     # Default: True
     requires_api_key = True
-    
+
     # Provider name (auto-set by @register_provider decorator)
     # Only override if you need a different internal name
     # name = "myprovider"
@@ -352,7 +352,7 @@ class MyProvider(BaseSearchProvider):
     # =========================================================================
     # PROVIDER IMPLEMENTATION
     # =========================================================================
-    
+
     BASE_URL = "https://api.myprovider.com/search"
 
     def search(
@@ -379,42 +379,42 @@ class MyProvider(BaseSearchProvider):
         """
         # Use self.logger for logging (auto-configured in base class)
         self.logger.debug(f"Calling MyProvider API max_results={max_results}")
-        
+
         # Use self.api_key (auto-loaded from env var or constructor)
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "query": query,
             "limit": max_results,
             "lang": language,
         }
-        
+
         response = requests.post(
             self.BASE_URL,
             headers=headers,
             json=payload,
             timeout=timeout,
         )
-        
+
         if response.status_code != 200:
             self.logger.error(f"MyProvider API error: {response.status_code}")
             raise Exception(
                 f"MyProvider API error: {response.status_code} - {response.text}"
             )
-        
+
         data = response.json()
         self.logger.debug(f"MyProvider returned {len(data.get('results', []))} results")
-        
+
         # =====================================================================
         # CONVERT API RESPONSE TO STANDARDIZED FORMAT
         # =====================================================================
-        
+
         citations: list[Citation] = []
         search_results: list[SearchResult] = []
-        
+
         for i, item in enumerate(data.get("results", []), 1):
             # Build SearchResult
             sr = SearchResult(
@@ -430,7 +430,7 @@ class MyProvider(BaseSearchProvider):
                 attributes={},  # dict with any extra data
             )
             search_results.append(sr)
-            
+
             # Build Citation (parallel to SearchResult)
             citations.append(
                 Citation(
@@ -444,7 +444,7 @@ class MyProvider(BaseSearchProvider):
                     content=item.get("full_content", ""),
                 )
             )
-        
+
         # Build the response
         return WebSearchResponse(
             query=query,
@@ -489,7 +489,7 @@ Edit `src/tools/web_search/consolidation.py`:
 # 1. Add to PROVIDER_TEMPLATES dict (module-level):
 PROVIDER_TEMPLATES = {
     # ... existing templates ...
-    
+
     "myprovider": """### Search Results for "{{ query }}"
 
 {% for result in results[:max_results] %}
@@ -703,7 +703,7 @@ class TavilyProvider(BaseSearchProvider):
         **kwargs: Any,
     ) -> WebSearchResponse:
         self.logger.debug(f"Calling Tavily API depth={search_depth}")
-        
+
         payload = {
             "api_key": self.api_key,
             "query": query,
@@ -719,7 +719,7 @@ class TavilyProvider(BaseSearchProvider):
             raise Exception(f"Tavily API error: {response.status_code}")
 
         data = response.json()
-        
+
         citations = []
         search_results = []
 

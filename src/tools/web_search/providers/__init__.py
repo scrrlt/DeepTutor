@@ -3,8 +3,9 @@ Web Search Provider Registry
 
 This module manages the registration and retrieval of search providers.
 """
-from typing import Type
+
 import os
+from typing import Type
 
 from ..base import BaseSearchProvider
 
@@ -88,14 +89,16 @@ def get_providers_info() -> list[dict]:
     """
     providers_info = []
     for provider_id, cls in sorted(_PROVIDERS.items()):
-        providers_info.append({
-            "id": provider_id,
-            "name": cls.display_name,
-            "description": cls.description,
-            "keyEnv": cls.api_key_env_var,
-            "supports_answer": cls.supports_answer,
-            "requires_api_key": cls.requires_api_key,
-        })
+        providers_info.append(
+            {
+                "id": provider_id,
+                "name": cls.display_name,
+                "description": cls.description,
+                "keyEnv": cls.api_key_env_var,
+                "supports_answer": cls.supports_answer,
+                "requires_api_key": cls.requires_api_key,
+            }
+        )
     return providers_info
 
 
@@ -114,7 +117,7 @@ def get_default_provider(**kwargs) -> BaseSearchProvider:
 
 
 # Auto-import all providers to trigger registration
-from . import perplexity, baidu, tavily, exa, serper, jina
+from . import baidu, exa, jina, perplexity, serper, tavily
 
 __all__ = [
     "register_provider",

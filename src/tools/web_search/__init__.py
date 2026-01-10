@@ -29,13 +29,16 @@ Available Providers:
     - serper: Google SERP results
     - jina: SERP with full content extraction
 """
-import os
+
 from datetime import datetime
+import os
 from typing import Any
 
 from src.logging import get_logger
-from src.services.config import load_config_with_main, PROJECT_ROOT
+from src.services.config import PROJECT_ROOT, load_config_with_main
 
+from ._legacy import SearchProvider
+from .consolidation import AnswerConsolidator
 from .providers import (
     get_available_providers,
     get_default_provider,
@@ -43,8 +46,6 @@ from .providers import (
     list_providers,
 )
 from .types import Citation, SearchResult, WebSearchResponse
-from ._legacy import SearchProvider
-from .consolidation import AnswerConsolidator
 from .utils import save_results
 
 # Module logger
@@ -54,7 +55,7 @@ _logger = get_logger("WebSearch", level="INFO")
 def _get_web_search_config() -> dict[str, Any]:
     """
     Load web search configuration from config/main.yaml using the standard config loader.
-    
+
     Returns:
         dict with web_search config from tools.web_search section
     """
@@ -118,7 +119,7 @@ def web_search(
     """
     # Load config from main.yaml
     config = _get_web_search_config()
-    
+
     # Check if web_search is enabled (default: True)
     if not config.get("enabled", True):
         _logger.warning("Web search is disabled in config")
@@ -130,19 +131,16 @@ def web_search(
             "search_results": [],
             "provider": "disabled",
         }
-    
+
     # Determine provider: function arg > env var > config > default
     provider_name = (
-        provider 
-        or os.environ.get("SEARCH_PROVIDER") 
-        or config.get("provider") 
-        or "perplexity"
+        provider or os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity"
     ).lower()
-    
+
     # Determine consolidation from config if not provided
     if consolidation is None:
         consolidation = config.get("consolidation")
-    
+
     # Determine custom template from config if not provided
     if consolidation_custom_template is None:
         consolidation_custom_template = config.get("consolidation_template") or None
@@ -200,7 +198,7 @@ def web_search(
 def get_current_config() -> dict[str, Any]:
     """
     Get the current web search configuration.
-    
+
     Returns:
         dict with:
             - enabled: bool
@@ -212,18 +210,14 @@ def get_current_config() -> dict[str, Any]:
             - template_providers: list[str] (providers that support template consolidation)
             - config_source: "env" | "yaml" | "default"
     """
-    from .providers import get_providers_info
     from .consolidation import CONSOLIDATION_TYPES, PROVIDER_TEMPLATES
-    
+    from .providers import get_providers_info
+
     config = _get_web_search_config()
-    
+
     # Determine effective provider
-    provider = (
-        os.environ.get("SEARCH_PROVIDER") 
-        or config.get("provider") 
-        or "perplexity"
-    ).lower()
-    
+    provider = (os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity").lower()
+
     return {
         "enabled": config.get("enabled", True),
         "provider": provider,
@@ -234,7 +228,11 @@ def get_current_config() -> dict[str, Any]:
         "consolidation_types": CONSOLIDATION_TYPES,
         # Only these providers support template consolidation
         "template_providers": list(PROVIDER_TEMPLATES.keys()),
-        "config_source": "env" if os.environ.get("SEARCH_PROVIDER") else "yaml" if config.get("provider") else "default",
+        "config_source": "env"
+        if os.environ.get("SEARCH_PROVIDER")
+        else "yaml"
+        if config.get("provider")
+        else "default",
     }
 
 

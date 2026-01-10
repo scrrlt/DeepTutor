@@ -9,6 +9,7 @@ Features:
 - Automatic citation extraction
 - Usage tracking with cost information
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -101,7 +102,9 @@ class PerplexityProvider(BaseSearchProvider):
                         url=getattr(search_item, "url", "") or "",
                         snippet=getattr(search_item, "snippet", "") or "",
                         date=getattr(search_item, "date", "") or "",
-                        source=str(getattr(search_item, "source", "")) if getattr(search_item, "source", None) else "",
+                        source=str(getattr(search_item, "source", ""))
+                        if getattr(search_item, "source", None)
+                        else "",
                     )
                 )
 

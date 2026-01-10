@@ -3,6 +3,7 @@ Web Search Types - Shared dataclasses and type definitions
 
 This module defines the standardized types used across all search providers.
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any

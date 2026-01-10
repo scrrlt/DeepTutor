@@ -2,9 +2,10 @@
 Answer Consolidation - Generate answers from raw search results
 
 Supports two strategies:
-1. template: Fast Jinja2 template rendering  
+1. template: Fast Jinja2 template rendering
 2. llm: LLM-based answer synthesis (uses project's LLM config from env vars)
 """
+
 from typing import Any
 
 from jinja2 import BaseLoader, Environment
@@ -141,10 +142,10 @@ PROVIDER_TEMPLATES = {
 class AnswerConsolidator:
     """
     Consolidate raw SERP results into formatted answers.
-    
+
     IMPORTANT: Template consolidation only works for providers that have
     specific templates defined (serper, jina, serper_scholar).
-    
+
     For other providers, use:
     - consolidation_type="llm" for LLM-based synthesis
     - custom_template for a custom Jinja2 template
@@ -191,11 +192,13 @@ class AnswerConsolidator:
             WebSearchResponse with answer field populated
         """
         if self.consolidation_type == "none":
-            _logger.debug(f"Consolidation disabled, returning raw response")
+            _logger.debug("Consolidation disabled, returning raw response")
             return response
 
         results_count = len(response.search_results)
-        _logger.info(f"Consolidating {results_count} results from {response.provider} using {self.consolidation_type}")
+        _logger.info(
+            f"Consolidating {results_count} results from {response.provider} using {self.consolidation_type}"
+        )
 
         if self.consolidation_type == "template":
             response.answer = self._consolidate_with_template(response)
@@ -212,16 +215,16 @@ class AnswerConsolidator:
     def _get_template_for_provider(self, provider: str) -> str:
         """
         Get the template for a specific provider.
-        
+
         Only provider-specific templates exist because each provider has
         different response schemas and metadata. No universal templates.
-        
+
         Args:
             provider: Provider name (e.g., "serper", "jina")
-            
+
         Returns:
             Template string for this provider
-            
+
         Raises:
             ValueError: If no template exists for this provider
         """
@@ -308,18 +311,20 @@ class AnswerConsolidator:
     def _consolidate_with_template(self, response: WebSearchResponse) -> str:
         """Render results using Jinja2 template"""
         _logger.debug(f"Building template context for {response.provider}")
-        
+
         # Get template (auto-detect provider-specific if not explicitly set)
         template_str = self._get_template_for_provider(response.provider)
         template = self.jinja_env.from_string(template_str)
 
         # Build context with provider-specific fields
         context = self._build_provider_context(response)
-        _logger.debug(f"Context has {len(context.get('results', []))} results, {len(context.get('citations', []))} citations")
+        _logger.debug(
+            f"Context has {len(context.get('results', []))} results, {len(context.get('citations', []))} citations"
+        )
 
         try:
             rendered = template.render(**context)
-            _logger.debug(f"Template rendered successfully")
+            _logger.debug("Template rendered successfully")
             return rendered
         except Exception as e:
             _logger.error(f"Template rendering failed: {e}")
@@ -328,11 +333,11 @@ class AnswerConsolidator:
     def _consolidate_with_llm(self, response: WebSearchResponse) -> str:
         """Generate answer using LLM."""
         system_prompt, user_prompt = self._build_prompts(response)
-        
+
         llm = get_llm_client()
         max_tokens = self.llm_config.get("max_tokens", 1000)
         temperature = self.llm_config.get("temperature", 0.3)
-        
+
         return llm.complete_sync(
             prompt=user_prompt,
             system_prompt=system_prompt,
@@ -343,7 +348,7 @@ class AnswerConsolidator:
     def _build_prompts(self, response: WebSearchResponse) -> tuple[str, str]:
         """Build system and user prompts for LLM consolidation."""
         results_text = []
-        for i, r in enumerate(response.search_results[:self.max_results], 1):
+        for i, r in enumerate(response.search_results[: self.max_results], 1):
             text = f"[{i}] {r.title}\nURL: {r.url}\n"
             if r.snippet:
                 text += f"{r.snippet}\n"
@@ -377,4 +382,3 @@ Search Results:
 Consolidate these results into structured grounding context."""
 
         return system_prompt, user_prompt
-

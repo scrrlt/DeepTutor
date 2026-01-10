@@ -12,6 +12,7 @@ Features:
 - Related searches
 - Very cheap: $1/1000 queries at scale
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -109,13 +110,11 @@ class SerperProvider(BaseSearchProvider):
             sitelinks = []
             if result.get("sitelinks"):
                 for sl in result["sitelinks"]:
-                    sitelinks.append(
-                        {"title": sl.get("title", ""), "link": sl.get("link", "")}
-                    )
+                    sitelinks.append({"title": sl.get("title", ""), "link": sl.get("link", "")})
 
             # Build attributes dict with scholar-specific fields
             attributes: dict[str, Any] = result.get("attributes", {})
-            
+
             # Scholar mode: extract publication info, citations, PDF URL, year
             if mode == "scholar":
                 # publicationInfo is a string like "A Vaswani, N Shazeer... - Advances in neural..., 2017"
