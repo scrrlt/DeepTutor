@@ -19,7 +19,7 @@ from typing import Literal, Optional
 
 from dotenv import load_dotenv
 
-from .exceptions import LLMConfigError
+from .exceptions import LLMConfigurationError
 
 # Load environment variables
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -125,7 +125,7 @@ def get_llm_config() -> LLMConfig:
 
     # Validate required configuration
     if not model:
-        raise LLMConfigError(
+        raise LLMConfigurationError(
             "LLM_MODEL not set, please configure it in .env file or activate a provider"
         )
 
@@ -140,11 +140,11 @@ def get_llm_config() -> LLMConfig:
     )
 
     if requires_key and not api_key:
-        raise LLMConfigError(
+        raise LLMConfigurationError(
             "LLM_API_KEY not set, please configure it in .env file or activate a provider"
         )
     if not base_url:
-        raise LLMConfigError(
+        raise LLMConfigurationError(
             "LLM_HOST not set, please configure it in .env file or activate a provider"
         )
 

@@ -78,10 +78,8 @@ from .config import (
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
-    LLMConfigError,
+    LLMConfigurationError,
     LLMError,
-    LLMModelNotFoundError,
-    LLMProviderError,
     LLMRateLimitError,
     LLMTimeoutError,
 )
@@ -137,13 +135,11 @@ __all__ = [
     "requires_api_version",
     # Exceptions
     "LLMError",
-    "LLMConfigError",
-    "LLMProviderError",
+    "LLMConfigurationError",
     "LLMAPIError",
     "LLMTimeoutError",
     "LLMRateLimitError",
     "LLMAuthenticationError",
-    "LLMModelNotFoundError",
     # Factory (main API)
     "LLMMode",
     "get_llm_mode",
