@@ -3,41 +3,41 @@ layout: home
 
 hero:
   name: "DeepTutor"
-  text: "Your AI Learning Companion"
-  tagline: Transform any document into an interactive learning experience
+  text: "你的 AI 学习伙伴"
+  tagline: 将任何文档转化为互动学习体验
   image:
     src: /logo.png
     alt: DeepTutor
   actions:
     - theme: brand
-      text: Quick Start →
-      link: /guide/getting-started
+      text: 快速开始 →
+      link: /zh/guide/getting-started
     - theme: alt
       text: GitHub
       link: https://github.com/HKUDS/DeepTutor
     - theme: alt
-      text: 🚀 Roadmap
-      link: /roadmap
+      text: 🚀 路线图
+      link: /zh/roadmap
 
 features:
   - icon: 🧠
-    title: Smart Problem Solving
-    details: Dual-loop reasoning with step-by-step solutions and precise citations from your documents.
+    title: 智能解题
+    details: 双循环推理架构，提供逐步解答和文档精准引用。
   - icon: 🎯
-    title: Practice Generator
-    details: Generate custom quizzes or mimic real exams from your uploaded materials.
+    title: 题目生成
+    details: 基于上传材料生成自定义测验或模拟真实考试。
   - icon: 🎓
-    title: Guided Learning
-    details: Personalized learning paths with interactive visualizations and adaptive explanations.
+    title: 引导学习
+    details: 个性化学习路径，配合交互式可视化和自适应讲解。
   - icon: 🔬
-    title: Deep Research
-    details: Systematic topic exploration with web search, paper retrieval, and literature synthesis.
+    title: 深度研究
+    details: 系统化主题探索，整合网络搜索、论文检索和文献综合。
   - icon: 💡
-    title: Idea Generation
-    details: Brainstorm research ideas with automated concept synthesis and novelty evaluation.
+    title: 想法生成
+    details: 自动化概念综合和新颖性评估，助力头脑风暴。
   - icon: ✏️
-    title: Co-Writer
-    details: AI-assisted writing with smart editing, auto-annotation, and TTS narration.
+    title: 协作写作
+    details: AI 辅助写作，智能编辑、自动标注和语音朗读。
 ---
 
 <style>
@@ -74,13 +74,13 @@ features:
 }
 
 /* Hero 区域 Roadmap 按钮特殊样式 */
-.VPButton.alt[href="/DeepTutor/roadmap"] {
+.VPButton.alt[href="/DeepTutor/zh/roadmap"] {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   color: white !important;
   border: none !important;
 }
 
-.VPButton.alt[href="/DeepTutor/roadmap"]:hover {
+.VPButton.alt[href="/DeepTutor/zh/roadmap"]:hover {
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
   transform: translateY(-2px);
 }

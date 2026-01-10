@@ -1,38 +1,38 @@
-# Roadmap
+# 路线图
 
-## ⚡ Current Focus
+## ⚡ 当前重点
 
-- 🔄 **More RAG Pipelines** — Expanding retrieval architectures and backends
--  **Database Robustness & Visualization** — Stability improvements and visual insights
-- 🔄 **Bug Fixing** — Addressing reported issues and edge cases
+- 🔄 **更多 RAG 管道** — 扩展检索架构和后端
+-  **数据库稳定性与可视化** — 稳定性改进和可视化洞察
+- 🔄 **Bug 修复** — 处理已报告的问题和边缘情况
 
-## 📬 Received Feature Wishlist
+## 📬 社区需求清单
 
-Community-requested features we're considering:
+来自社区的功能请求：
 
-- 👥 **Multi-user Collaborative Learning** — Real-time shared sessions
-- 🎓 **Generalized Guided Learning** — Broader adaptive learning paths
-- 📝 **Automatic Note Generation** — AI-powered summary and note creation
+- 👥 **多用户协作学习** — 实时共享学习会话
+- 🎓 **通用引导学习** — 更广泛的自适应学习路径
+- 📝 **自动笔记生成** — AI 驱动的摘要和笔记创建
 
 ---
 
 <div class="community-wrapper">
 
 <div class="community-header">
-  <h2>🤝 Shape the Future !</h2>
-  <p>DeepTutor is built by the community, for the community.</p>
+  <h2>🤝 共创未来！</h2>
+  <p>DeepTutor 由社区构建，为社区服务。</p>
 </div>
 
 <div class="community-grid">
 
 <div class="community-card">
   <div class="card-icon">💡</div>
-  <div class="card-title">Ideas</div>
-  <div class="card-desc">Share feedback & propose features</div>
+  <div class="card-title">想法</div>
+  <div class="card-desc">分享反馈，提出功能建议</div>
   <div class="card-links">
     <div class="link-row">
       <a href="https://discord.gg/zpP9cssj" class="discord">Discord</a>
-      <a href="https://github.com/HKUDS/DeepTutor/issues/78" class="wechat">WeChat</a>
+      <a href="https://github.com/HKUDS/DeepTutor/issues/78" class="wechat">微信群</a>
     </div>
     <div class="link-row">
       <a href="https://github.com/HKUDS/DeepTutor/discussions" class="github">GitHub Discussions</a>
@@ -42,10 +42,10 @@ Community-requested features we're considering:
 
 <div class="community-card">
   <div class="card-icon">🔧</div>
-  <div class="card-title">Code</div>
-  <div class="card-desc">PRs welcome on <code>dev</code> branch</div>
+  <div class="card-title">代码</div>
+  <div class="card-desc">欢迎向 <code>dev</code> 分支提交 PR</div>
   <div class="card-links">
-    <a href="https://github.com/HKUDS/DeepTutor/blob/main/CONTRIBUTING.md" class="github">Contributing Guide →</a>
+    <a href="https://github.com/HKUDS/DeepTutor/blob/main/CONTRIBUTING.md" class="github">贡献指南 →</a>
   </div>
 </div>
 
