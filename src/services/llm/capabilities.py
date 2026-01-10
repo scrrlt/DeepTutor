@@ -121,6 +121,14 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
         "supports_tools": False,
         "system_in_messages": True,
     },
+    # Google Gemini (via Google AI Studio API)
+    "gemini": {
+        "supports_response_format": True,  # Gemini supports JSON mode
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": False,  # Gemini uses systemInstruction parameter
+        "has_thinking_tags": False,
+    },
 }
 
 # Default capabilities for unknown providers (assume OpenAI-compatible)

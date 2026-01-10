@@ -33,7 +33,7 @@ async def complete(
     """
     Complete a prompt using cloud API providers.
 
-    Supports OpenAI-compatible APIs and Anthropic.
+    Supports OpenAI-compatible APIs, Anthropic, Azure OpenAI, and Gemini.
 
     Args:
         prompt: The user prompt
@@ -41,7 +41,7 @@ async def complete(
         model: Model name
         api_key: API key
         base_url: Base URL for the API
-        binding: Provider binding type (openai, anthropic)
+        binding: Provider binding type (openai, anthropic, azure, gemini)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
     Returns:
@@ -65,6 +65,16 @@ async def complete(
             system_prompt=system_prompt,
             api_key=api_key,
             base_url=base_url,
+            **kwargs,
+        )
+    elif binding_lower == "gemini":
+        return await _gemini_complete(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            messages=kwargs.get("messages"),
             **kwargs,
         )
 
@@ -93,12 +103,12 @@ async def stream(
     Stream a response from cloud API providers.
 
     Args:
-        prompt: The user prompt (ignored if messages provided)
-        system_prompt: System prompt for context
+        prompt: User prompt
+        system_prompt: System prompt
         model: Model name
         api_key: API key
         base_url: Base URL for the API
-        binding: Provider binding type (openai, anthropic)
+        binding: Provider binding type (openai, anthropic, azure, gemini)
         messages: Pre-built messages array (optional, overrides prompt/system_prompt)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
@@ -126,6 +136,17 @@ async def stream(
             api_key=api_key,
             base_url=base_url,
             messages=messages,
+            **kwargs,
+        ):
+            yield chunk
+    elif binding_lower == "gemini":
+        async for chunk in _gemini_stream(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            messages=kwargs.get("messages"),
             **kwargs,
         ):
             yield chunk
@@ -677,6 +698,185 @@ async def _anthropic_stream(
                     continue
 
 
+async def _gemini_complete(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    messages: Optional[List[Dict[str, str]]] = None,
+    **kwargs,
+) -> str:
+    """Google Gemini API completion with multimodal support."""
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMAuthenticationError("Gemini API key is missing.", provider="gemini")
+
+    # Build URL - Gemini uses /models/{model}:generateContent
+    effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
+    url = f"{effective_base.rstrip('/')}/models/{model}:generateContent?key={api_key}"
+
+    headers = {"Content-Type": "application/json"}
+
+    # Build parts - handle multimodal content if messages provided
+    parts = []
+    if messages:
+        # Convert from OpenAI format to Gemini format
+        last_msg = messages[-1] if messages else None
+        if last_msg and isinstance(last_msg.get("content"), list):
+            for item in last_msg["content"]:
+                if item.get("type") == "text":
+                    parts.append({"text": item["text"]})
+                elif item.get("type") == "image_url":
+                    # Extract base64 data from data URL
+                    img_url = item["image_url"]["url"]
+                    if "," in img_url:
+                        img_data = img_url.split(",", 1)[1]
+                        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_data}})
+
+    if not parts:
+        parts = [{"text": prompt}]
+
+    # Build request body - Gemini format
+    data = {
+        "contents": [{"parts": parts}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ],
+        "generationConfig": {
+            "temperature": kwargs.get("temperature", 0.7),
+            "maxOutputTokens": kwargs.get("max_tokens", 4096),
+        },
+    }
+
+    # Add system instruction if provided
+    if system_prompt and system_prompt != "You are a helpful assistant.":
+        data["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    timeout = aiohttp.ClientTimeout(total=120)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise LLMAPIError(
+                    f"Gemini API error: {error_text}",
+                    status_code=response.status,
+                    provider="gemini",
+                )
+
+            result = await response.json()
+            # Extract text from Gemini response format
+            if "candidates" in result and result["candidates"]:
+                candidate = result["candidates"][0]
+
+                # Check for safety blocking
+                finish_reason = candidate.get("finishReason")
+                if finish_reason == "SAFETY":
+                    raise LLMAPIError(
+                        "Gemini blocked response due to safety filters.",
+                        provider="gemini",
+                    )
+
+                if "content" in candidate and "parts" in candidate["content"]:
+                    parts = candidate["content"]["parts"]
+                    if parts and "text" in parts[0]:
+                        return parts[0]["text"]
+
+            raise LLMAPIError("Gemini API returned unexpected response format", provider="gemini")
+
+
+async def _gemini_stream(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    messages: Optional[List[Dict[str, str]]] = None,
+    **kwargs,
+) -> AsyncGenerator[str, None]:
+    """Google Gemini API streaming with multimodal support."""
+    import json
+
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMAuthenticationError("Gemini API key is missing.", provider="gemini")
+
+    # Build URL - Gemini streaming uses :streamGenerateContent
+    effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
+    url = f"{effective_base.rstrip('/')}/models/{model}:streamGenerateContent?key={api_key}&alt=sse"
+
+    headers = {"Content-Type": "application/json"}
+
+    # Build parts - handle multimodal content if messages provided
+    parts = []
+    if messages:
+        last_msg = messages[-1] if messages else None
+        if last_msg and isinstance(last_msg.get("content"), list):
+            for item in last_msg["content"]:
+                if item.get("type") == "text":
+                    parts.append({"text": item["text"]})
+                elif item.get("type") == "image_url":
+                    img_url = item["image_url"]["url"]
+                    if "," in img_url:
+                        img_data = img_url.split(",", 1)[1]
+                        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_data}})
+
+    if not parts:
+        parts = [{"text": prompt}]
+
+    # Build request body
+    data = {
+        "contents": [{"parts": parts}],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ],
+        "generationConfig": {
+            "temperature": kwargs.get("temperature", 0.7),
+            "maxOutputTokens": kwargs.get("max_tokens", 4096),
+        },
+    }
+
+    if system_prompt and system_prompt != "You are a helpful assistant.":
+        data["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+
+    timeout = aiohttp.ClientTimeout(total=300)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise LLMAPIError(
+                    f"Gemini stream error: {error_text}",
+                    status_code=response.status,
+                    provider="gemini",
+                )
+
+            async for line in response.content:
+                line_str = line.decode("utf-8").strip()
+                if not line_str or not line_str.startswith("data:"):
+                    continue
+
+                data_str = line_str[5:].strip()
+                if not data_str:
+                    continue
+
+                try:
+                    chunk_data = json.loads(data_str)
+                    if "candidates" in chunk_data and chunk_data["candidates"]:
+                        candidate = chunk_data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            parts = candidate["content"]["parts"]
+                            if parts and "text" in parts[0]:
+                                yield parts[0]["text"]
+                except json.JSONDecodeError:
+                    continue
+
+
 async def fetch_models(
     base_url: str,
     api_key: Optional[str] = None,
@@ -719,6 +919,20 @@ async def fetch_models(
                         if "data" in data and isinstance(data["data"], list):
                             # Azure returns deployments with 'id' field
                             return [m.get("id") for m in data["data"] if m.get("id")]
+            elif binding == "gemini":
+                # Gemini uses a different endpoint structure
+                effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
+                url = f"{effective_base}/models"
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        # Gemini format: {"models": [{"name": "models/gemini-1.5-flash", ...}]}
+                        if "models" in data and isinstance(data["models"], list):
+                            return [
+                                m.get("name", "").replace("models/", "")
+                                for m in data["models"]
+                                if m.get("name")
+                            ]
             else:
                 # Standard OpenAI-compatible endpoint
                 url = f"{base_url}/models"
@@ -736,6 +950,22 @@ async def fetch_models(
                                 m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
                                 for m in data
                             ]
+                        return [
+                            m["name"].replace("models/", "") for m in data["models"] if "name" in m
+                        ]
+                    # OpenAI format: {"data": [{"id": "gpt-4", ...}]}
+                    elif "data" in data and isinstance(data["data"], list):
+                        return [
+                            m.get("id") or m.get("name")
+                            for m in data["data"]
+                            if m.get("id") or m.get("name")
+                        ]
+                    # Plain list format
+                    elif isinstance(data, list):
+                        return [
+                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                            for m in data
+                        ]
             return []
         except Exception as e:
             print(f"Error fetching models from {base_url}: {e}")

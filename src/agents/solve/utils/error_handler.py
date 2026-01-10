@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import Callable
 import functools
 import logging
+import threading
 from typing import Any
 import warnings
 
@@ -107,6 +108,73 @@ class _LazyValidTools:
         # If tools haven't been loaded yet, represent defaults
         tools = self._tools if self._tools is not None else self._default_tools
         return repr(tools)
+
+
+_VALID_TOOLS_CONFIG = _LazyValidTools(_DEFAULT_VALID_TOOLS)
+
+logger = logging.getLogger("Solver.error_handler")
+
+# Lazy-load valid tools configuration to avoid I/O at module import time
+_DEFAULT_VALID_TOOLS = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
+
+
+class _LazyValidTools:
+    """
+    Lazily resolves the list of valid tools on first use.
+
+    This avoids performing configuration I/O at module import time while
+    preserving list-like behavior for existing callers.
+    """
+
+    def __init__(self, default_tools: list[str]):
+        self._default_tools = list(default_tools)  # Create a copy to prevent mutation
+        self._tools: list[str] | None = None
+        self._lock = threading.Lock()
+
+    def _load(self) -> list[str]:
+        if self._tools is not None:
+            return self._tools
+
+        with self._lock:
+            # Double-check pattern for thread safety
+            if self._tools is not None:
+                return self._tools
+
+            try:
+                from src.services.config import (
+                    PROJECT_ROOT,
+                    load_config_with_main,
+                )
+
+                config = load_config_with_main("main.yaml", PROJECT_ROOT)
+                self._tools = config.get("solve", {}).get("valid_tools", self._default_tools)
+            except (ImportError, FileNotFoundError, OSError, KeyError) as exc:
+                logger.warning(
+                    "Failed to load valid_tools from config (%s). Using defaults. "
+                    "Ensure the config file exists and contains solve.valid_tools. Original error: %s",
+                    type(exc).__name__,
+                    exc,
+                )
+                self._tools = self._default_tools
+        return self._tools
+
+    def __iter__(self):
+        return iter(self._load())
+
+    def __contains__(self, item: object) -> bool:
+        return item in self._load()
+
+    def __len__(self) -> int:
+        return len(self._load())
+
+    def __getitem__(self, index):
+        return self._load()[index]
+
+    def __bool__(self) -> bool:
+        return bool(self._load())
+
+    def __repr__(self) -> str:
+        return repr(self._load())
 
 
 _VALID_TOOLS_CONFIG = _LazyValidTools(_DEFAULT_VALID_TOOLS)
@@ -228,7 +296,6 @@ async def validate_investigate_output(
         else:
             # Fallback to lazy loading
             valid_tools = await _VALID_TOOLS_CONFIG.get_tools()
-
     required_fields = ["reasoning", "tools"]
     field_types = {"reasoning": str, "tools": list}
 
@@ -318,7 +385,6 @@ def validate_none_tool_constraint(
     Args:
         tools: List of tool dictionaries
         tool_type_key: Key to access tool type in each dict (default: "tool_type")
-
     Raises:
         ParseError: If none tool constraint is violated
     """
@@ -401,7 +467,6 @@ async def validate_solve_output(
     return True
 
 
-# Example usage
 if __name__ == "__main__":
     # Test validation functions
     test_investigate_output = {
