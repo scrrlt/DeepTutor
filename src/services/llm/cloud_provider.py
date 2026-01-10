@@ -6,28 +6,19 @@ Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
 Provides both complete() and stream() methods.
 """
 
-import logging
 import os
 from typing import AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 from lightrag.llm.openai import openai_complete_if_cache
 
-# Get loggers for suppression during fallback scenarios
-# (lightrag logs errors internally before raising exceptions)
-_lightrag_logger = logging.getLogger("lightrag")
-_openai_logger = logging.getLogger("openai")
-
-from .capabilities import supports_response_format
-from .config import get_token_limit_kwargs
-from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
-from .utils import (
-    build_auth_headers,
-    build_chat_url,
-    clean_thinking_tags,
-    extract_response_content,
-    sanitize_url,
+from .exceptions import (
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMRateLimitError,
+    LLMTimeoutError,
 )
+from .utils import sanitize_url
 
 
 async def complete(
@@ -36,7 +27,6 @@ async def complete(
     model: Optional[str] = None,
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
     binding: str = "openai",
     **kwargs,
 ) -> str:
@@ -51,7 +41,6 @@ async def complete(
         model: Model name
         api_key: API key
         base_url: Base URL for the API
-        api_version: API version for Azure OpenAI
         binding: Provider binding type (openai, anthropic)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
@@ -77,8 +66,6 @@ async def complete(
         system_prompt=system_prompt,
         api_key=api_key,
         base_url=base_url,
-        api_version=api_version,
-        binding=binding_lower,
         **kwargs,
     )
 
@@ -89,7 +76,6 @@ async def stream(
     model: Optional[str] = None,
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
     binding: str = "openai",
     messages: Optional[List[Dict[str, str]]] = None,
     **kwargs,
@@ -103,7 +89,6 @@ async def stream(
         model: Model name
         api_key: API key
         base_url: Base URL for the API
-        api_version: API version for Azure OpenAI
         binding: Provider binding type (openai, anthropic)
         messages: Pre-built messages array (optional, overrides prompt/system_prompt)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
@@ -131,8 +116,6 @@ async def stream(
             system_prompt=system_prompt,
             api_key=api_key,
             base_url=base_url,
-            api_version=api_version,
-            binding=binding_lower,
             messages=messages,
             **kwargs,
         ):
@@ -145,8 +128,6 @@ async def _openai_complete(
     system_prompt: str,
     api_key: Optional[str],
     base_url: Optional[str],
-    api_version: Optional[str] = None,
-    binding: str = "openai",
     **kwargs,
 ) -> str:
     """OpenAI-compatible completion."""
@@ -154,48 +135,30 @@ async def _openai_complete(
     if base_url:
         base_url = sanitize_url(base_url, model)
 
-    # Handle API Parameter Compatibility using capabilities
-    # Remove response_format for providers that don't support it (e.g., DeepSeek)
-    if not supports_response_format(binding, model):
-        kwargs.pop("response_format", None)
-
-    content = None
     try:
         # Try using lightrag's openai_complete_if_cache first (has caching)
-        # Only pass api_version if it's set (for Azure OpenAI)
-        # Standard OpenAI SDK doesn't accept api_version parameter
-        lightrag_kwargs = {
-            "system_prompt": system_prompt,
-            "history_messages": [],  # Required by lightrag to build messages array
-            "api_key": api_key,
-            "base_url": base_url,
+        response = await openai_complete_if_cache(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
             **kwargs,
-        }
-        if api_version:
-            lightrag_kwargs["api_version"] = api_version
-
-        # Suppress lightrag's and openai's internal error logging during the call
-        # (errors are handled by our fallback mechanism)
-        original_lightrag_level = _lightrag_logger.level
-        original_openai_level = _openai_logger.level
-        _lightrag_logger.setLevel(logging.CRITICAL)
-        _openai_logger.setLevel(logging.CRITICAL)
-        try:
-            # model and prompt must be positional arguments
-            content = await openai_complete_if_cache(model, prompt, **lightrag_kwargs)
-        finally:
-            _lightrag_logger.setLevel(original_lightrag_level)
-            _openai_logger.setLevel(original_openai_level)
+        )
+        if response:
+            return response
     except Exception:
         pass  # Fall through to direct call
 
     # Fallback: Direct aiohttp call
-    if not content and base_url:
-        # Build URL using unified utility (use binding for Azure detection)
-        url = build_chat_url(base_url, api_version, binding)
+    if base_url:
+        url = base_url.rstrip("/")
+        if not url.endswith("/chat/completions"):
+            url += "/chat/completions"
 
-        # Build headers using unified utility
-        headers = build_auth_headers(api_key, binding)
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
 
         data = {
             "model": model,
@@ -204,38 +167,55 @@ async def _openai_complete(
                 {"role": "user", "content": prompt},
             ],
             "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", 4096),
         }
 
-        # Handle max_tokens / max_completion_tokens based on model
-        max_tokens = kwargs.get("max_tokens") or kwargs.get("max_completion_tokens") or 4096
-        data.update(get_token_limit_kwargs(model, max_tokens))
-
-        # Include response_format if present in kwargs
-        if "response_format" in kwargs:
-            data["response_format"] = kwargs["response_format"]
-
         timeout = aiohttp.ClientTimeout(total=120)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, headers=headers, json=data) as resp:
-                if resp.status == 200:
-                    result = await resp.json()
-                    if "choices" in result and result["choices"]:
-                        msg = result["choices"][0].get("message", {})
-                        # Use unified response extraction
-                        content = extract_response_content(msg)
-                else:
-                    error_text = await resp.text()
-                    raise LLMAPIError(
-                        f"OpenAI API error: {error_text}",
-                        status_code=resp.status,
-                        provider=binding or "openai",
-                    )
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, headers=headers, json=data) as resp:
+                    if resp.status == 200:
+                        result = await resp.json()
+                        if "choices" in result and result["choices"]:
+                            msg = result["choices"][0].get("message", {})
+                            content = msg.get("content", "")
+                            if not content:
+                                content = (
+                                    msg.get("reasoning_content")
+                                    or msg.get("reasoning")
+                                    or msg.get("thought")
+                                    or ""
+                                )
+                            return content
+                    else:
+                        error_text = await resp.text()
 
-    if content is not None:
-        # Clean thinking tags from response using unified utility
-        return clean_thinking_tags(content, binding, model)
+                        # Map HTTP status codes to specific exceptions
+                        if resp.status == 401:
+                            raise LLMAuthenticationError(
+                                f"OpenAI authentication failed: {error_text}"
+                            )
+                        elif resp.status == 429:
+                            raise LLMRateLimitError(
+                                f"OpenAI rate limit exceeded: {error_text}", provider="openai"
+                            )
+                        elif resp.status >= 500:
+                            raise LLMAPIError(
+                                f"OpenAI server error: {error_text}",
+                                status_code=resp.status,
+                                provider="openai",
+                            )
+                        else:
+                            raise LLMAPIError(
+                                f"OpenAI API error: {resp.status} - {error_text}",
+                                status_code=resp.status,
+                                provider="openai",
+                            )
+        except aiohttp.ClientError as e:
+            # Catch network/timeout errors and wrap them
+            raise LLMTimeoutError(f"Connection failed: {str(e)}")
 
-    raise LLMConfigError("Cloud completion failed: no valid configuration")
+    raise LLMAPIError("Cloud completion failed: no valid configuration")
 
 
 async def _openai_stream(
@@ -244,8 +224,6 @@ async def _openai_stream(
     system_prompt: str,
     api_key: Optional[str],
     base_url: Optional[str],
-    api_version: Optional[str] = None,
-    binding: str = "openai",
     messages: Optional[List[Dict[str, str]]] = None,
     **kwargs,
 ) -> AsyncGenerator[str, None]:
@@ -256,16 +234,13 @@ async def _openai_stream(
     if base_url:
         base_url = sanitize_url(base_url, model)
 
-    # Handle API Parameter Compatibility using capabilities
-    if not supports_response_format(binding, model):
-        kwargs.pop("response_format", None)
+    url = (base_url or "https://api.openai.com/v1").rstrip("/")
+    if not url.endswith("/chat/completions"):
+        url += "/chat/completions"
 
-    # Build URL using unified utility
-    effective_base = base_url or "https://api.openai.com/v1"
-    url = build_chat_url(effective_base, api_version, binding)
-
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding)
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     # Build messages
     if messages:
@@ -282,30 +257,36 @@ async def _openai_stream(
         "temperature": kwargs.get("temperature", 0.7),
         "stream": True,
     }
-
-    # Handle max_tokens / max_completion_tokens based on model
-    max_tokens = kwargs.get("max_tokens") or kwargs.get("max_completion_tokens")
-    if max_tokens:
-        data.update(get_token_limit_kwargs(model, max_tokens))
-
-    # Include response_format if present in kwargs
-    if "response_format" in kwargs:
-        data["response_format"] = kwargs["response_format"]
+    if kwargs.get("max_tokens"):
+        data["max_tokens"] = kwargs["max_tokens"]
 
     timeout = aiohttp.ClientTimeout(total=300)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.post(url, headers=headers, json=data) as resp:
             if resp.status != 200:
                 error_text = await resp.text()
-                raise LLMAPIError(
-                    f"OpenAI stream error: {error_text}",
-                    status_code=resp.status,
-                    provider=binding or "openai",
-                )
 
-            # Track thinking block state for streaming
-            in_thinking_block = False
-            thinking_buffer = ""
+                # Map HTTP status codes to specific exceptions
+                if resp.status == 401:
+                    raise LLMAuthenticationError(
+                        f"OpenAI stream authentication failed: {error_text}"
+                    )
+                elif resp.status == 429:
+                    raise LLMRateLimitError(
+                        f"OpenAI stream rate limit exceeded: {error_text}", provider="openai"
+                    )
+                elif resp.status >= 500:
+                    raise LLMAPIError(
+                        f"OpenAI stream server error: {error_text}",
+                        status_code=resp.status,
+                        provider="openai",
+                    )
+                else:
+                    raise LLMAPIError(
+                        f"OpenAI stream error: {resp.status} - {error_text}",
+                        status_code=resp.status,
+                        provider="openai",
+                    )
 
             async for line in resp.content:
                 line_str = line.decode("utf-8").strip()
@@ -322,23 +303,7 @@ async def _openai_stream(
                         delta = chunk_data["choices"][0].get("delta", {})
                         content = delta.get("content")
                         if content:
-                            # Handle thinking tags in streaming
-                            if "<think>" in content:
-                                in_thinking_block = True
-                                thinking_buffer = content
-                                continue
-                            elif in_thinking_block:
-                                thinking_buffer += content
-                                if "</think>" in thinking_buffer:
-                                    # End of thinking block, clean and yield
-                                    cleaned = clean_thinking_tags(thinking_buffer, binding, model)
-                                    if cleaned:
-                                        yield cleaned
-                                    in_thinking_block = False
-                                    thinking_buffer = ""
-                                continue
-                            else:
-                                yield content
+                            yield content
                 except json.JSONDecodeError:
                     continue
 
@@ -349,37 +314,30 @@ async def _anthropic_complete(
     system_prompt: str,
     api_key: Optional[str],
     base_url: Optional[str],
-    messages: Optional[List[Dict[str, str]]] = None,
     **kwargs,
 ) -> str:
     """Anthropic (Claude) API completion."""
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
+        raise ValueError("Anthropic API key is missing.")
 
-    # Build URL using unified utility
-    effective_base = base_url or "https://api.anthropic.com/v1"
-    url = build_chat_url(effective_base, binding="anthropic")
-
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding="anthropic")
-
-    # Build messages - handle pre-built messages array
-    if messages:
-        # Filter out system messages for Anthropic (system is a separate parameter)
-        msg_list = [m for m in messages if m.get("role") != "system"]
-        system_content = next(
-            (m["content"] for m in messages if m.get("role") == "system"),
-            system_prompt,
-        )
+    if not base_url:
+        url = "https://api.anthropic.com/v1/messages"
     else:
-        msg_list = [{"role": "user", "content": prompt}]
-        system_content = system_prompt
+        url = base_url.rstrip("/")
+        if not url.endswith("/messages"):
+            url += "/messages"
+
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
 
     data = {
         "model": model,
-        "system": system_content,
-        "messages": msg_list,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": prompt}],
         "max_tokens": kwargs.get("max_tokens", 4096),
         "temperature": kwargs.get("temperature", 0.7),
     }
@@ -389,11 +347,26 @@ async def _anthropic_complete(
         async with session.post(url, headers=headers, json=data) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise LLMAPIError(
-                    f"Anthropic API error: {error_text}",
-                    status_code=response.status,
-                    provider="anthropic",
-                )
+
+                # Map HTTP status codes to specific exceptions
+                if response.status == 401:
+                    raise LLMAuthenticationError(f"Anthropic authentication failed: {error_text}")
+                elif response.status == 429:
+                    raise LLMRateLimitError(
+                        f"Anthropic rate limit exceeded: {error_text}", provider="anthropic"
+                    )
+                elif response.status >= 500:
+                    raise LLMAPIError(
+                        f"Anthropic server error: {error_text}",
+                        status_code=response.status,
+                        provider="anthropic",
+                    )
+                else:
+                    raise LLMAPIError(
+                        f"Anthropic API error: {response.status} - {error_text}",
+                        status_code=response.status,
+                        provider="anthropic",
+                    )
 
             result = await response.json()
             return result["content"][0]["text"]
@@ -413,14 +386,20 @@ async def _anthropic_stream(
 
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
+        raise ValueError("Anthropic API key is missing.")
 
-    # Build URL using unified utility
-    effective_base = base_url or "https://api.anthropic.com/v1"
-    url = build_chat_url(effective_base, binding="anthropic")
+    if not base_url:
+        url = "https://api.anthropic.com/v1/messages"
+    else:
+        url = base_url.rstrip("/")
+        if not url.endswith("/messages"):
+            url += "/messages"
 
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding="anthropic")
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
 
     # Build messages
     if messages:
@@ -448,11 +427,28 @@ async def _anthropic_stream(
         async with session.post(url, headers=headers, json=data) as response:
             if response.status != 200:
                 error_text = await response.text()
-                raise LLMAPIError(
-                    f"Anthropic stream error: {error_text}",
-                    status_code=response.status,
-                    provider="anthropic",
-                )
+
+                # Map HTTP status codes to specific exceptions
+                if response.status == 401:
+                    raise LLMAuthenticationError(
+                        f"Anthropic stream authentication failed: {error_text}"
+                    )
+                elif response.status == 429:
+                    raise LLMRateLimitError(
+                        f"Anthropic stream rate limit exceeded: {error_text}", provider="anthropic"
+                    )
+                elif response.status >= 500:
+                    raise LLMAPIError(
+                        f"Anthropic stream server error: {error_text}",
+                        status_code=response.status,
+                        provider="anthropic",
+                    )
+                else:
+                    raise LLMAPIError(
+                        f"Anthropic stream error: {response.status} - {error_text}",
+                        status_code=response.status,
+                        provider="anthropic",
+                    )
 
             async for line in response.content:
                 line_str = line.decode("utf-8").strip()
@@ -494,10 +490,13 @@ async def fetch_models(
     binding = binding.lower()
     base_url = base_url.rstrip("/")
 
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding)
-    # Remove Content-Type for GET request
-    headers.pop("Content-Type", None)
+    headers = {}
+    if api_key:
+        if binding in ["anthropic", "claude"]:
+            headers["x-api-key"] = api_key
+            headers["anthropic-version"] = "2023-06-01"
+        else:
+            headers["Authorization"] = f"Bearer {api_key}"
 
     timeout = aiohttp.ClientTimeout(total=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
