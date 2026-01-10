@@ -9,7 +9,9 @@ Quick solutions for common issues.
 | Backend fails to start | Check Python ≥ 3.10, verify `.env` config |
 | `npm: command not found` | Install Node.js: `conda install -c conda-forge nodejs` |
 | Port already in use | Kill process: `lsof -i :8001` → `kill -9 <PID>` |
+| Long path errors on Windows when cloning the repo or installing dependencies | Enable long paths*: Run as admin `reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`, then restart your terminal |
 
+* Restart your terminal and, if the issue persists, log out and back in (or restart Windows) for the registry change to fully take effect.
 ## Connection Issues
 
 | Problem | Solution |
