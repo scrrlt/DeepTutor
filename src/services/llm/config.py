@@ -123,6 +123,12 @@ def get_llm_config() -> LLMConfig:
     base_url = _strip_value(os.getenv("LLM_HOST"))
     api_version = _strip_value(os.getenv("LLM_API_VERSION"))
 
+    # For Azure OpenAI, allow specific API version override
+    if binding.lower() in ["azure", "azure_openai"]:
+        azure_api_version = _strip_value(os.getenv("AZURE_OPENAI_API_VERSION"))
+        if azure_api_version:
+            api_version = azure_api_version
+
     # Validate required configuration
     if not model:
         raise LLMConfigurationError(

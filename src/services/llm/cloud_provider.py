@@ -262,14 +262,25 @@ async def _azure_complete(
         "api-key": api_key,  # Azure uses api-key header, not Authorization: Bearer
     }
 
-    data = {
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": kwargs.get("temperature", 0.7),
-        "max_tokens": kwargs.get("max_tokens", 4096),
-    }
+    # Handle messages - either use provided messages or build from prompt/system_prompt
+    messages = kwargs.get("messages")
+    if messages:
+        data = {"messages": messages}
+    else:
+        data = {
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        }
+
+    # Add common parameters
+    data.update(
+        {
+            "temperature": kwargs.get("temperature", 0.7),
+            "max_tokens": kwargs.get("max_tokens", 4096),
+        }
+    )
 
     timeout = aiohttp.ClientTimeout(total=120)
     try:
@@ -677,7 +688,7 @@ async def fetch_models(
     Args:
         base_url: API endpoint URL
         api_key: API key
-        binding: Provider type (openai, anthropic)
+        binding: Provider type (openai, anthropic, azure_openai)
 
     Returns:
         List of available model names
@@ -690,27 +701,41 @@ async def fetch_models(
         if binding in ["anthropic", "claude"]:
             headers["x-api-key"] = api_key
             headers["anthropic-version"] = "2023-06-01"
+        elif binding in ["azure", "azure_openai"]:
+            headers["api-key"] = api_key
         else:
             headers["Authorization"] = f"Bearer {api_key}"
 
     timeout = aiohttp.ClientTimeout(total=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         try:
-            url = f"{base_url}/models"
-            async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
-                    elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+            # Azure OpenAI uses deployments endpoint instead of models
+            if binding in ["azure", "azure_openai"]:
+                api_version = "2023-05-15"  # Default API version for Azure
+                url = f"{base_url}/openai/deployments?api-version={api_version}"
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if "data" in data and isinstance(data["data"], list):
+                            # Azure returns deployments with 'id' field
+                            return [m.get("id") for m in data["data"] if m.get("id")]
+            else:
+                # Standard OpenAI-compatible endpoint
+                url = f"{base_url}/models"
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if "data" in data and isinstance(data["data"], list):
+                            return [
+                                m.get("id") or m.get("name")
+                                for m in data["data"]
+                                if m.get("id") or m.get("name")
+                            ]
+                        elif isinstance(data, list):
+                            return [
+                                m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                                for m in data
+                            ]
             return []
         except Exception as e:
             print(f"Error fetching models from {base_url}: {e}")

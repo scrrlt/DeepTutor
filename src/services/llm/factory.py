@@ -148,6 +148,7 @@ def get_effective_config() -> LLMConfig:
                 api_key=active_provider.api_key,
                 base_url=active_provider.base_url,
                 binding=active_provider.binding,
+                api_version=getattr(active_provider, "api_version", None),
             )
 
     # No active provider - use env config
@@ -254,6 +255,9 @@ async def complete(
         api_key = api_key if api_key is not None else config.api_key
         base_url = base_url or config.base_url
         binding = binding or config.binding or "openai"
+        # Pass api_version through kwargs if not already specified
+        if config.api_version and "api_version" not in kwargs:
+            kwargs["api_version"] = config.api_version
 
     # Define the work function
     async def _do_complete(**call_kwargs):
@@ -311,6 +315,9 @@ async def stream(
         api_key = api_key if api_key is not None else config.api_key
         base_url = base_url or config.base_url
         binding = binding or config.binding or "openai"
+        # Pass api_version through kwargs if not already specified
+        if config.api_version and "api_version" not in kwargs:
+            kwargs["api_version"] = config.api_version
 
     # Route to appropriate provider
     if _should_use_local(base_url):
