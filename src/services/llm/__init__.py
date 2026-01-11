@@ -84,11 +84,9 @@ from .exceptions import (
     LLMTimeoutError,
 )
 from .factory import (
-    API_PROVIDER_PRESETS,
     DEFAULT_EXPONENTIAL_BACKOFF,
     DEFAULT_MAX_RETRIES,
     DEFAULT_RETRY_DELAY,
-    LOCAL_PROVIDER_PRESETS,
     LLMMode,
     complete,
     fetch_models,
@@ -96,6 +94,10 @@ from .factory import (
     get_mode_info,
     get_provider_presets,
     stream,
+)
+from .presets import (
+    API_PROVIDER_PRESETS,
+    LOCAL_PROVIDER_PRESETS,
 )
 from .provider import (
     LLMProvider,

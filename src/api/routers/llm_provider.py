@@ -159,3 +159,52 @@ async def get_presets():
         - local: Local provider presets (Ollama, LM Studio, vLLM, etc.)
     """
     return get_provider_presets()
+
+
+@router.get("/available/", response_model=Dict[str, Any])
+async def get_available_providers():
+    """
+    Get available providers and their models for UI dropdowns.
+
+    Returns simplified provider info suitable for UI components:
+    - id: Provider identifier
+    - name: Display name
+    - type: "api" or "local"
+    - requires_key: Whether API key is needed
+    - models: List of available models
+    - default_model: Default model to select
+    - description: Short description
+    """
+    presets = get_provider_presets()
+
+    providers = []
+
+    # Add API providers
+    for provider_id, config in presets["api"].items():
+        providers.append({
+            "id": provider_id,
+            "name": config["name"],
+            "type": "api",
+            "requires_key": config["requires_key"],
+            "models": config["models"],
+            "default_model": config["default_model"],
+            "description": config["description"],
+            "base_url": config["base_url"],
+            "requires_endpoint": config.get("requires_endpoint", False)
+        })
+
+    # Add local providers
+    for provider_id, config in presets["local"].items():
+        providers.append({
+            "id": provider_id,
+            "name": config["name"],
+            "type": "local",
+            "requires_key": config["requires_key"],
+            "models": config["models"],
+            "default_model": config["default_model"],
+            "description": config["description"],
+            "base_url": config["base_url"],
+            "setup_instructions": config.get("setup_instructions", "")
+        })
+
+    return {"providers": providers}
