@@ -7,7 +7,19 @@ import asyncio
 import logging
 import os
 import random
-from typing import Any, Dict, Callable
+from typing import Any, Dict, Callable, AsyncGenerator
+
+from ..types import TutorResponse, TutorStreamChunk, AsyncStreamGenerator
+from ..exceptions import (
+    LLMBaseError,
+    ProviderQuotaExceededError,
+    ProviderContextWindowError,
+    LLMConfigurationError,
+    LLMAuthenticationError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+    LLMAPIError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +65,48 @@ class BaseLLMProvider(ABC):
         return requested_model
 
     @abstractmethod
-    async def complete(self, prompt: str, **kwargs) -> str:
-        """Complete a prompt."""
+    async def complete(self, prompt: str, **kwargs) -> TutorResponse:
+        """Complete a prompt and return standardized response."""
         pass
+
+    @abstractmethod
+    async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
+        """Stream a prompt and return standardized chunks."""
+        pass
+
+    def _map_exception(self, e: Exception) -> Exception:
+        """Map provider-specific exceptions to DeepTutor exceptions.
+        
+        Override in subclasses for provider-specific mapping.
+        """
+        error_str = str(e).lower()
+        
+        # Authentication errors
+        if any(keyword in error_str for keyword in ["unauthorized", "authentication", "invalid api key", "401"]):
+            return LLMAuthenticationError(str(e))
+        
+        # Rate limit errors
+        if any(keyword in error_str for keyword in ["rate limit", "429", "quota exceeded", "too many requests"]):
+            return LLMRateLimitError(str(e))
+        
+        # Context window errors
+        if any(keyword in error_str for keyword in ["context window", "too long", "maximum length", "token limit"]):
+            return ProviderContextWindowError(str(e))
+        
+        # Timeout errors
+        if any(keyword in error_str for keyword in ["timeout", "connection timeout", "read timeout", "408"]):
+            return LLMTimeoutError(str(e))
+        
+        # API errors
+        if any(keyword in error_str for keyword in ["500", "502", "503", "504", "internal server error"]):
+            return LLMAPIError(str(e))
+        
+        # Configuration errors
+        if any(keyword in error_str for keyword in ["configuration", "invalid configuration", "missing"]):
+            return LLMConfigurationError(str(e))
+        
+        # Default to base error
+        return LLMBaseError(str(e))
 
     def calculate_cost(self, usage: Dict[str, Any]) -> float:
         """Calculate cost (can be overridden)."""
@@ -67,31 +118,33 @@ class BaseLLMProvider(ABC):
         pass  # Override in subclasses
 
     async def execute_with_retry(self, func: Callable, *args, max_retries=3, **kwargs):
-        """Executes a function with exponential backoff retry logic under the traffic controller."""
+        """Executes a function with exponential backoff retry logic under the traffic controller.
+        
+        Maps provider exceptions to DeepTutor exceptions.
+        """
 
         for attempt in range(max_retries + 1):
             try:
                 async with self.traffic_controller:
                     return await func(*args, **kwargs)
             except Exception as e:
-                error_str = str(e).lower()
-                is_retriable = (
-                    "429" in error_str
-                    or "rate limit" in error_str
-                    or "quota" in error_str
-                    or "500" in error_str
-                    or "503" in error_str
-                    or "timeout" in error_str
+                # Map to our exception hierarchy
+                mapped_e = self._map_exception(e)
+                
+                # Check if retriable
+                is_retriable = isinstance(
+                    mapped_e, 
+                    (LLMRateLimitError, LLMAPIError, LLMTimeoutError)
                 )
 
                 if attempt >= max_retries or not is_retriable:
-                    raise e
+                    raise mapped_e
 
                 delay = (1.5**attempt) + (random.random() * 0.5)
                 logger.warning(
                     "%s call failed (%s). Retrying in %.2fs...",
                     self.provider_name,
-                    e,
+                    mapped_e,
                     delay,
                 )
                 await asyncio.sleep(delay)

@@ -21,3 +21,11 @@ def get_provider_class(name: str) -> Optional[Type[BaseLLMProvider]]:
 
 def list_providers() -> list[str]:
     return list(_PROVIDER_REGISTRY.keys())
+
+def is_registered(name: str) -> bool:
+    """Check if a provider is registered."""
+    return name.lower() in _PROVIDER_REGISTRY
+
+def get_all_providers() -> Dict[str, Type[BaseLLMProvider]]:
+    """Get all registered providers."""
+    return _PROVIDER_REGISTRY.copy()

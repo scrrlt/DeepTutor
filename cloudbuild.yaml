@@ -36,7 +36,7 @@ steps:
       - '-c'
       - 'docker pull ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest || exit 0'
 
-  # Build the Docker image using cache-from to reuse layers
+  # Build the Docker image using cache-from and cache-to to reuse layers
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
     env:
@@ -49,6 +49,10 @@ steps:
       - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest'
       - '--cache-from'
       - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest'
+      - '--cache-to'
+      - '${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:cache'
+      - '--build-arg'
+      - 'BUILDKIT_INLINE_CACHE=1'
       - '.'
 
   # Push the Docker image tags to Google Container Registry
