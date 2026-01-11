@@ -21,40 +21,39 @@ def format_exception_message(exc: Exception) -> str:
 
     # Try to parse JSON error messages (common in API errors)
     try:
-        # Find the first '{' and then scan forward to find the matching closing brace,
-        # correctly handling nested braces.
-        start = message.find("{")
-        if start != -1:
-            brace_depth = 0
-            end = None
-            for idx in range(start, len(message)):
-                char = message[idx]
-                if char == "{":
-                    brace_depth += 1
-                elif char == "}":
-                    brace_depth -= 1
-                    if brace_depth == 0:
-                        end = idx
+        # Find JSON-like block by counting braces (handles nested objects)
+        start_idx = message.find("{")
+        if start_idx != -1:
+            brace_count = 0
+            end_idx = -1
+            for char_idx in range(start_idx, len(message)):
+                if message[char_idx] == "{":
+                    brace_count += 1
+                elif message[char_idx] == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = char_idx
                         break
-            if end is not None:
+
+            if end_idx != -1:  # Found matching braces
+                potential_json = message[start_idx : end_idx + 1]
                 try:
-                    error_data = json.loads(message[start : end + 1])
+                    error_data = json.loads(potential_json)
+
+                    # Standard extraction logic
                     if isinstance(error_data, dict) and "error" in error_data:
                         error_info = error_data["error"]
                         if isinstance(error_info, dict):
-                            error_msg = error_info.get("message", "")
-                            error_type = error_info.get("type", "")
-                            error_code = error_info.get("code", "")
-                            formatted_parts = []
-                            if error_msg:
-                                formatted_parts.append(f"Message: {error_msg}")
-                            if error_type:
-                                formatted_parts.append(f"Type: {error_type}")
-                            if error_code:
-                                formatted_parts.append(f"Code: {error_code}")
-                            if formatted_parts:
-                                return " | ".join(formatted_parts)
-                except json.JSONDecodeError:
+                            parts = []
+                            if "message" in error_info:
+                                parts.append(f"Message: {error_info['message']}")
+                            if "type" in error_info:
+                                parts.append(f"Type: {error_info['type']}")
+                            if "code" in error_info:
+                                parts.append(f"Code: {error_info['code']}")
+                            if parts:
+                                return " | ".join(parts)
+                except (json.JSONDecodeError, AttributeError):
                     pass
     except Exception:
         pass

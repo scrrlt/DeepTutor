@@ -9,9 +9,16 @@ from collections.abc import Callable
 import functools
 from typing import Any
 
+from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
+from src.logging.logger import get_logger
+
 
 class ParseError(Exception):
     """Parse error"""
+
+
+# Initialize module logger
+logger = get_logger("ErrorHandler")
 
 
 def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: float = 2.0):
@@ -38,8 +45,10 @@ def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: floa
                         raise e
 
                     # Wait and retry
-                    print(
-                        f"⚠️ Parse failed (attempt {attempt + 1}), retrying in {current_delay:.1f}s..."
+                    logger.warning(
+                        f"Parse failed (attempt {attempt + 1}/{max_retries}), "
+                        f"retrying in {current_delay:.1f}s... Error: {e}",
+                        exc_info=False,
                     )
                     await asyncio.sleep(current_delay)
                     current_delay *= backoff
@@ -109,7 +118,7 @@ def safe_parse(
         if raise_on_error:
             raise ParseError(f"Parsing failed: {e!s}")
 
-        print(f"⚠️ Parsing failed, using default value: {e!s}")
+        logger.warning(f"Parsing failed, using default value. Error: {e!s}")
         return default
 
 
@@ -123,7 +132,7 @@ async def validate_investigate_output(
     validate_output(output, required_fields, field_types)
 
     if valid_tools is None:
-        valid_tools = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
+        valid_tools = VALID_INVESTIGATE_TOOLS
     tools = output["tools"]
     if not tools:
         raise ParseError("tools list cannot be empty")
@@ -247,17 +256,23 @@ async def validate_solve_output(
             raise ParseError("tool_call missing required fields: tool_type, query")
 
         tool_type = tool_call.get("tool_type", "").lower()
-        valid_tool_types = valid_tool_types or [
-            "none",
-            "rag_naive",
-            "rag_hybrid",
-            "web_search",
-            "code_execution",
-            "finish",
-        ]
-        if tool_type not in valid_tool_types:
-            raise ParseError(f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}")
 
+        # Use provided valid_tool_types if supplied; otherwise, derive from VALID_SOLVE_TOOLS,
+        # ensuring that the legacy "finish" tool type remains supported by default.
+        if valid_tool_types is None:
+            default_valid_tool_types = list(VALID_SOLVE_TOOLS)
+            if not any(
+                isinstance(t, str) and t.lower() == "finish" for t in default_valid_tool_types
+            ):
+                default_valid_tool_types.append("finish")
+            effective_valid_tool_types = default_valid_tool_types
+        else:
+            effective_valid_tool_types = valid_tool_types
+
+        if tool_type not in effective_valid_tool_types:
+            raise ParseError(
+                f"Invalid tool_type: {tool_type}, must be one of {effective_valid_tool_types}"
+            )
     return True
 
 
@@ -284,29 +299,3 @@ def validate_none_tool_constraint(
             f"When 'none' tool exists, no other tool intents should be provided. "
             f"Found {len(tools)} tools with types: {[tool.get(tool_type_key) for tool in tools]}"
         )
-
-
-# Example usage
-if __name__ == "__main__":
-    import asyncio
-
-    # Test validation functions
-    test_investigate_output = {
-        "reasoning": "This round investigation target...",
-        "tools": [{"tool_type": "rag_naive", "query": "What is linear convolution?"}],
-    }
-
-    try:
-        asyncio.run(validate_investigate_output(test_investigate_output))
-        print("✓ InvestigateAgent output validation passed")
-    except ParseError as e:
-        print(f"✗ InvestigateAgent output validation failed: {e}")
-
-    # Test missing required fields
-    test_invalid_output = {"tools": []}
-
-    try:
-        asyncio.run(validate_investigate_output(test_invalid_output))
-        print("✓ Invalid output validation passed (should not happen)")
-    except ParseError as e:
-        print(f"✗ Invalid output validation failed (expected): {e}")

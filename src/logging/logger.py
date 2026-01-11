@@ -22,6 +22,21 @@ import sys
 from typing import Any, Optional
 
 
+def get_project_root() -> Path:
+    """Robust way to find project root: look for a marker file like 'pyproject.toml'."""
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    logging.getLogger(__name__).warning(
+        "Project root could not be determined because 'pyproject.toml' was not found "
+        "in any parent directory. Ensure you are running commands from within the "
+        "project directory and that 'pyproject.toml' exists in the project root. "
+        f"Searched parent directories: {', '.join(str(p) for p in current.parents) or '<none>'}"
+    )
+    return current.parents[0] if current.parents else Path.cwd()
+
+
 class LogLevel(Enum):
     """Log levels with associated symbols"""
 
@@ -150,14 +165,13 @@ class Logger:
         # Setup log directory
         if log_dir is None:
             # Default: DeepTutor/data/user/logs/
-            # Use resolve() to get absolute path, ensuring correct project root regardless of working directory
-            project_root = Path(__file__).resolve().parent.parent.parent
+            project_root = get_project_root()
             log_dir = project_root / "data" / "user" / "logs"
         else:
             log_dir = Path(log_dir)
             # If relative path, resolve it relative to project root
             if not log_dir.is_absolute():
-                project_root = Path(__file__).resolve().parent.parent.parent
+                project_root = get_project_root()
                 log_dir = project_root / log_dir
 
         log_dir.mkdir(parents=True, exist_ok=True)
@@ -584,8 +598,21 @@ class Logger:
             self.debug(f"Token Stats: {total_tokens} tokens")
 
     def shutdown(self):
-        """Shutdown the logger and cleanup resources"""
-        self.remove_task_log_handlers()
+        """
+        Shut down this logger by cleaning up **all** attached handlers.
+
+        This method iterates over a copy of ``self.logger.handlers``, calls
+        ``close()`` on each handler to release any underlying resources
+        (such as open file streams or other I/O handles), and then removes
+        the handler from the underlying ``logging.Logger`` instance.
+
+        Note:
+            This closes and removes every handler currently attached to this
+            logger instance (including any task-specific handlers), not just a
+            subset of handlers. Callers that previously relied on only
+            task-specific handlers being removed should be aware that this
+            method now performs a full cleanup of all handlers.
+        """
         # Close all handlers
         for handler in self.logger.handlers[:]:
             handler.close()
@@ -624,7 +651,7 @@ def get_logger(
             from src.services.config import get_path_from_config, load_config_with_main
 
             # Use resolve() to get absolute path, ensuring correct project root regardless of working directory
-            project_root = Path(__file__).resolve().parent.parent.parent
+            project_root = get_project_root()
             config = load_config_with_main(
                 "solve_config.yaml", project_root
             )  # Use any config to get main.yaml
