@@ -17,8 +17,7 @@ from typing import Any
 
 import yaml
 
-from ...services.config import load_config_with_main, parse_language
-from ...services.llm import get_llm_config
+from ...services.config import parse_language
 from .analysis_loop import InvestigateAgent, NoteAgent
 
 # Dual-Loop Architecture
@@ -48,7 +47,8 @@ class MainSolver:
         output_base_dir: str | None = None,
     ):
         """
-        Initialize MainSolver
+        Initialize MainSolver with lightweight setup.
+        Call ainit() to complete async initialization.
 
         Args:
             config_path: Config file path (default: config.yaml in current directory)
@@ -58,11 +58,64 @@ class MainSolver:
             kb_name: Knowledge base name
             output_base_dir: Output base directory (optional, overrides config)
         """
+        # Store initialization parameters
+        self._config_path = config_path
+        self._api_key = api_key
+        self._base_url = base_url
+        self._api_version = api_version
+        self._kb_name = kb_name
+        self._output_base_dir = output_base_dir
+
+        # Initialize with None - will be set in ainit()
+        self.config = None
+        self.api_key = None
+        self.base_url = None
+        self.api_version = None
+        self.kb_name = kb_name
+        self.logger = None
+        self.monitor = None
+        self.token_tracker = None
+
+    async def ainit(self) -> None:
+        """
+        Complete the asynchronous second phase of MainSolver initialization.
+
+        This class uses a two-phase initialization pattern:
+
+        1. ``__init__`` performs only lightweight, synchronous setup and stores
+           constructor arguments. Attributes such as ``config``, ``api_key``,
+           ``base_url``, ``api_version``, ``logger``, ``monitor``, and
+           ``token_tracker`` are intentionally left as ``None``.
+        2. :meth:`ainit` performs all I/O-bound and asynchronous work required to
+           make the instance fully usable (e.g., loading configuration, wiring up
+           logging/monitoring, and preparing external-service clients).
+
+        You **must** call and await this method exactly once after constructing
+        ``MainSolver`` and **before** invoking any other methods that rely on
+        configuration, logging, metrics, or API access. Using the object prior
+        to calling :meth:`ainit` may result in attributes still being ``None``,
+        which can lead to confusing runtime errors such as ``AttributeError``,
+        misconfigured API calls, missing logs/metrics, or incorrect output paths.
+
+        This async initialization pattern is used instead of performing all setup
+        in ``__init__`` so that object construction remains fast and synchronous,
+        while allowing potentially slow operations (disk I/O, network requests,
+        validation) to be awaited explicitly by the caller in an async context.
+        """
+        config_path = self._config_path
+        api_key = self._api_key
+        base_url = self._base_url
+        api_version = self._api_version
+        kb_name = self._kb_name
+        output_base_dir = self._output_base_dir
+
         # Load config from config directory (main.yaml unified config)
         if config_path is None:
             project_root = Path(__file__).parent.parent.parent.parent
             # Load main.yaml (solve_config.yaml is optional and will be merged if exists)
-            full_config = load_config_with_main("main.yaml", project_root)
+            from ...services.config.loader import load_config_with_main_async
+
+            full_config = await load_config_with_main_async("main.yaml", project_root)
 
             # Extract solve-specific config and build validator-compatible structure
             solve_config = full_config.get("solve", {})
@@ -89,10 +142,12 @@ class MainSolver:
             local_config = {}
             if Path(config_path).exists():
                 try:
-                    with open(config_path, encoding="utf-8") as f:
-                        loaded = yaml.safe_load(f)
-                        if loaded:
-                            local_config = loaded
+
+                    def load_local_config(path: str) -> dict:
+                        with open(path, encoding="utf-8") as f:
+                            return yaml.safe_load(f) or {}
+
+                    local_config = await asyncio.to_thread(load_local_config, config_path)
                 except Exception:
                     # Config loading warning will be handled by config_loader
                     pass
@@ -119,7 +174,9 @@ class MainSolver:
         # API config
         if api_key is None or base_url is None or "llm" not in self.config:
             try:
-                llm_config = get_llm_config()
+                from ...services.llm.config import get_llm_config_async
+
+                llm_config = await get_llm_config_async()
                 if api_key is None:
                     api_key = llm_config.api_key
                 if base_url is None:

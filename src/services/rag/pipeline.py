@@ -97,7 +97,7 @@ class RAGPipeline:
         self.logger.info(f"Initializing KB '{kb_name}' with {len(file_paths)} files")
 
         if not self._parser:
-            raise ValueError("No parser configured. Use .parser() to set one.")
+            raise ValueError("No parser configured. Use .parser() to set one")
 
         # Stage 1: Parse documents
         self.logger.info("Stage 1: Parsing documents...")
@@ -143,7 +143,7 @@ class RAGPipeline:
             Search results dictionary
         """
         if not self._retriever:
-            raise ValueError("No retriever configured. Use .retriever() to set one.")
+            raise ValueError("No retriever configured. Use .retriever() to set one")
 
         return await self._retriever.process(query, kb_name=kb_name, **kwargs)
 

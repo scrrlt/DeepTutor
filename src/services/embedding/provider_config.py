@@ -98,7 +98,7 @@ class EmbeddingProviderConfigManager:
         """Add a new provider. If name exists, raises ValueError."""
         providers = self.list_providers()
         if any(p.name == provider.name for p in providers):
-            raise ValueError(f"Provider with name '{provider.name}' already exists.")
+            raise ValueError(f"Provider with name '{provider.name}' already exists")
 
         # If this is the first provider or set as active, handle activation logic
         if not providers or provider.is_active:

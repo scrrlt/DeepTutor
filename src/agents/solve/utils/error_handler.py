@@ -7,10 +7,124 @@ Error Handler - Error handling and retry mechanism
 import asyncio
 from collections.abc import Callable
 import functools
-from typing import Any
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
 from src.logging.logger import get_logger
+
+
+# Pydantic models for output validation
+class ToolIntent(BaseModel):
+    """Model for tool intent in investigate output"""
+
+    tool_type: str = Field(..., description="Type of tool to use")
+    query: str = Field("", description="Query for the tool")
+    identifier: Optional[str] = Field(None, description="Optional identifier")
+
+    @field_validator("tool_type")
+    @classmethod
+    def validate_tool_type(cls, v):
+        if v.lower() not in VALID_INVESTIGATE_TOOLS:
+            raise ValueError(f"tool_type must be one of {VALID_INVESTIGATE_TOOLS}, got: {v}")
+        return v.lower()
+
+    @field_validator("query")
+    @classmethod
+    def validate_query_required(cls, v, info):
+        tool_type = info.data.get("tool_type", "").lower()
+        if tool_type != "none" and not v:
+            raise ValueError("query is required for non-none tools")
+        return v
+
+
+class InvestigateOutput(BaseModel):
+    """Model for InvestigateAgent output"""
+
+    reasoning: str = Field(..., description="Reasoning for the investigation")
+    tools: list[ToolIntent] = Field(..., min_length=1, description="List of tool intents")
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools_consistency(cls, v):
+        # Check for 'none' tool exclusivity
+        has_none = any(tool.tool_type == "none" for tool in v)
+        if has_none and len(v) > 1:
+            raise ValueError("When 'none' tool exists, no other tool intents should be provided")
+        return v
+
+
+class Citation(BaseModel):
+    """Model for citation in note output"""
+
+    reference_id: Optional[str] = None
+    source: Optional[str] = None
+    content: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_citation_fields(self):
+        """Validate that at least one of reference_id or source is provided."""
+        if not self.reference_id and not self.source:
+            raise ValueError("citation must contain reference_id or source")
+        return self
+
+
+class NoteOutput(BaseModel):
+    """Model for NoteAgent output"""
+
+    summary: str = Field(..., description="Summary of the notes")
+    citations: list[Citation] = Field(default_factory=list, description="List of citations")
+
+
+class ReflectOutput(BaseModel):
+    """Model for InvestigateReflectAgent output"""
+
+    should_stop: bool = Field(..., description="Whether to stop the investigation")
+    reason: str = Field(..., description="Reason for the decision")
+    remaining_questions: list[str] = Field(..., description="List of remaining questions")
+
+
+class PlanStep(BaseModel):
+    """Model for plan step"""
+
+    step_id: str = Field(..., description="Step identifier")
+    plan: str = Field(..., description="Plan description")
+
+
+class PlanBlock(BaseModel):
+    """Model for plan block"""
+
+    block_id: str = Field(..., description="Block identifier")
+    format: str = Field(..., description="Output format")
+    steps: list[PlanStep] = Field(..., min_length=1, description="List of steps")
+
+
+class PlanOutput(BaseModel):
+    """Model for PlanAgent output"""
+
+    answer_style: str = Field(..., description="Style of the answer")
+    blocks: list[PlanBlock] = Field(..., min_length=1, description="List of plan blocks")
+
+
+class SolveToolCall(BaseModel):
+    """Model for tool call in solve output"""
+
+    tool_type: str = Field(..., description="Type of tool to call")
+    query: str = Field(..., description="Query for the tool call")
+
+    @field_validator("tool_type")
+    @classmethod
+    def validate_tool_type(cls, v):
+        if v.lower() not in VALID_SOLVE_TOOLS:
+            raise ValueError(f"tool_type must be one of {VALID_SOLVE_TOOLS}, got: {v}")
+        return v.lower()
+
+
+class SolveOutput(BaseModel):
+    """Model for SolveAgent output"""
+
+    tool_calls: list[SolveToolCall] = Field(..., min_length=1, description="List of tool calls")
 
 
 class ParseError(Exception):
@@ -134,139 +248,103 @@ def safe_parse(
 def validate_investigate_output(
     output: dict[str, Any], valid_tools: list[str] = VALID_INVESTIGATE_TOOLS
 ) -> bool:
-    """Validate InvestigateAgent output (refactored: multi-tool intent)"""
-    required_fields = ["reasoning", "tools"]
-    field_types = {"reasoning": str, "tools": list}
+    """Validate InvestigateAgent output using Pydantic model"""
+    # Check if custom tools are provided
+    if valid_tools != VALID_INVESTIGATE_TOOLS:
+        # For custom tools, do manual validation
+        validate_output(output, ["reasoning"], {"reasoning": str})
+        tools = output.get("tools", [])
+        if not isinstance(tools, list) or len(tools) < 1:
+            raise ParseError("tools must be a non-empty list")
 
-    validate_output(output, required_fields, field_types)
-
-    tools = output["tools"]
-    if not tools:
-        raise ParseError("tools list cannot be empty")
-
-    for idx, tool in enumerate(tools):
-        if not isinstance(tool, dict):
-            raise ParseError(f"tool[{idx}] must be a dictionary")
-
-        tool_type = tool.get("tool_type", "").lower()
-        query = tool.get("query", "")
-        identifier = tool.get("identifier", "")
-
-        if tool_type not in valid_tools:
-            raise ParseError(
-                f"tool[{idx}] tool_type must be one of {valid_tools}, got: {tool_type}"
-            )
-
-        if tool_type == "none":
-            if len(tools) > 1:
+        for i, tool in enumerate(tools):
+            if not isinstance(tool, dict):
+                raise ParseError(f"tool[{i}] must be a dictionary")
+            tool_type = tool.get("tool_type", "").lower()
+            if tool_type not in valid_tools:
                 raise ParseError(
-                    "When [TOOL] none exists, no other tool intents should be provided"
+                    f"tool[{i}] tool_type must be one of {valid_tools}, got: {tool_type}"
                 )
-            continue
+            if tool_type != "none" and not tool.get("query"):
+                raise ParseError(f"tool[{i}] missing query")
 
-        if not query:
-            raise ParseError(f"tool[{idx}] missing query")
+        # Check none tool exclusivity
+        has_none = any(t.get("tool_type", "").lower() == "none" for t in tools)
+        if has_none and len(tools) > 1:
+            raise ParseError("When 'none' tool exists, no other tool intents should be provided")
+        return True
 
-        if tool_type == "query_item" and not (identifier or query):
-            raise ParseError("query_item must provide identifier or query")
-
-    return True
+    # Use Pydantic for standard validation
+    try:
+        InvestigateOutput(**output)
+        return True
+    except ValidationError as e:
+        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
+        raise ParseError(f"InvestigateAgent output validation failed: {error_details}")
 
 
 def validate_note_output(output: dict[str, Any]) -> bool:
-    """Validate NoteAgent output (new format: only summary and citations)"""
-    required_fields = ["summary"]
-    field_types = {"summary": str, "citations": list}
-
-    validate_output(output, required_fields, field_types)
-
-    # Validate citations list
-    if "citations" in output:
-        for citation in output["citations"]:
-            if not isinstance(citation, dict):
-                raise ParseError(f"citation must be a dictionary, got: {type(citation)}")
-
-            # citations should contain reference_id, source, content
-            if "reference_id" not in citation and "source" not in citation:
-                raise ParseError("citation must contain reference_id or source")
-
-    return True
+    """Validate NoteAgent output using Pydantic model"""
+    try:
+        NoteOutput(**output)
+        return True
+    except ValidationError as e:
+        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
+        raise ParseError(f"NoteAgent output validation failed: {error_details}")
 
 
 def validate_reflect_output(output: dict[str, Any]) -> bool:
-    """Validate InvestigateReflectAgent output (new format: simplified)"""
-    required_fields = ["should_stop", "reason", "remaining_questions"]
-    field_types = {"should_stop": bool, "reason": str, "remaining_questions": list}
-
-    validate_output(output, required_fields, field_types)
-
-    # Validate remaining_questions list
-    if "remaining_questions" in output:
-        for question in output["remaining_questions"]:
-            if not isinstance(question, str):
-                raise ParseError(f"remaining_question must be a string, got: {type(question)}")
-
-    return True
+    """Validate InvestigateReflectAgent output using Pydantic model"""
+    try:
+        ReflectOutput(**output)
+        return True
+    except ValidationError as e:
+        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
+        raise ParseError(f"InvestigateReflectAgent output validation failed: {error_details}")
 
 
 def validate_plan_output(output: dict[str, Any]) -> bool:
-    """Validate PlanAgent output"""
-    required_fields = ["answer_style", "blocks"]
-    field_types = {"answer_style": str, "blocks": list}
-
-    validate_output(output, required_fields, field_types)
-
-    # Validate blocks list is not empty (new)
-    if not output["blocks"]:
-        raise ParseError(
-            "blocks list is empty, PlanAgent must generate at least one block.\n"
-            "Possible reasons:\n"
-            "1. LLM did not output [Block-N] tags\n"
-            "2. Output format is incorrect\n"
-            "3. Prompt design has issues"
-        )
-
-    # Validate blocks list
-    for block in output["blocks"]:
-        if not isinstance(block, dict):
-            raise ParseError(f"block must be a dictionary, got: {type(block)}")
-
-        if "block_id" not in block or "format" not in block or "steps" not in block:
-            raise ParseError("block missing required fields: block_id, format, steps")
-
-        # Validate steps list
-        for step in block["steps"]:
-            if not isinstance(step, dict):
-                raise ParseError(f"step must be a dictionary, got: {type(step)}")
-
-            if "step_id" not in step or "plan" not in step:
-                raise ParseError("step missing required fields: step_id, plan")
-
-    return True
+    """Validate PlanAgent output using Pydantic model"""
+    try:
+        PlanOutput(**output)
+        return True
+    except ValidationError as e:
+        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
+        raise ParseError(f"PlanAgent output validation failed: {error_details}")
 
 
 def validate_solve_output(
     output: dict[str, Any], valid_tool_types: list[str] = VALID_SOLVE_TOOLS
 ) -> bool:
-    """Validate SolveAgent output"""
-    required_fields = ["tool_calls"]
-    field_types = {"tool_calls": list}
+    """Validate SolveAgent output using Pydantic model"""
+    # Check if custom tools are provided
+    if valid_tool_types != VALID_SOLVE_TOOLS:
+        # For custom tools, do manual validation
+        validate_output(output, ["tool_calls"], {"tool_calls": list})
+        tool_calls = output.get("tool_calls", [])
+        if not isinstance(tool_calls, list) or len(tool_calls) < 1:
+            raise ParseError("tool_calls must be a non-empty list")
 
-    validate_output(output, required_fields, field_types)
+        for i, tool_call in enumerate(tool_calls):
+            if not isinstance(tool_call, dict):
+                raise ParseError(f"tool_call[{i}] must be a dictionary")
+            if "tool_type" not in tool_call or "query" not in tool_call:
+                raise ParseError(f"tool_call[{i}] missing required fields: tool_type, query")
+            tool_type = tool_call.get("tool_type", "").lower()
+            if tool_type not in valid_tool_types:
+                raise ParseError(
+                    f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}"
+                )
+        return True
 
-    # Validate tool_calls list
-    for tool_call in output["tool_calls"]:
-        if not isinstance(tool_call, dict):
-            raise ParseError(f"tool_call must be a dictionary, got: {type(tool_call)}")
-
-        if "tool_type" not in tool_call or "query" not in tool_call:
-            raise ParseError("tool_call missing required fields: tool_type, query")
-
-        tool_type = tool_call.get("tool_type", "").lower()
-
-        if tool_type not in valid_tool_types:
-            raise ParseError(f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}")
-    return True
+    # Use Pydantic for standard validation
+    try:
+        SolveOutput(**output)
+        return True
+    except ValidationError as e:
+        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
+        raise ParseError(f"SolveAgent output validation failed: {error_details}")
+        raise ParseError(f"SolveAgent output validation failed: {e}")
 
 
 def validate_none_tool_constraint(

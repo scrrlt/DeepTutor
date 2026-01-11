@@ -117,6 +117,9 @@ async def websocket_solve(websocket: WebSocket):
             api_version=api_version,
         )
 
+        # Complete async initialization
+        await solver.ainit()
+
         logger.info(f"[{task_id}] Solving: {question[:50]}...")
 
         target_logger = solver.logger.logger

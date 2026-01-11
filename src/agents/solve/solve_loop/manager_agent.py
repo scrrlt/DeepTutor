@@ -190,7 +190,7 @@ class ManagerAgent(BaseAgent):
             raise ValueError(f"'steps' field in JSON is not an array. Parsed result: {parsed_data}")
 
         if not steps_data:
-            raise ValueError("'steps' array in JSON is empty, please check LLM output.")
+            raise ValueError("'steps' array in JSON is empty, please check LLM output")
 
         # Parse each step
         for idx, step_data in enumerate(steps_data, 1):
@@ -260,7 +260,7 @@ class ManagerAgent(BaseAgent):
             )
 
         if not steps:
-            raise ValueError("Failed to parse any valid steps, please check LLM output format.")
+            raise ValueError("Failed to parse any valid steps, please check LLM output format")
 
         logger = getattr(self, "logger", None)
         if logger is not None:
