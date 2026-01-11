@@ -2,13 +2,14 @@
 # DeepTutor Backend Deployment Script for Google Cloud Run
 # Usage: ./deploy-backend.sh [project-id]
 
-set -e
+set -euo pipefail
 
 # Configuration
-PROJECT_ID=${1:-"your-project-id"}
+PROJECT_ID="${1:-your-project-id}"
 SERVICE_NAME="deeptutor-backend"
 REGION="us-central1"
-IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+REPO_NAME="deeptutor"
+IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/backend"
 
 echo "🚀 Deploying DeepTutor Backend to Google Cloud Run"
 echo "=================================================="
@@ -20,31 +21,40 @@ echo ""
 
 # Check if gcloud is authenticated
 echo "🔍 Checking gcloud authentication..."
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+if ! gcloud auth list --filter="status:ACTIVE" --format="value(account)" | grep -q .; then
     echo "❌ Not authenticated with gcloud. Please run: gcloud auth login"
     exit 1
 fi
 
 # Set the project
 echo "🔧 Setting project to ${PROJECT_ID}..."
-gcloud config set project ${PROJECT_ID}
+gcloud config set project "${PROJECT_ID}"
 
 # Enable required APIs
 echo "🔌 Enabling required APIs..."
 gcloud services enable run.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
+
+# Create Artifact Registry Docker repository if it doesn't exist
+echo "📦 Ensuring Artifact Registry repository exists..."
+if ! gcloud artifacts repositories describe "${REPO_NAME}" --location="${REGION}" >/dev/null 2>&1; then
+    gcloud artifacts repositories create "${REPO_NAME}" \
+        --repository-format=docker \
+        --location="${REGION}" \
+        --description="DeepTutor Docker images"
+fi
 
 # Build and push Docker image
 echo "🏗️ Building and pushing Docker image..."
-gcloud builds submit --tag ${IMAGE_NAME}:latest .
+gcloud builds submit --tag "${IMAGE_NAME}:latest" .
 
 # Deploy to Cloud Run
 echo "🚀 Deploying to Cloud Run..."
-gcloud run deploy ${SERVICE_NAME} \
-    --image ${IMAGE_NAME}:latest \
+gcloud run deploy "${SERVICE_NAME}" \
+    --image "${IMAGE_NAME}:latest" \
     --platform managed \
-    --region ${REGION} \
+    --region "${REGION}" \
     --allow-unauthenticated \
     --port 8001 \
     --memory 1Gi \

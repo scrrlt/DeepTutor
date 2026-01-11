@@ -1,70 +1,78 @@
-from typing import Any
-import os
+import logging
+from typing import Dict, Tuple, Type
 
-from .config import LLMConfig
-from .registry import get_provider_class, list_providers
+from .exceptions import LLMConfigurationError
+from .providers.anthropic import AnthropicProvider
+from .providers.azure import AzureProvider
+from .providers.base_provider import BaseLLMProvider
+from .providers.configs import (
+    AnthropicConfig,
+    AzureConfig,
+    BaseProviderConfig,
+    DeepSeekConfig,
+    GeminiConfig,
+    OpenAIConfig,
+)
+from .providers.gemini import GeminiProvider
+from .providers.openai import OpenAIProvider
+from .providers.openai_compatible import OpenAICompatibleProvider
+from .providers.ollama import OllamaProvider
 
-# Import providers package to trigger registration of all provider classes
-import src.services.llm.providers
+logger = logging.getLogger(__name__)
+
+
+SUPPORTED_PROVIDERS: Dict[str, Tuple[Type[BaseLLMProvider], Type[BaseProviderConfig]]] = {
+    "openai": (OpenAIProvider, OpenAIConfig),
+    "openai_compatible": (OpenAICompatibleProvider, OpenAIConfig),
+    "azure": (AzureProvider, AzureConfig),
+    "gemini": (GeminiProvider, GeminiConfig),
+    "anthropic": (AnthropicProvider, AnthropicConfig),
+    "deepseek": (OpenAICompatibleProvider, DeepSeekConfig),
+    "ollama": (OllamaProvider, BaseProviderConfig),
+}
+
 
 class LLMFactory:
-    """
-    Factory class to create LLM provider instances.
-    Refactored to use Registry Pattern (no if/else chains).
+    """Factory for creating LLM provider instances."""
 
-    This replaces the old monolithic factory that had hardcoded logic for
-    cloud vs. local providers. Now, everything is a 'Provider' in the registry.
-    """
-
-    @staticmethod
-    def create(provider_name: str, **kwargs) -> Any:
+    @classmethod
+    def create_provider(cls, provider_type: str, model: str, **kwargs) -> BaseLLMProvider:
         """
-        Create an instance of an LLM provider.
+        Create a provider instance based on type and validated config.
 
         Args:
-            provider_name: The name of the provider (e.g., 'openai', 'ollama', 'azure')
-            **kwargs: Additional configuration overrides
-
-        Returns:
-            An instance of BaseLLMProvider
+            provider_type: Type of provider (openai, azure, etc.)
+            model: The specific model string
+            **kwargs: Config overrides (api_key, base_url, etc.)
         """
-        # 1. Create Config Object
-        # The config object now handles loading env vars specific to the provider
-        config = LLMConfig(provider_name, **kwargs)
+        ptype = provider_type.lower()
+        if ptype not in SUPPORTED_PROVIDERS:
+            available = ", ".join(sorted(SUPPORTED_PROVIDERS.keys()))
+            raise LLMConfigurationError(
+                f"Unsupported LLM provider type: '{provider_type}'. Available: {available}"
+            )
 
-        # 2. Lookup Provider Class from Registry
-        provider_class = get_provider_class(provider_name)
+        provider_class, config_class = SUPPORTED_PROVIDERS[ptype]
+        config_obj = config_class(model=model, **kwargs)
 
-        if not provider_class:
-            # Fallback logic: check if it's a known 'openai_compatible' flavor
-            # This allows users to say provider="deepseek" and auto-map it
-            from .providers.openai_compatible import KNOWN_ENDPOINTS
-            if provider_name.lower() in KNOWN_ENDPOINTS:
-                 # It's a flavor of OpenAI compatible (like deepseek), so use that provider
-                 # and pass the flavor name as config
-                 provider_class = get_provider_class("openai_compatible")
-                 kwargs['flavor'] = provider_name
-                 config = LLMConfig("openai_compatible", **kwargs)
-            else:
-                available = ", ".join(list_providers())
-                raise ValueError(f"Unknown provider '{provider_name}'. Available: {available}")
+        return provider_class(config=config_obj)
 
-        # 3. Instantiate the Provider
-        return provider_class(config)
-
-    @staticmethod
-    def create_from_env() -> Any:
+    @classmethod
+    def create_from_env(cls) -> BaseLLMProvider:
         """
-        Creates an LLM provider instance based on the LLM_PROVIDER environment variable.
-
-        If LLM_PROVIDER is not set, defaults to 'openai'.
-
-        Returns:
-            An instance of BaseLLMProvider
+        Convenience method to create the default provider from environment variables.
+        Used by legacy code and simple agent initializations.
         """
-        # Get the provider name from the environment variable
-        # or default to 'openai' if not set
-        provider_name = os.getenv("LLM_PROVIDER", "openai")
+        import os
 
-        # Create the provider instance
-        return LLMFactory.create(provider_name)
+        ptype = os.getenv("LLM_PROVIDER", "openai").lower()
+        model = os.getenv("LLM_MODEL")
+
+        if not model:
+            raise LLMConfigurationError("LLM_MODEL environment variable must be set")
+
+        return cls.create_provider(ptype, model)
+
+
+# Global Instance
+llm_factory = LLMFactory()

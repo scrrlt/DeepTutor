@@ -290,10 +290,12 @@ async def upload_files(
     """Upload files to a knowledge base and process them in background."""
     try:
         # 1. Validate immediately upon receipt using DocumentValidator
-        validator = DocumentValidator()
         for file in files:
             try:
-                await validator.validate(file)
+                DocumentValidator.validate_upload_safety(file.filename, file.size)
+                content = await file.read()
+                DocumentValidator.sanitize_content(content)
+                await file.seek(0)  # Reset file pointer for later use
             except Exception as e:
                 error_message = (
                     f"Validation failed for file '{file.filename}': {format_exception_message(e)}"

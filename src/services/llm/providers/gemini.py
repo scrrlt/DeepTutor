@@ -22,12 +22,17 @@ class GeminiProvider(BaseLLMProvider):
 
     async def complete(self, prompt: str, **kwargs) -> str:
         async def _call_api():
-             response = await self.model.generate_content_async(prompt)
-             return response.text
+            response = await self.model.generate_content_async(prompt)
+            return response.text
 
         return await self.execute_with_retry(_call_api)
 
     async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
-        async for chunk in await self.model.generate_content_async(prompt, stream=True):
+        async def _create_stream():
+            return await self.model.generate_content_async(prompt, stream=True)
+
+        stream = await self.execute_with_retry(_create_stream)
+
+        async for chunk in stream:
             if chunk.text:
                 yield chunk.text

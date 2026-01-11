@@ -1,50 +1,53 @@
-"""
-Provider-Specific Configurations.
-"""
-
 import os
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field, validator
 
+class BaseProviderConfig(BaseModel):
+    """Base configuration for all LLM providers."""
+    model: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    timeout: int = 120
+    max_retries: int = 3
+    
+    # PM NOTE: These manual os.getenv calls inside __init__ are exactly 
+    # what we need to move to Pydantic-Settings classes.
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.api_key:
+            self.api_key = os.getenv(f"{self.__class__.__name__.upper().replace('CONFIG', '')}_API_KEY")
 
-class AzureConfig:
-    """Azure-specific configuration."""
+class OpenAIConfig(BaseProviderConfig):
+    """Configuration for OpenAI and compatible providers."""
+    organization: Optional[str] = os.getenv("OPENAI_ORG_ID")
+    
+    @validator("base_url", pre=True, always=True)
+    def set_default_url(cls, v):
+        return v or "https://api.openai.com/v1"
 
-    def __init__(self):
-        self.deployment = os.getenv("AZURE_DEPLOYMENT_NAME")
-        self.api_version = os.getenv("AZURE_API_VERSION", "2023-05-15")
+class AzureConfig(BaseProviderConfig):
+    """Configuration for Azure OpenAI."""
+    api_version: str = Field(default_factory=lambda: os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"))
+    deployment_name: Optional[str] = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 
-    def validate(self):
-        """Validate Azure config."""
-        if not self.deployment:
-            raise ValueError("AZURE_DEPLOYMENT_NAME is required for Azure provider")
-        if not self.api_version:
-            raise ValueError("AZURE_API_VERSION must be set")
-        # Validate deployment name format
-        if not self.deployment.replace('-', '').replace('_', '').isalnum():
-            raise ValueError("AZURE_DEPLOYMENT_NAME contains invalid characters")
+    @validator("api_key")
+    def validate_azure_key(cls, v):
+        if not v:
+            raise ValueError("Azure requires an API Key")
+        return v
 
+class GeminiConfig(BaseProviderConfig):
+    """Configuration for Google Gemini."""
+    safety_threshold: str = os.getenv("GEMINI_SAFETY_LEVEL", "BLOCK_MEDIUM_AND_ABOVE")
 
-class OllamaConfig:
-    """Ollama-specific configuration."""
+class AnthropicConfig(BaseProviderConfig):
+    """Configuration for Anthropic Claude."""
+    @validator("base_url", pre=True, always=True)
+    def set_anthropic_url(cls, v):
+        return v or "https://api.anthropic.com/v1"
 
-    def __init__(self):
-        self.model = os.getenv("OLLAMA_MODEL", "llama3")
-
-    def validate(self):
-        """Validate Ollama config."""
-        pass  # No special validation needed
-
-
-class GeminiConfig:
-    """Gemini-specific configuration."""
-
-    def __init__(self):
-        self.safety_settings = {
-            "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-            "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-            "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
-        }
-
-    def validate(self):
-        """Validate Gemini config."""
-        pass
+class DeepSeekConfig(BaseProviderConfig):
+    """Configuration for DeepSeek."""
+    @validator("base_url", pre=True, always=True)
+    def set_deepseek_url(cls, v):
+        return v or "https://api.deepseek.com"

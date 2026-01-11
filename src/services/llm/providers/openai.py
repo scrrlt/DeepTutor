@@ -19,27 +19,32 @@ class OpenAIProvider(BaseLLMProvider):
         )
 
     async def complete(self, prompt: str, **kwargs) -> str:
-        model = kwargs.get("model") or self.config.model_name or "gpt-4o"
+        model = kwargs.pop("model", None) or self.config.model_name or "gpt-4o"
+        kwargs.pop("stream", None)
 
         async def _call_api():
             response = await self.client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
-                **kwargs
+                **kwargs,
             )
             return response.choices[0].message.content
 
         return await self.execute_with_retry(_call_api)
 
     async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
-        model = kwargs.get("model") or self.config.model_name or "gpt-4o"
+        model = kwargs.pop("model", None) or self.config.model_name or "gpt-4o"
+        kwargs.pop("stream", None)
 
-        stream = await self.client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            stream=True,
-            **kwargs
-        )
+        async def _create_stream():
+            return await self.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                **kwargs
+            )
+
+        stream = await self.execute_with_retry(_create_stream)
 
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:

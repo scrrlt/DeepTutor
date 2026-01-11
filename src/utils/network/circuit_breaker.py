@@ -3,9 +3,9 @@ Circuit Breaker Pattern - Prevent cascading failures in API calls.
 """
 
 import time
-
-import time
+import threading
 from typing import Any, Callable
+from enum import Enum
 
 class CircuitState(Enum):
     """Circuit breaker states."""
@@ -58,7 +58,6 @@ class CircuitBreaker:
                     self.state = CircuitState.HALF_OPEN
                     self.success_count = 0
                 else:
-                    raise Exception("Circuit breaker is OPEN. Service unavailable.")
                     raise Exception("Circuit breaker is OPEN. Service unavailable.")
         try:
             result = func(*args, **kwargs)

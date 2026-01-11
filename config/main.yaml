@@ -22,7 +22,7 @@ tools:
   web_search:
     enabled: true
     consolidation: template
-    consolid  ation_template: ''
+    consolidation_template: ''
     provider: jina
   query_item:
     enabled: true

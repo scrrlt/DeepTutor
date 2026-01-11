@@ -31,14 +31,18 @@ class AnthropicProvider(BaseLLMProvider):
         return await self.execute_with_retry(_call_api)
 
     async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
-        model = kwargs.get("model") or self.config.model_name or "claude-3-5-sonnet-20240620"
+        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-5-sonnet-20240620"
+        kwargs.pop("stream", None)
 
-        stream = await self.client.messages.create(
-            model=model,
-            max_tokens=kwargs.get("max_tokens", 4096),
-            messages=[{"role": "user", "content": prompt}],
-            stream=True
-        )
+        async def _create_stream():
+            return await self.client.messages.create(
+                model=model,
+                max_tokens=kwargs.get("max_tokens", 4096),
+                messages=[{"role": "user", "content": prompt}],
+                stream=True
+            )
+
+        stream = await self.execute_with_retry(_create_stream)
 
         async for chunk in stream:
             if chunk.type == "content_block_delta":

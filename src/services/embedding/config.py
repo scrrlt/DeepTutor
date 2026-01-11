@@ -132,7 +132,7 @@ def get_embedding_config() -> EmbeddingConfig:
     api_key = get_with_fallback("EMBEDDING_API_KEY", "EMBEDDING_API_KEY")
     base_url = get_with_fallback("EMBEDDING_HOST", "EMBEDDING_HOST")
     api_version = get_with_fallback("EMBEDDING_API_VERSION", "EMBEDDING_API_VERSION")
-    dim_str = get_with_fallback("EMBEDDING_DIMENSION", "EMBEDDING_DIMENSION")
+    dim_str = get_with_fallback("EMBEDDING_DIMENSION", "EMBEDDING_DIM")
 
     # Strict mode: Model is required
     if not model:

@@ -25,9 +25,9 @@ def retry(
 
     Args:
         fn: Function to retry
-        retries: Number of retry attempts
-        base_delay: Base delay between retries
-        jitter: Random jitter to add to delay
+        retries: Number of retry attempts (must be >= 0)
+        base_delay: Base delay between retries (must be >= 0)
+        jitter: Random jitter to add to delay (must be >= 0)
         retry_on: Exception types to retry on
 
     Returns:
@@ -35,7 +35,15 @@ def retry(
 
     Raises:
         RetryError: If all retries are exhausted
+        ValueError: If retries, base_delay, or jitter are negative
     """
+    if retries < 0:
+        raise ValueError("retries must be non-negative")
+    if base_delay < 0:
+        raise ValueError("base_delay must be non-negative")
+    if jitter < 0:
+        raise ValueError("jitter must be non-negative")
+
     for attempt in range(retries):
         try:
             return fn()

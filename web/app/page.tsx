@@ -6,6 +6,29 @@ import { apiUrl } from "@/lib/api";
 import { getTranslation } from "@/lib/i18n";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatInterface } from "@/components/ChatInterface";
+import { KBErrorDisplay } from "@/components/KBErrorDisplay";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import {
+  Calculator,
+  PenTool,
+  Microscope,
+  Lightbulb,
+  GraduationCap,
+  Edit3,
+  Database,
+  Globe,
+  Trash2,
+  Loader2,
+  Send,
+  User,
+  Bot,
+  BookOpen,
+  ExternalLink,
+} from "lucide-react";
+import { processLatexContent } from "@/lib/latex";
 
 interface KnowledgeBase {
   name: string;

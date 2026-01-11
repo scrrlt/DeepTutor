@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy dependency descriptors and optional wheel cache
 COPY requirements.txt pyproject.toml ./
+RUN mkdir -p build_cache/pip_wheels
 COPY build_cache/pip_wheels/ ./build_cache/pip_wheels/
 
 # Create a virtual environment with cached wheels when available
@@ -32,7 +33,8 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Install runtime system packages only (no compilers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libffi-dev \
+    ca-certificates \
+    libffi8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure environment
@@ -43,7 +45,8 @@ ENV PATH=/opt/venv/bin:$PATH \
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
-COPY .env* ./
+COPY pyproject.toml ./
+COPY requirements.txt ./
 
 # Copy startup script and set permissions
 COPY start.sh ./start.sh
