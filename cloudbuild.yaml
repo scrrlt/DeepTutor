@@ -4,14 +4,14 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
       - '.'
 
   # Push the Docker image to Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
 
   # Deploy to Cloud Run with secrets from Secret Manager
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -21,7 +21,7 @@ steps:
       - 'deploy'
       - 'deeptutor'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$SHORT_SHA'
+      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
       - '--platform'
       - 'managed'
       - '--region'
@@ -62,7 +62,7 @@ steps:
 
 # Store the image in Google Container Registry
 images:
-  - 'gcr.io/$PROJECT_ID/deeptutor:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
 
 # Configure logging for service account usage
 options:
