@@ -1,4 +1,4 @@
-steps:
+Typesteps:
   # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -68,6 +68,7 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+  machineType: E2_HIGHCPU_32
 
 # Set timeout
 timeout: '1200s'
