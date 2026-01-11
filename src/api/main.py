@@ -111,8 +111,11 @@ def validate_tool_consistency():
         if not agent_tools.issubset(main_tools):
             drift = agent_tools - main_tools
             raise RuntimeError(CONFIG_DRIFT_ERROR_TEMPLATE.format(drift=drift))
-    except Exception as e:
+    except RuntimeError:
         logger.exception("Configuration validation failed")
+        raise
+    except Exception:
+        logger.exception("Failed to load configuration for validation")
         raise
 
 

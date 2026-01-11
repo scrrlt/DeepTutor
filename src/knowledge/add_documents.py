@@ -211,7 +211,9 @@ class DocumentAdder:
         base_url = self.base_url or self.llm_cfg.base_url
 
         # LLM Function Wrapper
-        def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+        def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+            if history_messages is None:
+                history_messages = []
             return openai_complete_if_cache(
                 model,
                 prompt,
@@ -226,11 +228,13 @@ class DocumentAdder:
         def vision_model_func(
             prompt,
             system_prompt=None,
-            history_messages=[],
+            history_messages=None,
             image_data=None,
             messages=None,
             **kwargs,
         ):
+            if history_messages is None:
+                history_messages = []
             # If pre-formatted messages are provided, sanitize them
             if messages:
                 safe_messages = self._filter_valid_messages(messages)
@@ -356,7 +360,7 @@ class DocumentAdder:
                 self._record_successful_hash(doc_file)
                 logger.info(f"  ✓ Processed & Indexed: {doc_file.name}")
             except Exception as e:
-                logger.exception(f"  ✗ Failed {doc_file.name}")
+                logger.exception(f"  ✗ Failed {doc_file.name}: {e}")
 
         await self.fix_structure()
         return processed_files

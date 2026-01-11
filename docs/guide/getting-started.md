@@ -17,7 +17,7 @@ Get DeepTutor running in under 5 minutes.
 git clone https://github.com/HKUDS/DeepTutor.git
 cd DeepTutor
 
-# Set Up Virtual Environment (Choose One Option)
+## Step 1: Set Up Virtual Environment (Choose One Option)
 
 # Option A: Using conda (Recommended)
 conda create -n aitutor python=3.10

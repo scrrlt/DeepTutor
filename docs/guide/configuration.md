@@ -172,7 +172,7 @@ TTS_API_KEY=
 | LM Studio | `lm_studio` | Local inference server |
 | HuggingFace | `huggingface` | OpenAI-compatible endpoints |
 
-> **Note**: Please make sure you have configured the correct `EMBEDDING_DIMENSION`. Currently our RAG module uses RAG-Anything, you could further check [its repo](https://github.com/HKUDS/RAG-Anything) for more questions.
+> **Note**: Ensure that `EMBEDDING_DIMENSION` matches your embedding model's output dimensions. The RAG module uses RAG-Anything—see [the repository](https://github.com/HKUDS/RAG-Anything) for details.
 
 ## 🛠️ Tool Configuration
 

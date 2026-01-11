@@ -6,16 +6,17 @@ Document Validator - Validation utilities for document uploads
 
 import os
 import re
+from typing import ClassVar
 
 
 class DocumentValidator:
     """Document validation utilities"""
 
     # Maximum file size in bytes (100MB)
-    MAX_FILE_SIZE = 100 * 1024 * 1024
+    MAX_FILE_SIZE: ClassVar[int] = 100 * 1024 * 1024
 
     # Allowed file extensions
-    ALLOWED_EXTENSIONS = {
+    ALLOWED_EXTENSIONS: ClassVar[set[str]] = {
         ".pdf",
         ".txt",
         ".md",

@@ -149,7 +149,7 @@ python -m src.knowledge.add_documents <kb_name> --docs <new_document.pdf>
 **Problem**
 
 When initializing a knowledge base, you may encounter this error:
-```
+```text
 ValueError: Can't patch loop of type <class 'uvloop.Loop'>
 ```
 

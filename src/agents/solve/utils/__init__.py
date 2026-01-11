@@ -57,6 +57,7 @@ __all__ = [
     "validate_output",
     "validate_investigate_output",
     "validate_note_output",
+    "validate_none_tool_constraint",
     "validate_reflect_output",
-    "validate_plan_output",
+    "validate_solve_output",
 ]

@@ -2,23 +2,23 @@
 
 <img src="/full-pipe.png" alt="DeepTutor Full-Stack Workflow" width="100%">
 
-### 💬 User Interface Layer
+## 💬 User Interface Layer
 • **Intuitive Interaction**: Simple bidirectional query-response flow for intuitive interaction.  
 • **Structured Output**: Structured response generation that organizes complex information into actionable outputs.  
 • **Dark/Light Mode**: System-wide theme support with automatic system preference detection.  
 • **Collapsible Sidebar**: Compact navigation with icon-only mode for focused learning.
 
-### 🤖 Intelligent Agent Modules
+## 🤖 Intelligent Agent Modules
 • **Problem Solving & Assessment**: Step-by-step problem solving and custom assessment generation.  
 • **Research & Learning**: Deep Research for topic exploration and Guided Learning with visualization.  
 • **Idea Generation**: Automated and interactive concept development with multi-source insights.
 
-### 🔧 Tool Integration Layer
+## 🔧 Tool Integration Layer
 • **Information Retrieval**: RAG hybrid retrieval, real-time web search, and academic paper databases.  
 • **Processing & Analysis**: Python code execution, query item lookup, and PDF parsing for document analysis.  
 • **Multi-Provider Support**: Flexible LLM providers (OpenAI, Anthropic, Ollama, etc.) and embedding adapters (OpenAI, Jina, Cohere, Ollama, etc.).
 
-### 🧠 Knowledge & Memory Foundation
+## 🧠 Knowledge & Memory Foundation
 • **Knowledge Graph**: Entity-relation mapping for semantic connections and knowledge discovery.  
 • **Vector Store**: Embedding-based semantic search for intelligent content retrieval.  
 • **Memory System**: Session state management and citation tracking for contextual continuity.
@@ -61,7 +61,7 @@
 
 ### 📚 Massive Document Knowledge Q&A
 
-<img src="/solve.gif" width="100%">
+<img src="/solve.gif" alt="Document Q&A demonstration" width="100%">
 
 Document Q&A and Step-by-Step Problem Solving
 
@@ -70,7 +70,7 @@ Document Q&A and Step-by-Step Problem Solving
 
 ### 🎨 Interactive Learning Visualization
 
-<img src="/guided-learning.gif" width="100%">
+<img src="/guided-learning.gif" alt="Interactive learning visualization demo" width="100%">
 
 Interactive AI Learning with Knowledge Visual Explanations
 
@@ -86,7 +86,7 @@ Interactive AI Learning with Knowledge Visual Explanations
 <tr>
 <td width="50%" valign="top" align="center">
 
-<img src="/question-1.gif" width="100%">
+<img src="/question-1.gif" alt="Custom question generation demo" width="100%">
 
 **Custom Questions**  
 Auto-Validated Practice Questions with Instant Feedback
@@ -94,7 +94,7 @@ Auto-Validated Practice Questions with Instant Feedback
 </td>
 <td width="50%" valign="top" align="center">
 
-<img src="/question-2.gif" width="100%">
+<img src="/question-2.gif" alt="Mimic exam style questions demo" width="100%">
 
 **Mimic Questions**  
 Clone Exam Style for Authentic Practice
@@ -111,7 +111,7 @@ Clone Exam Style for Authentic Practice
 <tr>
 <td width="33%" align="center">
 
-<img src="/deepresearch.gif" width="100%">
+<img src="/deepresearch.gif" alt="Deep research with web and paper search demo" width="100%">
 
 **Deep Research**  
 Web and Paper Search with Literature Review
@@ -119,7 +119,7 @@ Web and Paper Search with Literature Review
 </td>
 <td width="33%" align="center">
 
-<img src="/ideagen.gif" width="100%">
+<img src="/ideagen.gif" alt="Automated idea generation demo" width="100%">
 
 **Automated IdeaGen**  
 Systematic Brainstorming and Concept Synthesis
@@ -127,7 +127,7 @@ Systematic Brainstorming and Concept Synthesis
 </td>
 <td width="33%" align="center">
 
-<img src="/co-writer.gif" width="100%">
+<img src="/co-writer.gif" alt="Interactive idea generation demo" width="100%">
 
 **Interactive IdeaGen**  
 RAG-powered Idea Generation with Multi-Source Insights
@@ -144,7 +144,7 @@ RAG-powered Idea Generation with Multi-Source Insights
 <tr>
 <td width="50%" align="center">
 
-<img src="/knowledge_bases.png" width="100%">
+<img src="/knowledge_bases.png" alt="Personal knowledge base demo" width="100%">
 
 **Personal Knowledge Base**  
 Build and Organize Your Own Knowledge Repository
@@ -152,7 +152,7 @@ Build and Organize Your Own Knowledge Repository
 </td>
 <td width="50%" align="center">
 
-<img src="/notebooks.png" width="100%">
+<img src="/notebooks.png" alt="Personal notebook demo" width="100%">
 
 **Personal Notebook**  
 Your Contextual Memory for Learning Sessions
