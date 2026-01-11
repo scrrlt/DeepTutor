@@ -6,6 +6,7 @@ from typing import Any, Dict
 import httpx
 
 from .base import BaseEmbeddingAdapter, EmbeddingRequest, EmbeddingResponse
+from .error_messages import format_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,20 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             response = await client.post(url, json=payload, headers=headers)
 
             if response.status_code >= 400:
-                logger.error(f"HTTP {response.status_code} response body: {response.text}")
+                error_text = response.text
+                logger.error(f"HTTP {response.status_code} response body: {error_text}")
+
+                # Provide helpful error messages for common issues
+                if response.status_code == 400:
+                    if "invalid" in error_text.lower() or "parameter" in error_text.lower():
+                        raise ValueError(format_error_message("invalid_parameters",
+                            model=payload['model'], error_text=error_text))
+                elif response.status_code == 401:
+                    raise ValueError(format_error_message("auth_error", base_url=self.base_url))
+                elif response.status_code == 404:
+                    raise ValueError(format_error_message("model_not_found", model=payload['model']))
+                elif response.status_code == 429:
+                    raise ValueError(format_error_message("rate_limit"))
 
             response.raise_for_status()
             data = response.json()

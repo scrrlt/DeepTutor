@@ -43,7 +43,7 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
         "supports_response_format": False,  # Anthropic uses different format
         "supports_streaming": True,
         "supports_tools": True,
-        "system_in_messages": False,  # System is a separate parameter
+        "system_in_messages": False,  # The system is a separate parameter
         "has_thinking_tags": False,
     },
     "claude": {  # Alias for anthropic
@@ -171,6 +171,16 @@ MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
     },
 }
 
+# Patterns for models that produce thinking tags
+REASONING_MODEL_PATTERNS = [
+    "deepseek-reasoner",
+    "deepseek-r1",
+    "qwq",
+    "qwen-max",  # Assuming reasoning versions
+    "o1",  # OpenAI o1 models
+    "o3",  # Future OpenAI reasoning models
+]
+
 
 def get_capability(
     binding: str,
@@ -241,7 +251,7 @@ def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
 
     Args:
         binding: Provider binding name
-        model: Optional model name
+        model: Optional model name for model-specific overrides
 
     Returns:
         True if streaming is supported

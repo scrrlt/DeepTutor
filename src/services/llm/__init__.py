@@ -6,11 +6,11 @@ Unified LLM service for all DeepTutor modules.
 
 Architecture:
     Agents (ChatAgent, GuideAgent, etc.)
-              ↓
-         BaseAgent.call_llm() / stream_llm()
-              ↓
-         LLM Factory (complete / stream)
-              ↓
+        ↓
+    BaseAgent.call_llm() / stream_llm()
+        ↓
+    LLM Factory (complete / stream)
+        ↓
     ┌─────────┴─────────┐
     ↓                   ↓
 CloudProvider      LocalProvider
@@ -55,7 +55,7 @@ Usage:
 """
 
 # Also expose the providers for direct access if needed
-from . import cloud_provider, local_provider
+from . import cloud_provider, local_provider, providers
 from .capabilities import (
     DEFAULT_CAPABILITIES,
     MODEL_OVERRIDES,

@@ -1,55 +1,52 @@
 """
-LLM Exceptions
-==============
-
-Exception hierarchy for LLM service errors.
-Provides specific exception types for different error conditions
-to enable proper retry logic and error handling.
+Unified Exception Handling for LLM Providers.
 """
 
-
-class LLMError(Exception):
-    """Base exception for all LLM errors."""
-
-    pass
+from .error_mapping import map_error
 
 
-class LLMConfigurationError(LLMError):
-    """Configuration errors (missing keys, invalid URLs)."""
+class LLMBaseError(Exception):
+    """Base class for all LLM errors."""
 
-    pass
-
-
-class LLMAuthenticationError(LLMError):
-    """Authentication failures (401)."""
-
-    pass
-
-
-class LLMAPIError(LLMError):
-    """
-    Errors returned by the API provider.
-
-    Attributes:
-        status_code: HTTP status code
-        provider: Name of the provider (openai, anthropic, etc.)
-    """
-
-    def __init__(self, message: str, status_code: int = None, provider: str = None):
+    def __init__(self, message: str, retryable: bool = False):
+        self.retryable = retryable
         super().__init__(message)
-        self.status_code = status_code
-        self.provider = provider
 
 
-class LLMRateLimitError(LLMAPIError):
-    """Rate limit exceeded (429)."""
+class ProviderQuotaExceededError(LLMBaseError):
+    """Maps to OpenAI 429, Anthropic 429, etc."""
 
-    def __init__(self, message: str, retry_after: float = None, provider: str = None):
-        super().__init__(message, status_code=429, provider=provider)
-        self.retry_after = retry_after
+    def __init__(self, message: str = "Quota exceeded"):
+        super().__init__(message, retryable=True)
 
 
-class LLMTimeoutError(LLMError):
-    """Connection or read timeouts."""
+class ProviderContextWindowError(LLMBaseError):
+    """Maps to 'context_length_exceeded'"""
 
+    def __init__(self, message: str = "Token limit reached"):
+        super().__init__(message, retryable=False)
+
+
+class LLMError(LLMBaseError):
+    """General LLM error."""
     pass
+
+
+class QuotaExceededError(LLMError):
+    """Quota exceeded (retries won't help immediately)."""
+    pass
+
+
+class RateLimitError(LLMError):
+    """Rate limit hit (retries will help)."""
+    pass
+
+
+class ContextWindowExceededError(LLMError):
+    """Context window exceeded."""
+    pass
+
+
+def _map_error(e: Exception) -> LLMBaseError:
+    """Map provider-specific errors to unified exceptions."""
+    return map_error(e)
