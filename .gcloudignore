@@ -1,0 +1,8 @@
+.git
+.env*
+node_modules
+vendor
+dist
+*.jar
+*.pyc
+__pycache__
