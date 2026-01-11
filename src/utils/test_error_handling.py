@@ -73,7 +73,7 @@ async def test_retry_decorator():
 
 
 # Test 4: Validation functions
-def test_validation_functions():
+async def test_validation_functions():
     from src.agents.solve.utils.error_handler import (
         ParseError,
         validate_investigate_output,
@@ -84,12 +84,12 @@ def test_validation_functions():
         "reasoning": "Need to search for information",
         "tools": [{"tool_type": "rag_naive", "query": "What is AI?", "identifier": ""}],
     }
-    assert validate_investigate_output(valid_output)
+    assert await validate_investigate_output(valid_output)
     print("✓ Valid investigate output passes")
 
     # Invalid - missing required field
     try:
-        validate_investigate_output({"tools": []})
+        await validate_investigate_output({"tools": []})
         assert False, "Should raise ParseError"
     except ParseError as e:
         assert "reasoning" in str(e)
@@ -104,7 +104,7 @@ def test_validation_functions():
                 {"tool_type": "rag_naive", "query": "test", "identifier": ""},
             ],
         }
-        validate_investigate_output(invalid_output)
+        await validate_investigate_output(invalid_output)
         assert False, "Should raise ParseError for none tool constraint"
     except ParseError as e:
         assert "none" in str(e).lower()
@@ -117,6 +117,6 @@ if __name__ == "__main__":
     test_error_formatting()
     test_document_validation()
     asyncio.run(test_retry_decorator())
-    test_validation_functions()
+    asyncio.run(test_validation_functions())
 
     print("\n✅ All manual tests passed!")

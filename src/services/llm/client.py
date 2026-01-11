@@ -1,54 +1,51 @@
 """
-Unified Resilient LLM Client - Integrates Circuit Breaker, Retry, and Key Rotation.
+Unified LLM Client - High-level interface for LLM operations.
 """
 
-import random
-import time
-from typing import List
-
-from ..utils.circuit_breaker import CircuitBreaker
+from typing import Optional
+from .factory import LLMFactory
+from .providers.base_provider import BaseLLMProvider
 
 
-class KeyRotator:
-    """Rotate API keys on failures."""
+class LLMClient:
+    """High-level client for LLM operations with automatic provider management."""
 
-    def __init__(self, keys: List[str]):
-        self.keys = keys
-        self.current_index = 0
+    def __init__(self, provider: Optional[BaseLLMProvider] = None):
+        self._provider = provider
 
-    def get_current_key(self) -> str:
-        return self.keys[self.current_index]
+    @property
+    def provider(self) -> BaseLLMProvider:
+        if self._provider is None:
+            self._provider = LLMFactory.create_from_env()
+        return self._provider
 
-    def rotate(self):
-        self.current_index = (self.current_index + 1) % len(self.keys)
+    async def complete(self, prompt: str, **kwargs) -> str:
+        """Complete a prompt using the configured provider."""
+        return await self.provider.complete(prompt, **kwargs)
+
+    async def stream(self, prompt: str, **kwargs):
+        """Stream a completion using the configured provider."""
+        async for chunk in self.provider.stream(prompt, **kwargs):
+            yield chunk
+
+    def calculate_cost(self, usage):
+        """Calculate cost for usage."""
+        return self.provider.calculate_cost(usage)
 
 
-class ResilientLLMClient:
-    """Unbreakable LLM client with circuit breaker, retry, and key rotation."""
+# Global client instance
+_client_instance: Optional[LLMClient] = None
 
-    def __init__(self):
-        self.breaker = CircuitBreaker(failure_threshold=5, timeout=60)
-        self.keys = KeyRotator(["sk-...", "sk-..."])  # Placeholder keys
 
-    async def complete(self, prompt: str):
-        """Complete with resilience."""
-        # 1. Circuit Breaker Check
-        return await self.breaker.call_async(self._unsafe_complete, prompt)
+def get_llm_client() -> LLMClient:
+    """Get the global LLM client instance."""
+    global _client_instance
+    if _client_instance is None:
+        _client_instance = LLMClient()
+    return _client_instance
 
-    async def _unsafe_complete(self, prompt):
-        """Internal completion with retry and key rotation."""
-        # 2. Retry Logic
-        for attempt in range(3):
-            try:
-                api_key = self.keys.get_current_key()
-                # CALL PROVIDER HERE with prompt and api_key
-                print(f"Calling with prompt: {prompt}, key: {api_key[:10]}...")  # Placeholder
-                return f"response to: {prompt}"  # Placeholder
-            except Exception as e:
-                if "429" in str(e):
-                    # Exponential Backoff
-                    sleep_time = (2 ** attempt) + random.random()
-                    time.sleep(sleep_time)
-                    self.keys.rotate()  # Switch key on failure
-                else:
-                    raise e
+
+def reset_llm_client():
+    """Reset the global client instance."""
+    global _client_instance
+    _client_instance = None

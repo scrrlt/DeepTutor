@@ -410,6 +410,10 @@ export default function SettingsPage() {
     }
   }, [uiSettings, activeTab]);
 
+  useEffect(() => {
+    fetchAvailableProviders();
+  }, []);
+
   const fetchLLMMode = async () => {
     try {
       const res = await fetch(apiUrl("/api/v1/config/llm/mode/"));
@@ -467,7 +471,7 @@ export default function SettingsPage() {
 
   const fetchModels = async () => {
     if (!editingProvider || !editingProvider.base_url) return;
-    const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
+    const preset = availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
     const requiresKey = preset ? preset.requires_key : true;
 
     if (requiresKey && !editingProvider.api_key) {
@@ -510,7 +514,7 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error(err);
-      const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
+      const preset = availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
       if (preset && preset.models.length > 0) {
         setFetchedModels(preset.models);
       } else {
@@ -528,7 +532,7 @@ export default function SettingsPage() {
       // 1. Validate model exists at the provider (optional)
       setProviderError("Validating model...");
 
-      const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
+      const preset = availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
       const requiresKey = preset ? preset.requires_key : true;
 
       let isModelValid = false;
@@ -654,7 +658,7 @@ export default function SettingsPage() {
     setTestProviderResult(null);
     try {
       // Find preset to check if key is required
-      const preset = PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
+      const preset = availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId);
       const requiresKey = preset ? preset.requires_key : true;
 
       const res = await fetch(apiUrl("/api/v1/config/llm/test/"), {
@@ -1006,6 +1010,32 @@ export default function SettingsPage() {
       return newUI;
     });
   };
+
+  // Provider presets state - now fetched from API
+  const [availableProviders, setAvailableProviders] = useState<ProviderPreset[]>([]);
+  const [loadingAvailableProviders, setLoadingAvailableProviders] = useState(
+    true,
+  );
+
+  // Fetch available providers from the new API endpoint
+  const fetchAvailableProviders = async () => {
+    setLoadingAvailableProviders(true);
+    try {
+      const res = await fetch(apiUrl("/api/v1/config/llm/available/"));
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableProviders(data.providers || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch available providers:", err);
+    } finally {
+      setLoadingAvailableProviders(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableProviders();
+  }, []);
 
   if (loading) {
     return (
@@ -1375,7 +1405,7 @@ export default function SettingsPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400 font-medium">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-3 text-red-700 dark:text-red-400">
             <AlertCircle className="w-5 h-5" />
             <span>{error}</span>
           </div>
@@ -2296,9 +2326,9 @@ export default function SettingsPage() {
                         onChange={(e) => {
                           const newId = e.target.value;
                           setSelectedPresetId(newId);
-                          const preset = PROVIDER_PRESETS.find(
+                          const preset = availableProviders.find(
                             (p) => p.id === newId,
-                          );
+                          ) || PROVIDER_PRESETS.find((p) => p.id === newId);
                           if (preset && editingProvider) {
                             setEditingProvider({
                               ...editingProvider,
@@ -2318,19 +2348,21 @@ export default function SettingsPage() {
                         }}
                         className="w-full p-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100 font-medium"
                       >
-                        {PROVIDER_PRESETS.map((preset) => (
+                        {(availableProviders.length > 0
+                          ? availableProviders
+                          : PROVIDER_PRESETS
+                        ).map((preset) => (
                           <option key={preset.id} value={preset.id}>
                             {preset.name}
                           </option>
                         ))}
                       </select>
-                      {PROVIDER_PRESETS.find((p) => p.id === selectedPresetId)
+                      {(availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId))
                         ?.help_text && (
                         <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
                           {
-                            PROVIDER_PRESETS.find(
-                              (p) => p.id === selectedPresetId,
-                            )?.help_text
+                            (availableProviders.find((p) => p.id === selectedPresetId) || PROVIDER_PRESETS.find((p) => p.id === selectedPresetId))
+                              ?.help_text
                           }
                         </p>
                       )}
@@ -2406,7 +2438,7 @@ export default function SettingsPage() {
                         "/chat/completions",
                       ) ||
                         editingProvider.base_url.includes("/models/")) && (
-                        <div className="mt-1.5 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div className="mt-1.5 p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
                           <p className="text-[11px] text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
                             {t("Invalid URL format detected")}

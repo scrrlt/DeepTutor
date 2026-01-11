@@ -1,6 +1,6 @@
 from ..provider import BaseLLMProvider
 from ..registry import register_provider
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict
 import openai
 import os
 
@@ -24,6 +24,11 @@ class AzureProvider(BaseLLMProvider):
             api_version=config.api_version or os.getenv("AZURE_OPENAI_API_VERSION"),
             azure_endpoint=config.base_url or os.getenv("AZURE_OPENAI_ENDPOINT")
         )
+
+    @property
+    def extra_headers(self) -> Dict[str, str]:
+        """Azure-specific headers."""
+        return {"api-key": self.api_key}
 
     def resolve_model(self, requested_model: str) -> str:
         return self.deployment_map.get(requested_model, requested_model)
