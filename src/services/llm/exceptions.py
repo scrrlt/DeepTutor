@@ -4,63 +4,38 @@ LLM Service Exceptions
 
 Custom exception classes for the LLM service.
 Provides a consistent exception hierarchy for better error handling.
-
-Usage:
-    from src.services.llm.exceptions import LLMError, LLMConfigError, LLMAPIError
-
-    try:
-        response = await complete(...)
-    except LLMConfigError as e:
-        # Handle configuration errors (missing API key, etc.)
-        logger.error(f"Configuration error: {e}")
-    except LLMAPIError as e:
-        # Handle API errors (rate limits, invalid requests, etc.)
-        logger.error(f"API error: {e.status_code} - {e.message}")
-    except LLMError as e:
-        # Handle all other LLM-related errors
-        logger.error(f"LLM error: {e}")
+Maintains parity with upstream dev branch.
 """
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 
 class LLMError(Exception):
     """Base exception for all LLM-related errors."""
 
-    def __init__(self, message: str, details: Optional[dict] = None):
+    def __init__(
+        self, message: str, details: Optional[Dict[str, Any]] = None, provider: Optional[str] = None
+    ):
         super().__init__(message)
         self.message = message
         self.details = details or {}
+        self.provider = provider
 
     def __str__(self) -> str:
+        provider_prefix = f"[{self.provider}] " if self.provider else ""
         if self.details:
-            return f"{self.message} (details: {self.details})"
-        return self.message
+            return f"{provider_prefix}{self.message} (details: {self.details})"
+        return f"{provider_prefix}{self.message}"
 
 
 class LLMConfigError(LLMError):
-    """
-    Raised when there's an error in LLM configuration.
-
-    Examples:
-    - Missing API key
-    - Missing model name
-    - Invalid base URL
-    - Missing required environment variables
-    """
+    """Raised when there's an error in LLM configuration."""
 
     pass
 
 
 class LLMProviderError(LLMError):
-    """
-    Raised when there's an error with the LLM provider.
-
-    Examples:
-    - Provider not found
-    - Provider not configured
-    - Provider activation failed
-    """
+    """Raised when there's an error with the LLM provider."""
 
     pass
 
@@ -68,10 +43,7 @@ class LLMProviderError(LLMError):
 class LLMAPIError(LLMError):
     """
     Raised when an API call to an LLM provider fails.
-
-    Attributes:
-        status_code: HTTP status code from the API (if available)
-        provider: Name of the provider that returned the error
+    Standardizes status_code and provider name.
     """
 
     def __init__(
@@ -79,11 +51,10 @@ class LLMAPIError(LLMError):
         message: str,
         status_code: Optional[int] = None,
         provider: Optional[str] = None,
-        details: Optional[dict] = None,
+        details: Optional[Dict[str, Any]] = None,
     ):
-        super().__init__(message, details)
+        super().__init__(message, details, provider)
         self.status_code = status_code
-        self.provider = provider
 
     def __str__(self) -> str:
         parts = []
@@ -96,9 +67,7 @@ class LLMAPIError(LLMError):
 
 
 class LLMTimeoutError(LLMAPIError):
-    """
-    Raised when an API call times out.
-    """
+    """Raised when an API call times out."""
 
     def __init__(
         self,
@@ -111,9 +80,7 @@ class LLMTimeoutError(LLMAPIError):
 
 
 class LLMRateLimitError(LLMAPIError):
-    """
-    Raised when rate limited by the API.
-    """
+    """Raised when rate limited by the API."""
 
     def __init__(
         self,
@@ -126,9 +93,7 @@ class LLMRateLimitError(LLMAPIError):
 
 
 class LLMAuthenticationError(LLMAPIError):
-    """
-    Raised when authentication fails (invalid API key, etc.).
-    """
+    """Raised when authentication fails (invalid API key, etc.)."""
 
     def __init__(
         self,
@@ -139,9 +104,7 @@ class LLMAuthenticationError(LLMAPIError):
 
 
 class LLMModelNotFoundError(LLMAPIError):
-    """
-    Raised when the requested model is not found or not available.
-    """
+    """Raised when the requested model is not found."""
 
     def __init__(
         self,
@@ -153,6 +116,15 @@ class LLMModelNotFoundError(LLMAPIError):
         self.model = model
 
 
+# Multi-provider specific aliases for mapping rules
+class ProviderQuotaExceededError(LLMRateLimitError):
+    pass
+
+
+class ProviderContextWindowError(LLMAPIError):
+    pass
+
+
 __all__ = [
     "LLMError",
     "LLMConfigError",
@@ -162,4 +134,6 @@ __all__ = [
     "LLMRateLimitError",
     "LLMAuthenticationError",
     "LLMModelNotFoundError",
+    "ProviderQuotaExceededError",
+    "ProviderContextWindowError",
 ]
