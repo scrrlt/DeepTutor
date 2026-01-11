@@ -13,11 +13,9 @@ config/
 
 | File | Purpose |
 |:-----|:--------|
-| `.env` | API keys, ports, providers |
-| `config/agents.yaml` | LLM parameters (temperature, max_tokens) |
-| `config/main.yaml` | Paths, tools, module settings |
-| `config/agents.yaml` | LLM parameters for each agent module |
 | `.env` | API keys, server ports, and service configuration |
+| `config/agents.yaml` | LLM parameters for each agent module |
+| `config/main.yaml` | Paths, tools, module settings |
 
 ## 🔧 Server Configuration
 
@@ -205,7 +203,7 @@ data/
     ├── solve/                    # Problem solving results
     ├── question/                 # Generated questions
     ├── research/                 # Research reports and cache
-    ├── co-writer/                # Interactive IdeaGen documents
+    ├── co_writer/                # Interactive IdeaGen documents
     ├── notebook/                 # Notebook records
     ├── guide/                    # Guided learning sessions
     ├── logs/                     # System logs

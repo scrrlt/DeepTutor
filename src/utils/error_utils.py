@@ -23,7 +23,7 @@ def format_exception_message(exc: Exception) -> str:
     # Try to parse JSON error messages (common in API errors)
     try:
         # Look for JSON-like structure in the message
-        json_match = re.search(r"\{.*\}", message, re.DOTALL)
+        json_match = re.search(r"\{.*?\}", message, re.DOTALL)
         if json_match:
             error_data = json.loads(json_match.group())
             if isinstance(error_data, dict) and "error" in error_data:

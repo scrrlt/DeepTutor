@@ -272,7 +272,7 @@ async def websocket_mimic_generate(websocket: WebSocket):
         logger.error(f"Mimic generation error: {error_msg}")
         try:
             await websocket.send_json({"type": "error", "content": error_msg})
-        except:
+        except Exception:
             pass
     finally:
         sys.stdout = original_stdout
@@ -280,11 +280,11 @@ async def websocket_mimic_generate(websocket: WebSocket):
             try:
                 pusher_task.cancel()
                 await pusher_task
-            except:
+            except Exception:
                 pass
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
 
 

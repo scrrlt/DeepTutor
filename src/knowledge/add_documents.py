@@ -73,7 +73,6 @@ from src.services.embedding import (
     reset_embedding_client,
 )
 from src.services.llm import get_llm_config
-from src.utils.error_utils import format_exception_message
 
 logger = get_logger("KnowledgeInit")
 
@@ -357,7 +356,7 @@ class DocumentAdder:
                 self._record_successful_hash(doc_file)
                 logger.info(f"  ✓ Processed & Indexed: {doc_file.name}")
             except Exception as e:
-                logger.error(f"  ✗ Failed {doc_file.name}: {format_exception_message(e)}")
+                logger.exception(f"  ✗ Failed {doc_file.name}")
 
         await self.fix_structure()
         return processed_files

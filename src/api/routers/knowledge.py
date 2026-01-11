@@ -290,10 +290,13 @@ async def upload_files(
     """Upload files to a knowledge base and process them in background."""
     try:
         # 1. Validate immediately upon receipt using DocumentValidator
-        validator = DocumentValidator()
         for file in files:
             try:
-                await validator.validate(file)
+                sanitized_filename = DocumentValidator.validate_upload_safety(
+                    file.filename, file.file.size
+                )
+                # Use the sanitized filename for all subsequent operations
+                file.filename = sanitized_filename
             except Exception as e:
                 error_message = (
                     f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
@@ -301,7 +304,7 @@ async def upload_files(
                 # Log the full exception with traceback for server-side diagnostics
                 logger.error(error_message, exc_info=True)
                 # Return a client error with file-specific validation details
-                raise HTTPException(status_code=400, detail=error_message)
+                raise HTTPException(status_code=400, detail=error_message) from e
 
         manager = get_kb_manager()
         kb_path = manager.get_knowledge_base_path(kb_name)
@@ -344,7 +347,7 @@ async def upload_files(
     except Exception as e:
         # Unexpected failure (Server error)
         formatted_error = format_exception_message(e)
-        raise HTTPException(status_code=500, detail=formatted_error)
+        raise HTTPException(status_code=500, detail=formatted_error) from e
 
 
 @router.post("/create")

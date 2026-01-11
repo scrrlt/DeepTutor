@@ -201,7 +201,7 @@ async def validate_plan_output(output: dict[str, Any]) -> bool:
     validate_output(output, required_fields, field_types)
 
     # Validate blocks list is not empty (new)
-    if not output["blocks"] or len(output["blocks"]) == 0:
+    if not output["blocks"]:
         raise ParseError(
             "blocks list is empty, PlanAgent must generate at least one block.\n"
             "Possible reasons:\n"
@@ -229,7 +229,9 @@ async def validate_plan_output(output: dict[str, Any]) -> bool:
     return True
 
 
-async def validate_solve_output(output: dict[str, Any]) -> bool:
+async def validate_solve_output(
+    output: dict[str, Any], valid_tool_types: list[str] | None = None
+) -> bool:
     """Validate SolveAgent output"""
     required_fields = ["tool_calls"]
     field_types = {"tool_calls": list}
@@ -245,7 +247,7 @@ async def validate_solve_output(output: dict[str, Any]) -> bool:
             raise ParseError("tool_call missing required fields: tool_type, query")
 
         tool_type = tool_call.get("tool_type", "").lower()
-        valid_tool_types = [
+        valid_tool_types = valid_tool_types or [
             "none",
             "rag_naive",
             "rag_hybrid",

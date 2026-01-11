@@ -26,6 +26,13 @@ from src.logging import get_logger
 
 logger = get_logger("API")
 
+CONFIG_DRIFT_ERROR_TEMPLATE = (
+    "Configuration Drift Detected: Tools {drift} found in agents.yaml "
+    "investigate.valid_tools but missing from main.yaml solve.valid_tools. "
+    "Add these tools to main.yaml solve.valid_tools or remove them from "
+    "agents.yaml investigate.valid_tools."
+)
+
 
 def validate_tool_consistency():
     """
@@ -103,13 +110,9 @@ def validate_tool_consistency():
 
         if not agent_tools.issubset(main_tools):
             drift = agent_tools - main_tools
-            raise RuntimeError(
-                "Configuration Drift Detected: Tools "
-                f"{drift} found in agents.yaml investigate.valid_tools but missing from main.yaml solve.valid_tools. "
-                "Add these tools to main.yaml solve.valid_tools or remove them from agents.yaml investigate.valid_tools."
-            )
+            raise RuntimeError(CONFIG_DRIFT_ERROR_TEMPLATE.format(drift=drift))
     except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
+        logger.exception("Configuration validation failed")
         raise
 
 
