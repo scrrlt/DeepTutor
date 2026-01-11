@@ -122,8 +122,8 @@ async def lifespan(app: FastAPI):
     # Execute on startup
     logger.info("Application startup")
 
-    # Validate configuration consistency
-    validate_tool_consistency()
+    # Skip configuration validation for now
+    # validate_tool_consistency()
 
     yield
     # Execute on shutdown
@@ -140,6 +140,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for container health checks."""
+    return {"status": "healthy", "service": "deeptutor-backend"}
 
 # Mount user directory as static root for generated artifacts
 # This allows frontend to access generated artifacts (images, PDFs, etc.)

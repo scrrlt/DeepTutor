@@ -27,13 +27,13 @@ class ResilientLLMClient:
     """Unbreakable LLM client with circuit breaker, retry, and key rotation."""
 
     def __init__(self):
-        self.breaker = CircuitBreaker(threshold=5, recovery_timeout=60)
+        self.breaker = CircuitBreaker(failure_threshold=5, timeout=60)
         self.keys = KeyRotator(["sk-...", "sk-..."])  # Placeholder keys
 
     async def complete(self, prompt: str):
         """Complete with resilience."""
         # 1. Circuit Breaker Check
-        return self.breaker.call(self._unsafe_complete, prompt)
+        return await self.breaker.call_async(self._unsafe_complete, prompt)
 
     async def _unsafe_complete(self, prompt):
         """Internal completion with retry and key rotation."""

@@ -1,20 +1,23 @@
-"""
-Auto-Registry Pattern - Stop touching factory.py.
-"""
+from typing import Type, Dict, Optional
+from .provider import BaseLLMProvider
 
-from typing import Dict, Type
-
-_PROVIDERS: Dict[str, Type] = {}
-
+# The global registry dictionary
+_PROVIDER_REGISTRY: Dict[str, Type[BaseLLMProvider]] = {}
 
 def register_provider(name: str):
-    """Decorator to register a provider class."""
-    def decorator(cls):
-        _PROVIDERS[name] = cls
+    """
+    Decorator to register a provider class.
+    Usage: @register_provider("openai")
+    """
+    def decorator(cls: Type[BaseLLMProvider]):
+        _PROVIDER_REGISTRY[name.lower()] = cls
+        cls.provider_name = name.lower()
         return cls
     return decorator
 
+def get_provider_class(name: str) -> Optional[Type[BaseLLMProvider]]:
+    """Retrieves a provider class by name (case-insensitive)."""
+    return _PROVIDER_REGISTRY.get(name.lower())
 
-def get_provider_class(name: str) -> Type:
-    """Get registered provider class by name."""
-    return _PROVIDERS.get(name)
+def list_providers() -> list[str]:
+    return list(_PROVIDER_REGISTRY.keys())

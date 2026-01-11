@@ -47,6 +47,11 @@ class ContextWindowExceededError(LLMError):
     pass
 
 
+class LLMConfigurationError(LLMError):
+    """Configuration error (e.g., missing API key, invalid model)."""
+    pass
+
+
 def _map_error(e: Exception) -> LLMBaseError:
     """Map provider-specific errors to unified exceptions."""
     return map_error(e)

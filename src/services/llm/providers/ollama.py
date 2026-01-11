@@ -1,54 +1,54 @@
-"""
-Ollama Provider - Local LLM server.
-"""
-
-import aiohttp
-
-from ..exceptions import LLMAPIError
+from ..provider import BaseLLMProvider
 from ..registry import register_provider
-from .base_provider import BaseLLMProvider
-
+from typing import AsyncGenerator
+import httpx
+import json
 
 @register_provider("ollama")
 class OllamaProvider(BaseLLMProvider):
-    """Ollama local provider."""
+    """
+    Local Ollama Provider.
+    """
 
-    def _default_base_url(self) -> str:
-        return "http://localhost:11434"
+    def __init__(self, config):
+        super().__init__(config)
+        self.base_url = self.base_url or "http://localhost:11434"
+        self.model_name = config.model_name or "llama3"
 
-    async def complete(self, prompt: str, system_prompt: str = "", model: str = "llama3", **kwargs) -> str:
-        """Complete using Ollama."""
-        return await self._ollama_complete(
-            model=model,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            **kwargs,
-        )
+    async def complete(self, prompt: str, **kwargs) -> str:
+        model = kwargs.get("model") or self.model_name
 
-    async def _ollama_complete(
-        self,
-        model: str,
-        prompt: str,
-        system_prompt: str,
-        **kwargs,
-    ) -> str:
-        """Ollama completion."""
-        url = f"{self.base_url}/api/generate"
+        async def _call_api():
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": model,
+                        "prompt": prompt,
+                        "stream": False
+                    },
+                    timeout=kwargs.get("timeout", 120.0)
+                )
+                response.raise_for_status()
+                return response.json().get("response", "")
 
-        data = {
-            "model": model,
-            "prompt": prompt,
-            "system": system_prompt,
-            "stream": False,
-        }
-        data.update(kwargs)
+        return await self.execute_with_retry(_call_api)
 
-        timeout = aiohttp.ClientTimeout(total=120)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, json=data) as resp:
-                if resp.status == 200:
-                    result = await resp.json()
-                    return result.get("response", "")
-                else:
-                    error_text = await resp.text()
-                    raise LLMAPIError(f"Ollama API error: {error_text}", status_code=resp.status, provider="ollama")
+    async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
+        model = kwargs.get("model") or self.model_name
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": True},
+                timeout=kwargs.get("timeout", 120.0)
+            ) as response:
+                async for line in response.aiter_lines():
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            if "response" in data:
+                                yield data["response"]
+                        except:
+                            pass

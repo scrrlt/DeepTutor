@@ -1,43 +1,35 @@
-"""
-OpenAI Compatible Provider - For providers like DeepSeek, Qwen, etc.
-"""
-
+from ..provider import BaseLLMProvider
 from ..registry import register_provider
+from .openai import OpenAIProvider
+import os
 
-from .base_provider import BaseLLMProvider
 KNOWN_ENDPOINTS = {
     "deepseek": "https://api.deepseek.com",
-    "qwen": "https://api.qwen.ai",  # Example
-    # Add more as needed
+    "groq": "https://api.groq.com/openai/v1",
+    "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "together": "https://api.together.xyz/v1",
+    "perplexity": "https://api.perplexity.ai",
+    "mistral": "https://api.mistral.ai/v1",
+    "moonshot": "https://api.moonshot.cn/v1"
 }
 
-
 @register_provider("openai_compatible")
-class OpenAICompatibleProvider(BaseLLMProvider):
-    """OpenAI-compatible provider for various endpoints."""
+class OpenAICompatibleProvider(OpenAIProvider):
+    """
+    Universal adapter for any provider mimicking OpenAI.
+    Inherits retry and stream logic from OpenAIProvider.
+    """
 
-    def __init__(self, provider_name: str, flavor: str = None):
-        # For flavors, override base_url
-        if flavor and flavor in KNOWN_ENDPOINTS:
-            self.base_url = KNOWN_ENDPOINTS[flavor]
-        super().__init__(provider_name)
+    def __init__(self, config):
+        self.flavor = os.getenv(f"{config.env_prefix}_FLAVOR", "").lower()
 
-    def _default_base_url(self) -> str:
-        return "https://api.openai.com/v1"  # Fallback
+        # Auto-configure URL
+        if not config.base_url and self.flavor in KNOWN_ENDPOINTS:
+            config.base_url = KNOWN_ENDPOINTS[self.flavor]
 
-    # Reuse OpenAI methods, but with custom base_url
+        # Auto-configure API Key override
+        flavor_key = os.getenv(f"{self.flavor.upper()}_API_KEY")
+        if flavor_key:
+            config.api_key = flavor_key
 
-    async def complete(self, prompt: str, **kwargs) -> str:
-        # Delegate to OpenAI provider logic
-        from .openai import OpenAIProvider
-
-        provider = OpenAIProvider(self.provider_name)
-        provider.base_url = self.base_url
-        return await provider.complete(prompt, **kwargs)
-
-    def calculate_cost(self, usage) -> float:
-        # Use OpenAI pricing as default
-        return 0.0
-
-    def validate_config(self):
-        pass
+        super().__init__(config)

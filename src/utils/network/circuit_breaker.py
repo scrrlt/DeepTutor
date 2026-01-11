@@ -2,11 +2,10 @@
 Circuit Breaker Pattern - Prevent cascading failures in API calls.
 """
 
-from enum import Enum
-import threading
+import time
+
 import time
 from typing import Any, Callable
-
 
 class CircuitState(Enum):
     """Circuit breaker states."""
@@ -60,7 +59,7 @@ class CircuitBreaker:
                     self.success_count = 0
                 else:
                     raise Exception("Circuit breaker is OPEN. Service unavailable.")
-
+                    raise Exception("Circuit breaker is OPEN. Service unavailable.")
         try:
             result = func(*args, **kwargs)
             self._on_success()
@@ -69,6 +68,37 @@ class CircuitBreaker:
             self._on_failure()
             raise e
 
+
+    async def call_async(self, func, *args, **kwargs):
+        """
+        Execute async function with circuit breaker protection.
+
+        Args:
+            func: Async function to call
+            *args: Function arguments
+            **kwargs: Function keyword arguments
+
+        Returns:
+            Function result
+
+        Raises:
+            Exception: If circuit is open or function fails
+        """
+        with self.lock:
+            if self.state == CircuitState.OPEN:
+                if self._should_attempt_reset():
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                else:
+                    raise Exception("Circuit breaker is OPEN. Service unavailable.")
+
+        try:
+            result = await func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception as e:
+            self._on_failure()
+            raise e
     def _should_attempt_reset(self) -> bool:
         """Check if enough time has passed to attempt reset."""
         if self.last_failure_time is None:
