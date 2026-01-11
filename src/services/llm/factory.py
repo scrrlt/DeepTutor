@@ -37,7 +37,7 @@ import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from . import cloud_provider, local_provider
-from .config import LLMConfig, get_llm_config
+from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -46,7 +46,6 @@ from .exceptions import (
 )
 from .provider import provider_manager
 from .utils import is_local_llm_server
-
 
 # Default retry configuration
 DEFAULT_MAX_RETRIES = 3
@@ -206,7 +205,7 @@ def get_mode_info() -> Dict[str, Any]:
     """
     mode = get_llm_mode()
     active_provider = provider_manager.get_active_provider()
-    
+
     try:
         env_config = get_llm_config()
         env_configured = bool(env_config.model and (env_config.base_url or env_config.api_key))
