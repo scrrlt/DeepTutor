@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
-COPY .env ./.env
+COPY .env* ./
 
 # Copy startup script
 COPY start.sh ./start.sh
