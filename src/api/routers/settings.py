@@ -156,8 +156,50 @@ ENV_VAR_DEFINITIONS = {
         "sensitive": False,
     },
     # Web Search Configuration
+    "SEARCH_PROVIDER": {
+        "description": "Default search provider: perplexity, baidu, tavily, exa, serper, jina",
+        "category": "search",
+        "required": False,
+        "default": "perplexity",
+        "sensitive": False,
+    },
     "PERPLEXITY_API_KEY": {
-        "description": "Perplexity API key for web search functionality",
+        "description": "Perplexity API key for AI-powered search (https://perplexity.ai/settings/api)",
+        "category": "search",
+        "required": False,
+        "default": "",
+        "sensitive": True,
+    },
+    "BAIDU_API_KEY": {
+        "description": "Baidu API key for AI search (https://console.bce.baidu.com/ai_apaas/resource)",
+        "category": "search",
+        "required": False,
+        "default": "",
+        "sensitive": True,
+    },
+    "TAVILY_API_KEY": {
+        "description": "Tavily API key for research-focused search (https://tavily.com)",
+        "category": "search",
+        "required": False,
+        "default": "",
+        "sensitive": True,
+    },
+    "EXA_API_KEY": {
+        "description": "Exa API key for neural/embeddings search (https://dashboard.exa.ai)",
+        "category": "search",
+        "required": False,
+        "default": "",
+        "sensitive": True,
+    },
+    "SERPER_API_KEY": {
+        "description": "Serper API key for Google SERP results (https://serper.dev)",
+        "category": "search",
+        "required": False,
+        "default": "",
+        "sensitive": True,
+    },
+    "JINA_API_KEY": {
+        "description": "Jina API key for SERP with content extraction (https://jina.ai/reader) - optional, has free tier",
         "category": "search",
         "required": False,
         "default": "",
@@ -184,7 +226,7 @@ ENV_CATEGORIES = {
     },
     "search": {
         "name": "Web Search Configuration",
-        "description": "External search API settings (Perplexity)",
+        "description": "Web search providers: Perplexity, Baidu, Tavily, Exa, Serper, Jina",
         "icon": "search",
     },
 }
@@ -777,6 +819,32 @@ async def test_single_service(service: Literal["llm", "embedding", "tts"]):
 
     result["response_time_ms"] = int((time.time() - start_time) * 1000)
     return result
+
+
+# ==================== Web Search Configuration ====================
+
+
+@router.get("/web-search/config")
+async def get_web_search_config():
+    """
+    Get current web search configuration.
+
+    Returns:
+        {
+            "enabled": bool,
+            "provider": str,
+            "consolidation": str | None,
+            "consolidation_template": str | None,
+            "available_providers": list[str],
+            "config_source": "env" | "yaml" | "default"
+        }
+    """
+    try:
+        from src.tools.web_search import get_current_config
+
+        return get_current_config()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get web search config: {str(e)}")
 
 
 # ==================== RAG Provider Configuration ====================

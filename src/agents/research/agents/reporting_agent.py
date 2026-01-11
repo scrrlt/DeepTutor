@@ -1296,6 +1296,7 @@ class ReportingAgent(BaseAgent):
             citation_output_hint=citation_output_hint,
         )
 
+        # TODO Implement retry logic for LLM calls when JSON parsing or post-processing fails (e.g., malformed output, schema violations).
         resp = await self.call_llm(
             filled,
             system_prompt,
