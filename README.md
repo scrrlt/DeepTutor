@@ -1244,6 +1244,29 @@ npm --version   # Should show version number
 </details>
 
 <details>
+<summary><b>Long path names on Windows installation?</b></summary>
+
+**Problem**
+
+On Windows, you may encounter errors related to long file paths during installation, such as "The filename or extension is too long" or similar path length issues.
+
+**Cause**
+
+Windows has a default limitation on path lengths (260 characters), which can be exceeded by DeepTutor's nested directory structures and dependencies.
+
+**Solution**
+
+Enable long path support system-wide by running the following command in an Administrator Command Prompt:
+
+```cmd
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+```
+
+After running this command, restart your terminal for the changes to take effect.
+
+</details>
+
+<details>
 <summary><b>Frontend cannot connect to backend?</b></summary>
 
 **Checklist**
