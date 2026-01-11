@@ -21,19 +21,38 @@ def format_exception_message(exc: Exception) -> str:
 
     # Try to parse JSON error messages (common in API errors)
     try:
-        # Find JSON-like block by counting braces (handles nested objects)
+        # Find JSON-like block by counting braces, skipping those inside strings
         start_idx = message.find("{")
         if start_idx != -1:
-            brace_count = 0
+            brace_count = 1  # Start with 1 since we're at the opening brace
             end_idx = -1
-            for char_idx in range(start_idx, len(message)):
-                if message[char_idx] == "{":
-                    brace_count += 1
-                elif message[char_idx] == "}":
-                    brace_count -= 1
-                    if brace_count == 0:
-                        end_idx = char_idx
-                        break
+            in_string = False
+            escape_next = False
+
+            for char_idx in range(start_idx + 1, len(message)):
+                char = message[char_idx]
+
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                # JSON strings are delimited only by double quotes
+                if char == '"':
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "{":
+                        brace_count += 1
+                    elif char == "}":
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = char_idx
+                            break
 
             if end_idx != -1:  # Found matching braces
                 potential_json = message[start_idx : end_idx + 1]

@@ -21,7 +21,12 @@ class ParseError(Exception):
 logger = get_logger("ErrorHandler")
 
 
-def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: float = 2.0):
+def retry_on_parse_error(
+    max_retries: int = 2,
+    delay: float = 1.0,
+    backoff: float = 2.0,
+    exceptions: tuple[type[Exception], ...] = (ParseError,),
+):
     """
     Parse error retry decorator
 
@@ -29,6 +34,7 @@ def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: floa
         max_retries: Maximum retry count
         delay: Initial delay time (seconds)
         backoff: Delay multiplier factor
+        exceptions: Tuple of exception types to retry on (default: ParseError only)
     """
 
     def decorator(func: Callable):
@@ -39,7 +45,7 @@ def retry_on_parse_error(max_retries: int = 2, delay: float = 1.0, backoff: floa
             for attempt in range(max_retries + 1):
                 try:
                     return await func(*args, **kwargs)
-                except ParseError as e:
+                except tuple(exceptions) as e:
                     if attempt == max_retries:
                         # Last attempt failed, raise exception
                         raise e
@@ -118,12 +124,15 @@ def safe_parse(
         if raise_on_error:
             raise ParseError(f"Parsing failed: {e!s}")
 
-        logger.warning(f"Parsing failed, using default value. Error: {e!s}")
+        logger.error(
+            f"Parsing failed; falling back to default value {default!r}. This may affect behavior. Error: {e!s}",
+            exc_info=True,
+        )
         return default
 
 
-async def validate_investigate_output(
-    output: dict[str, Any], valid_tools: list[str] | None = None
+def validate_investigate_output(
+    output: dict[str, Any], valid_tools: list[str] = VALID_INVESTIGATE_TOOLS
 ) -> bool:
     """Validate InvestigateAgent output (refactored: multi-tool intent)"""
     required_fields = ["reasoning", "tools"]
@@ -131,8 +140,6 @@ async def validate_investigate_output(
 
     validate_output(output, required_fields, field_types)
 
-    if valid_tools is None:
-        valid_tools = VALID_INVESTIGATE_TOOLS
     tools = output["tools"]
     if not tools:
         raise ParseError("tools list cannot be empty")
@@ -166,7 +173,7 @@ async def validate_investigate_output(
     return True
 
 
-async def validate_note_output(output: dict[str, Any]) -> bool:
+def validate_note_output(output: dict[str, Any]) -> bool:
     """Validate NoteAgent output (new format: only summary and citations)"""
     required_fields = ["summary"]
     field_types = {"summary": str, "citations": list}
@@ -186,7 +193,7 @@ async def validate_note_output(output: dict[str, Any]) -> bool:
     return True
 
 
-async def validate_reflect_output(output: dict[str, Any]) -> bool:
+def validate_reflect_output(output: dict[str, Any]) -> bool:
     """Validate InvestigateReflectAgent output (new format: simplified)"""
     required_fields = ["should_stop", "reason", "remaining_questions"]
     field_types = {"should_stop": bool, "reason": str, "remaining_questions": list}
@@ -202,7 +209,7 @@ async def validate_reflect_output(output: dict[str, Any]) -> bool:
     return True
 
 
-async def validate_plan_output(output: dict[str, Any]) -> bool:
+def validate_plan_output(output: dict[str, Any]) -> bool:
     """Validate PlanAgent output"""
     required_fields = ["answer_style", "blocks"]
     field_types = {"answer_style": str, "blocks": list}
@@ -238,8 +245,8 @@ async def validate_plan_output(output: dict[str, Any]) -> bool:
     return True
 
 
-async def validate_solve_output(
-    output: dict[str, Any], valid_tool_types: list[str] | None = None
+def validate_solve_output(
+    output: dict[str, Any], valid_tool_types: list[str] = VALID_SOLVE_TOOLS
 ) -> bool:
     """Validate SolveAgent output"""
     required_fields = ["tool_calls"]
@@ -257,22 +264,8 @@ async def validate_solve_output(
 
         tool_type = tool_call.get("tool_type", "").lower()
 
-        # Use provided valid_tool_types if supplied; otherwise, derive from VALID_SOLVE_TOOLS,
-        # ensuring that the legacy "finish" tool type remains supported by default.
-        if valid_tool_types is None:
-            default_valid_tool_types = list(VALID_SOLVE_TOOLS)
-            if not any(
-                isinstance(t, str) and t.lower() == "finish" for t in default_valid_tool_types
-            ):
-                default_valid_tool_types.append("finish")
-            effective_valid_tool_types = default_valid_tool_types
-        else:
-            effective_valid_tool_types = valid_tool_types
-
-        if tool_type not in effective_valid_tool_types:
-            raise ParseError(
-                f"Invalid tool_type: {tool_type}, must be one of {effective_valid_tool_types}"
-            )
+        if tool_type not in valid_tool_types:
+            raise ParseError(f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}")
     return True
 
 
