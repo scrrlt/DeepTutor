@@ -10,7 +10,7 @@ from typing import Optional
 from ..components.chunkers import SemanticChunker
 from ..components.embedders import OpenAIEmbedder
 from ..components.indexers import VectorIndexer
-from ..components.parsers import TextParser
+from ..components.parsers import PDFParser
 from ..components.retrievers import DenseRetriever
 from ..pipeline import RAGPipeline
 
@@ -20,7 +20,7 @@ def LlamaIndexPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     Create a LlamaIndex-style pipeline.
 
     This pipeline uses:
-    - TextParser for document parsing (supports txt, md files)
+    - PDFParser for document parsing (supports PDF files with PyMuPDF fallback)
     - SemanticChunker for text chunking
     - OpenAIEmbedder for embedding generation
     - VectorIndexer for vector indexing
@@ -34,7 +34,7 @@ def LlamaIndexPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     """
     return (
         RAGPipeline("llamaindex", kb_base_dir=kb_base_dir)
-        .parser(TextParser())
+        .parser(PDFParser())
         .chunker(SemanticChunker())
         .embedder(OpenAIEmbedder())
         .indexer(VectorIndexer(kb_base_dir=kb_base_dir))
