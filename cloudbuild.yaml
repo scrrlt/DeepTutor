@@ -19,8 +19,7 @@ steps:
       - 'deploy'
       - 'deeptutor'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
-      - '--platform'
+      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'      - '--platform'
       - 'managed'
       - '--region'
       - 'us-central1'
@@ -67,6 +66,9 @@ steps:
       - '--set-env-vars'
       - 'LOG_LEVEL=INFO'
 
+<<<<<<< HEAD
+=======
+>>>>>>> 342e42c (fix(cloudbuild): use SHORT_SHA for image tags)
 # Configure logging for service account usage
 options:
   logging: CLOUD_LOGGING_ONLY
