@@ -61,9 +61,11 @@ class BaseLLMProvider(ABC):
                 mapped_e = self._map_exception(e)
 
                 # Logic check: should we retry?
-                is_retriable = isinstance(
-                    mapped_e, (LLMRateLimitError, LLMAPIError, LLMTimeoutError)
-                )
+                is_retriable = isinstance(mapped_e, (LLMRateLimitError, LLMTimeoutError))
+                if isinstance(mapped_e, LLMAPIError):
+                    status_code = getattr(mapped_e, "status_code", None)
+                    if status_code is not None and status_code >= 500:
+                        is_retriable = True
 
                 if attempt >= max_retries or not is_retriable:
                     raise mapped_e

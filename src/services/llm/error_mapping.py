@@ -8,7 +8,13 @@ from dataclasses import dataclass
 import logging
 from typing import Callable, List, Optional, Type
 
-import openai
+try:
+    import openai  # type: ignore
+
+    _HAS_OPENAI = True
+except ImportError:  # pragma: no cover
+    openai = None  # type: ignore
+    _HAS_OPENAI = False
 
 from .exceptions import (
     LLMAPIError,
@@ -44,14 +50,6 @@ def _message_contains(*needles: str) -> ErrorClassifier:
 
 _GLOBAL_RULES: List[MappingRule] = [
     MappingRule(
-        classifier=_instance_of(openai.AuthenticationError),
-        factory=lambda exc: LLMAuthenticationError(str(exc)),
-    ),
-    MappingRule(
-        classifier=_instance_of(openai.RateLimitError),
-        factory=lambda exc: ProviderQuotaExceededError(str(exc)),
-    ),
-    MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
         factory=lambda exc: ProviderQuotaExceededError(str(exc)),
     ),
@@ -60,6 +58,18 @@ _GLOBAL_RULES: List[MappingRule] = [
         factory=lambda exc: ProviderContextWindowError(str(exc)),
     ),
 ]
+
+if _HAS_OPENAI:
+    _GLOBAL_RULES[:0] = [
+        MappingRule(
+            classifier=_instance_of(openai.AuthenticationError),
+            factory=lambda exc: LLMAuthenticationError(str(exc)),
+        ),
+        MappingRule(
+            classifier=_instance_of(openai.RateLimitError),
+            factory=lambda exc: ProviderQuotaExceededError(str(exc)),
+        ),
+    ]
 
 # Attempt to load Anthropic and Google rules if SDKs are present
 try:
