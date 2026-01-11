@@ -171,6 +171,17 @@ interface LLMModeInfo {
 // Tab types
 type SettingsTab = "general" | "environment" | "local_models";
 
+// Default web search config for error cases
+const defaultWebSearchConfig: WebSearchConfigResponse = {
+  enabled: false,
+  provider: "",
+  consolidation: null,
+  providers: [],
+  consolidation_types: [],
+  template_providers: [],
+  config_source: "default",
+};
+
 export default function SettingsPage() {
   const { uiSettings, refreshSettings } = useGlobal();
   const t = (key: string) => getTranslation(uiSettings.language, key);
@@ -422,9 +433,13 @@ export default function SettingsPage() {
       if (res.ok) {
         const data: WebSearchConfigResponse = await res.json();
         setWebSearchConfig(data);
+      } else {
+        console.error("Failed to fetch web search config:", res.status);
+        setWebSearchConfig(defaultWebSearchConfig);
       }
     } catch (err) {
       console.error("Failed to fetch web search config:", err);
+      setWebSearchConfig(defaultWebSearchConfig);
     }
   };
 
@@ -1595,14 +1610,16 @@ export default function SettingsPage() {
                       min="1"
                       max="20"
                       value={editedConfig.tools?.web_search?.max_results || 5}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value.trim(), 10);
+                        const finalValue = Number.isNaN(parsed) ? 5 : parsed;
                         handleConfigChange(
                           "tools",
                           "max_results",
-                          parseInt(e.target.value),
+                          finalValue,
                           "web_search",
-                        )
-                      }
+                        );
+                      }}
                       className="w-full p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-xs text-slate-900 dark:text-slate-100"
                     />
                   </div>

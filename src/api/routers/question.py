@@ -305,7 +305,8 @@ async def websocket_question_generate(websocket: WebSocket):
             api_key = llm_config.api_key
             base_url = llm_config.base_url
             api_version = getattr(llm_config, "api_version", None)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to load LLM config, using defaults: {e}")
             api_key = None
             base_url = None
             api_version = None

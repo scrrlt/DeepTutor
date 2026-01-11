@@ -3,8 +3,8 @@
 ## ⚡ Current Focus
 
 - 🔄 **More RAG Pipelines** — Expanding retrieval architectures and backends
--  **Database Robustness & Visualization** — Stability improvements and visual insights
-- 🔄 **Bug Fixing** — Addressing reported issues and edge cases
+- 🗄️ **Database Robustness & Visualization** — Stability improvements and visual insights
+- 🐛 **Bug Fixing** — Addressing reported issues and edge cases
 
 ## 📬 Received Feature Wishlist
 

@@ -40,6 +40,7 @@ from src.services.config import PROJECT_ROOT, load_config_with_main
 from ._legacy import SearchProvider
 from .consolidation import AnswerConsolidator
 from .providers import (
+    SearchProviderError,
     get_available_providers,
     get_default_provider,
     get_provider,
@@ -161,8 +162,8 @@ def web_search(
         response = search_provider.search(query, **provider_kwargs)
         _logger.success(f"[{search_provider.name}] Search completed")
     except Exception as e:
-        _logger.error(f"[{search_provider.name}] Search failed: {e}")
-        raise Exception(f"{search_provider.name} search failed: {e}")
+        _logger.exception(f"[{search_provider.name}] Search failed: {e}")
+        raise SearchProviderError(f"{search_provider.name} search failed: {e}") from e
     # Apply consolidation for SERP providers without LLM answers
     if consolidation and not search_provider.supports_answer:
         llm_config = {}

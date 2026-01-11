@@ -844,7 +844,11 @@ async def get_web_search_config():
 
         return get_current_config()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get web search config: {str(e)}")
+        # Log the full exception for debugging
+        import logging
+
+        logging.error(f"Failed to get web search config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get web search configuration") from e
 
 
 # ==================== RAG Provider Configuration ====================

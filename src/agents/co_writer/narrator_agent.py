@@ -10,7 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 import uuid
 
@@ -129,7 +129,11 @@ class NarratorAgent(BaseAgent):
         self.logger.info(f"  Default Voice: {self.default_voice}")
 
     async def process(
-        self, content: str, style: str = "friendly", voice: str = None, skip_audio: bool = False
+        self,
+        content: str,
+        style: str = "friendly",
+        voice: Optional[str] = None,
+        skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
         Main processing method - alias for narrate().

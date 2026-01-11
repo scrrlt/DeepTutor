@@ -18,7 +18,7 @@ import requests
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
-from . import register_provider
+from . import SearchProviderError, register_provider
 
 
 @register_provider("baidu")
@@ -99,8 +99,11 @@ class BaiduProvider(BaseSearchProvider):
         response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
 
         if response.status_code != 200:
-            error_data = response.json() if response.text else {}
-            raise Exception(
+            try:
+                error_data = response.json() if response.text else {}
+            except requests.exceptions.JSONDecodeError:
+                error_data = {}
+            raise SearchProviderError(
                 f"Baidu AI Search API error: {response.status_code} - "
                 f"{error_data.get('message', response.text)}"
             )

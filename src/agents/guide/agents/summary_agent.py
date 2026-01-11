@@ -19,7 +19,6 @@ class SummaryAgent(BaseAgent):
         base_url: str,
         language: str = "zh",
         api_version: str | None = None,
-        binding: str = "openai",
     ):
         super().__init__(
             module_name="guide",

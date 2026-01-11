@@ -263,7 +263,7 @@ async def stream(
             raise LLMAPIError(
                 f"Local LLM failed: streaming={e}, non-streaming={e2}",
                 provider="local",
-            )
+            ) from e2
 
 
 async def fetch_models(
