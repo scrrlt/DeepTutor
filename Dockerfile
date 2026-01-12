@@ -28,7 +28,7 @@ COPY scripts/ ./scripts/
 
 # Copy startup script
 COPY start.sh ./start.sh
-RUN chmod +x ./start.sh
+RUN sed -i 's/\r$//' ./start.sh && chmod +x ./start.sh
 
 # Create data directory
 RUN mkdir -p /app/data/user
@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" || exit 1
 
 # Start the application
-CMD ["./start.sh"]
+CMD ["bash", "./start.sh"]
