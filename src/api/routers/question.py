@@ -252,6 +252,8 @@ async def websocket_mimic_generate(websocket: WebSocket):
                 await pusher_task
             except Exception:
                 pass
+            except Exception as cancel_err:
+                logger.debug(f"pusher_task shutdown failed: {cancel_err}")
         try:
             await websocket.close()
         except Exception:

@@ -339,13 +339,10 @@ class NarratorAgent(BaseAgent):
 
             self.logger.info(f"Audio saved to: {audio_path}")
 
-            # Use correct path: co-writer/audio (matching the actual storage directory)
-            relative_path = f"co-writer/audio/{audio_filename}"
-            audio_access_url = f"/api/outputs/{relative_path}"
+            # Audio access URL removed for security reasons
 
             return {
                 "audio_path": str(audio_path),
-                "audio_url": audio_access_url,
                 "audio_id": audio_id,
                 "voice": voice,
             }

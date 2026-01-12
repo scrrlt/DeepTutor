@@ -83,7 +83,11 @@ class GuideManager:
                 try:
                     with open(config_path, encoding="utf-8") as f:
                         config = yaml.safe_load(f) or {}
-                except Exception:
+                except (OSError, yaml.YAMLError) as e:
+                    logger = get_logger(
+                        "Guide"
+                    )  # Use default logger since we don't have self.logger yet
+                    logger.warning(f"Failed to load config from {config_path}: {e!s}")
                     config = {}
             else:
                 config = {}

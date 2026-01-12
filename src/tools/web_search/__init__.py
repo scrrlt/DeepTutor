@@ -37,7 +37,6 @@ from typing import Any
 from src.logging import get_logger
 from src.services.config import PROJECT_ROOT, load_config_with_main
 
-from ._legacy import SearchProvider
 from .consolidation import AnswerConsolidator
 from .providers import (
     SearchProviderError,
@@ -249,5 +248,4 @@ __all__ = [
     "Citation",
     "SearchResult",
     "AnswerConsolidator",
-    "SearchProvider",
 ]
