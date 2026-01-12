@@ -80,7 +80,7 @@ ignore = [
     "DTZ005", # datetime.now() called without tz argument
     "RET504", # Unnecessary assignment before return
     "PLW2901", # for loop variable overwritten by assignment target
-    "F841",  # Local variable assigned but never used
+        # "F841",  # Local variable assigned but never used
     "B006",  # Do not use mutable data structures for argument defaults
     "E722",  # Do not use bare `except`
 ]
