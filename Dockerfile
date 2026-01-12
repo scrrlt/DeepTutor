@@ -61,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')" || exit 1
 
 # Set the command to run the application
-CMD ["bash", "./start.sh"]
+CMD ["sh", "./start.sh"]

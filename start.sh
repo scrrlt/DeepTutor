@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e # Exit immediately if a command exits with a non-zero status
 
 echo "🚀 Starting DeepTutor Backend..."
@@ -18,7 +18,6 @@ except Exception as e:
     sys.exit(1)
 "
 
-# Determine the port to use, defaulting to 8001 if PORT env var is not set
 APP_PORT="${PORT:-8001}"
 echo "Starting uvicorn server on port ${APP_PORT}..."
 exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port "${APP_PORT}"

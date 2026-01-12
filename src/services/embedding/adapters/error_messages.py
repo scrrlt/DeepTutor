@@ -22,6 +22,13 @@ EMBEDDING_ERRORS: Dict[str, str] = {
         "Embedding request failed: Rate limit exceeded. "
         "Please try again later."
     ),
+    "empty_embedding": (
+        "Embedding request failed: Empty embedding returned. "
+        "Model: '{model}'. Base URL: {base_url}. "
+        "If you are using a local OpenAI-compatible server (e.g. LM Studio), "
+        "ensure the embeddings endpoint is reachable (often /v1/embeddings) and "
+        "try disabling custom dimensions if the server doesn't support them."
+    ),
 }
 
 

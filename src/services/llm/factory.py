@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 import os
 
 from .config import LLMConfig
@@ -37,18 +37,126 @@ def get_provider_presets() -> Dict[str, Dict[str, Any]]:
 
 
 async def fetch_models(*args, **kwargs) -> List[str]:
-    _ = (args, kwargs)
-    return []
+    binding = kwargs.get("binding")
+    base_url = kwargs.get("base_url")
+    api_key = kwargs.get("api_key")
+
+    if not base_url:
+        return []
+
+    from .utils import is_local_llm_server, sanitize_url
+
+    sanitized = sanitize_url(base_url)
+    if is_local_llm_server(sanitized):
+        from . import local_provider
+
+        return await local_provider.fetch_models(base_url=sanitized, api_key=api_key)
+
+    from . import cloud_provider
+
+    return await cloud_provider.fetch_models(
+        base_url=sanitized,
+        api_key=api_key,
+        binding=binding or "openai",
+    )
 
 
 async def complete(*args, **kwargs) -> str:
-    _ = (args, kwargs)
-    raise NotImplementedError("complete() is not implemented in this factory module")
+    # Support both positional and keyword invocation.
+    prompt = kwargs.get("prompt")
+    if prompt is None and args:
+        prompt = args[0]
+
+    system_prompt = kwargs.get("system_prompt", "You are a helpful assistant.")
+    model = kwargs.get("model")
+    api_key = kwargs.get("api_key")
+    base_url = kwargs.get("base_url")
+    binding = kwargs.get("binding")
+    api_version = kwargs.get("api_version")
+    messages = kwargs.get("messages")
+
+    from .utils import is_local_llm_server, sanitize_url
+
+    if base_url:
+        base_url = sanitize_url(base_url, model or "")
+
+    # If base_url looks local, route to local provider.
+    if base_url and is_local_llm_server(base_url):
+        from . import local_provider
+
+        return await local_provider.complete(
+            prompt=prompt or "",
+            system_prompt=system_prompt,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            messages=messages,
+            **{k: v for k, v in kwargs.items() if k not in {"prompt", "system_prompt", "model", "api_key", "base_url", "binding", "api_version", "messages"}},
+        )
+
+    from . import cloud_provider
+
+    return await cloud_provider.complete(
+        prompt=prompt or "",
+        system_prompt=system_prompt,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+        binding=binding or "openai",
+        api_version=api_version,
+        messages=messages,
+        **{k: v for k, v in kwargs.items() if k not in {"prompt", "system_prompt", "model", "api_key", "base_url", "binding", "api_version", "messages"}},
+    )
 
 
-async def stream(*args, **kwargs):
-    _ = (args, kwargs)
-    raise NotImplementedError("stream() is not implemented in this factory module")
+async def stream(*args, **kwargs) -> AsyncGenerator[str, None]:
+    # Support both positional and keyword invocation.
+    prompt = kwargs.get("prompt")
+    if prompt is None and args:
+        prompt = args[0]
+
+    system_prompt = kwargs.get("system_prompt", "You are a helpful assistant.")
+    model = kwargs.get("model")
+    api_key = kwargs.get("api_key")
+    base_url = kwargs.get("base_url")
+    binding = kwargs.get("binding")
+    api_version = kwargs.get("api_version")
+    messages = kwargs.get("messages")
+
+    from .utils import is_local_llm_server, sanitize_url
+
+    if base_url:
+        base_url = sanitize_url(base_url, model or "")
+
+    if base_url and is_local_llm_server(base_url):
+        from . import local_provider
+
+        async for chunk in local_provider.stream(
+            prompt=prompt or "",
+            system_prompt=system_prompt,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            messages=messages,
+            **{k: v for k, v in kwargs.items() if k not in {"prompt", "system_prompt", "model", "api_key", "base_url", "binding", "api_version", "messages"}},
+        ):
+            yield chunk
+        return
+
+    from . import cloud_provider
+
+    async for chunk in cloud_provider.stream(
+        prompt=prompt or "",
+        system_prompt=system_prompt,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+        binding=binding or "openai",
+        api_version=api_version,
+        messages=messages,
+        **{k: v for k, v in kwargs.items() if k not in {"prompt", "system_prompt", "model", "api_key", "base_url", "binding", "api_version", "messages"}},
+    ):
+        yield chunk
 
 class LLMFactory:
     """

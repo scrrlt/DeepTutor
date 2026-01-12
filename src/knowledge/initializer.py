@@ -190,11 +190,16 @@ class KnowledgeBaseInitializer:
         file_paths = [str(doc_file) for doc_file in doc_files]
 
         try:
+            timeout_seconds = int(os.getenv("RAG_INIT_TIMEOUT_SECONDS", "600"))
             # Process all documents using the RAGService
-            success = await rag_service.initialize(
-                kb_name=self.kb_name,
-                file_paths=file_paths,
-                extract_numbered_items=True  # Enable numbered items extraction
+            success = await asyncio.wait_for(
+                rag_service.initialize(
+                    kb_name=self.kb_name,
+                    file_paths=file_paths,
+                    extract_numbered_items=True,  # Enable numbered items extraction
+                    parse_timeout_seconds=timeout_seconds,
+                ),
+                timeout=timeout_seconds,
             )
 
             if success:
@@ -214,9 +219,12 @@ class KnowledgeBaseInitializer:
                 )
 
         except asyncio.TimeoutError:
-            error_msg = "Processing timeout (>10 minutes)"
+            error_msg = f"Processing timeout (>{int(os.getenv('RAG_INIT_TIMEOUT_SECONDS', '600'))}s)"
             logger.error(f"✗ Timeout processing documents")
             logger.error("Possible causes: Large files, slow embedding API, network issues")
+            logger.error(
+                "If this stalls at MinerU parsing, try setting RAG_PROVIDER=lightrag (text-only) or RAG_PROVIDER=llamaindex (fast)."
+            )
             self.progress_tracker.update(
                 ProgressStage.ERROR,
                 "Timeout processing documents",
