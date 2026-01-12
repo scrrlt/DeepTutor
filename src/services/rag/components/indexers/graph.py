@@ -115,7 +115,8 @@ class GraphIndexer(BaseComponent):
 
             for doc in documents:
                 if doc.content:
-                    await rag.ainsert(doc.content)
+                    # RAGAnything uses process_document_complete_lightrag_api instead of ainsert
+                    await rag.process_document_complete_lightrag_api(doc.content)
 
         self.logger.info("Knowledge graph built successfully")
         return True
