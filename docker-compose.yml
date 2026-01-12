@@ -21,7 +21,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
       args:
         # Pass backend port at build time for Next.js static optimization
         - BACKEND_PORT=${BACKEND_PORT:-8001}
