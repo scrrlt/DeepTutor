@@ -18,16 +18,24 @@ import os
 from pathlib import Path
 import shutil
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    try:
+        from raganything import RAGAnything
+    except ImportError:
+        pass
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
 
-# Import RAGService for dynamic provider selection based on RAG_PROVIDER env var
-from src.services.rag.service import RAGService
 from src.services.embedding import get_embedding_config
 from src.services.llm import get_llm_config
+
+# Import RAGService for dynamic provider selection based on RAG_PROVIDER env var
+from src.services.rag.service import RAGService
 
 load_dotenv(dotenv_path=".env", override=False)
 
@@ -152,7 +160,7 @@ class KnowledgeBaseInitializer:
         """Process documents using RAGService with dynamic provider selection"""
         provider = os.getenv("RAG_PROVIDER", "raganything")
         logger.info(f"Processing documents with RAG provider: {provider}")
-        
+
         self.progress_tracker.update(
             ProgressStage.PROCESSING_DOCUMENTS,
             f"Starting to process documents with {provider} provider...",
@@ -182,8 +190,10 @@ class KnowledgeBaseInitializer:
 
         # Initialize RAGService with the selected provider
         rag_service = RAGService(
-            kb_base_dir=str(self.base_dir),  # Base directory for all KBs (e.g., data/knowledge_bases)
-            provider=provider
+            kb_base_dir=str(
+                self.base_dir
+            ),  # Base directory for all KBs (e.g., data/knowledge_bases)
+            provider=provider,
         )
 
         # Convert Path objects to strings for file paths
@@ -194,7 +204,7 @@ class KnowledgeBaseInitializer:
             success = await rag_service.initialize(
                 kb_name=self.kb_name,
                 file_paths=file_paths,
-                extract_numbered_items=True  # Enable numbered items extraction
+                extract_numbered_items=True,  # Enable numbered items extraction
             )
 
             if success:
@@ -210,12 +220,12 @@ class KnowledgeBaseInitializer:
                 self.progress_tracker.update(
                     ProgressStage.ERROR,
                     "Document processing failed",
-                    error="RAG pipeline returned failure"
+                    error="RAG pipeline returned failure",
                 )
 
         except asyncio.TimeoutError:
             error_msg = "Processing timeout (>10 minutes)"
-            logger.error(f"✗ Timeout processing documents")
+            logger.error("✗ Timeout processing documents")
             logger.error("Possible causes: Large files, slow embedding API, network issues")
             self.progress_tracker.update(
                 ProgressStage.ERROR,
@@ -226,10 +236,11 @@ class KnowledgeBaseInitializer:
             error_msg = str(e)
             logger.error(f"✗ Error processing documents: {error_msg}")
             import traceback
+
             logger.error(traceback.format_exc())
             self.progress_tracker.update(
                 ProgressStage.ERROR,
-                f"Failed to process documents",
+                "Failed to process documents",
                 error=error_msg,
             )
 
@@ -423,15 +434,15 @@ class KnowledgeBaseInitializer:
 
         # Check for RAG storage (different providers use different formats)
         provider = os.getenv("RAG_PROVIDER", "raganything")
-        
+
         # RAGAnything/LightRAG format
         entities_file = self.rag_storage_dir / "kv_store_full_entities.json"
         relations_file = self.rag_storage_dir / "kv_store_full_relations.json"
         chunks_file = self.rag_storage_dir / "kv_store_text_chunks.json"
-        
+
         # LlamaIndex format
         vector_store_dir = self.base_dir / self.kb_name / "vector_store"
-        
+
         try:
             if entities_file.exists():
                 with open(entities_file, encoding="utf-8") as f:
@@ -447,14 +458,35 @@ class KnowledgeBaseInitializer:
                 with open(chunks_file, encoding="utf-8") as f:
                     chunks = json.load(f)
                     logger.info(f"Text chunks: {len(chunks)}")
-                    
+
             if vector_store_dir.exists():
-                metadata_file = vector_store_dir / "metadata.json"
-                if metadata_file.exists():
-                    with open(metadata_file, encoding="utf-8") as f:
+                info_file = vector_store_dir / "info.json"
+                if info_file.exists():
+                    with open(info_file, encoding="utf-8") as f:
                         metadata = json.load(f)
-                        logger.info(f"Vector embeddings: {metadata.get('num_embeddings', 0)}")
-                        logger.info(f"Embedding dimension: {metadata.get('dimension', 0)}")
+                        logger.info(
+                            f"Vector embeddings: {metadata.get('num_chunks', metadata.get('num_embeddings', 0))}"
+                        )
+                        logger.info(
+                            f"Embedding dimension: {metadata.get('embedding_dim', metadata.get('dimension', 0))}"
+                        )
+                else:
+                    # Fallback to old metadata.json if info.json doesn't exist
+                    metadata_file = vector_store_dir / "metadata.json"
+                    if metadata_file.exists():
+                        logger.warning(
+                            f"Using deprecated metadata.json format for {self.kb_name}. "
+                            "This format will be removed in a future major release. "
+                            "To migrate, create an info.json file in the same directory with "
+                            "equivalent fields (e.g., map 'num_embeddings' → 'num_chunks' and "
+                            "'dimension' → 'embedding_dim'). "
+                            "Refer to the project documentation for up-to-date migration details "
+                            "and any available migration scripts."
+                        )
+                        with open(metadata_file, encoding="utf-8") as f:
+                            metadata = json.load(f)
+                            logger.info(f"Vector embeddings: {metadata.get('num_embeddings', 0)}")
+                            logger.info(f"Embedding dimension: {metadata.get('dimension', 0)}")
         except Exception as e:
             logger.warning(f"Could not retrieve statistics: {e!s}")
 

@@ -83,6 +83,7 @@ outputs/
 cache/
 **/cache/
 .cache/
+**/.cache/
 
 # Log files
 *.log
@@ -188,6 +189,8 @@ $RECYCLE.BIN/
 .coverage.*
 htmlcov/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .tox/
 nosetests.xml
 coverage.xml

@@ -15,15 +15,8 @@ not unified with this base class.
 
 from abc import ABC, abstractmethod
 import os
-from pathlib import Path
-import sys
 import time
 from typing import Any, AsyncGenerator
-
-# Add project root to path
-_project_root = Path(__file__).parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
 
 from src.logging import LLMStats, get_logger
 from src.services.config import get_agent_params
