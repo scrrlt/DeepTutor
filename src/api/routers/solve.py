@@ -266,9 +266,9 @@ async def websocket_solve(websocket: WebSocket):
             )
 
     except Exception as e:
-        # Mark connection as closed before sending error (to prevent log_pusher from interfering)
-        connection_closed.set()
         await safe_send_json({"type": "error", "content": str(e)})
+        # Mark connection as closed after sending error (best-effort)
+        connection_closed.set()
         logger.error(f"[{task_id if 'task_id' in locals() else 'unknown'}] Solving failed: {e}")
         if "task_id" in locals():
             task_manager.update_task_status(task_id, "error", error=str(e))

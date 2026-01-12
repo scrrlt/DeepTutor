@@ -15,7 +15,7 @@ except Exception as e:
     print(f'❌ Import failed: {e}')
     import traceback
     traceback.print_exc()
-    exit 1
+    sys.exit(1)
 "
 
 # Determine the port to use, defaulting to 8001 if PORT env var is not set

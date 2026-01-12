@@ -10,7 +10,6 @@ import os
 from typing import AsyncGenerator, Dict, List, Optional
 
 import aiohttp
-from lightrag.llm.openai import openai_complete_if_cache
 
 from .exceptions import (
     LLMAPIError,
@@ -177,7 +176,8 @@ async def _openai_complete(
         base_url = sanitize_url(base_url, model)
 
     try:
-        # Try using lightrag's openai_complete_if_cache first (has caching)
+        from lightrag.llm.openai import openai_complete_if_cache
+
         response = await openai_complete_if_cache(
             model=model,
             prompt=prompt,

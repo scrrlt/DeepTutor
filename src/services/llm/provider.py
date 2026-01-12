@@ -4,6 +4,9 @@ import os
 import asyncio
 import random
 import logging
+from enum import Enum
+
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -65,3 +68,76 @@ class BaseLLMProvider(ABC):
                 delay = (1.5 ** attempt) + (random.random() * 0.5)
                 logger.warning(f"LLM call failed ({e}). Retrying in {delay:.2f}s...")
                 await asyncio.sleep(delay)
+
+
+class ProviderType(str, Enum):
+    api = "api"
+    local = "local"
+
+
+class LLMProvider(BaseModel):
+    name: str
+    binding: str = Field(default="openai")
+    base_url: str = Field(default="")
+    api_key: str = Field(default="")
+    model: str = Field(default="")
+    requires_key: bool = True
+    provider_type: ProviderType = ProviderType.api
+    is_active: bool = False
+
+
+class LLMProviderManager:
+    def __init__(self):
+        self._providers: Dict[str, LLMProvider] = {}
+        self._active: Optional[str] = None
+
+    def list_providers(self):
+        return list(self._providers.values())
+
+    def add_provider(self, provider: LLMProvider) -> LLMProvider:
+        key = provider.name
+        if key in self._providers:
+            raise ValueError("Provider already exists")
+        self._providers[key] = provider
+        if provider.is_active or self._active is None:
+            self.set_active_provider(key)
+        return self._providers[key]
+
+    def update_provider(self, name: str, updates: Dict[str, Any]) -> Optional[LLMProvider]:
+        if name not in self._providers:
+            return None
+        existing = self._providers[name]
+        updated = existing.model_copy(update=updates)
+        self._providers[name] = updated
+        if updated.is_active:
+            self.set_active_provider(name)
+        return updated
+
+    def delete_provider(self, name: str) -> bool:
+        if name not in self._providers:
+            return False
+        was_active = self._active == name
+        del self._providers[name]
+        if was_active:
+            self._active = None
+            # pick any remaining provider
+            for key in self._providers.keys():
+                self.set_active_provider(key)
+                break
+        return True
+
+    def set_active_provider(self, name: str) -> Optional[LLMProvider]:
+        if name not in self._providers:
+            return None
+        self._active = name
+        for key, prov in list(self._providers.items()):
+            self._providers[key] = prov.model_copy(update={"is_active": key == name})
+        return self._providers[name]
+
+    def get_active_provider(self) -> Optional[LLMProvider]:
+        if not self._active:
+            return None
+        return self._providers.get(self._active)
+
+
+provider_manager = LLMProviderManager()

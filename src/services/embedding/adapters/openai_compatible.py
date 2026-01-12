@@ -33,10 +33,23 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             "encoding_format": request.encoding_format or "float",
         }
 
-        if request.dimensions or self.dimensions:
+        model_for_request = payload["model"]
+        model_info = self.MODELS_INFO.get(model_for_request)
+        supports_dimensions = isinstance(model_info, dict)
+        if supports_dimensions and (request.dimensions or self.dimensions):
             payload["dimensions"] = request.dimensions or self.dimensions
 
-        url = f"{self.base_url.rstrip('/')}/embeddings"
+        base = self.base_url.rstrip("/")
+        if self.api_version:
+            # Azure OpenAI endpoints are typically already in the correct deployment form
+            # and expect /embeddings with api-version query parameter.
+            url = f"{base}/embeddings"
+        else:
+            # OpenAI-compatible servers (OpenAI, LM Studio, vLLM, etc.) typically use /v1/embeddings
+            if base.endswith("/v1"):
+                url = f"{base}/embeddings"
+            else:
+                url = f"{base}/v1/embeddings"
         if self.api_version:
             if "?" not in url:
                 url += f"?api-version={self.api_version}"
@@ -67,7 +80,15 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             response.raise_for_status()
             data = response.json()
 
-        embeddings = [item["embedding"] for item in data["data"]]
+        embeddings = [item.get("embedding", []) for item in (data.get("data") or [])]
+        if not embeddings or any(not e for e in embeddings):
+            raise ValueError(
+                format_error_message(
+                    "empty_embedding",
+                    model=data.get("model", model_for_request),
+                    base_url=self.base_url,
+                )
+            )
 
         actual_dims = len(embeddings[0]) if embeddings else 0
         expected_dims = request.dimensions or self.dimensions
@@ -75,17 +96,17 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         if expected_dims and actual_dims != expected_dims:
             logger.warning(
                 f"Dimension mismatch: expected {expected_dims}, got {actual_dims}. "
-                f"Model '{data['model']}' may not support custom dimensions."
+                f"Model '{data.get('model', model_for_request)}' may not support custom dimensions."
             )
 
         logger.info(
             f"Successfully generated {len(embeddings)} embeddings "
-            f"(model: {data['model']}, dimensions: {actual_dims})"
+            f"(model: {data.get('model', model_for_request)}, dimensions: {actual_dims})"
         )
 
         return EmbeddingResponse(
             embeddings=embeddings,
-            model=data["model"],
+            model=data.get("model", model_for_request),
             dimensions=actual_dims,
             usage=data.get("usage", {}),
         )

@@ -1,4 +1,7 @@
-from typing import Any
+from __future__ import annotations
+
+from enum import Enum
+from typing import Any, Dict, List, Optional
 import os
 
 from .config import LLMConfig
@@ -6,6 +9,46 @@ from .registry import get_provider_class, list_providers
 
 # Import providers package to trigger registration of all provider classes
 import src.services.llm.providers
+
+
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_DELAY = 1.0
+DEFAULT_EXPONENTIAL_BACKOFF = True
+
+
+API_PROVIDER_PRESETS: Dict[str, Dict[str, Any]] = {}
+LOCAL_PROVIDER_PRESETS: Dict[str, Dict[str, Any]] = {}
+
+
+class LLMMode(str, Enum):
+    default = "default"
+
+
+def get_llm_mode() -> LLMMode:
+    return LLMMode.default
+
+
+def get_mode_info() -> Dict[str, Any]:
+    return {"mode": get_llm_mode().value}
+
+
+def get_provider_presets() -> Dict[str, Dict[str, Any]]:
+    return {"api": API_PROVIDER_PRESETS, "local": LOCAL_PROVIDER_PRESETS}
+
+
+async def fetch_models(*args, **kwargs) -> List[str]:
+    _ = (args, kwargs)
+    return []
+
+
+async def complete(*args, **kwargs) -> str:
+    _ = (args, kwargs)
+    raise NotImplementedError("complete() is not implemented in this factory module")
+
+
+async def stream(*args, **kwargs):
+    _ = (args, kwargs)
+    raise NotImplementedError("stream() is not implemented in this factory module")
 
 class LLMFactory:
     """

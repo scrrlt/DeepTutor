@@ -68,10 +68,6 @@ export default function Sidebar() {
     ? SIDEBAR_COLLAPSED_WIDTH
     : SIDEBAR_EXPANDED_WIDTH;
 
-  const handleCollapsedNavClick = () => {
-    toggleSidebar();
-  };
-
   // Collapsed sidebar
   if (sidebarCollapsed) {
     return (
@@ -108,7 +104,6 @@ export default function Sidebar() {
                           ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm border-slate-100 dark:border-slate-600"
                           : "text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-sm border-transparent hover:border-slate-100 dark:hover:border-slate-600"
                       }`}
-                      onClick={handleCollapsedNavClick}
                       onMouseEnter={() => setShowTooltip(item.href)}
                       onMouseLeave={() => setShowTooltip(null)}
                     >
@@ -146,7 +141,6 @@ export default function Sidebar() {
                   ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-100 dark:border-slate-600"
                   : "text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
               }`}
-              onClick={handleCollapsedNavClick}
               onMouseEnter={() => setShowTooltip("/settings")}
               onMouseLeave={() => setShowTooltip(null)}
             >

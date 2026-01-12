@@ -6,7 +6,7 @@ import random
 import time
 from typing import List
 
-from ..utils.circuit_breaker import CircuitBreaker
+from src.utils.network.circuit_breaker import CircuitBreaker
 
 
 class KeyRotator:
@@ -52,3 +52,20 @@ class ResilientLLMClient:
                     self.keys.rotate()  # Switch key on failure
                 else:
                     raise e
+
+
+LLMClient = ResilientLLMClient
+
+_llm_client: LLMClient | None = None
+
+
+def get_llm_client() -> LLMClient:
+    global _llm_client
+    if _llm_client is None:
+        _llm_client = LLMClient()
+    return _llm_client
+
+
+def reset_llm_client() -> None:
+    global _llm_client
+    _llm_client = None

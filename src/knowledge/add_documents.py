@@ -20,14 +20,23 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from dotenv import load_dotenv
 
-# Attempt imports for dynamic dependencies
-try:
-    from lightrag.llm.openai import openai_complete_if_cache
-    from lightrag.utils import EmbeddingFunc
-except ImportError:
-    # These will be caught during runtime if needed
-    openai_complete_if_cache = None
-    EmbeddingFunc = None
+openai_complete_if_cache = None
+EmbeddingFunc = None
+
+
+def _load_lightrag_deps():
+    global openai_complete_if_cache, EmbeddingFunc
+    if openai_complete_if_cache is not None and EmbeddingFunc is not None:
+        return
+    try:
+        from lightrag.llm.openai import openai_complete_if_cache as _openai_complete_if_cache
+        from lightrag.utils import EmbeddingFunc as _EmbeddingFunc
+
+        openai_complete_if_cache = _openai_complete_if_cache
+        EmbeddingFunc = _EmbeddingFunc
+    except Exception:
+        openai_complete_if_cache = None
+        EmbeddingFunc = None
 
 # Type hinting support for dynamic imports
 if TYPE_CHECKING:
@@ -200,6 +209,12 @@ class DocumentAdder:
 
         if raganything_cls is None:
             raise ImportError("RAGAnything module not found.")
+
+        _load_lightrag_deps()
+        if openai_complete_if_cache is None:
+            raise ImportError(
+                "LightRAG dependencies are not available. Please install the lightrag package to enable document ingestion."
+            )
 
         # Pre-import progress stage if needed to avoid overhead in loop
         ProgressStage = None
