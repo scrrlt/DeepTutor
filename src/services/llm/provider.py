@@ -8,6 +8,9 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from src.utils.error_rate_tracker import ErrorRateTracker
+from src.utils.error_utils import format_exception_message
+
 logger = logging.getLogger(__name__)
 
 class BaseLLMProvider(ABC):
@@ -24,6 +27,8 @@ class BaseLLMProvider(ABC):
         self.config = config
         self.api_key = config.api_key
         self.base_url = config.base_url
+
+        self.error_rate_tracker = ErrorRateTracker()
 
         if hasattr(config, "pricing"):
             self.price_per_input_token = config.pricing.get("input", self.price_per_input_token)
@@ -53,8 +58,11 @@ class BaseLLMProvider(ABC):
         """Executes a function with exponential backoff retry logic."""
         for attempt in range(max_retries + 1):
             try:
-                return await func(*args, **kwargs)
+                result = await func(*args, **kwargs)
+                self.error_rate_tracker.record(True)
+                return result
             except Exception as e:
+                self.error_rate_tracker.record(False)
                 error_str = str(e).lower()
                 is_retriable = (
                     "429" in error_str or "rate limit" in error_str or
@@ -63,7 +71,7 @@ class BaseLLMProvider(ABC):
                 )
 
                 if attempt >= max_retries or not is_retriable:
-                    raise e
+                    raise RuntimeError(format_exception_message(e)) from e
 
                 delay = (1.5 ** attempt) + (random.random() * 0.5)
                 logger.warning(f"LLM call failed ({e}). Retrying in {delay:.2f}s...")

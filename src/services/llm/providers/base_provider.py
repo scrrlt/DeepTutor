@@ -6,6 +6,9 @@ from abc import ABC, abstractmethod
 import os
 from typing import Any, Dict
 
+from src.utils.error_rate_tracker import ErrorRateTracker
+from src.utils.error_utils import format_exception_message
+
 
 class BaseLLMProvider(ABC):
     """Base class for all LLM providers with unified config."""
@@ -13,6 +16,7 @@ class BaseLLMProvider(ABC):
     def __init__(self, provider_name: str):
         """Initialize with unified config fetching."""
         self.provider_name = provider_name
+        self.error_rate_tracker = ErrorRateTracker()
         self.api_key = os.getenv(f"{provider_name.upper()}_API_KEY")
         self.base_url = os.getenv(f"{provider_name.upper()}_BASE_URL", self._default_base_url())
         self.deployment = os.getenv(f"{provider_name.upper()}_DEPLOYMENT_NAME")
@@ -50,3 +54,10 @@ class BaseLLMProvider(ABC):
     def validate_config(self):
         """Validate provider-specific configuration."""
         pass  # Override in subclasses
+
+    def record_success(self) -> None:
+        self.error_rate_tracker.record(True)
+
+    def record_failure(self, exc: Exception) -> str:
+        self.error_rate_tracker.record(False)
+        return format_exception_message(exc)
