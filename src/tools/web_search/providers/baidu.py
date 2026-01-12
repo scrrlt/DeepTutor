@@ -12,6 +12,7 @@ Features:
 """
 
 from datetime import datetime
+import json
 from typing import Any
 
 import requests
@@ -101,7 +102,7 @@ class BaiduProvider(BaseSearchProvider):
         if response.status_code != 200:
             try:
                 error_data = response.json() if response.text else {}
-            except requests.exceptions.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError):
                 error_data = {}
             raise SearchProviderError(
                 f"Baidu AI Search API error: {response.status_code} - "
