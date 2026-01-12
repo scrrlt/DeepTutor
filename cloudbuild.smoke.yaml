@@ -1,0 +1,40 @@
+steps:
+  # Build the Docker image (smoke test)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/deeptutor-smoke:$BUILD_ID'
+      - '.'
+
+  # Run the container and check /health
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-euxo'
+      - 'pipefail'
+      - '-c'
+      - |
+        docker run -d --rm --name deeptutor_smoke -p 8001:8001 gcr.io/$PROJECT_ID/deeptutor-smoke:$BUILD_ID
+        for i in $(seq 1 30); do
+          if curl -fsS http://127.0.0.1:8001/health >/dev/null; then
+            echo "healthcheck ok"
+            docker logs deeptutor_smoke || true
+            docker stop deeptutor_smoke
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "healthcheck failed"
+        docker logs deeptutor_smoke || true
+        docker stop deeptutor_smoke || true
+        exit 1
+
+images:
+  - 'gcr.io/$PROJECT_ID/deeptutor-smoke:$BUILD_ID'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# Keep tight for iteration speed
+timeout: '600s'
