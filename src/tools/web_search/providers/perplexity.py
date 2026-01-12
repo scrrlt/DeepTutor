@@ -24,7 +24,7 @@ class PerplexityImportError(ImportError):
     def __init__(self):
         super().__init__(
             "perplexity module is not installed. To use Perplexity search, "
-            "please install: pip install perplexity"
+            "please install: pip install perplexityai"
         )
 
 
