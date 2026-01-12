@@ -15,7 +15,7 @@ import uuid
 import yaml
 
 from src.logging import get_logger
-from src.services.config import load_config_with_main, parse_language
+from src.utils.config_manager import ConfigManager
 
 from .agents import ChatAgent, InteractiveAgent, LocateAgent, SummaryAgent
 
@@ -75,7 +75,8 @@ class GuideManager:
 
         if config_path is None:
             project_root = Path(__file__).parent.parent.parent.parent
-            config = load_config_with_main("guide_config.yaml", project_root)
+            config_manager = ConfigManager()
+            config = config_manager.load_config_with_module("guide_config.yaml")
         else:
             config_path = Path(config_path)
             if config_path.exists():
@@ -96,11 +97,11 @@ class GuideManager:
         if language is None:
             # Get language config (unified in config/main.yaml system.language)
             lang_config = config.get("system", {}).get("language", "zh")
-            self.language = parse_language(lang_config)
+            self.language = config_manager.parse_language(lang_config)
             self.logger.info(f"Language setting loaded from config: {self.language}")
         else:
             # If explicitly specified, also parse it to ensure consistency
-            self.language = parse_language(language)
+            self.language = config_manager.parse_language(language)
             self.logger.info(f"Using explicitly specified language setting: {self.language}")
 
         if output_dir:

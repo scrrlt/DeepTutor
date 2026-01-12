@@ -239,7 +239,9 @@ export default function SystemStatus() {
         <>
           {/* LLM Status */}
           <div
-            className={`px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700`}
+            className={
+              "px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+            }
           >
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
@@ -304,7 +306,9 @@ export default function SystemStatus() {
 
           {/* Embeddings Status */}
           <div
-            className={`px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700`}
+            className={
+              "px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+            }
           >
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
@@ -370,7 +374,9 @@ export default function SystemStatus() {
 
           {/* TTS Status */}
           <div
-            className={`px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700`}
+            className={
+              "px-3 py-2.5 rounded-lg border text-sm transition-colors bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+            }
           >
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">

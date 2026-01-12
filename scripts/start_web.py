@@ -91,7 +91,7 @@ def terminate_process_tree(process, name="Process", timeout=5):
         if os.name == "nt":
             # Windows: Use taskkill with /T to kill the entire process tree
             # /F = Force termination, /T = Kill child processes too
-            result = subprocess.run(
+            subprocess.run(
                 ["taskkill", "/F", "/T", "/PID", str(pid)],
                 check=False,
                 capture_output=True,
@@ -467,7 +467,7 @@ if __name__ == "__main__":
                 if result == 0:
                     print_flush(f"✅ Backend is running on port {backend_port}!")
                     break
-            except:
+            except Exception:
                 pass
 
         if backend.poll() is not None:

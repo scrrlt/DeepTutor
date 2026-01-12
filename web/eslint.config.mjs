@@ -1,32 +1,20 @@
 import { defineConfig } from "eslint/config";
 import globals from "globals";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextConfig from "eslint-config-next";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-});
-
-export default defineConfig([{
-    extends: compat.extends("next", "next/core-web-vitals"),
-
-    languageOptions: {
-        globals: {
-            ...globals.browser,
+export default defineConfig([
+    ...nextConfig,
+    {
+        languageOptions: {
+            globals: {
+                ...globals.browser,
+            },
+            ecmaVersion: 12,
+            sourceType: "module",
         },
-
-        ecmaVersion: 12,
-        sourceType: "module",
-    },
-
-    rules: {
-        semi: ["error", "always"],
-        quotes: ["error", "double"],
-    },
-}]);
+        rules: {
+            semi: ["error", "always"],
+            quotes: ["error", "double"],
+        },
+    }
+]);
