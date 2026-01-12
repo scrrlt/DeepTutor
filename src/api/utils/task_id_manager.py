@@ -90,7 +90,7 @@ class TaskIDManager:
                             finished_time = datetime.fromisoformat(finished_at)
                             if finished_time < cutoff:
                                 to_remove.append(task_id)
-                        except Exception:
+                        except:
                             pass
 
             for task_id in to_remove:

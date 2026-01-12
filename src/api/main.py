@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
-import os
 from pathlib import Path
-from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.api.routers import (
     agent_config,
@@ -27,45 +26,97 @@ from src.logging import get_logger
 
 logger = get_logger("API")
 
+CONFIG_DRIFT_ERROR_TEMPLATE = (
+    "Configuration Drift Detected: Tools {drift} found in agents.yaml "
+    "investigate.valid_tools but missing from main.yaml solve.valid_tools. "
+    "Add these tools to main.yaml solve.valid_tools or remove them from "
+    "agents.yaml investigate.valid_tools."
+)
 
-def validate_cors_origin(origin: str) -> bool:
-    """
-    Validate that a CORS origin is a well-formed origin URL:
-    - Must use http:// or https://
-    - Must have a hostname
-    - Must not include userinfo, query string, fragment, or non-root path
-    """
-    if not origin:
-        return False
 
+def validate_tool_consistency():
+    """
+    Validate that the tools configured for agents are consistent with the main application
+    configuration.
+
+    This function loads the main configuration (``main.yaml``) and the agents configuration
+    (``agents.yaml``) from the project root and compares:
+
+    * ``solve.valid_tools`` in ``main.yaml``
+    * ``investigate.valid_tools`` in ``agents.yaml``
+
+    All tools referenced by agents must be present in the main configuration. If any tools are
+    defined for agents that are not listed in the main configuration, a ``RuntimeError`` is
+    raised describing the drift. The error is logged and re-raised, which causes the FastAPI
+    application startup to fail when this function is called from the ``lifespan`` handler.
+
+    Impact on startup
+    ------------------
+    This validation runs during application startup. Any configuration drift will:
+
+    * Be logged as an error with details about the unknown tools.
+    * Prevent the API from starting until the configuration is corrected.
+
+    How to resolve configuration drift
+    ----------------------------------
+    If startup fails with a configuration drift error:
+
+    1. Inspect the set of tools reported in the error message.
+    2. Either:
+       * Add the missing tools to ``solve.valid_tools`` in ``main.yaml``, **or**
+       * Remove or rename the offending tools from ``investigate.valid_tools`` in ``agents.yaml``.
+    3. Restart the application after updating the configuration files.
+
+    Example of aligned configuration
+    --------------------------------
+    ``main.yaml``::
+
+        solve:
+          valid_tools:
+            - web_search
+            - code_execution
+
+    ``agents.yaml``::
+
+        investigate:
+          valid_tools:
+            - web_search
+
+    In this case, validation passes because ``investigate.valid_tools`` is a subset of
+    ``solve.valid_tools``.
+
+    Example of configuration drift
+    ------------------------------
+    ``agents.yaml``::
+
+        investigate:
+          valid_tools:
+            - web_search
+            - unknown_tool
+
+    Here, ``unknown_tool`` is not present in ``solve.valid_tools`` in ``main.yaml``, so
+    validation will fail and prevent the application from starting until the configurations
+    are aligned.
+    """
     try:
-        # Strip whitespace to avoid accepting values with leading/trailing spaces
-        origin = origin.strip()
-        parsed = urlparse(origin)
+        from src.services.config import load_config_with_main
 
-        # Require http/https scheme
-        if parsed.scheme not in ("http", "https"):
-            return False
+        project_root = Path(__file__).parent.parent.parent
+        main_config = load_config_with_main("main.yaml", project_root)
+        agent_config = load_config_with_main("agents.yaml", project_root)
 
-        # Require a hostname (netloc might include port, which is allowed)
-        if not parsed.hostname:
-            return False
+        main_tools = set(main_config.get("solve", {}).get("valid_tools", []))
+        agent_tools = set(agent_config.get("investigate", {}).get("valid_tools", []))
 
-        # Disallow userinfo (username:password@host)
-        if parsed.username is not None or parsed.password is not None:
-            return False
-
-        # Disallow query, fragment, and params
-        if parsed.query or parsed.fragment or parsed.params:
-            return False
-
-        # For CORS origins, path must be empty or root
-        if parsed.path not in ("", "/"):
-            return False
-
-        return True
+        if not agent_tools.issubset(main_tools):
+            drift = agent_tools - main_tools
+            raise RuntimeError(CONFIG_DRIFT_ERROR_TEMPLATE.format(drift=drift))
+    except RuntimeError:
+        logger.exception("Configuration validation failed")
+        raise
     except Exception:
-        return False
+        logger.exception("Failed to load configuration for validation")
+        raise
 
 
 @asynccontextmanager
@@ -76,6 +127,10 @@ async def lifespan(app: FastAPI):
     """
     # Execute on startup
     logger.info("Application startup")
+
+    # Validate configuration consistency
+    validate_tool_consistency()
+
     yield
     # Execute on shutdown
     logger.info("Application shutdown")
@@ -84,49 +139,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DeepTutor API", version="1.0.0", lifespan=lifespan)
 
 # Configure CORS
-# The `ALLOWED_ORIGINS` environment variable controls which origins are allowed to
-# call this API from a browser via CORS. It should be a comma-separated list of
-# origins, for example:
-# In production, always set `ALLOWED_ORIGINS` explicitly to the exact origins
-# that should be able to access the API.
-origins_str = os.getenv("ALLOWED_ORIGINS", "")
-if origins_str.strip():
-    origins_list = [origin.strip() for origin in origins_str.split(",") if origin.strip()]
-    # Validate each origin
-    valid_origins = []
-    invalid_origins = []
-    for origin in origins_list:
-        if validate_cors_origin(origin):
-            valid_origins.append(origin)
-        else:
-            invalid_origins.append(origin)
-
-    if invalid_origins:
-        logger.warning(
-            f"Invalid CORS origins found and ignored: {', '.join(invalid_origins)}. "
-            "Origins must be valid URLs starting with http:// or https://"
-        )
-
-    allow_origins = valid_origins
-    logger.info("CORS configured from ALLOWED_ORIGINS for %d valid origin(s)", len(allow_origins))
-else:
-    # Restrictive default for local development: allow only localhost origins when
-    # ALLOWED_ORIGINS is not set. For non-local deployments, set ALLOWED_ORIGINS
-    # to the appropriate domain(s) instead of relying on this default.
-    allow_origins = [
-        "http://localhost",
-        "http://127.0.0.1",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
-    logger.warning(
-        "ALLOWED_ORIGINS is not set; using restrictive localhost-only CORS defaults. "
-        "Set ALLOWED_ORIGINS to a comma-separated list of allowed origins for your "
-        "deployment environment."
-    )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=["*"],  # In production, replace with specific frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -134,7 +149,6 @@ app.add_middleware(
 
 # Mount user directory as static root for generated artifacts
 # This allows frontend to access generated artifacts (images, PDFs, etc.)
-# REMOVED FOR SECURITY: app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
 # URL: /api/outputs/solve/solve_xxx/artifacts/image.png
 # Physical Path: DeepTutor/data/user/solve/solve_xxx/artifacts/image.png
 project_root = Path(__file__).parent.parent.parent
@@ -149,6 +163,8 @@ except Exception:
     # Fallback: just create the main directory if it doesn't exist
     if not user_dir.exists():
         user_dir.mkdir(parents=True)
+
+app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
 
 # Include routers
 app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
@@ -180,6 +196,12 @@ if __name__ == "__main__":
 
     # Get project root directory
     project_root = Path(__file__).parent.parent.parent
+
+    # Ensure project root is in Python path
+    import sys
+
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
     # Get port from configuration
     from src.services.setup import get_backend_port

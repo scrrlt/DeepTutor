@@ -250,8 +250,7 @@ async def websocket_research_run(websocket: WebSocket):
             llm_config = get_llm_config()
             api_key = llm_config.api_key
             base_url = llm_config.base_url
-            api_version = getattr(llm_config, "api_version", None)
-        except Exception as e:
+        except ValueError as e:
             await websocket.send_json({"error": f"LLM configuration error: {e!s}"})
             await websocket.close()
             return
@@ -267,6 +266,16 @@ async def websocket_research_run(websocket: WebSocket):
                 asyncio.get_event_loop().call_soon_threadsafe(progress_queue.put_nowait, event)
             except Exception as e:
                 logger.error(f"Progress callback error: {e}")
+
+        try:
+            llm_config = get_llm_config()
+            api_key = llm_config.api_key
+            base_url = llm_config.base_url
+            api_version = getattr(llm_config, "api_version", None)
+        except Exception:
+            api_key = None
+            base_url = None
+            api_version = None
 
         pipeline = ResearchPipeline(
             config=config,

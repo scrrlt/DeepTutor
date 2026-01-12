@@ -7,6 +7,7 @@ WebSocket endpoint for real-time problem solving with streaming logs.
 
 import asyncio
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -103,8 +104,7 @@ async def websocket_solve(websocket: WebSocket):
             api_key = llm_config.api_key
             base_url = llm_config.base_url
             api_version = getattr(llm_config, "api_version", None)
-        except Exception as e:
-            logger.warning(f"Failed to load LLM config, using defaults: {e}")
+        except Exception:
             api_key = None
             base_url = None
             api_version = None
@@ -116,6 +116,9 @@ async def websocket_solve(websocket: WebSocket):
             base_url=base_url,
             api_version=api_version,
         )
+
+        # Complete async initialization
+        await solver.ainit()
 
         logger.info(f"[{task_id}] Solving: {question[:50]}...")
 
@@ -222,7 +225,11 @@ async def websocket_solve(websocket: WebSocket):
                     if "user" in parts:
                         idx = parts.index("user")
                         rel_path = "/".join(parts[idx + 1 :])
-                        # URL replacement removed for security
+                        base_url = f"/api/outputs/{rel_path}"
+
+                        pattern = r"\]\(artifacts/([^)]+)\)"
+                        replacement = rf"]({base_url}/artifacts/\1)"
+                        final_answer = re.sub(pattern, replacement, final_answer)
                 except Exception as e:
                     logger.debug(f"Error processing image paths: {e}")
 

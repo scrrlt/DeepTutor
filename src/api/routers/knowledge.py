@@ -30,19 +30,18 @@ from src.knowledge.add_documents import DocumentAdder
 from src.knowledge.initializer import KnowledgeBaseInitializer
 from src.knowledge.manager import KnowledgeBaseManager
 from src.knowledge.progress_tracker import ProgressStage, ProgressTracker
+from src.utils.document_validator import DocumentValidator
+from src.utils.error_utils import format_exception_message
 
 _project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(_project_root))
 from src.logging import get_logger
+from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
-from src.utils.config_manager import ConfigManager
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
-config_manager = ConfigManager()
-config = config_manager.load_config_with_module(
-    "solve_config.yaml"
-)  # Use any config to get main.yaml merged
+config = load_config_with_main("solve_config.yaml", project_root)  # Use any config to get main.yaml
 log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("Knowledge", level="INFO", log_dir=log_dir)
 
@@ -290,6 +289,23 @@ async def upload_files(
 ):
     """Upload files to a knowledge base and process them in background."""
     try:
+        # 1. Validate immediately upon receipt using DocumentValidator
+        for file in files:
+            try:
+                sanitized_filename = DocumentValidator.validate_upload_safety(
+                    file.filename, file.file.size
+                )
+                # Use the sanitized filename for all subsequent operations
+                file.filename = sanitized_filename
+            except Exception as e:
+                error_message = (
+                    f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
+                )
+                # Log the full exception with traceback for server-side diagnostics
+                logger.error(error_message, exc_info=True)
+                # Return a client error with file-specific validation details
+                raise HTTPException(status_code=400, detail=error_message) from e
+
         manager = get_kb_manager()
         kb_path = manager.get_knowledge_base_path(kb_name)
         raw_dir = kb_path / "raw"
@@ -329,7 +345,9 @@ async def upload_files(
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Unexpected failure (Server error)
+        formatted_error = format_exception_message(e)
+        raise HTTPException(status_code=500, detail=formatted_error) from e
 
 
 @router.post("/create")
@@ -465,12 +483,13 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                     age_seconds = (now - progress_time).total_seconds()
                     if age_seconds < 300:  # 5 minutes
                         should_send = True
-                except Exception:
+                except:
                     pass
 
             if should_send:
                 await websocket.send_json({"type": "progress", "data": initial_progress})
 
+        last_progress = initial_progress
         last_timestamp = initial_progress.get("timestamp") if initial_progress else None
 
         while True:
@@ -485,6 +504,8 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                             await websocket.send_json(
                                 {"type": "progress", "data": current_progress}
                             )
+                            last_progress = current_progress
+                            last_timestamp = current_timestamp
 
                             if current_progress.get("stage") in ["completed", "error"]:
                                 await asyncio.sleep(3)
@@ -500,11 +521,11 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
         logger.debug(f"Progress WS error: {e}")
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
-        except Exception:
+        except:
             pass
     finally:
         await broadcaster.disconnect(kb_name, websocket)
         try:
             await websocket.close()
-        except Exception:
+        except:
             pass

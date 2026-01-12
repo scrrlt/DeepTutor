@@ -194,8 +194,7 @@ async def websocket_chat(websocket: WebSocket):
                     api_key = llm_config.api_key
                     base_url = llm_config.base_url
                     api_version = getattr(llm_config, "api_version", None)
-                except Exception as e:
-                    logger.warning(f"Failed to load LLM config, using fallback: {e}")
+                except Exception:
                     api_key = None
                     base_url = None
                     api_version = None

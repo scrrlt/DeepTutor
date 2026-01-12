@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
@@ -48,103 +48,6 @@ class ConfigManager:
                     return {}
 
         return self._config_cache.copy()
-
-    def load_config_with_module(
-        self, module_config_file: str, force_reload: bool = False
-    ) -> Dict[str, Any]:
-        """Load module config merged with main.yaml."""
-        main_config = self.load_config(force_reload)
-
-        # Guard against path traversal
-        if ".." in module_config_file or module_config_file.startswith("/"):
-            print(f"Invalid module config file path: {module_config_file}")
-            return main_config
-
-        module_config_path = self.project_root / "config" / module_config_file
-        if not module_config_path.exists():
-            return main_config
-
-        try:
-            with open(module_config_path, "r", encoding="utf-8") as f:
-                raw_config = yaml.safe_load(f)
-                if not isinstance(raw_config, dict):
-                    print(f"Module config {module_config_file} is not a dict, ignoring")
-                    return main_config
-                module_config = raw_config
-        except Exception as e:
-            print(f"Error loading module config {module_config_file}: {e}")
-            return main_config
-
-        # Deep merge: module config overrides main config
-        def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-            if not isinstance(override, dict):
-                print("Override config is not a dict, ignoring merge")
-                return base
-            result = base.copy()
-            for key, value in override.items():
-                if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-                    result[key] = deep_merge(result[key], value)
-                else:
-                    result[key] = value
-            return result
-
-        return deep_merge(main_config, module_config)
-
-    def get_path_from_config(
-        self, config: Dict[str, Any], path_key: str, default: Optional[str] = None
-    ) -> Optional[str]:
-        """Get path from configuration, supports searching in paths and system."""
-        if "paths" in config and path_key in config["paths"]:
-            return config["paths"][path_key]
-
-        # Search in system (backward compatibility)
-        if "system" in config and path_key in config["system"]:
-            return config["system"][path_key]
-
-        # Search in tools (e.g., run_code.workspace)
-        if "tools" in config:
-            if path_key == "workspace" and "run_code" in config["tools"]:
-                return config["tools"]["run_code"].get("workspace", default)
-
-        return default
-
-    def parse_language(self, language: Any) -> str:
-        """Parse language configuration to standardized code."""
-        if not language:
-            return "zh"
-
-        if isinstance(language, str):
-            lang_lower = language.lower()
-            if lang_lower in ["en", "english"]:
-                return "en"
-            if lang_lower in ["zh", "chinese"]:
-                return "zh"
-
-        return "zh"  # Default Chinese
-
-    def get_agent_params(self, module_name: str) -> Dict[str, Any]:
-        """Get agent parameters from config/agents.yaml."""
-        defaults = {
-            "temperature": 0.5,
-            "max_tokens": 4096,
-        }
-
-        try:
-            agents_path = self.project_root / "config" / "agents.yaml"
-            if agents_path.exists():
-                with open(agents_path, "r", encoding="utf-8") as f:
-                    agents_config = yaml.safe_load(f) or {}
-
-                if module_name in agents_config:
-                    module_config = agents_config[module_name]
-                    return {
-                        "temperature": module_config.get("temperature", defaults["temperature"]),
-                        "max_tokens": module_config.get("max_tokens", defaults["max_tokens"]),
-                    }
-        except Exception as e:
-            print(f"Warning: Error loading agents config: {e}")
-
-        return defaults
 
     def save_config(self, config: Dict[str, Any]) -> bool:
         """Save config to main.yaml with deep merge."""
@@ -228,7 +131,7 @@ class ConfigManager:
 
             cfg = get_llm_config()
             return {"model": cfg.model, "binding": cfg.binding}
-        except Exception:
+        except Exception as e:
             # Fallback to env_vars (parsed from .env file)
             model = env_vars.get("LLM_MODEL") or os.environ.get("LLM_MODEL", "unknown")
             binding = env_vars.get("LLM_BINDING") or os.environ.get("LLM_BINDING", "openai")
@@ -245,7 +148,7 @@ class ConfigManager:
                 "binding": cfg.binding,
                 "dim": cfg.dim,
             }
-        except Exception:
+        except Exception as e:
             # Fallback to env_vars (parsed from .env file)
             dim_str = env_vars.get("EMBEDDING_DIM") or os.environ.get("EMBEDDING_DIM", "1536")
             try:
