@@ -18,6 +18,22 @@ from ..types import Citation, SearchResult, WebSearchResponse
 from . import register_provider
 
 
+class PerplexityImportError(ImportError):
+    """Raised when perplexity package is not installed."""
+
+    def __init__(self):
+        super().__init__(
+            "perplexity module is not installed. To use Perplexity search, "
+            "please install: pip install perplexityai"
+        )
+
+
+class PerplexityEmptyResponseError(ValueError):
+    """Raised when Perplexity API returns no choices."""
+
+    def __init__(self, model: str):
+        super().__init__(f"Perplexity API returned no choices for model: {model}")
+
 @register_provider("perplexity")
 class PerplexityProvider(BaseSearchProvider):
     """Perplexity AI search provider"""
@@ -38,10 +54,7 @@ class PerplexityProvider(BaseSearchProvider):
             try:
                 from perplexity import Perplexity
             except ImportError:
-                raise ImportError(
-                    "perplexity module is not installed. To use Perplexity search, please install: "
-                    "pip install perplexity"
-                )
+                raise PerplexityImportError() from None
             self._client = Perplexity(api_key=self.api_key)
         return self._client
 
@@ -72,6 +85,9 @@ class PerplexityProvider(BaseSearchProvider):
                 {"role": "user", "content": query},
             ],
         )
+
+        if not getattr(completion, "choices", None):
+            raise PerplexityEmptyResponseError(model)
 
         answer = completion.choices[0].message.content
 
