@@ -1,5 +1,5 @@
 #!/bin/bash
-# Startup script for DeepTutor
+set -e # Exit immediately if a command exits with a non-zero status
 
 echo "🚀 Starting DeepTutor Backend..."
 
@@ -18,6 +18,8 @@ except Exception as e:
     exit 1
 "
 
-# Start the server
-echo "Starting uvicorn server..."
-exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8001
+# Determine the port to use, defaulting to 8001 if PORT env var is not set
+APP_PORT="${PORT:-8001}"
+echo "Starting uvicorn server on port ${APP_PORT}..."
+exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port "${APP_PORT}"
+echo "Uvicorn server command finished. This line should not be reached if 'exec' worked."
