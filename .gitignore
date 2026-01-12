@@ -84,6 +84,13 @@ cache/
 **/cache/
 .cache/
 
+!src/utils/cache/
+!src/utils/cache/**
+
+src/utils/cache/**/__pycache__/
+src/utils/cache/**/__pycache__/*
+src/utils/cache/**/*.py[cod]
+
 # Log files
 *.log
 
