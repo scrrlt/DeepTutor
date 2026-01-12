@@ -62,7 +62,6 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
-  machineType: 'n1-highcpu-8'
 
 # Set timeout
 timeout: '1200s'
