@@ -16,7 +16,7 @@ try:
     from .pipelines import llamaindex
 
     _llamaindex_available = True
-except ImportError:
+except ModuleNotFoundError:
     llamaindex = None
     _llamaindex_available = False
 

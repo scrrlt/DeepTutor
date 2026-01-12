@@ -59,6 +59,23 @@ class ReportingAgent(BaseAgent):
         converted = self._convert_to_template_format(template_str)
         return Template(converted).safe_substitute(**kwargs)
 
+    @staticmethod
+    def _extract_citation_number(cit_id: str) -> tuple[int, int, int]:
+        """Extract sortable tuple from citation ID for ordering.
+
+        Returns (999, 999, 999) for malformed IDs to sort them last.
+        """
+        try:
+            if cit_id.startswith("PLAN-"):
+                num = int(cit_id.replace("PLAN-", ""))
+                return (0, 0, num)
+            parts_list = cit_id.replace("CIT-", "").split("-")
+            if len(parts_list) == 2:
+                return (1, int(parts_list[0]), int(parts_list[1]))
+        except Exception:
+            pass
+        return (999, 999, 999)
+
     def __init__(
         self,
         config: dict[str, Any],
@@ -565,18 +582,6 @@ class ReportingAgent(BaseAgent):
         # Fallback: build from blocks when no CitationManager available
         citation_map = {}
 
-        def extract_citation_number(cit_id):
-            try:
-                if cit_id.startswith("PLAN-"):
-                    num = int(cit_id.replace("PLAN-", ""))
-                    return (0, 0, num)
-                parts_list = cit_id.replace("CIT-", "").split("-")
-                if len(parts_list) == 2:
-                    return (1, int(parts_list[0]), int(parts_list[1]))
-            except Exception:
-                pass
-            return (999, 999, 999)
-
         all_citations = []
         for block in blocks:
             if block.tool_traces:
@@ -585,7 +590,7 @@ class ReportingAgent(BaseAgent):
                     if citation_id and citation_id not in [c["citation_id"] for c in all_citations]:
                         all_citations.append({"citation_id": citation_id})
 
-        all_citations.sort(key=lambda x: extract_citation_number(x["citation_id"]))
+        all_citations.sort(key=lambda x: self._extract_citation_number(x["citation_id"]))
 
         for idx, cit in enumerate(all_citations, 1):
             citation_map[cit["citation_id"]] = idx
@@ -937,20 +942,7 @@ class ReportingAgent(BaseAgent):
             return "## References\n\n*No citations available.*\n"
 
         # Sort by citation_id (extract numeric parts for sorting)
-        def extract_citation_number(cit_id):
-            try:
-                if cit_id.startswith("PLAN-"):
-                    num = int(cit_id.replace("PLAN-", ""))
-                    return (0, 0, num)
-                # CIT-X-XX format
-                parts_list = cit_id.replace("CIT-", "").split("-")
-                if len(parts_list) == 2:
-                    return (1, int(parts_list[0]), int(parts_list[1]))
-            except Exception:
-                pass
-            return (999, 999, 999)
-
-        all_citations.sort(key=lambda x: extract_citation_number(x["citation_id"]))
+        all_citations.sort(key=lambda x: self._extract_citation_number(x["citation_id"]))
 
         # Generate numbered references in academic paper style
         # Using simple ref-N anchor format for clickable inline citations

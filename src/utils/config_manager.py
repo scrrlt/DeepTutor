@@ -55,19 +55,31 @@ class ConfigManager:
         """Load module config merged with main.yaml."""
         main_config = self.load_config(force_reload)
 
+        # Guard against path traversal
+        if ".." in module_config_file or module_config_file.startswith("/"):
+            print(f"Invalid module config file path: {module_config_file}")
+            return main_config
+
         module_config_path = self.project_root / "config" / module_config_file
         if not module_config_path.exists():
             return main_config
 
         try:
             with open(module_config_path, "r", encoding="utf-8") as f:
-                module_config = yaml.safe_load(f) or {}
+                raw_config = yaml.safe_load(f)
+                if not isinstance(raw_config, dict):
+                    print(f"Module config {module_config_file} is not a dict, ignoring")
+                    return main_config
+                module_config = raw_config
         except Exception as e:
             print(f"Error loading module config {module_config_file}: {e}")
             return main_config
 
         # Deep merge: module config overrides main config
         def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+            if not isinstance(override, dict):
+                print("Override config is not a dict, ignoring merge")
+                return base
             result = base.copy()
             for key, value in override.items():
                 if key in result and isinstance(result[key], dict) and isinstance(value, dict):

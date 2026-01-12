@@ -144,7 +144,7 @@ split-on-trailing-comma = true
 [tool.ruff.lint.per-file-ignores]
 # Allow longer lines in test files
 "**/test_*.py" = ["E501", "PLR2004"]
-## "**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 # Allow print statements in CLI scripts
 "src/knowledge/start_kb.py" = ["T201"]
 "scripts/*.py" = ["T201"]

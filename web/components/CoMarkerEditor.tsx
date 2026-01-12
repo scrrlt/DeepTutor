@@ -337,6 +337,7 @@ export default function CoWriterEditor({
       // When restoring, need to map edits back to original content
       setRawContent("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hideAiMarks]);
 
   // Merge edits with tags - smart AI mark protection

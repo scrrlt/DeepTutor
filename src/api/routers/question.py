@@ -242,20 +242,26 @@ async def websocket_mimic_generate(websocket: WebSocket):
         logger.error(f"Mimic generation error: {e}")
         try:
             await websocket.send_json({"type": "error", "content": str(e)})
-        except Exception:
-            pass
+        except (RuntimeError, WebSocketDisconnect) as send_err:
+            logger.debug(f"Unable to send error message (socket closed): {send_err}")
+        except Exception as send_err:
+            logger.debug(f"Unable to send error message: {send_err}")
     finally:
         sys.stdout = original_stdout
         if pusher_task:
             try:
                 pusher_task.cancel()
                 await pusher_task
-            except Exception:
+            except asyncio.CancelledError:
                 pass
+            except Exception as cancel_err:
+                logger.debug(f"pusher_task shutdown failed: {cancel_err}")
         try:
             await websocket.close()
-        except Exception:
-            pass
+        except (RuntimeError, WebSocketDisconnect) as close_err:
+            logger.debug(f"WebSocket already closed: {close_err}")
+        except Exception as close_err:
+            logger.debug(f"WebSocket close failed: {close_err}")
 
 
 @router.websocket("/generate")

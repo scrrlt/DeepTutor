@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from src.api.routers import (
     agent_config,
@@ -135,6 +134,7 @@ app.add_middleware(
 
 # Mount user directory as static root for generated artifacts
 # This allows frontend to access generated artifacts (images, PDFs, etc.)
+# REMOVED FOR SECURITY: app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
 # URL: /api/outputs/solve/solve_xxx/artifacts/image.png
 # Physical Path: DeepTutor/data/user/solve/solve_xxx/artifacts/image.png
 project_root = Path(__file__).parent.parent.parent
@@ -149,8 +149,6 @@ except Exception:
     # Fallback: just create the main directory if it doesn't exist
     if not user_dir.exists():
         user_dir.mkdir(parents=True)
-
-app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
 
 # Include routers
 app.include_router(solve.router, prefix="/api/v1", tags=["solve"])

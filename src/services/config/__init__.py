@@ -45,6 +45,8 @@ def get_agent_params(module_name):
 
 def _deep_merge(base, override):
     """Backward compatibility - simple deep merge."""
+    if not isinstance(override, dict):
+        return base
     result = base.copy()
     for key, value in override.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):

@@ -7,7 +7,6 @@ WebSocket endpoint for real-time problem solving with streaming logs.
 
 import asyncio
 from pathlib import Path
-import re
 import sys
 from typing import Any
 
@@ -223,11 +222,7 @@ async def websocket_solve(websocket: WebSocket):
                     if "user" in parts:
                         idx = parts.index("user")
                         rel_path = "/".join(parts[idx + 1 :])
-                        base_url = f"/api/outputs/{rel_path}"
-
-                        pattern = r"\]\(artifacts/([^)]+)\)"
-                        replacement = rf"]({base_url}/artifacts/\1)"
-                        final_answer = re.sub(pattern, replacement, final_answer)
+                        # URL replacement removed for security
                 except Exception as e:
                     logger.debug(f"Error processing image paths: {e}")
 
