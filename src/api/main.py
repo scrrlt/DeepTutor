@@ -88,7 +88,6 @@ app = FastAPI(title="DeepTutor API", version="1.0.0", lifespan=lifespan)
 # The `ALLOWED_ORIGINS` environment variable controls which origins are allowed to
 # call this API from a browser via CORS. It should be a comma-separated list of
 # origins, for example:
-#   ALLOWED_ORIGINS="https://app.example.com,https://admin.example.com"
 # In production, always set `ALLOWED_ORIGINS` explicitly to the exact origins
 # that should be able to access the API.
 origins_str = os.getenv("ALLOWED_ORIGINS", "")

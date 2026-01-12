@@ -462,13 +462,12 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                     age_seconds = (now - progress_time).total_seconds()
                     if age_seconds < 300:  # 5 minutes
                         should_send = True
-                except:
+                except Exception:
                     pass
 
             if should_send:
                 await websocket.send_json({"type": "progress", "data": initial_progress})
 
-        last_progress = initial_progress
         last_timestamp = initial_progress.get("timestamp") if initial_progress else None
 
         while True:
@@ -483,8 +482,6 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                             await websocket.send_json(
                                 {"type": "progress", "data": current_progress}
                             )
-                            last_progress = current_progress
-                            last_timestamp = current_timestamp
 
                             if current_progress.get("stage") in ["completed", "error"]:
                                 await asyncio.sleep(3)
@@ -500,11 +497,11 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
         logger.debug(f"Progress WS error: {e}")
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
-        except:
+        except Exception:
             pass
     finally:
         await broadcaster.disconnect(kb_name, websocket)
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass

@@ -54,6 +54,7 @@ select = [
     "E",   # pycodestyle errors (语法错误)
     "F",   # pyflakes (未使用的导入、变量等)
     "I",   # isort (import 排序)
+    "ERA", # eradicate (remove commented-out code)
     # 其他规则都忽略，不强制要求
 ]
 
@@ -69,9 +70,6 @@ ignore = [
     "TRY003", # Avoid specifying long messages outside exception class
     "E402",  # Module level import not at top of file (某些情况下需要)
     "PLC0415", # import should be at top-level (某些情况下需要)
-    "PTH123", # open() should be replaced by Path.open() (允许使用 open)
-    "PTH103", # os.makedirs() should be replaced by Path.mkdir() (允许使用 os.makedirs)
-    "PTH118", # os.path.join() should be replaced by Path (允许使用 os.path.join)
     "B904",  # Within except clause, raise exceptions with raise ... from err
     "EM101",  # Exception must not use a string literal
     "EM102",  # Exception must not use an f-string literal
@@ -81,8 +79,7 @@ ignore = [
     "RET504", # Unnecessary assignment before return
     "PLW2901", # for loop variable overwritten by assignment target
         # "F841",  # Local variable assigned but never used
-    "B006",  # Do not use mutable data structures for argument defaults
-    "E722",  # Do not use bare `except`
+    # "B006",  # Do not use mutable data structures for argument defaults
 ]
 
 # Exclude patterns
@@ -147,7 +144,7 @@ split-on-trailing-comma = true
 [tool.ruff.lint.per-file-ignores]
 # Allow longer lines in test files
 "**/test_*.py" = ["E501", "PLR2004"]
-"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+## "**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 # Allow print statements in CLI scripts
 "src/knowledge/start_kb.py" = ["T201"]
 "scripts/*.py" = ["T201"]

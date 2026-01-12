@@ -100,7 +100,6 @@ def get_path_from_config(config: dict[str, Any], path_key: str, default: str = N
     Returns:
         Path string
     """
-    # Priority: search in paths
     if "paths" in config and path_key in config["paths"]:
         return config["paths"][path_key]
 

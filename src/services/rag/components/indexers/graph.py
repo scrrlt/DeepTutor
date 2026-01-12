@@ -61,7 +61,9 @@ class GraphIndexer(BaseComponent):
             embed_client = get_embedding_client()
 
             # LLM function using services
-            def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+                if history_messages is None:
+                    history_messages = []
                 return openai_complete_if_cache(
                     llm_client.config.model,
                     prompt,

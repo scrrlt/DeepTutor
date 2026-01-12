@@ -159,7 +159,9 @@ class DocumentAdder:
         api_key = self.api_key or self.llm_cfg.api_key
         base_url = self.base_url or self.llm_cfg.base_url
 
-        def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+        def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+            if history_messages is None:
+                history_messages = []
             return openai_complete_if_cache(
                 model,
                 prompt,
@@ -173,7 +175,7 @@ class DocumentAdder:
         def vision_model_func(
             prompt,
             system_prompt=None,
-            history_messages=[],
+            history_messages=None,
             image_data=None,
             messages=None,
             **kwargs,

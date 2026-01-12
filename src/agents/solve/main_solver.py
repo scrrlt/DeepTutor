@@ -181,7 +181,6 @@ class MainSolver:
         self.logger.display_manager = get_display_manager()
 
         # Initialize performance monitor (disabled by default - performance logging is deprecated)
-        monitoring_config = self.config.get("monitoring", {})
         # Disable performance monitor by default to avoid creating performance directory
         self.monitor = PerformanceMonitor(
             enabled=False,

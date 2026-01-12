@@ -116,7 +116,7 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
         debug_logger.debug(
             f"Setting up LightRAG log forwarding (scene={scene}, logger_name={logger_name})"
         )
-    except:
+    except Exception:
         pass  # Ignore if logger setup fails
 
     # Determine logger name
@@ -140,7 +140,6 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
 
     # Store original handlers and level to restore later if needed
     original_handlers = lightrag_logger.handlers[:]  # Copy list
-    original_level = lightrag_logger.level
 
     # Temporarily remove existing console handlers to avoid duplicate output
     # We'll forward all logs through our handler instead
@@ -167,7 +166,7 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     try:
         test_msg = "LightRAG log forwarding enabled"
         lightrag_logger.info(test_msg)
-    except:
+    except Exception:
         pass  # Ignore test log errors
 
     try:
