@@ -250,7 +250,7 @@ class NarratorAgent(BaseAgent):
             self.logger.warning(f"Failed to extract key points: {e}")
             return []
 
-    async def generate_audio(self, script: str, voice: str = None) -> dict[str, Any]:
+    async def generate_audio(self, script: str, voice: str | None = None) -> dict[str, Any]:
         """
         Convert narration script to audio using OpenAI TTS API
 
@@ -354,7 +354,7 @@ class NarratorAgent(BaseAgent):
         self,
         content: str,
         style: str = "friendly",
-        voice: str = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
