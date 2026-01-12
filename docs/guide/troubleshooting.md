@@ -20,6 +20,12 @@ Quick solutions for common issues.
 | WebSocket fails | Check firewall, confirm `ws://localhost:8001/api/v1/...` format |
 | Remote access fails | Set `NEXT_PUBLIC_API_BASE=http://your-ip:8001` in `.env` |
 
+## Frontend Build Issues
+
+| Problem | Solution |
+|:--------|:---------|
+| `next build` gets stuck or panics in a `tokio-runtime-worker` Turbopack Rust backtrace | Force webpack: `npm run build -- --webpack`. If it still fails, delete `web/.next` and retry. |
+
 ## Docker Issues
 
 | Problem | Solution |

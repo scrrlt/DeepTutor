@@ -64,4 +64,4 @@ options:
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
 
 # Set timeout
-timeout: '1200s'
+timeout: '12000s'

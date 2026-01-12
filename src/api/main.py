@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
 
 from src.api.routers import (
     agent_config,
@@ -131,6 +133,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="DeepTutor API", version="1.0.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or request.headers.get("X-Request-Id")
+    if not request_id:
+        request_id = uuid.uuid4().hex
+
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = request_id
+    return response
 
 # Configure CORS
 app.add_middleware(

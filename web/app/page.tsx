@@ -24,23 +24,15 @@ import {
 } from "lucide-react";
 import { useGlobal } from "@/context/GlobalContext";
 import { apiUrl } from "@/lib/api";
+import { processLatexContent } from "@/lib/latex";
 import { getTranslation } from "@/lib/i18n";
+import { KBErrorDisplay } from "@/components/KBErrorDisplay";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatInterface } from "@/components/ChatInterface";
 
 interface KnowledgeBase {
   name: string;
   is_default?: boolean;
-}
-
-function processLatexContent(content: string): string {
-  return content;
-}
-
-function KBErrorDisplay({ error }: { error: string }) {
-  return (
-    <div className="text-xs text-red-600 dark:text-red-400">{error}</div>
-  );
 }
 
 export default function HomePage() {
@@ -61,15 +53,19 @@ export default function HomePage() {
 
   // Fetch knowledge bases
   useEffect(() => {
-    fetch(apiUrl("/api/v1/knowledge/list"))
-      .then(async (res) => {
+    const controller = new AbortController();
+
+    const run = async () => {
+      try {
+        const res = await fetch(apiUrl("/api/v1/knowledge/list"), {
+          signal: controller.signal,
+        });
         if (!res.ok) {
           const errorText = await res.text();
           throw new Error(`HTTP ${res.status}: ${errorText}`);
         }
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
+
         setKbs(data);
         setKbError(null); // Clear any previous error
         if (!chatState.selectedKb) {
@@ -80,26 +76,35 @@ export default function HomePage() {
             setChatState((prev) => ({ ...prev, selectedKb: data[0].name }));
           }
         }
-      })
-      .catch((err) => {
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+
         console.error("Failed to fetch KBs:", err);
+        const message = typeof err?.message === "string" ? err.message : "";
         let errorMessage = "Failed to load knowledge bases.";
 
-        if (err.message.includes("fetch")) {
+        if (message.includes("fetch") || message.includes("Failed to fetch")) {
           errorMessage =
             "Cannot connect to backend server. Please ensure the backend is running on port 8001.";
-        } else if (err.message.includes("HTTP 404")) {
+        } else if (message.includes("HTTP 404")) {
           errorMessage =
             "Knowledge base API not found. Please check your backend configuration.";
-        } else if (err.message.includes("HTTP 500")) {
+        } else if (message.includes("HTTP 500")) {
           errorMessage = "Backend server error. Please check the server logs.";
-        } else if (err.message) {
-          errorMessage += ` ${err.message}`;
+        } else if (message) {
+          errorMessage += ` ${message}`;
         }
 
         errorMessage += " You can still use the chat without knowledge bases.";
         setKbError(errorMessage);
-      });
+      }
+    };
+
+    void run();
+
+    return () => {
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
