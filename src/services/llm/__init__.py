@@ -54,8 +54,6 @@ Usage:
     from src.services.llm import LLMMode, get_llm_mode, get_mode_info
 """
 
-# Also expose the providers for direct access if needed
-from . import cloud_provider, local_provider
 from .capabilities import (
     DEFAULT_CAPABILITIES,
     MODEL_OVERRIDES,
@@ -158,9 +156,6 @@ __all__ = [
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RETRY_DELAY",
     "DEFAULT_EXPONENTIAL_BACKOFF",
-    # Providers
-    "cloud_provider",
-    "local_provider",
     # Provider Management
     "ProviderType",
     "LLMProvider",
