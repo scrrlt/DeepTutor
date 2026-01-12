@@ -131,7 +131,7 @@ class ConfigManager:
 
             cfg = get_llm_config()
             return {"model": cfg.model, "binding": cfg.binding}
-        except Exception as e:
+        except Exception:
             # Fallback to env_vars (parsed from .env file)
             model = env_vars.get("LLM_MODEL") or os.environ.get("LLM_MODEL", "unknown")
             binding = env_vars.get("LLM_BINDING") or os.environ.get("LLM_BINDING", "openai")
@@ -148,7 +148,7 @@ class ConfigManager:
                 "binding": cfg.binding,
                 "dim": cfg.dim,
             }
-        except Exception as e:
+        except Exception:
             # Fallback to env_vars (parsed from .env file)
             dim_str = env_vars.get("EMBEDDING_DIM") or os.environ.get("EMBEDDING_DIM", "1536")
             try:
