@@ -132,6 +132,7 @@ DEFAULT_CAPABILITIES: dict[str, Any] = {
 }
 
 # Model-specific overrides
+# Format: {model_pattern: {capability: value}}
 # Patterns are matched with case-insensitive startswith
 MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
     "deepseek": {

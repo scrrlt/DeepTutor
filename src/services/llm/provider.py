@@ -6,6 +6,7 @@ Manages LLM provider configurations, persisting them to a JSON file.
 Supports both API (cloud) and Local (self-hosted) providers.
 """
 
+import asyncio
 from enum import Enum
 import json
 from pathlib import Path
@@ -79,6 +80,13 @@ class LLMProviderManager:
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
+    async def _load_providers_async(self) -> List[Dict[str, Any]]:
+        """Async version of _load_providers."""
+        try:
+            return await asyncio.to_thread(self._load_providers)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return []
+
     def _save_providers(self, providers: List[Dict[str, Any]]):
         """Save raw provider data to JSON."""
         with open(self.storage_path, "w", encoding="utf-8") as f:
@@ -105,22 +113,27 @@ class LLMProviderManager:
                 return p
         return None
 
+    async def get_active_provider_async(self) -> Optional[LLMProvider]:
+        """Async version of get_active_provider."""
+        raw_providers = await self._load_providers_async()
+        providers = [LLMProvider(**p) for p in raw_providers]
+        for p in providers:
+            if p.is_active:
+                return p
+        return None
+
     def add_provider(self, provider: LLMProvider) -> LLMProvider:
         """Add a new provider. If name exists, raises ValueError."""
         providers = self.list_providers()
-        if any(p.name == provider.name for p in providers):
-            raise ValueError(f"Provider with name '{provider.name}' already exists.")
 
-        # If this is the first provider or set as active, handle activation logic
-        if not providers or provider.is_active:
-            # Deactivate others if this one is active
-            if provider.is_active:
-                for p in providers:
-                    p.is_active = False
-            else:
-                # If it's the only one, make it active by default
-                if not providers:
-                    provider.is_active = True
+        # Ensure provider name is unique
+        if any(p.name == provider.name for p in providers):
+            raise ValueError(f"Provider with name '{provider.name}' already exists")
+
+        # If the new provider is active, deactivate all others
+        if provider.is_active:
+            for p in providers:
+                p.is_active = False
 
         providers.append(provider)
         self._save_providers([p.model_dump() for p in providers])

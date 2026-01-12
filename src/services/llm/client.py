@@ -82,22 +82,14 @@ class LLMClient:
         import asyncio
 
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If already in an async context, we need to use a different approach
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(
-                        asyncio.run, self.complete(prompt, system_prompt, history, **kwargs)
-                    )
-                    return future.result()
-            else:
-                return loop.run_until_complete(
-                    self.complete(prompt, system_prompt, history, **kwargs)
-                )
+            asyncio.get_running_loop()
         except RuntimeError:
             return asyncio.run(self.complete(prompt, system_prompt, history, **kwargs))
+
+        raise RuntimeError(
+            "LLMClient.complete_sync() cannot be called while an event loop is running. "
+            "Use `await client.complete(...)` instead."
+        )
 
     def get_model_func(self):
         """
@@ -134,7 +126,10 @@ class LLMClient:
             return llm_model_func_via_factory
 
         # OpenAI-compatible bindings use lightrag (has caching)
-        from lightrag.llm.openai import openai_complete_if_cache
+        try:
+            from lightrag.llm.openai import openai_complete_if_cache
+        except ImportError:
+            openai_complete_if_cache = None
 
         def llm_model_func(
             prompt: str,
@@ -153,11 +148,20 @@ class LLMClient:
             api_version = getattr(self.config, "api_version", None)
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
-            return openai_complete_if_cache(
-                self.config.model,
-                prompt,
-                **lightrag_kwargs,
-            )
+            if openai_complete_if_cache is None:
+                from . import factory
+
+                return factory.complete(
+                    prompt=prompt,
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    model=self.config.model,
+                    api_key=self.config.api_key,
+                    base_url=self.config.base_url,
+                    binding=binding,
+                    **kwargs,
+                )
+
+            return openai_complete_if_cache(self.config.model, prompt, **lightrag_kwargs)
 
         return llm_model_func
 
@@ -200,7 +204,10 @@ class LLMClient:
             return vision_model_func_via_factory
 
         # OpenAI-compatible bindings
-        from lightrag.llm.openai import openai_complete_if_cache
+        try:
+            from lightrag.llm.openai import openai_complete_if_cache
+        except ImportError:
+            openai_complete_if_cache = None
 
         # Get api_version once for reuse
         api_version = getattr(self.config, "api_version", None)
@@ -228,11 +235,21 @@ class LLMClient:
                 }
                 if api_version:
                     lightrag_kwargs["api_version"] = api_version
-                return openai_complete_if_cache(
-                    self.config.model,
-                    prompt="",
-                    **lightrag_kwargs,
-                )
+                if openai_complete_if_cache is None:
+                    from . import factory
+
+                    return factory.complete(
+                        prompt=prompt,
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        model=self.config.model,
+                        api_key=self.config.api_key,
+                        base_url=self.config.base_url,
+                        binding=binding,
+                        messages=messages,
+                        **clean_kwargs,
+                    )
+
+                return openai_complete_if_cache(self.config.model, prompt="", **lightrag_kwargs)
 
             # Handle image data
             if image_data:
@@ -255,11 +272,21 @@ class LLMClient:
                 }
                 if api_version:
                     lightrag_kwargs["api_version"] = api_version
-                return openai_complete_if_cache(
-                    self.config.model,
-                    prompt="",
-                    **lightrag_kwargs,
-                )
+                if openai_complete_if_cache is None:
+                    from . import factory
+
+                    return factory.complete(
+                        prompt=prompt,
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        model=self.config.model,
+                        api_key=self.config.api_key,
+                        base_url=self.config.base_url,
+                        binding=binding,
+                        messages=[image_message],
+                        **kwargs,
+                    )
+
+                return openai_complete_if_cache(self.config.model, prompt="", **lightrag_kwargs)
 
             # Fallback to regular completion
             lightrag_kwargs = {
@@ -271,11 +298,20 @@ class LLMClient:
             }
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
-            return openai_complete_if_cache(
-                self.config.model,
-                prompt,
-                **lightrag_kwargs,
-            )
+            if openai_complete_if_cache is None:
+                from . import factory
+
+                return factory.complete(
+                    prompt=prompt,
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    model=self.config.model,
+                    api_key=self.config.api_key,
+                    base_url=self.config.base_url,
+                    binding=binding,
+                    **kwargs,
+                )
+
+            return openai_complete_if_cache(self.config.model, prompt, **lightrag_kwargs)
 
         return vision_model_func
 

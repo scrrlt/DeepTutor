@@ -65,6 +65,49 @@ def _get_llm_mode_str() -> str:
     return os.getenv("LLM_MODE", LLM_MODE_HYBRID).lower()
 
 
+def _get_llm_config_from_env() -> LLMConfig:
+    """Get LLM configuration from environment variables."""
+    binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
+    model = _strip_value(os.getenv("LLM_MODEL"))
+    api_key = _strip_value(os.getenv("LLM_API_KEY"))
+    base_url = _strip_value(os.getenv("LLM_HOST"))
+    api_version = _strip_value(os.getenv("LLM_API_VERSION"))
+
+    # Validate required configuration
+    if not model:
+        raise LLMConfigError(
+            "LLM_MODEL not set, please configure it in .env file or activate a provider"
+        )
+
+    # Determine provider type from base_url
+    from .utils import is_local_llm_server
+
+    provider_type: Literal["api", "local"] = "local" if is_local_llm_server(base_url) else "api"
+
+    # Check if API key is required (not required for local providers)
+    requires_key = (
+        provider_type == "api" or os.getenv("LLM_API_KEY_REQUIRED", "false").lower() == "true"
+    )
+
+    if requires_key and not api_key:
+        raise LLMConfigError(
+            "LLM_API_KEY not set, please configure it in .env file or activate a provider"
+        )
+    if not base_url:
+        raise LLMConfigError(
+            "LLM_HOST not set, please configure it in .env file or activate a provider"
+        )
+
+    return LLMConfig(
+        binding=binding,
+        model=model,
+        api_key=api_key or "",
+        base_url=base_url,
+        api_version=api_version,
+        provider_type=provider_type,
+    )
+
+
 def get_llm_config() -> LLMConfig:
     """
     Load LLM configuration from environment variables or provider manager.
@@ -117,45 +160,64 @@ def get_llm_config() -> LLMConfig:
         print(f"⚠️ Failed to load active provider: {e}")
 
     # 2. Fallback to environment variables
-    binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
-    model = _strip_value(os.getenv("LLM_MODEL"))
-    api_key = _strip_value(os.getenv("LLM_API_KEY"))
-    base_url = _strip_value(os.getenv("LLM_HOST"))
-    api_version = _strip_value(os.getenv("LLM_API_VERSION"))
+    return _get_llm_config_from_env()
 
-    # Validate required configuration
-    if not model:
-        raise LLMConfigError(
-            "LLM_MODEL not set, please configure it in .env file or activate a provider"
-        )
 
-    # Determine provider type from base_url
-    from .utils import is_local_llm_server
+async def get_llm_config_async() -> LLMConfig:
+    """
+    Async version of get_llm_config for non-blocking configuration loading.
 
-    provider_type: Literal["api", "local"] = "local" if is_local_llm_server(base_url) else "api"
+    Load LLM configuration from environment variables or provider manager.
 
-    # Check if API key is required (not required for local providers)
-    requires_key = (
-        provider_type == "api" or os.getenv("LLM_API_KEY_REQUIRED", "false").lower() == "true"
-    )
+    The behavior depends on the LLM_MODE environment variable:
+    - hybrid (default): Use active provider if available, else env config
+    - api: Only use API providers (active API provider or env config)
+    - local: Only use local providers (active local provider or env config)
 
-    if requires_key and not api_key:
-        raise LLMConfigError(
-            "LLM_API_KEY not set, please configure it in .env file or activate a provider"
-        )
-    if not base_url:
-        raise LLMConfigError(
-            "LLM_HOST not set, please configure it in .env file or activate a provider"
-        )
+    Priority:
+    1. Active provider from llm_providers.json (if mode compatible)
+    2. Environment variables (.env)
 
-    return LLMConfig(
-        binding=binding,
-        model=model,
-        api_key=api_key or "",
-        base_url=base_url,
-        api_version=api_version,
-        provider_type=provider_type,
-    )
+    Returns:
+        LLMConfig: Configuration dataclass
+
+    Raises:
+        ValueError: If required configuration is missing
+    """
+    mode = _get_llm_mode_str()
+
+    # 1. Try to get active provider from provider manager
+    try:
+        from .provider import provider_manager
+
+        active_provider = await provider_manager.get_active_provider_async()
+
+        if active_provider:
+            provider_is_local = getattr(active_provider, "provider_type", "local") == "local"
+
+            # Check mode compatibility
+            use_provider = False
+            if mode == LLM_MODE_HYBRID:
+                use_provider = True
+            elif mode == LLM_MODE_API and not provider_is_local:
+                use_provider = True
+            elif mode == LLM_MODE_LOCAL and provider_is_local:
+                use_provider = True
+
+            if use_provider:
+                return LLMConfig(
+                    binding=active_provider.binding,
+                    model=active_provider.model,
+                    api_key=active_provider.api_key,
+                    base_url=active_provider.base_url,
+                    api_version=getattr(active_provider, "api_version", None),
+                    provider_type=getattr(active_provider, "provider_type", "local"),
+                )
+    except Exception as e:
+        print(f"⚠️ Failed to load active provider: {e}")
+
+    # 2. Fallback to environment variables (no async needed since these are env vars)
+    return _get_llm_config_from_env()
 
 
 def uses_max_completion_tokens(model: str) -> bool:
