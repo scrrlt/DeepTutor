@@ -53,10 +53,10 @@ def load_logging_config() -> LoggingConfig:
         LoggingConfig instance with loaded or default values.
     """
     try:
-        from src.services.config import get_path_from_config, load_config_with_main
+        from src.utils.config_manager import ConfigManager
 
-        project_root = Path(__file__).resolve().parent.parent.parent
-        config = load_config_with_main("solve_config.yaml", project_root)
+        config_manager = ConfigManager()
+        config = config_manager.load_config_with_module("solve_config.yaml")
 
         logging_config = config.get("logging", {})
 
@@ -65,7 +65,7 @@ def load_logging_config() -> LoggingConfig:
             file_output=logging_config.get("file_output", True),
             console_level=logging_config.get("console_level", "INFO"),
             file_level=logging_config.get("file_level", "DEBUG"),
-            log_dir=get_path_from_config(config, "user_log_dir"),
+            log_dir=config_manager.get_path_from_config(config, "user_log_dir"),
             lightrag_forwarding_enabled=logging_config.get("lightrag_forwarding", {}).get(
                 "enabled", True
             ),

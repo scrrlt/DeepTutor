@@ -709,12 +709,12 @@ export default function CoWriterEditor({
       const isConnected = await checkBackendConnection();
       if (!isConnected) {
         alert(
-          `❌ Backend service not connected\n\n` +
-            `Please ensure the backend is running:\n` +
+          "❌ Backend service not connected\n\n" +
+            "Please ensure the backend is running:\n" +
             `📍 ${apiUrl("")}\n\n` +
-            `💡 How to start:\n` +
-            `   Run in project root: python start.py\n` +
-            `   Or: python start_web.py`,
+            "💡 How to start:\n" +
+            "   Run in project root: python start.py\n" +
+            "   Or: python start_web.py",
         );
         return;
       }
@@ -814,23 +814,23 @@ export default function CoWriterEditor({
         (error.message.includes("fetch") || error.message === "Failed to fetch")
       ) {
         errorMessage =
-          `❌ Cannot connect to backend service\n\n` +
-          `Please ensure the backend is running:\n` +
+          "❌ Cannot connect to backend service\n\n" +
+          "Please ensure the backend is running:\n" +
           `📍 ${backendUrl}\n\n` +
-          `💡 How to start:\n` +
-          `   Run in project root: python start.py\n` +
-          `   Or: python start_web.py\n\n` +
-          `If running on a different port, check NEXT_PUBLIC_API_BASE env variable`;
+          "💡 How to start:\n" +
+          "   Run in project root: python start.py\n" +
+          "   Or: python start_web.py\n\n" +
+          "If running on a different port, check NEXT_PUBLIC_API_BASE env variable";
       } else if (
         error.name === "AbortError" ||
         error.message.includes("timeout")
       ) {
         errorMessage =
-          `⏱️ Request timeout\n\n` +
-          `Backend response took too long, please check:\n` +
-          `1. Is the backend running properly?\n` +
-          `2. Is network connection stable?\n` +
-          `3. Is server load too high?`;
+          "⏱️ Request timeout\n\n" +
+          "Backend response took too long, please check:\n" +
+          "1. Is the backend running properly?\n" +
+          "2. Is network connection stable?\n" +
+          "3. Is server load too high?";
       } else if (error.message) {
         errorMessage = `❌ ${error.message}`;
       } else {
@@ -1470,7 +1470,7 @@ export default function CoWriterEditor({
             <div className="p-4 space-y-4">
               {/* Selected Text Preview */}
               <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 line-clamp-2 italic">
-                "{selection?.text}"
+                &quot;{selection?.text}&quot;
               </div>
 
               {/* Instruction Input */}
@@ -1598,7 +1598,9 @@ export default function CoWriterEditor({
       <div className="flex-1 flex flex-col gap-4">
         {/* Preview Area (Upper) */}
         <div
-          className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all`}
+          className={
+            "flex-1 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col transition-all"
+          }
         >
           {/* Preview Header & Toolbar */}
           <div className="p-2 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -1830,7 +1832,8 @@ export default function CoWriterEditor({
                             </span>
                           </div>
                           <div className="text-xs text-slate-600 truncate mb-1">
-                            "{op.input?.original_text?.substring(0, 35)}..."
+                            &quot;{op.input?.original_text?.substring(0, 35)}
+                            ...&quot;
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-400">
                             {op.source && (

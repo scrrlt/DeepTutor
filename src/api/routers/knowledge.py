@@ -34,12 +34,15 @@ from src.knowledge.progress_tracker import ProgressStage, ProgressTracker
 _project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(_project_root))
 from src.logging import get_logger
-from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.utils.config_manager import ConfigManager
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
-config = load_config_with_main("solve_config.yaml", project_root)  # Use any config to get main.yaml
+config_manager = ConfigManager()
+config = config_manager.load_config_with_module(
+    "solve_config.yaml"
+)  # Use any config to get main.yaml merged
 log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("Knowledge", level="INFO", log_dir=log_dir)
 
