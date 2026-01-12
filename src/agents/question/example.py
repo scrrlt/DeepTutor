@@ -101,7 +101,6 @@ async def main():
     """Entry point for the example script."""
     coordinator = AgentCoordinator(max_rounds=10, kb_name="math2211", output_dir="./output")
 
-    # await run_single_example(coordinator)
     await run_batch_example(coordinator)
 
 

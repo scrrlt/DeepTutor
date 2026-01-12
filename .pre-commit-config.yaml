@@ -63,7 +63,7 @@ repos:
   # Frontend code formatting and linting
   # ============================================
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.0.0
+    rev: v9.39.1
     hooks:
       - id: eslint
         files: ^web/.*\.(js|jsx|ts|tsx)$

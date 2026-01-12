@@ -64,9 +64,6 @@ def query_numbered_item(
 
     # If path not specified, use absolute path relative to this file
     if kb_base_dir is None:
-        # __file__ = DeepTutor/tools/query_item_tool.py
-        # .parent = DeepTutor/tools
-        # .parent = DeepTutor
         kb_base_dir = Path(__file__).parent.parent.parent / "data/knowledge_bases"
     else:
         kb_base_dir = Path(kb_base_dir)

@@ -73,7 +73,7 @@ def list_pipelines() -> List[Dict[str, str]]:
     Returns:
         List of pipeline info dictionaries
     """
-    return [
+    pipelines = [
         {
             "id": "raganything",
             "name": "RAG-Anything",
@@ -85,16 +85,20 @@ def list_pipelines() -> List[Dict[str, str]]:
             "description": "Component-based pipeline with knowledge graph",
         },
         {
-            "id": "llamaindex",
-            "name": "LlamaIndex",
-            "description": "Fast vector-based retrieval",
-        },
-        {
             "id": "academic",
             "name": "Academic",
             "description": "Academic documents with numbered item extraction",
         },
     ]
+    if _llamaindex_available:
+        pipelines.append(
+            {
+                "id": "llamaindex",
+                "name": "LlamaIndex",
+                "description": "Fast vector-based retrieval",
+            }
+        )
+    return pipelines
 
 
 def register_pipeline(name: str, factory: Callable):

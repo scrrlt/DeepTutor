@@ -116,7 +116,7 @@ class DenseRetriever(BaseComponent):
 
             # Build results
             results = []
-            for dist, idx in zip(distances[0], indices[0]):
+            for dist, idx in zip(distances[0], indices[0], strict=True):
                 if idx < len(metadata):  # Valid index
                     # NOTE: This conversion is specific to a FAISS IndexFlatL2 index where BOTH
                     # the stored vectors and the query vector have been L2-normalized to unit
@@ -134,7 +134,8 @@ class DenseRetriever(BaseComponent):
                     similarity = max(0.0, min(1.0, similarity))  # Clamp to [0,1]
                     results.append((similarity, metadata[idx]))
         else:
-            # Fallback: Load embeddings and use cosine similarity
+            # Fallback: Load embeddings and use cosine similarity            # Validate kb_name to prevent directory traversal
+            self._validate_kb_path(kb_name)
             embeddings_file = kb_dir / "embeddings.pkl"
             if not embeddings_file.exists():
                 self.logger.error(f"Embeddings file not found: {embeddings_file}")

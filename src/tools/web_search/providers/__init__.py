@@ -146,4 +146,10 @@ __all__ = [
     "get_available_providers",
     "get_providers_info",
     "get_default_provider",
+    "baidu",
+    "exa",
+    "jina",
+    "perplexity",
+    "serper",
+    "tavily",
 ]

@@ -220,7 +220,6 @@ async def websocket_mimic_generate(websocket: WebSocket):
             if result.get("success"):
                 # Results are already sent via ws_callback during generation
                 # Just send the final complete signal
-                total_ref = result.get("total_reference_questions", 0)
                 generated = result.get("generated_questions", [])
                 failed = result.get("failed_questions", [])
 
@@ -243,7 +242,7 @@ async def websocket_mimic_generate(websocket: WebSocket):
         logger.error(f"Mimic generation error: {e}")
         try:
             await websocket.send_json({"type": "error", "content": str(e)})
-        except:
+        except Exception:
             pass
     finally:
         sys.stdout = original_stdout
@@ -251,11 +250,11 @@ async def websocket_mimic_generate(websocket: WebSocket):
             try:
                 pusher_task.cancel()
                 await pusher_task
-            except:
+            except Exception:
                 pass
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass
 
 

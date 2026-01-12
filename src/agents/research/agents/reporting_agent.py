@@ -573,7 +573,7 @@ class ReportingAgent(BaseAgent):
                 parts_list = cit_id.replace("CIT-", "").split("-")
                 if len(parts_list) == 2:
                     return (1, int(parts_list[0]), int(parts_list[1]))
-            except:
+            except Exception:
                 pass
             return (999, 999, 999)
 
@@ -594,7 +594,6 @@ class ReportingAgent(BaseAgent):
 
     def _generate_references(self, blocks: list[TopicBlock]) -> str:
         """Generate References section"""
-        parts = ["## References\n"]
 
         # If using CitationManager, generate from JSON file
         if self.citation_manager:
@@ -947,7 +946,7 @@ class ReportingAgent(BaseAgent):
                 parts_list = cit_id.replace("CIT-", "").split("-")
                 if len(parts_list) == 2:
                     return (1, int(parts_list[0]), int(parts_list[1]))
-            except:
+            except Exception:
                 pass
             return (999, 999, 999)
 
@@ -1238,11 +1237,6 @@ class ReportingAgent(BaseAgent):
             )
 
         # Create enhanced section data with subsection guidance
-        enhanced_section = {
-            "title": section.get("title", block.sub_topic),
-            "instruction": section.get("instruction", ""),
-            "subsection_structure": subsection_info,
-        }
 
         # Prepare block data with subsection hints
         block_data = self._ser_block(block)

@@ -281,7 +281,6 @@ class SolveAgent(BaseAgent):
                 continue
 
             tool_type = str(item.get("type", "")).strip().lower()
-            # query = str(item.get("query", "")).strip()
             query = str(item.get("intent", "")).strip()
 
             if not tool_type:
