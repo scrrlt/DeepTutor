@@ -1,6 +1,27 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import {
+  BookOpen,
+  Bot,
+  Calculator,
+  Database,
+  Edit3,
+  ExternalLink,
+  Globe,
+  GraduationCap,
+  Lightbulb,
+  Loader2,
+  Microscope,
+  PenTool,
+  Send,
+  Trash2,
+  User,
+} from "lucide-react";
 import { useGlobal } from "@/context/GlobalContext";
 import { apiUrl } from "@/lib/api";
 import { getTranslation } from "@/lib/i18n";
@@ -10,6 +31,16 @@ import { ChatInterface } from "@/components/ChatInterface";
 interface KnowledgeBase {
   name: string;
   is_default?: boolean;
+}
+
+function processLatexContent(content: string): string {
+  return content;
+}
+
+function KBErrorDisplay({ error }: { error: string }) {
+  return (
+    <div className="text-xs text-red-600 dark:text-red-400">{error}</div>
+  );
 }
 
 export default function HomePage() {

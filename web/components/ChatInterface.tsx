@@ -8,6 +8,7 @@ import {
   BookOpen,
   ExternalLink,
   Loader2,
+  Send,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
