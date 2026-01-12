@@ -8,16 +8,29 @@ Factory for creating and managing RAG pipelines.
 from typing import Callable, Dict, List, Optional, Union
 
 from .pipeline import RAGPipeline
-from .pipelines import academic, lightrag, llamaindex
+from .pipelines import academic, lightrag
 from .pipelines.raganything import RAGAnythingPipeline
+
+# Conditionally import llamaindex
+try:
+    from .pipelines import llamaindex
+
+    _llamaindex_available = True
+except ImportError:
+    llamaindex = None
+    _llamaindex_available = False
 
 # Pipeline registry
 _PIPELINES: Dict[str, Callable] = {
     "raganything": RAGAnythingPipeline,  # Full multimodal: MinerU parser, deep analysis (slow, thorough)
     "lightrag": lightrag.LightRAGPipeline,  # Knowledge graph: PDFParser, fast text-only (medium speed)
-    "llamaindex": llamaindex.LlamaIndexPipeline,  # Vector-only: Simple chunking, fast (fastest)
     "academic": academic.AcademicPipeline,
 }
+
+if _llamaindex_available:
+    _PIPELINES["llamaindex"] = (
+        llamaindex.LlamaIndexPipeline
+    )  # Vector-only: Simple chunking, fast (fastest)
 
 
 def get_pipeline(

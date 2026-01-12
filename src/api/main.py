@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +29,46 @@ from src.logging import get_logger
 logger = get_logger("API")
 
 
+def validate_cors_origin(origin: str) -> bool:
+    """
+    Validate that a CORS origin is a well-formed origin URL:
+    - Must use http:// or https://
+    - Must have a hostname
+    - Must not include userinfo, query string, fragment, or non-root path
+    """
+    if not origin:
+        return False
+
+    try:
+        # Strip whitespace to avoid accepting values with leading/trailing spaces
+        origin = origin.strip()
+        parsed = urlparse(origin)
+
+        # Require http/https scheme
+        if parsed.scheme not in ("http", "https"):
+            return False
+
+        # Require a hostname (netloc might include port, which is allowed)
+        if not parsed.hostname:
+            return False
+
+        # Disallow userinfo (username:password@host)
+        if parsed.username is not None or parsed.password is not None:
+            return False
+
+        # Disallow query, fragment, and params
+        if parsed.query or parsed.fragment or parsed.params:
+            return False
+
+        # For CORS origins, path must be empty or root
+        if parsed.path not in ("", "/"):
+            return False
+
+        return True
+    except Exception:
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -43,9 +85,50 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DeepTutor API", version="1.0.0", lifespan=lifespan)
 
 # Configure CORS
+# The `ALLOWED_ORIGINS` environment variable controls which origins are allowed to
+# call this API from a browser via CORS. It should be a comma-separated list of
+# origins, for example:
+#   ALLOWED_ORIGINS="https://app.example.com,https://admin.example.com"
+# In production, always set `ALLOWED_ORIGINS` explicitly to the exact origins
+# that should be able to access the API.
+origins_str = os.getenv("ALLOWED_ORIGINS", "")
+if origins_str.strip():
+    origins_list = [origin.strip() for origin in origins_str.split(",") if origin.strip()]
+    # Validate each origin
+    valid_origins = []
+    invalid_origins = []
+    for origin in origins_list:
+        if validate_cors_origin(origin):
+            valid_origins.append(origin)
+        else:
+            invalid_origins.append(origin)
+
+    if invalid_origins:
+        logger.warning(
+            f"Invalid CORS origins found and ignored: {', '.join(invalid_origins)}. "
+            "Origins must be valid URLs starting with http:// or https://"
+        )
+
+    allow_origins = valid_origins
+    logger.info("CORS configured from ALLOWED_ORIGINS for %d valid origin(s)", len(allow_origins))
+else:
+    # Restrictive default for local development: allow only localhost origins when
+    # ALLOWED_ORIGINS is not set. For non-local deployments, set ALLOWED_ORIGINS
+    # to the appropriate domain(s) instead of relying on this default.
+    allow_origins = [
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+    logger.warning(
+        "ALLOWED_ORIGINS is not set; using restrictive localhost-only CORS defaults. "
+        "Set ALLOWED_ORIGINS to a comma-separated list of allowed origins for your "
+        "deployment environment."
+    )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific frontend origin
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -100,12 +183,6 @@ if __name__ == "__main__":
 
     # Get project root directory
     project_root = Path(__file__).parent.parent.parent
-
-    # Ensure project root is in Python path
-    import sys
-
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
 
     # Get port from configuration
     from src.services.setup import get_backend_port

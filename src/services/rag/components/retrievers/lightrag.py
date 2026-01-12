@@ -7,7 +7,7 @@ Pure LightRAG retriever (text-only, no multimodal).
 
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ..base import BaseComponent
 
@@ -51,7 +51,7 @@ class LightRAGRetriever(BaseComponent):
             sys.path.insert(0, str(raganything_path))
 
         try:
-            from lightrag import LightRAG, QueryParam
+            from lightrag import LightRAG
             from lightrag.llm.openai import openai_complete_if_cache
 
             from src.services.embedding import get_embedding_client
@@ -61,7 +61,9 @@ class LightRAGRetriever(BaseComponent):
             embed_client = get_embedding_client()
 
             # LLM function using services (SYNC - LightRAG expects sync functions)
-            def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+                if history_messages is None:
+                    history_messages = []
                 return openai_complete_if_cache(
                     llm_client.config.model,
                     prompt,
@@ -117,6 +119,7 @@ class LightRAGRetriever(BaseComponent):
             # Initialize storages if not already initialized
             await rag.initialize_storages()
             from lightrag.kg.shared_storage import initialize_pipeline_status
+
             await initialize_pipeline_status()
 
             # Import QueryParam for proper query parameter passing
