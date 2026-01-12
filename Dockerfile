@@ -159,6 +159,10 @@ RUN mkdir -p \
     data/user/performance \
     data/knowledge_bases
 
+# Copy startup script (normalize line endings and make executable)
+COPY start.sh ./start.sh
+RUN sed -i 's/\r$//' ./start.sh && chmod +x ./start.sh
+
 # Create supervisord configuration for running both services
 # Log output goes to stdout/stderr so docker logs can capture them
 RUN mkdir -p /etc/supervisor/conf.d
@@ -205,10 +209,8 @@ BACKEND_PORT=${PORT:-${BACKEND_PORT:-8001}}
 
 echo "[Backend]  🚀 Starting FastAPI backend on port ${BACKEND_PORT}..."
 
-# Run uvicorn directly - the application's logging system already handles:
-# 1. Console output (visible in docker logs)
-# 2. File logging to data/user/logs/ai_tutor_*.log
-exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${BACKEND_PORT}
+# Run uvicorn via bash wrapper to ensure consistent environment across platforms
+exec /bin/bash -c "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${BACKEND_PORT}"
 EOF
 
 RUN sed -i 's/\r$//' /app/start-backend.sh && chmod +x /app/start-backend.sh
@@ -318,3 +320,7 @@ RUN sed -i 's/\r$//' /etc/supervisor/conf.d/deeptutor.conf
 
 # Development ports
 EXPOSE 8001 3782
+=======
+# Start the application
+CMD ["bash", "./start.sh"]
+>>>>>>> 9dfce02 (fix(cloud): normalize start.sh line endings + run via bash for Cloud Run)
