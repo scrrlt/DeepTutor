@@ -29,8 +29,9 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Set Python path to include installed dependencies and src
-ENV PYTHONPATH=/app/deps:/app/src:$PYTHONPATH
+# Set Python path to include installed dependencies and project root.
+# IMPORTANT: Do NOT add /app/src directly, otherwise src/logging shadows stdlib logging.
+ENV PYTHONPATH=/app/deps:/app:$PYTHONPATH
 
 # Copy installed dependencies from the builder stage
 COPY --from=builder /app/deps /app/deps
