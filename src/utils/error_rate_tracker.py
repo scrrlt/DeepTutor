@@ -26,8 +26,8 @@ class ErrorRateTracker:
         self.threshold = threshold  # failure rate threshold
         self.alert_callback = alert_callback
         self._lock = threading.RLock()  # Use RLock to allow reentrant locking
-        self._errors: Dict[str, deque] = defaultdict(deque)
-        self._total_calls: Dict[str, deque] = defaultdict(deque)
+        self._errors: Dict[str, deque[float]] = defaultdict(deque)
+        self._total_calls: Dict[str, deque[float]] = defaultdict(deque)
         self._alerted: Dict[str, bool] = defaultdict(bool)  # to avoid repeated alerts
 
     def record_call(self, provider: str, success: bool):

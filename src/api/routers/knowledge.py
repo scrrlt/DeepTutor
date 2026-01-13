@@ -321,9 +321,16 @@ async def upload_files(
                     for chunk in iter(lambda: file.file.read(8192), b""):
                         written_bytes += len(chunk)
                         if written_bytes > max_size:
+                            # Format size in human-readable format
+                            if max_size >= 1024**3:
+                                size_str = f"{max_size / (1024**3):.1f} GB"
+                            elif max_size >= 1024**2:
+                                size_str = f"{max_size / (1024**2):.1f} MB"
+                            else:
+                                size_str = f"{max_size} bytes"
                             raise HTTPException(
                                 status_code=400,
-                                detail=f"File '{file.filename}' exceeds maximum size limit of {max_size} bytes"
+                                detail=f"File '{file.filename}' exceeds maximum size limit of {size_str}"
                             )
                         buffer.write(chunk)
 
@@ -340,7 +347,6 @@ async def upload_files(
                         os.unlink(file_path)
                     except OSError:
                         pass
-                        The debug log statement after the pass statement will never execute because the pass statement doesn't change control flow. Either move the logger.debug() before pass, or remove the pass statement if the logging is the intended action.
 
 
                 error_message = (

@@ -54,20 +54,12 @@ class LLMContextError(LLMServiceError):
     pass
 
 
-from typing import Any, Dict, Optional
+class EnvironmentError(ConfigurationError):
+    """Raised when there's an environment-related configuration error."""
 
-
-class BaseError(Exception):
-    """Base class for all application errors in DeepTutor."""
-
-    def __init__(self, message: str, *, context: Optional[Dict[str, Any]] = None):
-        super().__init__(message)
-        self.context = context or {}
-
-
-class ConfigError(BaseError):
     pass
 
 
-class EnvError(BaseError):
-    pass
+# Aliases for backward compatibility
+ConfigError = ConfigurationError
+EnvError = EnvironmentError

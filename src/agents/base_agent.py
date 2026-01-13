@@ -348,6 +348,7 @@ class BaseAgent(ABC):
         model = model or self.get_model()
         temperature = temperature if temperature is not None else self.get_temperature()
         max_tokens = max_tokens if max_tokens is not None else self.get_max_tokens()
+        max_retries = self.get_max_retries()
 
         # Record call start time
         start_time = time.time()
@@ -398,6 +399,7 @@ class BaseAgent(ABC):
                 api_key=self.api_key,
                 base_url=self.base_url,
                 api_version=self.api_version,
+                max_retries=max_retries,
                 **kwargs,
             )
         except Exception as e:

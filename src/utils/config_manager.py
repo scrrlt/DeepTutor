@@ -57,7 +57,16 @@ class ConfigManager:
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
 
+    def _load_env_file(self, path: Path) -> Dict[str, str]:
+        """Load a .env file and return non-None values as strings."""
+        if not path.exists():
+            return {}
+        return {k: str(v) for k, v in dotenv_values(path).items() if v is not None}
+
     def _read_yaml(self) -> Dict[str, Any]:
+        """Read the main YAML configuration file safely."""
+        if not self.config_path.exists():
+            return {}
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
@@ -170,15 +179,8 @@ class ConfigManager:
         """
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env: Dict[str, str] = {}
-        if env_path.exists():
-            parsed_env.update(
-                {k: str(v) for k, v in dotenv_values(env_path).items() if v is not None}
-            )
-        if local_path.exists():
-            parsed_env.update(
-                {k: str(v) for k, v in dotenv_values(local_path).items() if v is not None}
-            )
+        parsed_env = self._load_env_file(env_path)
+        parsed_env.update(self._load_env_file(local_path))
 
         def _get(key: str, default: str = "") -> str:
             return str(parsed_env.get(key) or os.environ.get(key, default))
@@ -190,15 +192,8 @@ class ConfigManager:
     def validate_required_env(self, keys: List[str]) -> Dict[str, List[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env: Dict[str, str] = {}
-        if env_path.exists():
-            parsed_env.update(
-                {k: str(v) for k, v in dotenv_values(env_path).items() if v is not None}
-            )
-        if local_path.exists():
-            parsed_env.update(
-                {k: str(v) for k, v in dotenv_values(local_path).items() if v is not None}
-            )
+        parsed_env = self._load_env_file(env_path)
+        parsed_env.update(self._load_env_file(local_path))
         missing = [k for k in keys if not (parsed_env.get(k) or os.environ.get(k))]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})

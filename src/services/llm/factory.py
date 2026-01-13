@@ -287,10 +287,16 @@ async def complete(
         ),
     )
     async def _do_complete(**call_kwargs):
-        if use_local:
-            return await local_provider.complete(**call_kwargs)
-        else:
-            return await cloud_provider.complete(**call_kwargs)
+        try:
+            if use_local:
+                return await local_provider.complete(**call_kwargs)
+            else:
+                return await cloud_provider.complete(**call_kwargs)
+        except Exception as e:
+            # Map raw SDK exceptions to unified exceptions for retry logic
+            from .error_mapping import map_error
+            mapped_error = map_error(e, provider=call_kwargs.get("binding", "unknown"))
+            raise mapped_error from e
 
     # Build call kwargs
     call_kwargs = {
