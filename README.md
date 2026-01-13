@@ -151,7 +151,7 @@ addresses specific, localized exception scenarios within agent loops. distinct f
 </a>
 
 **Deep Research**  
-<sub>Knowledge Extention from Textbook with RAG, Web and Paper-search</sub>
+<sub>Knowledge Extension from Textbook with RAG, Web and Paper-search</sub>
 
 </td>
 <td width="33%" align="center">
