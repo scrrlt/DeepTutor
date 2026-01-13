@@ -98,6 +98,8 @@ class WebSearchResponse:
                     "source": r.source,
                     "content": r.content,
                     "score": r.score,
+                    "sitelinks": r.sitelinks,
+                    "attributes": r.attributes,
                 }
                 for r in self.search_results
             ],

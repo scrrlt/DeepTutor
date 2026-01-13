@@ -104,7 +104,7 @@ PROVIDER_TEMPLATES = {
 
 {% endfor %}
 ---
-*{{ results|length }} results via Jina Reader{% if not results[0].content %} (no-content mode){% endif %}*
+*{{ results|length }} results via Jina Reader{% if results and results|length > 0 and not results[0].content %} (no-content mode){% endif %}*
 
 {% if links %}
 ### Extracted Links

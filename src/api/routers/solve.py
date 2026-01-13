@@ -107,7 +107,8 @@ async def websocket_solve(websocket: WebSocket):
             api_version = getattr(llm_config, "api_version", None)
         except Exception as e:
             logger.error(f"Failed to get LLM config: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"LLM configuration error: {e}") from e
+            await websocket.send_json({"type": "error", "content": f"LLM configuration error: {e}"})
+            return
 
         solver = MainSolver(
             kb_name=kb_name,

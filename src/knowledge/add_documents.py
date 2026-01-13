@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import tempfile
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from dotenv import load_dotenv
@@ -370,7 +371,6 @@ class DocumentAdder:
 
     def _record_successful_hash(self, file_path: Path):
         """Update metadata with the hash of a successfully processed file."""
-        # Recalculate hash from the staged file to ensure it matches what was processed
         file_hash = self._get_file_hash(file_path)
         try:
             metadata = {}
@@ -382,8 +382,15 @@ class DocumentAdder:
                 metadata["file_hashes"] = {}
 
             metadata["file_hashes"][file_path.name] = file_hash
-            with open(self.metadata_file, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, indent=2, ensure_ascii=False)
+            # Atomic write: write to temp file, then rename
+            fd, tmp_path = tempfile.mkstemp(dir=self.kb_dir, suffix=".json")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(metadata, f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, self.metadata_file)
+            except Exception:
+                os.unlink(tmp_path)
+                raise
         except Exception as e:
             logger.warning(f"Could not update hash metadata: {e}")
 

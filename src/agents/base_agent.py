@@ -211,7 +211,7 @@ class BaseAgent(ABC):
         Returns:
             Retry count
         """
-        return self.agent_config.get("max_retries", settings.llm_retry.max_retries)
+        return self.agent_config.get("max_retries", settings.retry.max_retries)
 
     # -------------------------------------------------------------------------
     # Token Tracking

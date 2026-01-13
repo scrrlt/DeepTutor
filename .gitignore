@@ -70,6 +70,9 @@ web/dist/
 build/
 web/build/
 
+# TypeScript build info
+*.tsbuildinfo
+
 # ============================================
 # Common Output and Cache Directories
 # ============================================

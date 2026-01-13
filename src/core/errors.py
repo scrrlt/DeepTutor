@@ -1,4 +1,4 @@
-
+"""
 Base exception classes for consistent error handling across the application.
 Provides a standardized way to distinguish between bugs, recoverable errors,
 and configuration issues.

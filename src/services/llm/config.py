@@ -284,6 +284,7 @@ def get_token_limit_kwargs(model: str, max_tokens: int) -> dict:
 __all__ = [
     "LLMConfig",
     "get_llm_config",
+    "get_llm_config_async",
     "uses_max_completion_tokens",
     "get_token_limit_kwargs",
     "LLM_MODE_API",

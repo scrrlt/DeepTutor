@@ -681,13 +681,17 @@ export default function SettingsPage() {
     setEditedEnvVars((prev) => ({ ...prev, [key]: value }));
 
     // Sync SEARCH_PROVIDER env var with config dropdown
-    if (key === "SEARCH_PROVIDER" && value) {
+    if (key === "SEARCH_PROVIDER") {
       setEditedConfig((prev) => {
         if (!prev) return null;
         const newConfig = { ...prev };
         if (!newConfig.tools) newConfig.tools = {};
         if (!newConfig.tools.web_search) newConfig.tools.web_search = {};
-        newConfig.tools.web_search.provider = value;
+        if (value) {
+          newConfig.tools.web_search.provider = value;
+        } else {
+          delete newConfig.tools.web_search.provider;
+        }
         return newConfig;
       });
     }

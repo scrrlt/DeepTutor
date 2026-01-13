@@ -27,6 +27,7 @@ from . import register_provider
 class TavilyProvider(BaseSearchProvider):
     """Tavily research-focused search provider"""
 
+    name = "tavily"
     display_name = "Tavily"
     description = "Research-focused search"
     api_key_env_var = "TAVILY_API_KEY"

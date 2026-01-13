@@ -5,7 +5,7 @@ Analyzes notebook content and generates progressive knowledge point learning pla
 """
 
 import json
-from typing import Any
+from typing import Any, Optional
 
 from src.agents.base_agent import BaseAgent
 
@@ -18,7 +18,7 @@ class LocateAgent(BaseAgent):
         api_key: str,
         base_url: str,
         language: str = "zh",
-        api_version: str | None = None,
+        api_version: Optional[str] = None,
         binding: str = "openai",
     ):
         super().__init__(
@@ -28,6 +28,7 @@ class LocateAgent(BaseAgent):
             base_url=base_url,
             api_version=api_version,
             language=language,
+            binding=binding,
         )
 
     def _format_records(self, records: list[dict[str, Any]]) -> str:

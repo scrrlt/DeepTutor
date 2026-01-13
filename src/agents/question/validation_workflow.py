@@ -192,11 +192,12 @@ Output the retrieval query directly, no additional content.
 
         response_content = response_content.strip()
 
+        # Rough estimation: ~4 chars per token
+        input_tokens_est = (len(system_prompt) + len(prompt)) // 4
+        output_tokens_est = len(response_content) // 4
+
         # Update token statistics if callback is available
         if self.token_stats_callback:
-            # Rough estimation: ~4 chars per token
-            input_tokens_est = (len(system_prompt) + len(prompt)) // 4
-            output_tokens_est = len(response_content) // 4
             self.token_stats_callback(
                 input_tokens=input_tokens_est, output_tokens=output_tokens_est, model=self.model
             )

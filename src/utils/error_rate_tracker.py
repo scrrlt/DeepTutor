@@ -2,7 +2,7 @@
 Error Rate Tracker - Track error rates per provider with alerting.
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 import logging
 import threading
 import time
@@ -26,8 +26,8 @@ class ErrorRateTracker:
         self.threshold = threshold  # failure rate threshold
         self.alert_callback = alert_callback
         self._lock = threading.RLock()  # Use RLock to allow reentrant locking
-        self._errors: Dict[str, list] = defaultdict(list)
-        self._total_calls: Dict[str, list] = defaultdict(list)
+        self._errors: Dict[str, deque] = defaultdict(deque)
+        self._total_calls: Dict[str, deque] = defaultdict(deque)
         self._alerted: Dict[str, bool] = defaultdict(bool)  # to avoid repeated alerts
 
     def record_call(self, provider: str, success: bool):
@@ -70,8 +70,10 @@ class ErrorRateTracker:
     def _cleanup_old_entries(self, provider: str, now: float):
         """Remove entries older than window_size."""
         cutoff = now - self.window_size
-        self._total_calls[provider] = [t for t in self._total_calls[provider] if t > cutoff]
-        self._errors[provider] = [t for t in self._errors[provider] if t > cutoff]
+        while self._total_calls[provider] and self._total_calls[provider][0] <= cutoff:
+            self._total_calls[provider].popleft()
+        while self._errors[provider] and self._errors[provider][0] <= cutoff:
+            self._errors[provider].popleft()
 
 
 # Global instance
