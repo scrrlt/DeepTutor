@@ -31,7 +31,8 @@
 
 <div align="center">
 
-📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 **Interactive Learning Visualization**<br>
+📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 
+**Interactive Learning Visualization**<br>
 🎯 **Knowledge Reinforcement** &nbsp;•&nbsp; 🔍 **Deep Research & Idea Generation**
 
 </div>
@@ -1486,6 +1487,8 @@ This project is licensed under the ***[AGPL-3.0 License](LICENSE)***.
 <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.DeepTutor&style=for-the-badge&color=00d4ff" alt="Views">
 
 </div>
-   
-    
+  
+ 
+   
+ 
  
