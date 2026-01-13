@@ -1,36 +1,35 @@
-<div align="center">
+# branch structure and status overview
 
-<img src="assets/logo-ver2.png" alt="DeepTutor Logo" width="150" style="border-radius: 15px;">
+this document outlines the current state and purpose of the active branches in the repository. documentation is provided to facilitate rebasing strategies and merge order.
 
-# DeepTutor: AI-Powered Personalized Learning Assistant
+## core branches
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)
+### dev
+primary development branch. serves as the baseline for all feature and work branches. contains the most recent merged code for the agent architectures, api routers, and web interface.
 
-<p align="center">
-  <a href="https://discord.gg/zpP9cssj"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
-  &nbsp;&nbsp;
-  <a href="./Communication.md"><img src="https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white" alt="Feishu"></a>
-  &nbsp;&nbsp;
-  <a href="https://github.com/HKUDS/DeepTutor/issues/78"><img src="https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>
-</p>
+### shk-dev
+synchronization branch for upstream/dev. used as a staging area to pull latest changes from the upstream repository and resolve merge conflicts before propagating updates to specific feature branches.
 
+## architectural and feature branches
 
+### feature/config-governance
+implements centralized configuration governance. introduces `config_manager.py` to enforce schema validation and provide a unified interface for system settings. this branch is currently required as a dependency for advanced error handling logic to manage retry counts and timeouts globally.
 
-[**Quick Start**](#quick-start) · [**Core Modules**](#core-modules) · [**FAQ**](#faq)
+### work/llm-error-framework
+introduces a provider-registry architecture, unified error mapping, and telemetry. replaces direct exception pass-through in the service layer with standardized exceptions.
+* **status:** high priority integration.
+* **dependency:** requires rebasing onto `dev` to resolve conflicts in `factory.py` and sync with `config_manager.py`.
 
-[🇨🇳 中文](assets/README/README_CN.md) · [🇯🇵 日本語](assets/README/README_JA.md) · [🇪🇸 Español](assets/README/README_ES.md) · [🇫🇷 Français](assets/README/README_FR.md) · [🇸🇦 العربية](assets/README/README_AR.md) · [🇷🇺 Русский](assets/README/README_RU.md) · [🇮🇳 हिन्दी](assets/README/README_HI.md) · [🇵🇹 Português](assets/README/README_PT.md)
+### ui/provider-autofill-model-dropdown
+targets the `web/` directory components. enables dynamic population of model selection inputs based on the currently active llm provider configuration. reduces hardcoded values in the frontend interface.
 
-</div>
+## optimization and maintenance branches
 
-<div align="center">
+### work/ingestion-oom-hardening
+focuses on the `src/knowledge` module. implements improvements to memory management during document parsing and vector store ingestion. designed to prevent out-of-memory process termination when processing large pdfs or extensive datasets.
 
-📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 **Interactive Learning Visualization**<br>
-🎯 **Knowledge Reinforcement** &nbsp;•&nbsp; 🔍 **Deep Research & Idea Generation**
+### work/focused-error-handling
+addresses specific, localized exception scenarios within agent loops. distinct from the systemic changes in the `llm-error-framework`, this branch provides immediate patches for common runtime failures in the solve and research agents.
 
 </div>
 
