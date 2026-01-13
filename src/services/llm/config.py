@@ -12,6 +12,7 @@ Supports multiple deployment modes:
 """
 
 from dataclasses import dataclass
+import logging
 import os
 from pathlib import Path
 import re
@@ -20,6 +21,8 @@ from typing import Literal, Optional
 from dotenv import load_dotenv
 
 from .exceptions import LLMConfigError
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -157,7 +160,7 @@ def get_llm_config() -> LLMConfig:
                     provider_type=getattr(active_provider, "provider_type", "local"),
                 )
     except Exception as e:
-        print(f"⚠️ Failed to load active provider: {e}")
+        logger.warning(f"Failed to load active provider: {e}")
 
     # 2. Fallback to environment variables
     return _get_llm_config_from_env()
@@ -214,7 +217,7 @@ async def get_llm_config_async() -> LLMConfig:
                     provider_type=getattr(active_provider, "provider_type", "local"),
                 )
     except Exception as e:
-        print(f"⚠️ Failed to load active provider: {e}")
+        logger.warning(f"Failed to load active provider: {e}")
 
     # 2. Fallback to environment variables (no async needed since these are env vars)
     return _get_llm_config_from_env()
