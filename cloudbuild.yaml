@@ -54,10 +54,6 @@ steps:
       - '--set-env-vars'
       - 'LOG_LEVEL=INFO'
 
-# Store the image in Google Container Registry
-images:
-  - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
-
 # Configure logging for service account usage
 options:
   logging: CLOUD_LOGGING_ONLY
