@@ -167,7 +167,7 @@ class RAGPipeline:
         # Ensure the resolved path is within the base directory
         kb_dir = kb_dir.resolve()
         base_dir = Path(self.kb_base_dir).resolve()
-        if not str(kb_dir).startswith(str(base_dir)):
+        if not kb_dir.is_relative_to(base_dir):
             raise ValueError(f"Knowledge base path outside allowed directory: {kb_name}")
 
         if kb_dir.exists():

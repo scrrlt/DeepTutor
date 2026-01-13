@@ -35,7 +35,6 @@ class LLMAPIError(LLMError):
         provider: Optional[str] = None,
     ) -> None:
         super().__init__(message)
-        self.message = message
         self.status_code = status_code
         self.provider = provider
 
@@ -50,6 +49,8 @@ class LLMRateLimitError(LLMAPIError):
 
 class ProviderContextWindowError(LLMAPIError):
     """Error indicating the request exceeded the provider's context window."""
+
+
 ErrorClassifier = Callable[[Exception], bool]
 
 

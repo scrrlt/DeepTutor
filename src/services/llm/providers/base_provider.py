@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict
 
 from ...utils.error_rate_tracker import record_provider_call
 from ...utils.network.circuit_breaker import is_call_allowed, record_call_success
-from ...utils.network.circuit_breaker import circuit_breaker
 from ..error_mapping import map_error
 from ..exceptions import (
     LLMAPIError,

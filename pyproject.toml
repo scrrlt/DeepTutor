@@ -167,3 +167,16 @@ split-on-trailing-comma = true
 # ============================================
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+# ============================================
+# Pytest configuration
+# ============================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--disable-warnings",
+    "--tb=short"
+]

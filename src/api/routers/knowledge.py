@@ -48,6 +48,21 @@ logger = get_logger("Knowledge", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
 
+# Constants for byte conversions
+BYTES_PER_GB = 1024**3
+BYTES_PER_MB = 1024**2
+
+
+def format_bytes_human_readable(size_bytes: int) -> str:
+    """Format bytes into human-readable string (GB, MB, or bytes)."""
+    if size_bytes >= BYTES_PER_GB:
+        return f"{size_bytes / BYTES_PER_GB:.1f} GB"
+    elif size_bytes >= BYTES_PER_MB:
+        return f"{size_bytes / BYTES_PER_MB:.1f} MB"
+    else:
+        return f"{size_bytes} bytes"
+
+
 _kb_base_dir = _project_root / "data" / "knowledge_bases"
 
 # Lazy initialization
@@ -322,15 +337,10 @@ async def upload_files(
                         written_bytes += len(chunk)
                         if written_bytes > max_size:
                             # Format size in human-readable format
-                            if max_size >= 1024**3:
-                                size_str = f"{max_size / (1024**3):.1f} GB"
-                            elif max_size >= 1024**2:
-                                size_str = f"{max_size / (1024**2):.1f} MB"
-                            else:
-                                size_str = f"{max_size} bytes"
+                            size_str = format_bytes_human_readable(max_size)
                             raise HTTPException(
                                 status_code=400,
-                                detail=f"File '{file.filename}' exceeds maximum size limit of {size_str}"
+                                detail=f"File '{file.filename}' exceeds maximum size limit of {size_str}",
                             )
                         buffer.write(chunk)
 
@@ -347,7 +357,6 @@ async def upload_files(
                         os.unlink(file_path)
                     except OSError:
                         pass
-
 
                 error_message = (
                     f"Validation failed for file '{file.filename}': {format_exception_message(e)}"

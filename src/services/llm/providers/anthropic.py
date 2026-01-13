@@ -78,7 +78,7 @@ class AnthropicProvider(BaseLLMProvider):
                     model=model,
                     is_complete=False,
                 )
-            elif chunk.type == "message_delta" and hasattr(chunk, 'usage'):
+            elif chunk.type == "message_delta" and hasattr(chunk, "usage"):
                 # Extract usage from the final message delta
                 usage = {
                     "input_tokens": chunk.usage.input_tokens,

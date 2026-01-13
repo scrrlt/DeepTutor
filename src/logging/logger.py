@@ -24,7 +24,6 @@ from typing import Any, Optional
 from src.config.constants import LOG_SYMBOLS, PROJECT_ROOT
 
 
-
 class LogLevel(Enum):
     """Log levels with associated symbols"""
 

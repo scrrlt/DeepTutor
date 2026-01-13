@@ -20,7 +20,7 @@ class HybridRetriever(BaseComponent):
     """
 
     name = "hybrid_retriever"
-    _instances: Dict[str, any] = {}
+    _instances: Dict[str, Any] = {}
 
     def __init__(self, kb_base_dir: Optional[str] = None):
         """

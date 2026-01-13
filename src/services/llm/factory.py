@@ -295,6 +295,7 @@ async def complete(
         except Exception as e:
             # Map raw SDK exceptions to unified exceptions for retry logic
             from .error_mapping import map_error
+
             mapped_error = map_error(e, provider=call_kwargs.get("binding", "unknown"))
             raise mapped_error from e
 

@@ -56,15 +56,16 @@ class ErrorRateTracker:
 
     def _check_alert(self, provider: str):
         """Check and trigger alert if needed."""
-        if self.check_threshold(provider) and not self._alerted[provider]:
-            rate = self.get_error_rate(provider)
+        rate = self.get_error_rate(provider)
+        exceeds_threshold = rate > self.threshold
+        if exceeds_threshold and not self._alerted[provider]:
             logger.warning(
                 f"Provider {provider} error rate {rate:.2%} exceeds threshold {self.threshold:.2%}"
             )
             if self.alert_callback:
                 self.alert_callback(provider, rate)
             self._alerted[provider] = True
-        elif not self.check_threshold(provider):
+        elif not exceeds_threshold:
             self._alerted[provider] = False  # reset when below threshold
 
     def _cleanup_old_entries(self, provider: str, now: float):

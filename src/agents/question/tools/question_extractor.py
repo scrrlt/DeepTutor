@@ -186,6 +186,7 @@ Please analyze the above exam paper content, extract all question information, a
         if loop.is_running():
             # We're in an existing event loop, run in a thread
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run,
@@ -219,6 +220,7 @@ Please analyze the above exam paper content, extract all question information, a
         if "already running" in str(e):
             # Fallback: use asyncio.run in a thread
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run,
@@ -239,6 +241,8 @@ Please analyze the above exam paper content, extract all question information, a
 
     # Parse JSON response
     try:
+        if not result_text:
+            raise ValueError("LLM returned empty or None response")
         result = json.loads(result_text)
     except json.JSONDecodeError as e:
         print(f"✗ JSON parsing error: {e!s}")

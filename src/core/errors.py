@@ -54,7 +54,7 @@ class LLMContextError(LLMServiceError):
     pass
 
 
-class EnvironmentError(ConfigurationError):
+class EnvironmentConfigError(ConfigurationError):
     """Raised when there's an environment-related configuration error."""
 
     pass
@@ -62,4 +62,4 @@ class EnvironmentError(ConfigurationError):
 
 # Aliases for backward compatibility
 ConfigError = ConfigurationError
-EnvError = EnvironmentError
+EnvError = EnvironmentConfigError
