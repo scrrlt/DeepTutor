@@ -188,7 +188,7 @@ Please analyze the above exam paper content, extract all question information, a
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
-                    loop.run_until_complete,
+                    asyncio.run,
                     llm_complete(
                         prompt=user_prompt,
                         system_prompt=system_prompt,
@@ -237,23 +237,21 @@ Please analyze the above exam paper content, extract all question information, a
         else:
             raise
 
+    # Parse JSON response
+    try:
         result = json.loads(result_text)
-
-        questions = result.get("questions", [])
-        print(f"✓ Successfully extracted {len(questions)} questions")
-
-        return questions
-
     except json.JSONDecodeError as e:
         print(f"✗ JSON parsing error: {e!s}")
         print(f"LLM response content: {result_text[:500]}...")
-        return []
-    except Exception as e:
-        print(f"✗ LLM call failed: {e!s}")
-        import traceback
+        raise ValueError(
+            f"Failed to parse LLM JSON response: {e}. "
+            f"Raw response (first 500 chars): {result_text[:500]!r}"
+        ) from e
 
-        traceback.print_exc()
-        return []
+    questions = result.get("questions", [])
+    print(f"✓ Successfully extracted {len(questions)} questions")
+
+    return questions
 
 
 def save_questions_json(questions: list[dict[str, Any]], output_dir: Path, paper_name: str) -> Path:

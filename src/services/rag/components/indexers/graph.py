@@ -61,7 +61,9 @@ class GraphIndexer(BaseComponent):
             embed_client = get_embedding_client()
 
             # LLM function using services
-            def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+                if history_messages is None:
+                    history_messages = []
                 return openai_complete_if_cache(
                     llm_client.config.model,
                     prompt,
@@ -119,20 +121,22 @@ class GraphIndexer(BaseComponent):
                     import os
                     import tempfile
 
-                    with tempfile.NamedTemporaryFile(
-                        mode="w", encoding="utf-8", suffix=".txt", delete=False
-                    ) as tmp_file:
-                        tmp_file.write(doc.content)
-                        tmp_path = tmp_file.name
-
+                    tmp_path = None
                     try:
+                        with tempfile.NamedTemporaryFile(
+                            mode="w", encoding="utf-8", suffix=".txt", delete=False
+                        ) as tmp_file:
+                            tmp_file.write(doc.content)
+                            tmp_path = tmp_file.name
+
                         # Use RAGAnything API
                         working_dir = str(Path(self.kb_base_dir) / kb_name / "rag_storage")
                         output_dir = os.path.join(working_dir, "output")
                         os.makedirs(output_dir, exist_ok=True)
                         await rag.process_document_complete(tmp_path, output_dir)
                     finally:
-                        os.unlink(tmp_path)
+                        if tmp_path and os.path.exists(tmp_path):
+                            os.unlink(tmp_path)
 
         self.logger.info("Knowledge graph built successfully")
         return True

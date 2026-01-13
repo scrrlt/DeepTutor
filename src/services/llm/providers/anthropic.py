@@ -48,6 +48,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         return await self.execute_with_retry(_call_api)
 
+    @track_llm_call("anthropic")
     async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
         model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
         max_tokens = kwargs.pop("max_tokens", 1024)
@@ -63,6 +64,7 @@ class AnthropicProvider(BaseLLMProvider):
 
         stream = await self.execute_with_retry(_create_stream)
         accumulated_content = ""
+        usage = None
 
         async for chunk in stream:
             if chunk.type == "content_block_delta" and chunk.delta.text:
@@ -76,6 +78,12 @@ class AnthropicProvider(BaseLLMProvider):
                     model=model,
                     is_complete=False,
                 )
+            elif chunk.type == "message_delta" and hasattr(chunk, 'usage'):
+                # Extract usage from the final message delta
+                usage = {
+                    "input_tokens": chunk.usage.input_tokens,
+                    "output_tokens": chunk.usage.output_tokens,
+                }
 
         yield TutorStreamChunk(
             content=accumulated_content,
@@ -83,4 +91,5 @@ class AnthropicProvider(BaseLLMProvider):
             provider="anthropic",
             model=model,
             is_complete=True,
+            usage=usage,
         )

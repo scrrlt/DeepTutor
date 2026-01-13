@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict
 
 from ...utils.error_rate_tracker import record_provider_call
 from ...utils.network.circuit_breaker import is_call_allowed, record_call_success
+from ...utils.network.circuit_breaker import circuit_breaker
 from ..error_mapping import map_error
 from ..exceptions import (
     LLMAPIError,
@@ -56,6 +57,8 @@ class BaseLLMProvider(ABC):
     async def execute_with_retry(self, func: Callable, *args, max_retries=3, **kwargs):
         """Standard retry wrapper with exponential backoff."""
         if not is_call_allowed(self.provider_name):
+            record_provider_call(self.provider_name, success=False)
+
             raise LLMError(f"Circuit breaker open for provider {self.provider_name}")
 
         for attempt in range(max_retries + 1):

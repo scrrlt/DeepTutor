@@ -31,7 +31,7 @@
   <div class="card-desc">分享反馈，提出功能建议</div>
   <div class="card-links">
     <div class="link-row">
-      <a href="https://discord.gg/permanent-invite" class="discord">Discord</a>
+      <a href="https://discord.gg/zpP9cssj" class="discord">Discord</a>
       <a href="https://github.com/HKUDS/DeepTutor/issues/78" class="wechat">微信群</a>
     </div>
     <div class="link-row">

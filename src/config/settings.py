@@ -32,10 +32,11 @@ class Settings(BaseSettings):
     @property
     def llm_retry(self):
         import warnings
+
         warnings.warn(
             "settings.llm_retry is deprecated, use settings.retry instead",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.retry
 

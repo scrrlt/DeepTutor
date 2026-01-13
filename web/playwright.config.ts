@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const BASE_URL =
-  process.env.WEB_BASE_URL || process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000";
+  process.env.WEB_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "http://localhost:3000";
 const SERIAL_MODE = process.env.PW_SERIAL === "1";
 
 export default defineConfig({

@@ -81,10 +81,7 @@ class LLMProviderManager:
 
     async def _load_providers_async(self) -> List[Dict[str, Any]]:
         """Async version of _load_providers."""
-        try:
-            return await asyncio.to_thread(self._load_providers)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return []
+        return await asyncio.to_thread(self._load_providers)
 
     def _save_providers(self, providers: List[Dict[str, Any]]):
         """Save raw provider data to JSON."""

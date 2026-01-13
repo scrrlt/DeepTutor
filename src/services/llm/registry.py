@@ -23,6 +23,8 @@ def register_provider(name: str):
     """
 
     def decorator(cls):
+        if name in _provider_registry:
+            raise ValueError(f"Provider '{name}' is already registered")
         _provider_registry[name] = cls
         cls.__provider_name__ = name  # Store name on class for introspection
         return cls

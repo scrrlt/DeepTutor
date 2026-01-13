@@ -1,14 +1,18 @@
 from typing import Any, Dict
+
 from pydantic import BaseModel, field_validator
+
 
 class LLMConfig(BaseModel):
     model: str
     provider: str = "openai"
 
+
 class PathsConfig(BaseModel):
     user_data_dir: str
     knowledge_bases_dir: str
     user_log_dir: str
+
 
 class AppConfig(BaseModel):
     llm: LLMConfig
@@ -23,7 +27,9 @@ class AppConfig(BaseModel):
             raise ValueError("llm.model is required")
         return v
 
+
 CURRENT_SCHEMA_VERSION = 1
+
 
 def migrate_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """

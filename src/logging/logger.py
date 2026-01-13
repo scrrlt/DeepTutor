@@ -24,20 +24,6 @@ from typing import Any, Optional
 from src.config.constants import LOG_SYMBOLS, PROJECT_ROOT
 
 
-def get_project_root() -> Path:
-    """Robust way to find project root: look for a marker file like 'pyproject.toml'."""
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").exists():
-            return parent
-    logging.getLogger(__name__).warning(
-        "Project root could not be determined because 'pyproject.toml' was not found "
-        "in any parent directory. Ensure you are running commands from within the "
-        "project directory and that 'pyproject.toml' exists in the project root. "
-        f"Searched parent directories: {', '.join(str(p) for p in current.parents) or '<none>'}"
-    )
-    return current.parents[0] if current.parents else Path.cwd()
-
 
 class LogLevel(Enum):
     """Log levels with associated symbols"""

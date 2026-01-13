@@ -19,6 +19,9 @@ class DeepTutorError(Exception):
         if self.details:
             return f"{self.message} (details: {self.details})"
         return self.message
+        if self.details:
+            return f"{self.message} (details: {self.details})"
+        return self.message
 
 
 class ConfigurationError(DeepTutorError):
@@ -49,16 +52,22 @@ class LLMContextError(LLMServiceError):
     """Raised when prompt exceeds model context window."""
 
     pass
+
+
 from typing import Any, Dict, Optional
 
+
 class BaseError(Exception):
+    """Base class for all application errors in DeepTutor."""
+
     def __init__(self, message: str, *, context: Optional[Dict[str, Any]] = None):
         super().__init__(message)
         self.context = context or {}
 
+
 class ConfigError(BaseError):
     pass
 
+
 class EnvError(BaseError):
     pass
-

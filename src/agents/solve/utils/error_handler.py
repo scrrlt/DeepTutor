@@ -349,7 +349,7 @@ def validate_none_tool_constraint(
         tool_type_key: Key to access tool type in each dict (default: "tool_type")
 
     Raises:
-        ParseError: If none tool constraint is violated
+        LLMParseError: If none tool constraint is violated
     """
     has_none = any(
         isinstance(tool_type := tool.get(tool_type_key), str) and tool_type.lower() == "none"

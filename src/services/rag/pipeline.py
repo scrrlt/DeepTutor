@@ -157,9 +157,19 @@ class RAGPipeline:
         Returns:
             True if successful
         """
+        # Validate kb_name to prevent path traversal
+        if not kb_name or kb_name in (".", "..") or "/" in kb_name or "\\" in kb_name:
+            raise ValueError(f"Invalid knowledge base name: {kb_name}")
+
         self.logger.info(f"Deleting KB '{kb_name}'")
 
         kb_dir = Path(self.kb_base_dir) / kb_name
+        # Ensure the resolved path is within the base directory
+        kb_dir = kb_dir.resolve()
+        base_dir = Path(self.kb_base_dir).resolve()
+        if not str(kb_dir).startswith(str(base_dir)):
+            raise ValueError(f"Knowledge base path outside allowed directory: {kb_name}")
+
         if kb_dir.exists():
             shutil.rmtree(kb_dir)
             self.logger.info(f"Deleted KB directory: {kb_dir}")

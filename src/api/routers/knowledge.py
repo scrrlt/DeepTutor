@@ -305,41 +305,48 @@ async def upload_files(
         uploaded_files = []
         uploaded_file_paths = []
 
-        # 1. Save files and validate after saving (more efficient for large streamed files)
+        # 1. Save files and validate size during streaming
         for file in files:
+            file_path = None
             try:
                 # Sanitize filename first (without size validation)
                 sanitized_filename = DocumentValidator.validate_upload_safety(file.filename, None)
                 file.filename = sanitized_filename
 
-                # Save file to disk
+                # Save file to disk with size checking during streaming
                 file_path = raw_dir / file.filename
+                max_size = DocumentValidator.MAX_FILE_SIZE
+                written_bytes = 0
                 with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
+                    for chunk in iter(lambda: file.file.read(8192), b""):
+                        written_bytes += len(chunk)
+                        if written_bytes > max_size:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=f"File '{file.filename}' exceeds maximum size limit of {max_size} bytes"
+                            )
+                        buffer.write(chunk)
 
-                # Now validate size using actual file size
-                actual_size = os.path.getsize(file_path)
-                DocumentValidator.validate_upload_safety(
-                    file.filename, actual_size
-                )  # Re-validate with actual size
+                # Validate with actual size (additional checks)
+                DocumentValidator.validate_upload_safety(file.filename, written_bytes)
 
                 uploaded_files.append(file.filename)
                 uploaded_file_paths.append(str(file_path))
 
             except Exception as e:
-                # Clean up partially saved file if validation fails
-                try:
-                    if file_path.exists():
+                # Clean up partially saved file
+                if file_path and file_path.exists():
+                    try:
                         os.unlink(file_path)
-                except (OSError, NameError):
-                    pass  # Ignore cleanup errors or if file_path not defined
+                    except OSError:
+                        pass
+                        The debug log statement after the pass statement will never execute because the pass statement doesn't change control flow. Either move the logger.debug() before pass, or remove the pass statement if the logging is the intended action.
+
 
                 error_message = (
                     f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
                 )
-                # Log the full exception with traceback for server-side diagnostics
                 logger.error(error_message, exc_info=True)
-                # Return a client error with file-specific validation details
                 raise HTTPException(status_code=400, detail=error_message) from e
 
         logger.info(f"Uploading {len(uploaded_files)} files to KB '{kb_name}'")

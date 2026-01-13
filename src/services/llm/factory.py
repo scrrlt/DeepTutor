@@ -261,7 +261,7 @@ async def complete(
 
         status_code = getattr(exc, "status_code", None)
         if status_code is None:
-            # Without an HTTP status code, we conservatively avoid retrying here.
+            # Do not retry when status code is unknown to avoid retrying non-transient errors
             return False
 
         if status_code == 429:

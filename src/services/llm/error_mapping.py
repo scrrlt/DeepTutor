@@ -16,17 +16,40 @@ except ImportError:  # pragma: no cover
     openai = None  # type: ignore
     _HAS_OPENAI = False
 
-from .exceptions import (
-    LLMAPIError,
-    LLMAuthenticationError,
-    LLMError,
-    LLMRateLimitError,
-    ProviderContextWindowError,
-    ProviderQuotaExceededError,
-)
 
 logger = logging.getLogger(__name__)
 
+
+class LLMError(Exception):
+    """Base exception for all LLM-related errors."""
+
+
+class LLMAPIError(LLMError):
+    """Generic API error raised for provider-specific failures."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: Optional[int] = None,
+        provider: Optional[str] = None,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+        self.provider = provider
+
+
+class LLMAuthenticationError(LLMAPIError):
+    """Authentication/authorization related error for LLM providers."""
+
+
+class LLMRateLimitError(LLMAPIError):
+    """Rate limiting / quota exhaustion error for LLM providers."""
+
+
+class ProviderContextWindowError(LLMAPIError):
+    """Error indicating the request exceeded the provider's context window."""
 ErrorClassifier = Callable[[Exception], bool]
 
 
@@ -51,7 +74,7 @@ def _message_contains(*needles: str) -> ErrorClassifier:
 _GLOBAL_RULES: List[MappingRule] = [
     MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
-        factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
+        factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
     ),
     MappingRule(
         classifier=_message_contains("context length", "maximum context"),
@@ -67,7 +90,7 @@ if _HAS_OPENAI:
         ),
         MappingRule(
             classifier=_instance_of(openai.RateLimitError),
-            factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
+            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
         ),
     ]
 
@@ -78,7 +101,7 @@ try:
     _GLOBAL_RULES.append(
         MappingRule(
             classifier=_instance_of(anthropic.RateLimitError),
-            factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
+            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
         )
     )
 except ImportError:

@@ -11,7 +11,7 @@ import re
 import sys
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.agents.solve import MainSolver
 from src.api.utils.history import ActivityType, history_manager
