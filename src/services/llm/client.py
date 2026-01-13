@@ -121,6 +121,7 @@ class LLMClient:
                     api_key=self.config.api_key,
                     base_url=self.config.base_url,
                     binding=binding,
+                    history_messages=history_messages,
                     **kwargs,
                 )
 
@@ -187,6 +188,8 @@ class LLMClient:
                     base_url=self.config.base_url,
                     binding=binding,
                     messages=messages,
+                    history_messages=history_messages,
+                    image_data=image_data,
                     **kwargs,
                 )
 

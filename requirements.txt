@@ -26,6 +26,7 @@ urllib3>=2.2.1
 # Async support
 # ============================================
 nest_asyncio>=1.5.8
+tenacity>=8.0.0
 
 # ============================================
 # Web framework and server
@@ -50,13 +51,13 @@ arxiv>=2.0.0
 # ============================================
 # Scientific computing (for RAG and code execution)
 # ============================================
-numpy>=1.24.0
+numpy>=1.24.0,<2.0.0  # NumPy 1.24+ required for array API, <2.0 for compatibility
 # matplotlib>=3.7.0  # Uncomment if needed for plotting
 # scipy>=1.11.0      # Uncomment if needed for scientific computing
 # pandas>=2.0.0      # Uncomment if needed for data analysis
 
 # PDF parsing
-PyMuPDF>=1.23.0      # For PDF text extraction (fast and reliable)
+PyMuPDF>=1.26.0      # For PDF text extraction (fast and reliable)
 
 # Vector search (optional but recommended for llamaindex pipeline)
 # faiss-cpu>=1.7.4   # Uncomment for CPU-only FAISS support (faster search)

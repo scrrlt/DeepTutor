@@ -33,7 +33,7 @@ ErrorClassifier = Callable[[Exception], bool]
 @dataclass(frozen=True)
 class MappingRule:
     classifier: ErrorClassifier
-    factory: Callable[[Exception], LLMError]
+    factory: Callable[[Exception, Optional[str]], LLMError]
 
 
 def _instance_of(*types: Type[BaseException]) -> ErrorClassifier:
@@ -51,11 +51,11 @@ def _message_contains(*needles: str) -> ErrorClassifier:
 _GLOBAL_RULES: List[MappingRule] = [
     MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
-        factory=lambda exc: ProviderQuotaExceededError(str(exc)),
+        factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
     ),
     MappingRule(
         classifier=_message_contains("context length", "maximum context"),
-        factory=lambda exc: ProviderContextWindowError(str(exc)),
+        factory=lambda exc, provider: ProviderContextWindowError(str(exc), provider=provider),
     ),
 ]
 
@@ -63,11 +63,11 @@ if _HAS_OPENAI:
     _GLOBAL_RULES[:0] = [
         MappingRule(
             classifier=_instance_of(openai.AuthenticationError),
-            factory=lambda exc: LLMAuthenticationError(str(exc)),
+            factory=lambda exc, provider: LLMAuthenticationError(str(exc), provider=provider),
         ),
         MappingRule(
             classifier=_instance_of(openai.RateLimitError),
-            factory=lambda exc: ProviderQuotaExceededError(str(exc)),
+            factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
         ),
     ]
 
@@ -78,7 +78,7 @@ try:
     _GLOBAL_RULES.append(
         MappingRule(
             classifier=_instance_of(anthropic.RateLimitError),
-            factory=lambda exc: ProviderQuotaExceededError(str(exc)),
+            factory=lambda exc, provider: ProviderQuotaExceededError(str(exc), provider=provider),
         )
     )
 except ImportError:
@@ -96,6 +96,6 @@ def map_error(exc: Exception, provider: Optional[str] = None) -> LLMError:
 
     for rule in _GLOBAL_RULES:
         if rule.classifier(exc):
-            return rule.factory(exc)
+            return rule.factory(exc, provider)
 
     return LLMAPIError(str(exc), status_code=status_code, provider=provider)

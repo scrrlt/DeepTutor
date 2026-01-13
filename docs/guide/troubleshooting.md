@@ -28,7 +28,7 @@ Ctrl+C sometimes only terminates the frontend process while the backend continue
 
 ```bash
 # macOS/Linux
-lsof -i :8001 && kill -9 <PID>
+kill -9 $(lsof -t -i :8001)
 
 # Windows
 netstat -ano | findstr :8001

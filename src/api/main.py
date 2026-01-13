@@ -103,10 +103,10 @@ def validate_tool_consistency():
 
         project_root = Path(__file__).parent.parent.parent
         main_config = load_config_with_main("main.yaml", project_root)
-        agent_config = load_config_with_main("agents.yaml", project_root)
+        agent_config_data = load_config_with_main("agents.yaml", project_root)
 
         main_tools = set(main_config.get("solve", {}).get("valid_tools", []))
-        agent_tools = set(agent_config.get("investigate", {}).get("valid_tools", []))
+        agent_tools = set(agent_config_data.get("investigate", {}).get("valid_tools", []))
 
         if not agent_tools.issubset(main_tools):
             drift = agent_tools - main_tools

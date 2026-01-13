@@ -8,6 +8,8 @@ import logging
 import random
 from typing import Any, Callable, Dict
 
+from ...utils.error_rate_tracker import record_provider_call
+from ...utils.network.circuit_breaker import is_call_allowed, record_call_success
 from ..error_mapping import map_error
 from ..exceptions import (
     LLMAPIError,
@@ -53,10 +55,16 @@ class BaseLLMProvider(ABC):
 
     async def execute_with_retry(self, func: Callable, *args, max_retries=3, **kwargs):
         """Standard retry wrapper with exponential backoff."""
+        if not is_call_allowed(self.provider_name):
+            raise LLMError(f"Circuit breaker open for provider {self.provider_name}")
+
         for attempt in range(max_retries + 1):
             try:
                 async with self.traffic_controller:
-                    return await func(*args, **kwargs)
+                    result = await func(*args, **kwargs)
+                    record_provider_call(self.provider_name, success=True)
+                    record_call_success(self.provider_name)
+                    return result
             except Exception as e:
                 mapped_e = self._map_exception(e)
 
@@ -68,7 +76,8 @@ class BaseLLMProvider(ABC):
                         is_retriable = True
 
                 if attempt >= max_retries or not is_retriable:
-                    raise mapped_e
+                    record_provider_call(self.provider_name, success=False)
+                    raise mapped_e from e
 
                 delay = (1.5**attempt) + (random.random() * 0.5)
                 logger.warning(

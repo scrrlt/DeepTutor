@@ -115,13 +115,19 @@ class ExaProvider(BaseSearchProvider):
         response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
 
         if response.status_code != 200:
-            error_data = response.json() if response.text else {}
+            try:
+                error_data = response.json() if response.text else {}
+            except Exception:
+                error_data = {}
             self.logger.error(f"Exa API error: {response.status_code}")
             raise Exception(
                 f"Exa API error: {response.status_code} - {error_data.get('error', response.text)}"
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception as e:
+            raise Exception(f"Failed to parse Exa API response: {e}")
         self.logger.debug(f"Exa returned {len(data.get('results', []))} results")
 
         # Build answer from summaries

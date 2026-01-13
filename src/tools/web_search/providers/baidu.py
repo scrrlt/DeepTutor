@@ -99,13 +99,19 @@ class BaiduProvider(BaseSearchProvider):
         response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
 
         if response.status_code != 200:
-            error_data = response.json() if response.text else {}
+            try:
+                error_data = response.json() if response.text else {}
+            except Exception:
+                error_data = {}
             raise Exception(
                 f"Baidu AI Search API error: {response.status_code} - "
                 f"{error_data.get('message', response.text)}"
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception as e:
+            raise Exception(f"Failed to parse Baidu API response: {e}")
 
         # Extract answer from response
         answer = ""

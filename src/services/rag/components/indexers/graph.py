@@ -115,8 +115,24 @@ class GraphIndexer(BaseComponent):
 
             for doc in documents:
                 if doc.content:
-                    # RAGAnything uses process_document_complete_lightrag_api instead of ainsert
-                    await rag.process_document_complete_lightrag_api(doc.content)
+                    # Write content to temporary file
+                    import os
+                    import tempfile
+
+                    with tempfile.NamedTemporaryFile(
+                        mode="w", encoding="utf-8", suffix=".txt", delete=False
+                    ) as tmp_file:
+                        tmp_file.write(doc.content)
+                        tmp_path = tmp_file.name
+
+                    try:
+                        # Use RAGAnything API
+                        working_dir = str(Path(self.kb_base_dir) / kb_name / "rag_storage")
+                        output_dir = os.path.join(working_dir, "output")
+                        os.makedirs(output_dir, exist_ok=True)
+                        await rag.process_document_complete(tmp_path, output_dir)
+                    finally:
+                        os.unlink(tmp_path)
 
         self.logger.info("Knowledge graph built successfully")
         return True

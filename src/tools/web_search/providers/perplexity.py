@@ -37,11 +37,11 @@ class PerplexityProvider(BaseSearchProvider):
         if self._client is None:
             try:
                 from perplexity import Perplexity
-            except ImportError:
+            except ImportError as e:
                 raise ImportError(
-                    "perplexity module is not installed. To use Perplexity search, please install: "
-                    "pip install perplexity"
-                )
+                    "perplexityai module is not installed. To use Perplexity search, please install: "
+                    "pip install perplexityai"
+                ) from e
             self._client = Perplexity(api_key=self.api_key)
         return self._client
 
@@ -72,6 +72,9 @@ class PerplexityProvider(BaseSearchProvider):
                 {"role": "user", "content": query},
             ],
         )
+
+        if not completion.choices or len(completion.choices) == 0:
+            raise ValueError("Perplexity API returned no choices")
 
         answer = completion.choices[0].message.content
 

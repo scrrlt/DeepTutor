@@ -36,14 +36,14 @@ class DocumentValidator:
 
     @staticmethod
     def validate_upload_safety(
-        filename: str, file_size: int, allowed_extensions: set[str] | None = None
+        filename: str, file_size: int | None, allowed_extensions: set[str] | None = None
     ) -> str:
         """
         Validate file upload safety
 
         Args:
             filename: Name of the file
-            file_size: Size of the file in bytes
+            file_size: Size of the file in bytes, or None to skip size validation
             allowed_extensions: Optional override for allowed extensions
 
         Returns:
@@ -52,8 +52,8 @@ class DocumentValidator:
         Raises:
             ValueError: If validation fails
         """
-        # Check file size
-        if file_size > DocumentValidator.MAX_FILE_SIZE:
+        # Check file size (skip if size is None)
+        if file_size is not None and file_size > DocumentValidator.MAX_FILE_SIZE:
             raise ValueError(
                 f"File too large: {file_size} bytes. Maximum allowed: {DocumentValidator.MAX_FILE_SIZE} bytes"
             )

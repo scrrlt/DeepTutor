@@ -76,6 +76,9 @@ from src.services.llm import get_llm_config
 
 logger = get_logger("KnowledgeInit")
 
+# Default base directory for knowledge bases
+DEFAULT_BASE_DIR = "./data/knowledge_bases"
+
 
 class DocumentAdder:
     """Add documents to existing knowledge base with Hash-validation"""
@@ -83,9 +86,9 @@ class DocumentAdder:
     def __init__(
         self,
         kb_name: str,
-        base_dir="./data/knowledge_bases",
-        api_key: str = None,
-        base_url: str = None,
+        base_dir=DEFAULT_BASE_DIR,
+        api_key: str | None = None,
+        base_url: str | None = None,
         progress_tracker=None,
     ):
         self.kb_name = kb_name
@@ -428,8 +431,11 @@ class DocumentAdder:
         if not processed_files:
             return
 
-        api_key = self.api_key or self.llm_cfg.api_key
-        base_url = self.base_url or self.llm_cfg.base_url
+        llm_cfg = getattr(self, "llm_cfg", None)
+        if llm_cfg is None:
+            llm_cfg = get_llm_config()
+        api_key = self.api_key or llm_cfg.api_key
+        base_url = self.base_url or llm_cfg.base_url
         output_file = self.kb_dir / "numbered_items.json"
 
         for doc_file in processed_files:
@@ -473,7 +479,7 @@ async def main():
     parser.add_argument("kb_name", help="KB Name")
     parser.add_argument("--docs", nargs="+", help="Files")
     parser.add_argument("--docs-dir", help="Directory")
-    parser.add_argument("--base-dir", default="./knowledge_bases")
+    parser.add_argument("--base-dir", default=DEFAULT_BASE_DIR)
     parser.add_argument("--api-key", default=os.getenv("LLM_API_KEY"))
     parser.add_argument("--base-url", default=os.getenv("LLM_HOST"))
     parser.add_argument("--allow-duplicates", action="store_true")

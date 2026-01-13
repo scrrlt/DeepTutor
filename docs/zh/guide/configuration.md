@@ -65,7 +65,7 @@ question:
 
 ## 数据存储位置
 
-```
+```text
 data/
 ├── knowledge_bases/    # 你上传的文档
 └── user/

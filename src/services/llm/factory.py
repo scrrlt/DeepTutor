@@ -36,6 +36,10 @@ from enum import Enum
 import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
+import tenacity
+
+from src.logging.logger import get_logger
+
 from . import cloud_provider, local_provider
 from .config import get_llm_config
 from .exceptions import (
@@ -46,6 +50,9 @@ from .exceptions import (
 )
 from .provider import provider_manager
 from .utils import is_local_llm_server
+
+# Initialize logger
+logger = get_logger("LLMFactory")
 
 # Default retry configuration
 DEFAULT_MAX_RETRIES = 3
@@ -61,18 +68,19 @@ def _is_retriable_error(error: Exception) -> bool:
     - Timeout errors
     - Rate limit errors (429)
     - Server errors (5xx)
+    - Network/connection errors
 
     Non-retriable errors:
     - Authentication errors (401)
     - Bad request (400)
     - Not found (404)
-
-    Args:
-        error: The exception to check
-
-    Returns:
-        True if the error is retriable
+    - Client errors (4xx except 429)
     """
+    from aiohttp import ClientError
+    from requests.exceptions import RequestException
+
+    if isinstance(error, (asyncio.TimeoutError, ClientError, RequestException)):
+        return True
     if isinstance(error, LLMTimeoutError):
         return True
     if isinstance(error, LLMRateLimitError):
@@ -93,60 +101,6 @@ def _is_retriable_error(error: Exception) -> bool:
 
     # For other exceptions (network errors, etc.), retry
     return True
-
-
-async def _execute_with_retry(
-    func,
-    max_retries: int = DEFAULT_MAX_RETRIES,
-    retry_delay: float = DEFAULT_RETRY_DELAY,
-    exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
-):
-    """
-    Execute a function with retry logic.
-
-    Args:
-        func: Async function to execute
-        max_retries: Maximum number of retry attempts
-        retry_delay: Initial delay between retries (seconds)
-        exponential_backoff: Whether to use exponential backoff
-        **kwargs: Arguments to pass to the function
-
-    Returns:
-        Result from the function
-
-    Raises:
-        The last exception if all retries fail
-    """
-    last_exception = None
-    delay = retry_delay
-
-    for attempt in range(max_retries + 1):
-        try:
-            return await func(**kwargs)
-        except Exception as e:
-            last_exception = e
-
-            # Check if we should retry
-            if attempt >= max_retries or not _is_retriable_error(e):
-                raise
-
-            # Calculate delay for next attempt
-            if exponential_backoff:
-                current_delay = delay * (2**attempt)
-            else:
-                current_delay = delay
-
-            # Special handling for rate limit errors with retry_after
-            if isinstance(e, LLMRateLimitError) and e.retry_after:
-                current_delay = max(current_delay, e.retry_after)
-
-            # Wait before retrying
-            await asyncio.sleep(current_delay)
-
-    # Should not reach here, but just in case
-    if last_exception:
-        raise last_exception
 
 
 class LLMMode(str, Enum):
@@ -290,7 +244,48 @@ async def complete(
     # Determine which provider to use
     use_local = _should_use_local(base_url)
 
-    # Define the actual completion function
+    # Define helper to determine if a generic LLMAPIError is retriable
+    def _is_retriable_llm_api_error(exc: BaseException) -> bool:
+        """
+        Return True for LLMAPIError instances that represent retriable conditions.
+
+        We only retry on:
+          - HTTP 429 (rate limit), or
+          - HTTP 5xx server errors.
+
+        All other LLMAPIError instances (e.g., 4xx like 400, 401, 403, 404) are treated
+        as non-retriable to avoid unnecessary retries.
+        """
+        if not isinstance(exc, LLMAPIError):
+            return False
+
+        status_code = getattr(exc, "status_code", None)
+        if status_code is None:
+            # Without an HTTP status code, we conservatively avoid retrying here.
+            return False
+
+        if status_code == 429:
+            return True
+
+        if 500 <= status_code < 600:
+            return True
+
+        return False
+
+    # Define the actual completion function with tenacity retry
+    @tenacity.retry(
+        retry=(
+            tenacity.retry_if_exception_type(LLMRateLimitError)
+            | tenacity.retry_if_exception_type(LLMTimeoutError)
+            | tenacity.retry_if_exception(_is_retriable_llm_api_error)
+        ),
+        wait=tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60),
+        stop=tenacity.stop_after_attempt(max_retries + 1),
+        before_sleep=lambda retry_state: logger.warning(
+            f"LLM call failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
+            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
+        ),
+    )
     async def _do_complete(**call_kwargs):
         if use_local:
             return await local_provider.complete(**call_kwargs)
@@ -313,14 +308,8 @@ async def complete(
         call_kwargs["api_version"] = api_version
         call_kwargs["binding"] = binding or "openai"
 
-    # Execute with retry
-    return await _execute_with_retry(
-        _do_complete,
-        max_retries=max_retries,
-        retry_delay=retry_delay,
-        exponential_backoff=exponential_backoff,
-        **call_kwargs,
-    )
+    # Execute with retry (handled by tenacity decorator)
+    return await _do_complete(**call_kwargs)
 
 
 async def stream(

@@ -37,8 +37,11 @@ from typing import Any
 from src.logging import get_logger
 from src.services.config import PROJECT_ROOT, load_config_with_main
 
-from ._legacy import SearchProvider
+from .base import BaseSearchProvider
 from .consolidation import AnswerConsolidator
+
+# Backwards compatibility alias
+SearchProvider = BaseSearchProvider
 from .providers import (
     get_available_providers,
     get_default_provider,
@@ -162,7 +165,7 @@ def web_search(
         _logger.success(f"[{search_provider.name}] Search completed")
     except Exception as e:
         _logger.error(f"[{search_provider.name}] Search failed: {e}")
-        raise Exception(f"{search_provider.name} search failed: {e}")
+        raise Exception(f"{search_provider.name} search failed: {e}") from e
     # Apply consolidation for SERP providers without LLM answers
     if consolidation and not search_provider.supports_answer:
         llm_config = {}

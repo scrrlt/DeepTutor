@@ -13,7 +13,7 @@ data/
     ├── research/                 # Research reports and cache
     ├── co_writer/                # Interactive IdeaGen documents
     ├── notebook/                 # Notebook records
-    └── guide/                   # Guided-learning sessions
+    ├── guide/                   # Guided-learning sessions
     └── run_code_workspace/       # Code execution workspace
 ```
 
@@ -86,6 +86,8 @@ paths:
 
 ```bash
 # Clean old user data directories (customize based on retention policy)
+# Replace the pattern with your actual naming convention, e.g.:
+# find data/user -type d -regex '.*_[0-9]{8}.*' -mtime +30 -exec rm -rf {} \;
 find data/user -type d -name "*_YYYYMMDD*" -mtime +30 -exec rm -rf {} \;
 
 # Clean temporary workspace files

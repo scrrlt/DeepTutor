@@ -27,6 +27,7 @@ class ChatAgent(BaseAgent):
             base_url=base_url,
             api_version=api_version,
             language=language,
+            binding=binding,
         )
 
     def _format_chat_history(self, history: list[dict[str, str]]) -> str:

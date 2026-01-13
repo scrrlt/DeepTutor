@@ -7,8 +7,8 @@ Provides fast similarity search for RAG retrieval.
 """
 
 import json
-import pickle
 from pathlib import Path
+import pickle
 from typing import List, Optional
 
 import numpy as np
@@ -22,7 +22,7 @@ class VectorIndexer(BaseComponent):
     Vector indexer using FAISS for fast similarity search.
 
     Creates and stores vector embeddings for efficient retrieval.
-    Falls back to simple cosine similarity if FAISS is not available.
+    Falls back to simple vector storage if FAISS is not available.
     """
 
     name = "vector_indexer"
@@ -40,11 +40,12 @@ class VectorIndexer(BaseComponent):
             / "data"
             / "knowledge_bases"
         )
-        
+
         # Try to import FAISS, fallback to simple storage if not available
         self.use_faiss = False
         try:
             import faiss
+
             self.faiss = faiss
             self.use_faiss = True
             self.logger.info("Using FAISS for vector indexing")
@@ -87,37 +88,41 @@ class VectorIndexer(BaseComponent):
         kb_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert embeddings to numpy array
-        embeddings = np.array([
-            chunk.embedding if isinstance(chunk.embedding, list) 
-            else chunk.embedding.tolist() 
-            for chunk in all_chunks
-        ], dtype=np.float32)
-        
+        embeddings = np.array(
+            [
+                chunk.embedding if isinstance(chunk.embedding, list) else chunk.embedding.tolist()
+                for chunk in all_chunks
+            ],
+            dtype=np.float32,
+        )
+
         # Store metadata separately
         metadata = []
         for i, chunk in enumerate(all_chunks):
-            metadata.append({
-                "id": i,
-                "content": chunk.content,
-                "type": chunk.chunk_type,
-                "metadata": chunk.metadata,
-            })
-        
+            metadata.append(
+                {
+                    "id": i,
+                    "content": chunk.content,
+                    "type": chunk.chunk_type,
+                    "metadata": chunk.metadata,
+                }
+            )
+
         # Save metadata
         with open(kb_dir / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
-        
+
         if self.use_faiss:
-            # Create FAISS index
+            # Create FAISS index for inner product (cosine similarity with normalized vectors)
             dimension = embeddings.shape[1]
-            index = self.faiss.IndexFlatL2(dimension)  # L2 distance (euclidean)
-            
-            # Normalize vectors for cosine similarity
+            index = self.faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
+
+            # Normalize vectors for cosine similarity (inner product of normalized vectors = cosine similarity)
             self.faiss.normalize_L2(embeddings)
-            
+
             # Add vectors to index
             index.add(embeddings)
-            
+
             # Save FAISS index
             self.faiss.write_index(index, str(kb_dir / "index.faiss"))
             self.logger.info(f"FAISS index saved with {index.ntotal} vectors")

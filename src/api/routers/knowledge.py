@@ -7,6 +7,7 @@ Handles knowledge base CRUD operations, file uploads, and initialization.
 
 import asyncio
 from datetime import datetime
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -289,23 +290,6 @@ async def upload_files(
 ):
     """Upload files to a knowledge base and process them in background."""
     try:
-        # 1. Validate immediately upon receipt using DocumentValidator
-        for file in files:
-            try:
-                sanitized_filename = DocumentValidator.validate_upload_safety(
-                    file.filename, file.file.size
-                )
-                # Use the sanitized filename for all subsequent operations
-                file.filename = sanitized_filename
-            except Exception as e:
-                error_message = (
-                    f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
-                )
-                # Log the full exception with traceback for server-side diagnostics
-                logger.error(error_message, exc_info=True)
-                # Return a client error with file-specific validation details
-                raise HTTPException(status_code=400, detail=error_message) from e
-
         manager = get_kb_manager()
         kb_path = manager.get_knowledge_base_path(kb_name)
         raw_dir = kb_path / "raw"
@@ -320,12 +304,43 @@ async def upload_files(
 
         uploaded_files = []
         uploaded_file_paths = []
+
+        # 1. Save files and validate after saving (more efficient for large streamed files)
         for file in files:
-            file_path = raw_dir / file.filename
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            uploaded_files.append(file.filename)
-            uploaded_file_paths.append(str(file_path))
+            try:
+                # Sanitize filename first (without size validation)
+                sanitized_filename = DocumentValidator.validate_upload_safety(file.filename, None)
+                file.filename = sanitized_filename
+
+                # Save file to disk
+                file_path = raw_dir / file.filename
+                with open(file_path, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+
+                # Now validate size using actual file size
+                actual_size = os.path.getsize(file_path)
+                DocumentValidator.validate_upload_safety(
+                    file.filename, actual_size
+                )  # Re-validate with actual size
+
+                uploaded_files.append(file.filename)
+                uploaded_file_paths.append(str(file_path))
+
+            except Exception as e:
+                # Clean up partially saved file if validation fails
+                try:
+                    if file_path.exists():
+                        os.unlink(file_path)
+                except (OSError, NameError):
+                    pass  # Ignore cleanup errors or if file_path not defined
+
+                error_message = (
+                    f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
+                )
+                # Log the full exception with traceback for server-side diagnostics
+                logger.error(error_message, exc_info=True)
+                # Return a client error with file-specific validation details
+                raise HTTPException(status_code=400, detail=error_message) from e
 
         logger.info(f"Uploading {len(uploaded_files)} files to KB '{kb_name}'")
 

@@ -1599,7 +1599,7 @@ export default function SettingsPage() {
                         handleConfigChange(
                           "tools",
                           "max_results",
-                          parseInt(e.target.value),
+                          e.target.value === "" ? 5 : parseInt(e.target.value),
                           "web_search",
                         )
                       }

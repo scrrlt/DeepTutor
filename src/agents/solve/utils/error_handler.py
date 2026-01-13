@@ -4,15 +4,22 @@
 Error Handler - Error handling and retry mechanism
 """
 
-import asyncio
 from collections.abc import Callable
-import functools
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+import tenacity
 
 from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
 from src.logging.logger import get_logger
+from src.services.llm.exceptions import LLMParseError
+
+
+def _format_validation_errors(e: ValidationError) -> str:
+    """Format Pydantic validation errors into a readable string."""
+    return "; ".join(
+        [f"{'.'.join(str(x) for x in err['loc']) or 'root'}: {err['msg']}" for err in e.errors()]
+    )
 
 
 # Pydantic models for output validation
@@ -127,10 +134,6 @@ class SolveOutput(BaseModel):
     tool_calls: list[SolveToolCall] = Field(..., min_length=1, description="List of tool calls")
 
 
-class ParseError(Exception):
-    """Parse error"""
-
-
 # Initialize module logger
 logger = get_logger("ErrorHandler")
 
@@ -139,44 +142,31 @@ def retry_on_parse_error(
     max_retries: int = 2,
     delay: float = 1.0,
     backoff: float = 2.0,
-    exceptions: tuple[type[Exception], ...] = (ParseError,),
+    exceptions: tuple[type[Exception], ...] = (LLMParseError,),
 ):
     """
-    Parse error retry decorator
+    Parse error retry decorator using tenacity.
 
     Args:
         max_retries: Maximum retry count
         delay: Initial delay time (seconds)
         backoff: Delay multiplier factor
-        exceptions: Tuple of exception types to retry on (default: ParseError only)
+        exceptions: Tuple of exception types to retry on (default: LLMParseError only)
+
+    Returns:
+        Decorated function
     """
 
     def decorator(func: Callable):
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            current_delay = delay
-
-            for attempt in range(max_retries + 1):
-                try:
-                    return await func(*args, **kwargs)
-                except tuple(exceptions) as e:
-                    if attempt == max_retries:
-                        # Last attempt failed, raise exception
-                        raise e
-
-                    # Wait and retry
-                    logger.warning(
-                        f"Parse failed (attempt {attempt + 1}/{max_retries}), "
-                        f"retrying in {current_delay:.1f}s... Error: {e}",
-                        exc_info=False,
-                    )
-                    await asyncio.sleep(current_delay)
-                    current_delay *= backoff
-
-            # Should not reach here
-            raise ParseError("Retry attempts exhausted")
-
-        return wrapper
+        return tenacity.retry(
+            retry=tenacity.retry_if_exception_type(*exceptions),
+            wait=tenacity.wait_exponential(multiplier=backoff, min=delay, max=60),
+            stop=tenacity.stop_after_attempt(max_retries + 1),
+            before_sleep=lambda retry_state: logger.warning(
+                f"Parse failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
+                f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
+            ),
+        )(func)
 
     return decorator
 
@@ -196,13 +186,13 @@ def validate_output(
         bool: Whether valid
 
     Raises:
-        ParseError: Raised when validation fails
+        LLMParseError: Raised when validation fails
     """
     # Check required fields
     missing_fields = [field for field in required_fields if field not in output]
 
     if missing_fields:
-        raise ParseError(f"Missing required fields: {', '.join(missing_fields)}")
+        raise LLMParseError(f"Missing required fields: {', '.join(missing_fields)}")
 
     # Check field types
     if field_types:
@@ -210,7 +200,7 @@ def validate_output(
             if field in output and not isinstance(output[field], expected_type):
                 actual_type = type(output[field]).__name__
                 expected_type_name = expected_type.__name__
-                raise ParseError(
+                raise LLMParseError(
                     f"Field '{field}' type error: expected {expected_type_name}, got {actual_type}"
                 )
 
@@ -236,7 +226,7 @@ def safe_parse(
         return parser_func(text)
     except Exception as e:
         if raise_on_error:
-            raise ParseError(f"Parsing failed: {e!s}")
+            raise LLMParseError(f"Parsing failed: {e!s}") from e
 
         logger.error(
             f"Parsing failed; falling back to default value {default!r}. This may affect behavior. Error: {e!s}",
@@ -255,23 +245,23 @@ def validate_investigate_output(
         validate_output(output, ["reasoning"], {"reasoning": str})
         tools = output.get("tools", [])
         if not isinstance(tools, list) or len(tools) < 1:
-            raise ParseError("tools must be a non-empty list")
+            raise LLMParseError("tools must be a non-empty list")
 
         for i, tool in enumerate(tools):
             if not isinstance(tool, dict):
-                raise ParseError(f"tool[{i}] must be a dictionary")
+                raise LLMParseError(f"tool[{i}] must be a dictionary")
             tool_type = tool.get("tool_type", "").lower()
             if tool_type not in valid_tools:
-                raise ParseError(
+                raise LLMParseError(
                     f"tool[{i}] tool_type must be one of {valid_tools}, got: {tool_type}"
                 )
             if tool_type != "none" and not tool.get("query"):
-                raise ParseError(f"tool[{i}] missing query")
+                raise LLMParseError(f"tool[{i}] missing query")
 
         # Check none tool exclusivity
         has_none = any(t.get("tool_type", "").lower() == "none" for t in tools)
         if has_none and len(tools) > 1:
-            raise ParseError("When 'none' tool exists, no other tool intents should be provided")
+            raise LLMParseError("When 'none' tool exists, no other tool intents should be provided")
         return True
 
     # Use Pydantic for standard validation
@@ -279,8 +269,8 @@ def validate_investigate_output(
         InvestigateOutput(**output)
         return True
     except ValidationError as e:
-        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        raise ParseError(f"InvestigateAgent output validation failed: {error_details}")
+        error_details = _format_validation_errors(e)
+        raise LLMParseError(f"InvestigateAgent output validation failed: {error_details}") from e
 
 
 def validate_note_output(output: dict[str, Any]) -> bool:
@@ -289,8 +279,8 @@ def validate_note_output(output: dict[str, Any]) -> bool:
         NoteOutput(**output)
         return True
     except ValidationError as e:
-        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        raise ParseError(f"NoteAgent output validation failed: {error_details}")
+        error_details = _format_validation_errors(e)
+        raise LLMParseError(f"NoteAgent output validation failed: {error_details}") from e
 
 
 def validate_reflect_output(output: dict[str, Any]) -> bool:
@@ -299,8 +289,10 @@ def validate_reflect_output(output: dict[str, Any]) -> bool:
         ReflectOutput(**output)
         return True
     except ValidationError as e:
-        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        raise ParseError(f"InvestigateReflectAgent output validation failed: {error_details}")
+        error_details = _format_validation_errors(e)
+        raise LLMParseError(
+            f"InvestigateReflectAgent output validation failed: {error_details}"
+        ) from e
 
 
 def validate_plan_output(output: dict[str, Any]) -> bool:
@@ -309,8 +301,8 @@ def validate_plan_output(output: dict[str, Any]) -> bool:
         PlanOutput(**output)
         return True
     except ValidationError as e:
-        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        raise ParseError(f"PlanAgent output validation failed: {error_details}")
+        error_details = _format_validation_errors(e)
+        raise LLMParseError(f"PlanAgent output validation failed: {error_details}") from e
 
 
 def validate_solve_output(
@@ -323,16 +315,16 @@ def validate_solve_output(
         validate_output(output, ["tool_calls"], {"tool_calls": list})
         tool_calls = output.get("tool_calls", [])
         if not isinstance(tool_calls, list) or len(tool_calls) < 1:
-            raise ParseError("tool_calls must be a non-empty list")
+            raise LLMParseError("tool_calls must be a non-empty list")
 
         for i, tool_call in enumerate(tool_calls):
             if not isinstance(tool_call, dict):
-                raise ParseError(f"tool_call[{i}] must be a dictionary")
+                raise LLMParseError(f"tool_call[{i}] must be a dictionary")
             if "tool_type" not in tool_call or "query" not in tool_call:
-                raise ParseError(f"tool_call[{i}] missing required fields: tool_type, query")
+                raise LLMParseError(f"tool_call[{i}] missing required fields: tool_type, query")
             tool_type = tool_call.get("tool_type", "").lower()
             if tool_type not in valid_tool_types:
-                raise ParseError(
+                raise LLMParseError(
                     f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}"
                 )
         return True
@@ -342,9 +334,8 @@ def validate_solve_output(
         SolveOutput(**output)
         return True
     except ValidationError as e:
-        error_details = "; ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        raise ParseError(f"SolveAgent output validation failed: {error_details}")
-        raise ParseError(f"SolveAgent output validation failed: {e}")
+        error_details = _format_validation_errors(e)
+        raise LLMParseError(f"SolveAgent output validation failed: {error_details}") from e
 
 
 def validate_none_tool_constraint(
@@ -366,7 +357,7 @@ def validate_none_tool_constraint(
     )
 
     if has_none and len(tools) > 1:
-        raise ParseError(
+        raise LLMParseError(
             f"When 'none' tool exists, no other tool intents should be provided. "
             f"Found {len(tools)} tools with types: {[tool.get(tool_type_key) for tool in tools]}"
         )

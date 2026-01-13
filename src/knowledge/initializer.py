@@ -17,21 +17,11 @@ import json
 import os
 from pathlib import Path
 import shutil
-import sys
-
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from dotenv import load_dotenv
-
-# Import RAGService for dynamic provider selection based on RAG_PROVIDER env var
-from src.services.rag.service import RAGService
-from src.services.embedding import get_embedding_config
-from src.services.llm import get_llm_config
-
-load_dotenv(dotenv_path=".env", override=False)
 
 from src.logging import get_logger
+from src.services.embedding import get_embedding_config
+from src.services.llm import get_llm_config
+from src.services.rag.service import RAGService
 
 logger = get_logger("KnowledgeInit")
 
@@ -47,9 +37,9 @@ class KnowledgeBaseInitializer:
         self,
         kb_name: str,
         base_dir="./data/knowledge_bases",
-        api_key: str = None,
-        base_url: str = None,
-        progress_tracker: ProgressTracker = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        progress_tracker: ProgressTracker | None = None,
     ):
         self.kb_name = kb_name
         self.base_dir = Path(base_dir)
@@ -152,7 +142,7 @@ class KnowledgeBaseInitializer:
         """Process documents using RAGService with dynamic provider selection"""
         provider = os.getenv("RAG_PROVIDER", "raganything")
         logger.info(f"Processing documents with RAG provider: {provider}")
-        
+
         self.progress_tracker.update(
             ProgressStage.PROCESSING_DOCUMENTS,
             f"Starting to process documents with {provider} provider...",
@@ -182,8 +172,10 @@ class KnowledgeBaseInitializer:
 
         # Initialize RAGService with the selected provider
         rag_service = RAGService(
-            kb_base_dir=str(self.base_dir),  # Base directory for all KBs (e.g., data/knowledge_bases)
-            provider=provider
+            kb_base_dir=str(
+                self.base_dir
+            ),  # Base directory for all KBs (e.g., data/knowledge_bases)
+            provider=provider,
         )
 
         # Convert Path objects to strings for file paths
@@ -194,7 +186,7 @@ class KnowledgeBaseInitializer:
             success = await rag_service.initialize(
                 kb_name=self.kb_name,
                 file_paths=file_paths,
-                extract_numbered_items=True  # Enable numbered items extraction
+                extract_numbered_items=True,  # Enable numbered items extraction
             )
 
             if success:
@@ -210,12 +202,12 @@ class KnowledgeBaseInitializer:
                 self.progress_tracker.update(
                     ProgressStage.ERROR,
                     "Document processing failed",
-                    error="RAG pipeline returned failure"
+                    error="RAG pipeline returned failure",
                 )
 
         except asyncio.TimeoutError:
             error_msg = "Processing timeout (>10 minutes)"
-            logger.error(f"✗ Timeout processing documents")
+            logger.error("✗ Timeout processing documents")
             logger.error("Possible causes: Large files, slow embedding API, network issues")
             self.progress_tracker.update(
                 ProgressStage.ERROR,
@@ -226,10 +218,11 @@ class KnowledgeBaseInitializer:
             error_msg = str(e)
             logger.error(f"✗ Error processing documents: {error_msg}")
             import traceback
+
             logger.error(traceback.format_exc())
             self.progress_tracker.update(
                 ProgressStage.ERROR,
-                f"Failed to process documents",
+                "Failed to process documents",
                 error=error_msg,
             )
 
@@ -402,7 +395,7 @@ class KnowledgeBaseInitializer:
                 ProgressStage.ERROR, "Numbered items extraction failed", error=error_msg
             )
 
-    async def display_statistics(self, rag: "RAGAnything"):
+    async def display_statistics(self, rag):
         """Display knowledge base statistics (legacy - for RAGAnything)"""
         await self.display_statistics_generic()
 
@@ -423,15 +416,15 @@ class KnowledgeBaseInitializer:
 
         # Check for RAG storage (different providers use different formats)
         provider = os.getenv("RAG_PROVIDER", "raganything")
-        
+
         # RAGAnything/LightRAG format
         entities_file = self.rag_storage_dir / "kv_store_full_entities.json"
         relations_file = self.rag_storage_dir / "kv_store_full_relations.json"
         chunks_file = self.rag_storage_dir / "kv_store_text_chunks.json"
-        
+
         # LlamaIndex format
         vector_store_dir = self.base_dir / self.kb_name / "vector_store"
-        
+
         try:
             if entities_file.exists():
                 with open(entities_file, encoding="utf-8") as f:
@@ -447,7 +440,7 @@ class KnowledgeBaseInitializer:
                 with open(chunks_file, encoding="utf-8") as f:
                     chunks = json.load(f)
                     logger.info(f"Text chunks: {len(chunks)}")
-                    
+
             if vector_store_dir.exists():
                 metadata_file = vector_store_dir / "metadata.json"
                 if metadata_file.exists():

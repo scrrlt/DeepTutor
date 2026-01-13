@@ -8,7 +8,7 @@ Responsible for information compression and summary generation, converting raw d
 from pathlib import Path
 from string import Template
 import sys
-from typing import Any
+from typing import Any, Optional
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -25,9 +25,9 @@ class NoteAgent(BaseAgent):
     def __init__(
         self,
         config: dict[str, Any],
-        api_key: str = None,
-        base_url: str = None,
-        api_version: str = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        api_version: Optional[str] = None,
     ):
         language = config.get("system", {}).get("language", "zh")
         super().__init__(

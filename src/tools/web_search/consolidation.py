@@ -165,6 +165,7 @@ class AnswerConsolidator:
         custom_template: str | None = None,
         llm_config: dict[str, Any] | None = None,
         max_results: int = 5,
+        autoescape: bool = True,
     ):
         """
         Initialize consolidator.
@@ -174,12 +175,20 @@ class AnswerConsolidator:
             custom_template: Custom Jinja2 template string
             llm_config: Optional overrides (system_prompt, max_tokens, temperature)
             max_results: Maximum results to include in answer
+            autoescape: Whether to enable Jinja2 autoescape for security (default: True)
         """
         self.consolidation_type = consolidation_type
         self.custom_template = custom_template
         self.llm_config = llm_config or {}
         self.max_results = max_results
-        self.jinja_env = Environment(loader=BaseLoader())
+        self.jinja_env = Environment(loader=BaseLoader(), autoescape=autoescape)
+
+        if self.custom_template is not None and autoescape:
+            _logger.warning(
+                "Custom Jinja2 templates are rendered with autoescape=True. "
+                "HTML in rendered variables will be escaped by default; use the "
+                "'safe' filter in your template if you intentionally need raw HTML."
+            )
 
     def consolidate(self, response: WebSearchResponse) -> WebSearchResponse:
         """

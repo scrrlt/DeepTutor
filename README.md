@@ -443,7 +443,7 @@ cd web && npm install && npm run dev -- -p 3782
 ```
 
 **Note**: Create `web/.env.local`:
-```
+```bash
 NEXT_PUBLIC_API_BASE=http://localhost:8001
 ```
 
@@ -1458,7 +1458,7 @@ This will extract numbered items (Definitions, Theorems, Equations, etc.) from y
 We hope DeepTutor could become a gift for the community. 🎁
 
 <a href="https://github.com/HKUDS/DeepTutor/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=HKUDS/DeepTutor&max=999" />
+  <img src="https://contrib.rocks/image?repo=HKUDS/DeepTutor&max=999" alt="Contributors to HKUDS/DeepTutor" />
 </a>
 
 </div>

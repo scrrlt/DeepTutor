@@ -62,7 +62,9 @@ class LightRAGIndexer(BaseComponent):
             embed_client = get_embedding_client()
 
             # LLM function using services (SYNC - LightRAG expects sync functions)
-            def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+                if history_messages is None:
+                    history_messages = []
                 return openai_complete_if_cache(
                     llm_client.config.model,
                     prompt,
@@ -106,12 +108,13 @@ class LightRAGIndexer(BaseComponent):
         # Use log forwarding context
         with LightRAGLogContext(scene="LightRAG-Indexer"):
             rag = self._get_lightrag_instance(kb_name)
-            
+
             # Initialize storages (required for LightRAG)
             await rag.initialize_storages()
-            
+
             # Initialize pipeline status (required for document processing)
             from lightrag.kg.shared_storage import initialize_pipeline_status
+
             await initialize_pipeline_status()
 
             for doc in documents:

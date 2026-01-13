@@ -5,11 +5,9 @@ LlamaIndex Pipeline
 True LlamaIndex integration using official llama-index library.
 """
 
-import os
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-import asyncio
 
 from llama_index.core import (
     Document,
@@ -23,7 +21,6 @@ from llama_index.core.bridge.pydantic import PrivateAttr
 
 from src.logging import get_logger
 from src.services.embedding import get_embedding_client, get_embedding_config
-from src.services.llm import get_llm_config
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
@@ -34,48 +31,50 @@ DEFAULT_KB_BASE_DIR = str(
 class CustomEmbedding(BaseEmbedding):
     """
     Custom embedding adapter for OpenAI-compatible APIs.
-    
+
     Works with any OpenAI-compatible endpoint including:
     - Google Gemini (text-embedding-004)
     - OpenAI (text-embedding-ada-002, text-embedding-3-*)
     - Azure OpenAI
     - Local models with OpenAI-compatible API
     """
-    
+
     _client: Any = PrivateAttr()
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._client = get_embedding_client()
-        
+
     @classmethod
     def class_name(cls) -> str:
         return "custom_embedding"
-    
+
     async def _aget_query_embedding(self, query: str) -> List[float]:
         """Get embedding for a query."""
         embeddings = await self._client.embed([query])
         return embeddings[0]
-    
+
     async def _aget_text_embedding(self, text: str) -> List[float]:
         """Get embedding for a text."""
         embeddings = await self._client.embed([text])
         return embeddings[0]
-    
+
     def _get_query_embedding(self, query: str) -> List[float]:
         """Sync version - called by LlamaIndex sync API."""
         # Use nest_asyncio to allow nested event loops
         import nest_asyncio
+
         nest_asyncio.apply()
         return asyncio.run(self._aget_query_embedding(query))
-    
+
     def _get_text_embedding(self, text: str) -> List[float]:
         """Sync version - called by LlamaIndex sync API."""
         # Use nest_asyncio to allow nested event loops
         import nest_asyncio
+
         nest_asyncio.apply()
         return asyncio.run(self._aget_text_embedding(text))
-    
+
     async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Get embeddings for multiple texts."""
         return await self._client.embed(texts)
@@ -84,7 +83,7 @@ class CustomEmbedding(BaseEmbedding):
 class LlamaIndexPipeline:
     """
     True LlamaIndex pipeline using official llama-index library.
-    
+
     Uses LlamaIndex's native components:
     - VectorStoreIndex for indexing
     - CustomEmbedding for OpenAI-compatible embeddings
@@ -107,22 +106,20 @@ class LlamaIndexPipeline:
         """Configure LlamaIndex global settings."""
         # Get embedding config
         embedding_cfg = get_embedding_config()
-        
+
         # Configure custom embedding that works with any OpenAI-compatible API
         Settings.embed_model = CustomEmbedding()
-        
+
         # Configure chunking
         Settings.chunk_size = 512
         Settings.chunk_overlap = 50
-        
+
         self.logger.info(
             f"LlamaIndex configured: embedding={embedding_cfg.model} "
             f"({embedding_cfg.dim}D, {embedding_cfg.binding}), chunk_size=512"
         )
 
-    async def initialize(
-        self, kb_name: str, file_paths: List[str], **kwargs
-    ) -> bool:
+    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
         """
         Initialize KB using real LlamaIndex components.
 
@@ -134,7 +131,9 @@ class LlamaIndexPipeline:
         Returns:
             True if successful
         """
-        self.logger.info(f"Initializing KB '{kb_name}' with {len(file_paths)} files using LlamaIndex")
+        self.logger.info(
+            f"Initializing KB '{kb_name}' with {len(file_paths)} files using LlamaIndex"
+        )
 
         kb_dir = Path(self.kb_base_dir) / kb_name
         storage_dir = kb_dir / "llamaindex_storage"
@@ -146,21 +145,21 @@ class LlamaIndexPipeline:
             for file_path in file_paths:
                 file_path = Path(file_path)
                 self.logger.info(f"Parsing: {file_path.name}")
-                
+
                 # Extract text based on file type
                 if file_path.suffix.lower() == ".pdf":
                     text = self._extract_pdf_text(file_path)
                 else:
                     with open(file_path, "r", encoding="utf-8") as f:
                         text = f.read()
-                
+
                 if text.strip():
                     doc = Document(
                         text=text,
                         metadata={
                             "file_name": file_path.name,
                             "file_path": str(file_path),
-                        }
+                        },
                     )
                     documents.append(doc)
                     self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
@@ -173,12 +172,12 @@ class LlamaIndexPipeline:
 
             # Create index with LlamaIndex (run sync code in thread pool to avoid blocking)
             self.logger.info(f"Creating VectorStoreIndex with {len(documents)} documents...")
-            
+
             # Run sync LlamaIndex code in thread pool to avoid blocking async event loop
             loop = asyncio.get_event_loop()
             index = await loop.run_in_executor(
                 None,  # Use default ThreadPoolExecutor
-                lambda: VectorStoreIndex.from_documents(documents, show_progress=True)
+                lambda: VectorStoreIndex.from_documents(documents, show_progress=True),
             )
 
             # Persist index
@@ -191,6 +190,7 @@ class LlamaIndexPipeline:
         except Exception as e:
             self.logger.error(f"Failed to initialize KB: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return False
 
@@ -249,17 +249,17 @@ class LlamaIndexPipeline:
         try:
             # Load index from storage (run in thread pool)
             loop = asyncio.get_event_loop()
-            
+
             def load_and_retrieve():
                 storage_context = StorageContext.from_defaults(persist_dir=str(storage_dir))
                 index = load_index_from_storage(storage_context)
                 top_k = kwargs.get("top_k", 5)
-                
+
                 # Use retriever instead of query_engine to avoid LLM requirement
                 retriever = index.as_retriever(similarity_top_k=top_k)
                 nodes = retriever.retrieve(query)
                 return nodes
-            
+
             # Execute retrieval in thread pool to avoid blocking
             nodes = await loop.run_in_executor(None, load_and_retrieve)
 
@@ -281,6 +281,7 @@ class LlamaIndexPipeline:
         except Exception as e:
             self.logger.error(f"Search failed: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             return {
                 "query": query,

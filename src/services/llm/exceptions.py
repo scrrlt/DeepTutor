@@ -116,6 +116,18 @@ class LLMModelNotFoundError(LLMAPIError):
         self.model = model
 
 
+class LLMParseError(LLMError):
+    """Raised when parsing LLM output fails."""
+
+    def __init__(
+        self,
+        message: str = "Failed to parse LLM output",
+        provider: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(message, details=details, provider=provider)
+
+
 # Multi-provider specific aliases for mapping rules
 class ProviderQuotaExceededError(LLMRateLimitError):
     pass
@@ -134,6 +146,7 @@ __all__ = [
     "LLMRateLimitError",
     "LLMAuthenticationError",
     "LLMModelNotFoundError",
+    "LLMParseError",
     "ProviderQuotaExceededError",
     "ProviderContextWindowError",
 ]

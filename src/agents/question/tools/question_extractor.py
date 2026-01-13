@@ -182,18 +182,42 @@ Please analyze the above exam paper content, extract all question information, a
 
     try:
         # Call LLM via unified Factory (async, so we need to run in event loop)
-        result_text = asyncio.run(
-            llm_complete(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
-                model=model,
-                api_key=api_key,
-                base_url=base_url,
-                api_version=api_version,
-                binding=binding,
-                **llm_kwargs,
+        try:
+            # Try to use asyncio.run (creates new loop)
+            result_text = asyncio.run(
+                llm_complete(
+                    prompt=user_prompt,
+                    system_prompt=system_prompt,
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    api_version=api_version,
+                    binding=binding,
+                    **llm_kwargs,
+                )
             )
-        )
+        except RuntimeError as e:
+            if "already running" in str(e):
+                # We're in an existing event loop, run in a thread
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        llm_complete(
+                            prompt=user_prompt,
+                            system_prompt=system_prompt,
+                            model=model,
+                            api_key=api_key,
+                            base_url=base_url,
+                            api_version=api_version,
+                            binding=binding,
+                            **llm_kwargs,
+                        ),
+                    )
+                    result_text = future.result()
+            else:
+                raise
 
         result = json.loads(result_text)
 

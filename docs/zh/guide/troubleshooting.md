@@ -14,7 +14,7 @@
 
 | 问题 | 解决方案 |
 |:--------|:---------|
-| 前端无法连接后端 | 确认后端运行在 http://localhost:8001/docs |
+| 前端无法连接后端 | 确认后端运行在 <http://localhost:8001/docs> |
 | WebSocket 连接失败 | 检查防火墙，确认 `ws://localhost:8001/api/v1/...` 格式 |
 | 远程访问失败 | 在 `.env` 中设置 `NEXT_PUBLIC_API_BASE=http://your-ip:8001` |
 

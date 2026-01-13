@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # Define storage path
 USER_DATA_DIR = Path("./data/user")
@@ -51,8 +51,7 @@ class LLMProvider(BaseModel):
         description="Whether this provider requires an API key",
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LLMProviderManager:
