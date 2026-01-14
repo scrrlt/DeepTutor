@@ -96,12 +96,11 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
     merged_config = _deep_merge(main_config, module_config)
 
     return merged_config
+
+
+async def load_config_with_main_async(
     config_file: str, project_root: Path | None = None
 ) -> dict[str, Any]:
-    """
-    Async version of load_config_with_main for non-blocking file operations.
-
-    Load configuration file, automatically merge with main.yaml common configuration
 
     Args:
         config_file: Sub-module configuration file name (e.g., "solve_config.yaml")
