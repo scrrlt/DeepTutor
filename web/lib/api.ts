@@ -13,6 +13,7 @@ function resolveApiBaseUrl(): string {
 
   const base = API_BASE_URL;
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // 'http:' or 'https:'
 
   if (
     hostname &&
@@ -21,7 +22,14 @@ function resolveApiBaseUrl(): string {
     hostname !== "0.0.0.0" &&
     /^http:\/\/localhost(?::\d+)?$/i.test(base)
   ) {
-    return `http://${hostname}:8001`;
+    // Extract port from base URL, default to 8001
+    const portMatch = base.match(/:(\d+)$/);
+    const port = portMatch ? portMatch[1] : "8001";
+    return `${protocol}//${hostname}:${port}`;
+  }
+
+  return base;
+}
   }
 
   return base;
@@ -33,7 +41,7 @@ function resolveApiBaseUrl(): string {
  * @returns Full URL (e.g., 'http://localhost:8000/api/v1/knowledge/list')
  */
 export function apiUrl(path: string): string {
-  // Remove the leading slash if present to avoid double slashes
+  // Ensure the path has a leading slash
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   // Remove trailing slash from base URL if present
@@ -55,7 +63,7 @@ export function wsUrl(path: string): string {
   const resolvedBase = resolveApiBaseUrl();
   const base = resolvedBase.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
 
-  // Remove the leading slash if present to avoid double slashes
+  // Ensure the path has a leading slash
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   // Remove trailing slash from base URL if present

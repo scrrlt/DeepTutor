@@ -86,6 +86,8 @@ from src.utils.error_utils import format_exception_message
 
 logger = get_logger("KnowledgeInit")
 
+DEFAULT_BASE_DIR = Path("./knowledge_bases")
+
 
 class DocumentAdder:
     """Add documents to existing knowledge base with Hash-validation"""
