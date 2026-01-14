@@ -92,3 +92,35 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: package-lock.json
         pass_filenames: false
+
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.3
+    hooks:
+      - id: python-safety-dependencies-check
+        files: requirements\.txt$
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.0
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        exclude: ^tests/
+
+  # ============================================
+  # Docstring coverage checking
+  # ============================================
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        args: [--fail-under=60, --exclude=tests/, --exclude=scripts/, --ignore-init-method, --ignore-private]
+        pass_filenames: false
+
+  # ============================================
+  # Type checking
+  # ============================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        exclude: ^(tests/|scripts/)
