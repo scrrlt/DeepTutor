@@ -16,8 +16,8 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 
 from src.services.llm.exceptions import LLMParseError
 from src.logging import get_logger
+from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
 
-logger = logging.getLogger("Solver.error_handler")
 
 # Lazy-load valid tools configuration to avoid I/O at module import time
 _DEFAULT_VALID_TOOLS = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
@@ -238,7 +238,7 @@ class SolveOutput(BaseModel):
 
 
 # Initialize module logger
-logger = get_logger("ErrorHandler")
+logger = get_logger("Solver.error_handler")
 
 
 def retry_on_parse_error(
@@ -478,6 +478,7 @@ async def validate_solve_output(
     required_fields = ["tool_calls"]
     field_types = {"tool_calls": list}
 
+    validate_output(output, required_fields, field_types)
 
     tool_calls = output["tool_calls"]
     has_terminating_call = any(

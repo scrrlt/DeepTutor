@@ -37,7 +37,9 @@ def _user_facing_chat_error_message(err: Exception) -> str:
         return "Authentication failed. Please check your API key configuration in Settings (or environment variables) and try again."
     if "failed to fetch" in lower or "connection" in lower:
         return "Cannot connect to the backend or provider. Please ensure the backend is running and the provider base URL is reachable."
-    return msg
+    # Log the original error for debugging but return a generic message
+    logger.error(f"Chat API error: {msg}")
+    return "An internal error occurred while processing your request. Please try again later."
 
 # Initialize session manager
 session_manager = SessionManager()

@@ -99,7 +99,6 @@ NEXT_PUBLIC_API_BASE=http://localhost:8001
 - **Confirm URL format**: `ws://localhost:8001/api/v1/...`
 
 ---
-
 ## Where are module outputs stored?
 
 | Module | Output Path |
@@ -107,11 +106,10 @@ NEXT_PUBLIC_API_BASE=http://localhost:8001
 | Solve | `data/user/solve/solve_YYYYMMDD_HHMMSS/` |
 | Question | `data/user/question/question_YYYYMMDD_HHMMSS/` |
 | Research | `data/user/research/reports/` |
-| Interactive IdeaGen | `data/user/co-writer/` |
+| Interactive IdeaGen | `data/user/co_writer/` |
 | Notebook | `data/user/notebook/` |
 | Guide | `data/user/guide/session_{session_id}.json` |
 | Logs | `data/user/logs/` |
-
 ---
 
 ## How to add a new knowledge base?

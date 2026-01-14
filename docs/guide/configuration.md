@@ -203,7 +203,7 @@ data/
     ├── solve/                    # Problem solving results
     ├── question/                 # Generated questions
     ├── research/                 # Research reports and cache
-    ├── co_writer/                # Interactive IdeaGen documents
+    ├── co_writer/                # CoWriter output
     ├── notebook/                 # Notebook records
     ├── guide/                    # Guided learning sessions
     ├── logs/                     # System logs

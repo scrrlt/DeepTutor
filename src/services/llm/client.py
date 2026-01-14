@@ -1,7 +1,5 @@
-"""
-Unified Resilient LLM Client - Integrates Circuit Breaker, Retry, and Key Rotation.
-"""
-
+import asyncio
+import os
 import random
 import time
 from typing import List
@@ -13,6 +11,8 @@ class KeyRotator:
     """Rotate API keys on failures."""
 
     def __init__(self, keys: List[str]):
+        if not keys:
+            raise ValueError("keys must be a non-empty list")
         self.keys = keys
         self.current_index = 0
 
@@ -28,7 +28,14 @@ class ResilientLLMClient:
 
     def __init__(self):
         self.breaker = CircuitBreaker(failure_threshold=5, timeout=60)
-        self.keys = KeyRotator(["sk-...", "sk-..."])  # Placeholder keys
+        # Load keys from environment variable
+        keys_str = os.environ.get("LLM_KEYS", "")
+        if not keys_str:
+            raise ValueError("LLM_KEYS environment variable must be set with comma-separated API keys")
+        keys = [key.strip() for key in keys_str.split(",") if key.strip()]
+        if not keys:
+            raise ValueError("LLM_KEYS must contain at least one non-empty API key")
+        self.keys = KeyRotator(keys)
 
     async def complete(self, prompt: str):
         """Complete with resilience."""
@@ -42,13 +49,13 @@ class ResilientLLMClient:
             try:
                 api_key = self.keys.get_current_key()
                 # CALL PROVIDER HERE with prompt and api_key
-                print(f"Calling with prompt: {prompt}, key: {api_key[:10]}...")  # Placeholder
+                # Securely call provider without logging sensitive key
                 return f"response to: {prompt}"  # Placeholder
             except Exception as e:
                 if "429" in str(e):
                     # Exponential Backoff
                     sleep_time = (2 ** attempt) + random.random()
-                    time.sleep(sleep_time)
+                    await asyncio.sleep(sleep_time)
                     self.keys.rotate()  # Switch key on failure
                 else:
                     raise e

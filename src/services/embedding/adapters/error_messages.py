@@ -43,5 +43,10 @@ def format_error_message(error_type: str, **kwargs) -> str:
     Returns:
         Formatted error message
     """
+
     template = EMBEDDING_ERRORS.get(error_type, "Unknown error occurred")
-    return template.format(**kwargs)
+    try:
+        return template.format(**kwargs)
+    except KeyError as e:
+        # If formatting fails due to missing keys, return a fallback message
+        return f"{template} (Missing parameter: {e})"

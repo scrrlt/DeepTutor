@@ -396,8 +396,12 @@ async def upload_files(
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
+        # If it's already an HTTPException, re-raise it unchanged
+        if isinstance(e, HTTPException):
+            raise
         # Unexpected failure (Server error)
         formatted_error = format_exception_message(e)
+        logger.error(f"Knowledge upload error: {formatted_error}", exc_info=True)
         raise HTTPException(status_code=500, detail=formatted_error)
 
 

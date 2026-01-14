@@ -54,7 +54,7 @@ class KnowledgeBaseInitializer:
     def __init__(
         self,
         kb_name: str,
-        base_dir="./data/knowledge_bases",
+        base_dir="./knowledge_bases",
         api_key: str | None = None,
         base_url: str | None = None,
         progress_tracker: ProgressTracker | None = None,

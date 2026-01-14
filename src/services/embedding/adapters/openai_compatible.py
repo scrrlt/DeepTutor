@@ -70,6 +70,9 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
                     if "invalid" in error_text.lower() or "parameter" in error_text.lower():
                         raise ValueError(format_error_message("invalid_parameters",
                             model=payload['model'], error_text=error_text))
+                    else:
+                        raise ValueError(format_error_message("invalid_parameters",
+                            model=payload.get('model'), error_text=error_text))
                 elif response.status_code == 401:
                     raise ValueError(format_error_message("auth_error", base_url=self.base_url))
                 elif response.status_code == 404:

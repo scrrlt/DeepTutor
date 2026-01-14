@@ -22,10 +22,19 @@ function resolveApiBaseUrl(): string {
     hostname !== "0.0.0.0" &&
     /^http:\/\/localhost(?::\d+)?$/i.test(base)
   ) {
-    // Extract port from base URL, default to 8001
-    const portMatch = base.match(/:(\d+)$/);
-    const port = portMatch ? portMatch[1] : "8001";
-    return `${protocol}//${hostname}:${port}`;
+    // Parse API_BASE_URL to extract port
+    let port = "";
+    try {
+      const url = new URL(base);
+      port = url.port;
+    } catch (e) {
+      // If parsing fails, fall back to window.location.port
+      port = window.location.port;
+    }
+    
+    // Use the extracted port, or fall back to window.location.port if empty
+    const finalPort = port || window.location.port;
+    return `${protocol}//${hostname}${finalPort ? `:${finalPort}` : ""}`;
   }
 
   return base;
@@ -41,7 +50,7 @@ function resolveApiBaseUrl(): string {
  * @returns Full URL (e.g., 'http://localhost:8000/api/v1/knowledge/list')
  */
 export function apiUrl(path: string): string {
-  // Ensure the path has a leading slash
+  // Add a leading slash if missing
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   // Remove trailing slash from base URL if present

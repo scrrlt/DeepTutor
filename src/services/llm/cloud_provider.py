@@ -714,9 +714,9 @@ async def _gemini_complete(
 
     # Build URL - Gemini uses /models/{model}:generateContent
     effective_base = base_url or "https://generativelanguage.googleapis.com/v1beta"
-    url = f"{effective_base.rstrip('/')}/models/{model}:generateContent?key={api_key}"
+    url = f"{effective_base.rstrip('/')}/models/{model}:generateContent"
 
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
 
     # Build parts - handle multimodal content if messages provided
     parts = []

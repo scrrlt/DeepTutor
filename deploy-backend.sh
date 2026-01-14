@@ -6,6 +6,15 @@ set -e
 
 # Configuration
 PROJECT_ID=${1:-"your-project-id"}
+
+# Validate PROJECT_ID
+if [ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "your-project-id" ]; then
+    echo "❌ Error: Please provide a valid Google Cloud Project ID."
+    echo "Usage: $0 <project-id>"
+    echo "Example: $0 my-gcp-project"
+    exit 1
+fi
+
 SERVICE_NAME="deeptutor-backend"
 REGION="us-central1"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"

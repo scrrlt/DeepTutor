@@ -85,11 +85,13 @@ DEFAULTS: Dict[str, Any] = {
         "enable_citations": True,
         "save_intermediate_results": True,
         "valid_tools": [
+            "web_search",
+            "code_execution",
             "rag_naive",
             "rag_hybrid",
-            "web_search",
             "query_item",
             "none",
+            "finish",
         ],
         "agents": {
             "investigate_agent": {
