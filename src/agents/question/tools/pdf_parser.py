@@ -16,7 +16,7 @@ def check_mineru_installed():
     """Check if MinerU is installed"""
     try:
         result = subprocess.run(
-            ["magic-pdf", "--version"], check=False, capture_output=True, text=True
+            ["magic-pdf", "--version"], check=False, capture_output=True, text=True, shell=False
         )
         if result.returncode == 0:
             return "magic-pdf"
@@ -25,7 +25,7 @@ def check_mineru_installed():
 
     try:
         result = subprocess.run(
-            ["mineru", "--version"], check=False, capture_output=True, text=True
+            ["mineru", "--version"], check=False, capture_output=True, text=True, shell=False
         )
         if result.returncode == 0:
             return "mineru"
@@ -96,7 +96,7 @@ def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str = None):
 
         print(f"🔧 Executing command: {' '.join(cmd)}")
 
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, shell=False)
 
         if result.returncode != 0:
             print("✗ MinerU parsing failed:")

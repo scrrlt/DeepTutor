@@ -180,3 +180,35 @@ addopts = [
     "--disable-warnings",
     "--tb=short"
 ]
+
+# ============================================
+# MyPy type checking configuration
+# ============================================
+[tool.mypy]
+python_version = "3.10"
+# Only show the summary line if there are errors
+pretty = false
+show_error_context = false
+# Limit the number of errors shown
+max_errors = 10
+warn_return_any = true
+warn_no_return = true
+show_error_codes = true
+ignore_missing_imports = true
+follow_imports = "silent"
+
+# Module-specific overrides
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "src.tools.*"
+ignore_errors = true  # Some tools may have dynamic imports
+
+# ============================================
+# Bandit security linting configuration
+# ============================================
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101", "B311", "B403", "B404"]  # B101=assert, B311=random, B403/B404=pickle/subprocess imports
