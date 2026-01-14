@@ -101,7 +101,7 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
 async def load_config_with_main_async(
     config_file: str, project_root: Path | None = None
 ) -> dict[str, Any]:
-
+    """
     Args:
         config_file: Sub-module configuration file name (e.g., "solve_config.yaml")
         project_root: Project root directory (if None, will try to auto-detect)
