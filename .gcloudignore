@@ -1,0 +1,41 @@
+# gcloud builds submit ignore file
+# This reduces upload size + build latency.
+# Syntax is similar to .gitignore.
+
+# VCS
+.git/
+
+# Node/Next
+node_modules/
+.next/
+out/
+
+# Python env/build artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Local env/secrets
+.env
+.env.*
+
+# Local scripts/tests
+*.log
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

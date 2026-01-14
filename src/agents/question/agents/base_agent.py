@@ -122,9 +122,9 @@ class BaseAgent(ABC):
             self.model = model or os.getenv("LLM_MODEL")
 
         if not self.model:
-            from src.services.llm.exceptions import LLMConfigError
+            from src.services.llm.exceptions import LLMConfigurationError
 
-            raise LLMConfigError(
+            raise LLMConfigurationError(
                 "LLM_MODEL not configured. Please set it in .env or activate a provider."
             )
 

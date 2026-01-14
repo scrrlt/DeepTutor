@@ -19,7 +19,20 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from dotenv import load_dotenv
-from lightrag.llm.openai import openai_complete_if_cache
+
+openai_complete_if_cache = None
+
+
+def _load_lightrag_deps():
+    global openai_complete_if_cache
+    if openai_complete_if_cache is not None:
+        return
+    try:
+        from lightrag.llm.openai import openai_complete_if_cache as _openai_complete_if_cache
+
+        openai_complete_if_cache = _openai_complete_if_cache
+    except Exception:
+        openai_complete_if_cache = None
 
 from src.services.llm import get_llm_config
 
@@ -60,6 +73,12 @@ async def _call_llm_async(
     model: str = None,
 ) -> str:
     """Asynchronously call LLM"""
+    _load_lightrag_deps()
+    if openai_complete_if_cache is None:
+        raise ImportError(
+            "LightRAG dependencies are not available. Please install the lightrag package to enable numbered-item extraction."
+        )
+
     # If model not specified, get from env_config
     if model is None:
         llm_cfg = get_llm_config()

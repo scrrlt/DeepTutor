@@ -3,81 +3,61 @@ Base LLM Provider - Unified interface and configuration.
 """
 
 from abc import ABC, abstractmethod
-import asyncio
-import logging
-import random
-from typing import Any, Callable, Dict
+import os
+from typing import Any, Dict
 
-from ..error_mapping import map_error
-from ..exceptions import (
-    LLMAPIError,
-    LLMError,
-    LLMRateLimitError,
-    LLMTimeoutError,
-)
-from ..types import AsyncStreamGenerator, TutorResponse
-
-logger = logging.getLogger(__name__)
+from src.utils.error_rate_tracker import ErrorRateTracker
+from src.utils.error_utils import format_exception_message
 
 
 class BaseLLMProvider(ABC):
-    """Base class for all LLM providers with unified config and retries."""
+    """Base class for all LLM providers with unified config."""
 
-    def __init__(self, config):
-        self.config = config
-        self.provider_name = config.provider_name
-        self.api_key = config.api_key
-        self.base_url = getattr(config, "base_url", "")
+    def __init__(self, provider_name: str):
+        """Initialize with unified config fetching."""
+        self.provider_name = provider_name
+        self.error_rate_tracker = ErrorRateTracker()
+        self.api_key = os.getenv(f"{provider_name.upper()}_API_KEY")
+        self.base_url = os.getenv(f"{provider_name.upper()}_BASE_URL", self._default_base_url())
+        self.deployment = os.getenv(f"{provider_name.upper()}_DEPLOYMENT_NAME")
+        self.api_version = os.getenv(f"{provider_name.upper()}_API_VERSION")
 
-        # Isolation: Each provider gets its own traffic controller instance
-        self.traffic_controller = getattr(config, "traffic_controller", None)
-        if self.traffic_controller is None:
-            from ..traffic_control import TrafficController
+        if not self.api_key:
+            raise ValueError(f"Missing env var: {provider_name.upper()}_API_KEY")
 
-            self.traffic_controller = TrafficController(provider_name=self.provider_name)
+    def _default_base_url(self) -> str:
+        """Default base URL for the provider."""
+        return ""
+
+    @property
+    def extra_headers(self) -> Dict[str, str]:
+        """Provider-specific headers."""
+        if self.api_version:
+            return {"api-key": self.api_key}  # Azure style
+        return {"Authorization": f"Bearer {self.api_key}"}  # OpenAI style
+
+    def resolve_model(self, requested_model: str) -> str:
+        """Resolve model name/deployment ID."""
+        # Default: return as-is
+        return requested_model
 
     @abstractmethod
-    async def complete(self, prompt: str, **kwargs) -> TutorResponse:
+    async def complete(self, prompt: str, **kwargs) -> str:
+        """Complete a prompt."""
         pass
-
-    @abstractmethod
-    async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
-        pass
-
-    def _map_exception(self, e: Exception) -> LLMError:
-        return map_error(e, provider=self.provider_name)
 
     def calculate_cost(self, usage: Dict[str, Any]) -> float:
-        """Placeholder for cost calculation logic."""
+        """Calculate cost (can be overridden)."""
+        # Default implementation
         return 0.0
 
-    async def execute_with_retry(self, func: Callable, *args, max_retries=3, **kwargs):
-        """Standard retry wrapper with exponential backoff."""
-        for attempt in range(max_retries + 1):
-            try:
-                async with self.traffic_controller:
-                    return await func(*args, **kwargs)
-            except Exception as e:
-                mapped_e = self._map_exception(e)
+    def validate_config(self):
+        """Validate provider-specific configuration."""
+        pass  # Override in subclasses
 
-                # Logic check: should we retry?
-                status_code = getattr(mapped_e, "status_code", None)
-                is_retriable = isinstance(mapped_e, (LLMRateLimitError, LLMTimeoutError)) or (
-                    isinstance(mapped_e, LLMAPIError)
-                    and isinstance(status_code, int)
-                    and status_code >= 500
-                )
+    def record_success(self) -> None:
+        self.error_rate_tracker.record(True)
 
-                if attempt >= max_retries or not is_retriable:
-                    raise mapped_e
-
-                delay = (1.5**attempt) + (random.random() * 0.5)
-                logger.warning(
-                    "[%s] Call failed. Retry %d/%d in %.2fs. Error: %s",
-                    self.provider_name,
-                    attempt + 1,
-                    max_retries,
-                    delay,
-                    str(mapped_e),
-                )
-                await asyncio.sleep(delay)
+    def record_failure(self, exc: Exception) -> str:
+        self.error_rate_tracker.record(False)
+        return format_exception_message(exc)

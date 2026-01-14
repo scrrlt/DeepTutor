@@ -14,7 +14,7 @@ from src.services.llm import (
     get_provider_presets,
     sanitize_url,
 )
-from src.services.llm.provider import LLMProvider, provider_manager
+from src.services.llm import LLMProvider, provider_manager
 
 router = APIRouter()
 

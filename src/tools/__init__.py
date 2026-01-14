@@ -18,8 +18,12 @@ import sys
 
 try:
     # Directly load lightrag.utils module without triggering lightrag/__init__.py
-    _spec = importlib.util.find_spec("lightrag.utils")
-    if _spec and _spec.origin:
+    try:
+        _spec = importlib.util.find_spec("lightrag.utils")
+    except ModuleNotFoundError:
+        _spec = None
+
+    if _spec and _spec.origin and _spec.loader:
         _utils = importlib.util.module_from_spec(_spec)
         sys.modules["lightrag.utils"] = _utils
         _spec.loader.exec_module(_utils)
@@ -48,10 +52,7 @@ try:
 
             _utils.wrap_embedding_func_with_attrs = _wrap
 except Exception as e:
-    import traceback
-
     print(f"Warning: Failed to patch lightrag.utils: {e}")
-    traceback.print_exc()
 
 from .code_executor import run_code, run_code_sync
 from .query_item_tool import query_numbered_item

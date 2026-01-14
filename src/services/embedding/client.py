@@ -9,7 +9,7 @@ Now supports multiple providers through adapters.
 from typing import List, Optional
 
 from src.logging import get_logger
-
+from src.utils.error_rate_tracker import ErrorRateTracker
 from .adapters.base import EmbeddingRequest
 from .config import EmbeddingConfig, get_embedding_config
 from .provider import EmbeddingProviderManager, get_embedding_provider_manager
@@ -39,6 +39,7 @@ class EmbeddingClient:
             adapter = self.manager.get_adapter(
                 self.config.binding,
                 {
+                    "binding": self.config.binding,
                     "api_key": self.config.api_key,
                     "base_url": self.config.base_url,
                     "api_version": getattr(self.config, "api_version", None),
@@ -56,6 +57,8 @@ class EmbeddingClient:
         except Exception as e:
             self.logger.error(f"Failed to initialize embedding adapter: {e}")
             raise
+
+        self.error_tracker = ErrorRateTracker(window=100)
 
     async def embed(self, texts: List[str]) -> List[List[float]]:
         """
@@ -83,8 +86,10 @@ class EmbeddingClient:
                 f"Generated {len(response.embeddings)} embeddings using {self.config.binding}"
             )
 
+            self.error_tracker.record(True)  # Success
             return response.embeddings
         except Exception as e:
+            self.error_tracker.record(False)  # Failure
             self.logger.error(f"Embedding request failed: {e}")
             raise
 
@@ -127,6 +132,15 @@ class EmbeddingClient:
             max_token_size=self.config.max_tokens,
             func=embedding_wrapper,
         )
+
+    def get_health_status(self) -> dict:
+        """Get embedding service health status."""
+        return {
+            "error_rate": self.error_tracker.rate,
+            "success_rate": self.error_tracker.success_rate,
+            "is_healthy": self.error_tracker.is_healthy(),
+            "total_requests": len(self.error_tracker.win),
+        }
 
 
 # Singleton instance

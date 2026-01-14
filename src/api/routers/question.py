@@ -268,11 +268,11 @@ async def websocket_mimic_generate(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.debug("Client disconnected during mimic generation")
     except Exception as e:
-        logger.exception("Mimic generation error")
         error_msg = format_exception_message(e)
+        logger.error(f"Mimic generation error: {error_msg}")
         try:
             await websocket.send_json({"type": "error", "content": error_msg})
-        except Exception:
+        except:
             pass
     finally:
         sys.stdout = original_stdout

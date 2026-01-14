@@ -27,6 +27,18 @@ logger = get_logger("ChatAPI", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
 
+
+def _user_facing_chat_error_message(err: Exception) -> str:
+    msg = str(err)
+    lower = msg.lower()
+    if "jina" in lower and "401" in lower:
+        return "Web search is enabled but Jina authentication failed. Set JINA_API_KEY (Authorization header) or disable Web Search in the UI."
+    if "authentication" in lower and "api key" in lower:
+        return "Authentication failed. Please check your API key configuration in Settings (or environment variables) and try again."
+    if "failed to fetch" in lower or "connection" in lower:
+        return "Cannot connect to the backend or provider. Please ensure the backend is running and the provider base URL is reachable."
+    return msg
+
 # Initialize session manager
 session_manager = SessionManager()
 
@@ -284,13 +296,13 @@ async def websocket_chat(websocket: WebSocket):
 
             except Exception as e:
                 logger.error(f"Chat processing error: {e}")
-                await websocket.send_json({"type": "error", "message": str(e)})
+                await websocket.send_json({"type": "error", "message": _user_facing_chat_error_message(e)})
 
     except WebSocketDisconnect:
         logger.debug("Client disconnected from chat")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json({"type": "error", "message": _user_facing_chat_error_message(e)})
         except Exception:
             pass

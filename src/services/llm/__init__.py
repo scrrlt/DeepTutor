@@ -6,11 +6,11 @@ Unified LLM service for all DeepTutor modules.
 
 Architecture:
     Agents (ChatAgent, GuideAgent, etc.)
-              ↓
-         BaseAgent.call_llm() / stream_llm()
-              ↓
-         LLM Factory (complete / stream)
-              ↓
+        ↓
+    BaseAgent.call_llm() / stream_llm()
+        ↓
+    LLM Factory (complete / stream)
+        ↓
     ┌─────────┴─────────┐
     ↓                   ↓
 CloudProvider      LocalProvider
@@ -54,6 +54,8 @@ Usage:
     from src.services.llm import LLMMode, get_llm_mode, get_mode_info
 """
 
+# Also expose the providers for direct access if needed
+from . import cloud_provider, local_provider, providers
 from .capabilities import (
     DEFAULT_CAPABILITIES,
     MODEL_OVERRIDES,
@@ -76,10 +78,8 @@ from .config import (
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
-    LLMConfigError,
+    LLMConfigurationError,
     LLMError,
-    LLMModelNotFoundError,
-    LLMProviderError,
     LLMRateLimitError,
     LLMTimeoutError,
 )
@@ -135,13 +135,11 @@ __all__ = [
     "requires_api_version",
     # Exceptions
     "LLMError",
-    "LLMConfigError",
-    "LLMProviderError",
+    "LLMConfigurationError",
     "LLMAPIError",
     "LLMTimeoutError",
     "LLMRateLimitError",
     "LLMAuthenticationError",
-    "LLMModelNotFoundError",
     # Factory (main API)
     "LLMMode",
     "get_llm_mode",

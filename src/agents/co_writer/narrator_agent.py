@@ -20,8 +20,6 @@ from src.agents.base_agent import BaseAgent
 from src.services.config import load_config_with_main
 from src.services.tts import get_tts_config
 
-# Import shared stats from edit_agent for legacy compatibility
-
 # Define storage path (unified under user/co-writer/ directory)
 USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
 
@@ -129,11 +127,7 @@ class NarratorAgent(BaseAgent):
         self.logger.info(f"  Default Voice: {self.default_voice}")
 
     async def process(
-        self,
-        content: str,
-        style: str = "friendly",
-        voice: Optional[str] = None,
-        skip_audio: bool = False,
+        self, content: str, style: str = "friendly", voice: str = None, skip_audio: bool = False
     ) -> dict[str, Any]:
         """
         Main processing method - alias for narrate().

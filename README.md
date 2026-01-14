@@ -23,13 +23,16 @@
 
 [**Quick Start**](#quick-start) · [**Core Modules**](#core-modules) · [**FAQ**](#faq)
 
+[**Branch Index (Fork Governance)**](docs/BRANCHES.md)
+
 [🇨🇳 中文](assets/README/README_CN.md) · [🇯🇵 日本語](assets/README/README_JA.md) · [🇪🇸 Español](assets/README/README_ES.md) · [🇫🇷 Français](assets/README/README_FR.md) · [🇸🇦 العربية](assets/README/README_AR.md) · [🇷🇺 Русский](assets/README/README_RU.md) · [🇮🇳 हिन्दी](assets/README/README_HI.md) · [🇵🇹 Português](assets/README/README_PT.md)
 
 </div>
 
 <div align="center">
 
-📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 **Interactive Learning Visualization**<br>
+📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 
+**Interactive Learning Visualization**<br>
 🎯 **Knowledge Reinforcement** &nbsp;•&nbsp; 🔍 **Deep Research & Idea Generation**
 
 </div>
@@ -1484,3 +1487,8 @@ This project is licensed under the ***[AGPL-3.0 License](LICENSE)***.
 <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.DeepTutor&style=for-the-badge&color=00d4ff" alt="Views">
 
 </div>
+  
+ 
+   
+ 
+ 

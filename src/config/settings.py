@@ -13,7 +13,7 @@ Examples:
 """
 
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 
 class LLMRetryConfig(BaseModel):
@@ -26,12 +26,11 @@ class LLMRetryConfig(BaseModel):
 
 class Settings(BaseSettings):
     # LLM retry configuration
-    llm_retry: LLMRetryConfig = Field(default_factory=LLMRetryConfig)
+    llm_retry: LLMRetryConfig = LLMRetryConfig()
 
-    model_config = SettingsConfigDict(
-        env_prefix="LLM_",
-        env_nested_delimiter="__",
-    )
+    class Config:
+        env_prefix = "LLM_"
+        env_nested_delimiter = "__"
 
 
 # Global settings instance

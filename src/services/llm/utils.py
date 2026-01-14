@@ -19,6 +19,7 @@ CLOUD_DOMAINS = [
     ".openrouter.ai",
     ".azure.com",
     ".googleapis.com",
+    "generativelanguage.googleapis.com",  # Gemini API
     ".cohere.ai",
     ".mistral.ai",
     ".together.ai",
@@ -235,11 +236,16 @@ def build_chat_url(
 
     url = base_url.rstrip("/")
 
-    # Anthropic uses /messages endpoint
+    # Provider-specific endpoints
     binding_lower = (binding or "").lower()
     if binding_lower in ["anthropic", "claude"]:
+        # Anthropic uses /messages endpoint
         if not url.endswith("/messages"):
             url += "/messages"
+    elif binding_lower == "gemini":
+        # Gemini uses /models/{model}:generateContent endpoint
+        # Note: model name will be added by the provider-specific code
+        pass  # URL is built differently in _gemini_complete
     else:
         # OpenAI-compatible endpoints use /chat/completions
         if not url.endswith("/chat/completions"):
@@ -310,6 +316,9 @@ def build_auth_headers(
         headers["anthropic-version"] = "2023-06-01"
     elif binding_lower == "azure_openai":
         headers["api-key"] = api_key
+    elif binding_lower == "gemini":
+        # Gemini uses API key in URL query parameter, not header
+        pass  # API key handled in URL construction
     else:
         headers["Authorization"] = f"Bearer {api_key}"
 

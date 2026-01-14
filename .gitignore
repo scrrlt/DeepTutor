@@ -85,6 +85,13 @@ cache/
 .cache/
 **/.cache/
 
+!src/utils/cache/
+!src/utils/cache/**
+
+src/utils/cache/**/__pycache__/
+src/utils/cache/**/__pycache__/*
+src/utils/cache/**/*.py[cod]
+
 # Log files
 *.log
 
@@ -271,4 +278,5 @@ celerybeat.pid
 *.wav
 *.ogg
 !demo/*.mp4
-web/.env.local
+.vercel
+.env*.local

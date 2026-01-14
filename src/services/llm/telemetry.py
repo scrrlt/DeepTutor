@@ -1,40 +1,8 @@
 """
-LLM Telemetry
-=============
-
-Basic telemetry tracking for LLM calls.
+Observability - Combined latency tracking and tracing.
 """
 
-import functools
-import logging
-from typing import Any, Callable
+from .latency_tracker import log_metric, measure_latency
+from .tracing import get_trace_id, start_trace
 
-logger = logging.getLogger(__name__)
-
-
-def track_llm_call(provider_name: str):
-    """
-    Decorator to track LLM calls for telemetry.
-
-    Args:
-        provider_name: Name of the provider being called
-
-    Returns:
-        Decorator function
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> Any:
-            logger.debug(f"LLM call to {provider_name}: {func.__name__}")
-            try:
-                result = await func(*args, **kwargs)
-                logger.debug(f"LLM call to {provider_name} completed successfully")
-                return result
-            except Exception as e:
-                logger.warning(f"LLM call to {provider_name} failed: {e}")
-                raise
-
-        return wrapper
-
-    return decorator
+__all__ = ["measure_latency", "log_metric", "start_trace", "get_trace_id"]

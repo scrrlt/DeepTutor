@@ -18,10 +18,6 @@ from typing import Any
 
 import yaml
 
-# Add parent directory to path
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from src.services.config import load_config_with_main, parse_language
 from src.services.llm import get_llm_config
 
@@ -798,6 +794,10 @@ class MainSolver:
 
 
 if __name__ == "__main__":
+    # Add project root to path when running this file directly
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+
     from dotenv import load_dotenv
 
     load_dotenv()

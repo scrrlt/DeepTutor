@@ -81,11 +81,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          target: production
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
           build-args: |
@@ -152,7 +148,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          target: production
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
