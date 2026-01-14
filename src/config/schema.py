@@ -20,7 +20,7 @@ class AppConfig(BaseModel):
 
     @field_validator("llm", mode="before")
     @classmethod
-    def ensure_llm(cls, v: Any) -> Dict[str, Any]:
+    def ensure_llm(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(v, dict):
             raise ValueError("llm section must be a mapping")
         if "model" not in v:

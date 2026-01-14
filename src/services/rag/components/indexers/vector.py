@@ -115,9 +115,9 @@ class VectorIndexer(BaseComponent):
         if self.use_faiss:
             # Create FAISS index for inner product (cosine similarity with normalized vectors)
             dimension = embeddings.shape[1]
-            index = self.faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
+            index = self.faiss.IndexFlatL2(dimension)  # L2 distance (euclidean)
 
-            # Normalize vectors for cosine similarity (inner product of normalized vectors = cosine similarity)
+            # Normalize vectors for cosine similarity
             self.faiss.normalize_L2(embeddings)
 
             # Add vectors to index

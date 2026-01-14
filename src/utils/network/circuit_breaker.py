@@ -1,79 +1,127 @@
 """
-Circuit Breaker - Simple circuit breaker for providers.
+Circuit Breaker Pattern - Prevent cascading failures in API calls.
 """
 
-import logging
-import threading
 import time
-from typing import Dict
+import threading
+from enum import Enum
+from typing import Any, Callable
 
-logger = logging.getLogger(__name__)
+class CircuitState(Enum):
+    """Circuit breaker states."""
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
 
 
 class CircuitBreaker:
-    """
-    Simple circuit breaker that opens when error rate is high.
-    """
+    """Circuit breaker for API calls."""
 
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60):
+    def __init__(self, failure_threshold: int = 5, timeout: int = 60,
+                 success_threshold: int = 2):
+        """
+        Initialize circuit breaker.
+
+        Args:
+            failure_threshold: Number of failures before opening circuit
+            timeout: Seconds to wait before trying again (half-open)
+            success_threshold: Successes needed in half-open to close circuit
+        """
         self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
-        self.failure_count: Dict[str, int] = {}
-        self.last_failure_time: Dict[str, float] = {}
-        self.state: Dict[str, str] = {}  # 'closed', 'open', 'half-open'
+        self.timeout = timeout
+        self.success_threshold = success_threshold
+
+        self.failure_count = 0
+        self.success_count = 0
+        self.last_failure_time = None
+        self.state = CircuitState.CLOSED
         self.lock = threading.Lock()
 
-    def call(self, provider: str) -> bool:
-        """Check if call is allowed."""
+    def call(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Execute function with circuit breaker protection.
+
+        Args:
+            func: Function to call
+            *args: Function arguments
+            **kwargs: Function keyword arguments
+
+        Returns:
+            Function result
+
+        Raises:
+            Exception: If circuit is open or function fails
+        """
         with self.lock:
-            state = self.state.get(provider, "closed")
-            if state == "closed":
-                return True
-            elif state == "open":
-                if time.time() - self.last_failure_time.get(provider, 0) > self.recovery_timeout:
-                    self.state[provider] = "half-open"
-                    logger.info(f"Circuit breaker for {provider} entering half-open state")
-                    return True
-                return False
-            elif state == "half-open":
-                return True
+            if self.state == CircuitState.OPEN:
+                if self._should_attempt_reset():
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                else:
+                    raise Exception("Circuit breaker is OPEN. Service unavailable.")
+        try:
+            result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception as e:
+            self._on_failure()
+            raise e
 
-    def record_success(self, provider: str):
-        """Record successful call."""
+
+    async def call_async(self, func, *args, **kwargs):
+        """
+        Execute async function with circuit breaker protection.
+
+        Args:
+            func: Async function to call
+            *args: Function arguments
+            **kwargs: Function keyword arguments
+
+        Returns:
+            Function result
+
+        Raises:
+            Exception: If circuit is open or function fails
+        """
         with self.lock:
-            if self.state.get(provider) == "half-open":
-                self.state[provider] = "closed"
-                self.failure_count[provider] = 0
-                logger.info(f"Circuit breaker for {provider} closed")
-            elif self.state.get(provider) == "closed":
-                self.failure_count[provider] = 0
+            if self.state == CircuitState.OPEN:
+                if self._should_attempt_reset():
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                else:
+                    raise Exception("Circuit breaker is OPEN. Service unavailable.")
 
-    def record_failure(self, provider: str):
-        """Record failed call."""
+        try:
+            result = await func(*args, **kwargs)
+            self._on_success()
+            return result
+        except Exception as e:
+            self._on_failure()
+            raise e
+    def _should_attempt_reset(self) -> bool:
+        """Check if enough time has passed to attempt reset."""
+        if self.last_failure_time is None:
+            return True
+
+        elapsed = time.time() - self.last_failure_time
+        return elapsed >= self.timeout
+
+    def _on_success(self):
+        """Handle successful call."""
         with self.lock:
-            self.failure_count[provider] = self.failure_count.get(provider, 0) + 1
-            self.last_failure_time[provider] = time.time()
-            if self.failure_count[provider] >= self.failure_threshold:
-                self.state[provider] = "open"
-                logger.warning(
-                    f"Circuit breaker for {provider} opened due to {self.failure_count[provider]} failures"
-                )
+            self.failure_count = 0
 
+            if self.state == CircuitState.HALF_OPEN:
+                self.success_count += 1
+                if self.success_count >= self.success_threshold:
+                    self.state = CircuitState.CLOSED
+                    self.success_count = 0
 
-# Global instance
-circuit_breaker = CircuitBreaker()
+    def _on_failure(self):
+        """Handle failed call."""
+        with self.lock:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
 
-
-def alert_callback(provider: str, rate: float):
-    """Alert callback to trigger circuit breaker."""
-    circuit_breaker.record_failure(provider)
-
-
-def is_call_allowed(provider: str) -> bool:
-    """Check if call is allowed by circuit breaker."""
-    return circuit_breaker.call(provider)
-
-
-def record_call_success(provider: str):
-    """Record successful call."""
-    circuit_breaker.record_success(provider)
+            if self.failure_count >= self.failure_threshold:
+                self.state = CircuitState.OPEN

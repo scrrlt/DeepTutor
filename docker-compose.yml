@@ -17,15 +17,14 @@ services:
   # ============================================
   # All-in-One DeepTutor Service
   # ============================================
-  deeptutor:
+  deep-tutor:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
       args:
         # Pass backend port at build time for Next.js static optimization
         - BACKEND_PORT=${BACKEND_PORT:-8001}
-    container_name: deeptutor
+    container_name: deep-tutor
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8001}:${BACKEND_PORT:-8001}"
@@ -47,7 +46,7 @@ services:
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-large}
       - EMBEDDING_API_KEY=${EMBEDDING_API_KEY}
       - EMBEDDING_HOST=${EMBEDDING_HOST}
-      - EMBEDDING_DIM=${EMBEDDING_DIM:-3072}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-3072}
       - EMBEDDING_MAX_TOKENS=${EMBEDDING_MAX_TOKENS:-8192}
       # TTS Configuration (Optional)
       - TTS_MODEL=${TTS_MODEL:-}
@@ -97,11 +96,11 @@ services:
       start_period: 60s
 
     networks:
-      - deeptutor-network
+      - deep-tutor-network
 
 # ============================================
 # Networks
 # ============================================
 networks:
-  deeptutor-network:
+  deep-tutor-network:
     driver: bridge

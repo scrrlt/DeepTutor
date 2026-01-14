@@ -33,7 +33,15 @@ config = load_config_with_main("solve_config.yaml", project_root)  # Use any con
 log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("CoWriter", level="INFO", log_dir=log_dir)
 
-agent = EditAgent()
+# Lazy load EditAgent to avoid heavy initialization at import time
+_agent = None
+
+
+def get_agent():
+    global _agent
+    if _agent is None:
+        _agent = EditAgent()
+    return _agent
 
 # Lazy load NarratorAgent (because TTS config may not exist)
 _narrator_agent = None
@@ -71,7 +79,7 @@ class AutoMarkResponse(BaseModel):
 @router.post("/edit", response_model=EditResponse)
 async def edit_text(request: EditRequest):
     try:
-        result = await agent.process(
+        result = await get_agent().process(
             text=request.text,
             instruction=request.instruction,
             action=request.action,
@@ -93,7 +101,7 @@ async def edit_text(request: EditRequest):
 async def auto_mark_text(request: AutoMarkRequest):
     """AI auto-mark text"""
     try:
-        result = await agent.auto_mark(text=request.text)
+        result = await get_agent().auto_mark(text=request.text)
 
         # Print token stats
         print_stats()

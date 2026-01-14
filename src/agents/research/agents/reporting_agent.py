@@ -59,6 +59,23 @@ class ReportingAgent(BaseAgent):
         converted = self._convert_to_template_format(template_str)
         return Template(converted).safe_substitute(**kwargs)
 
+    @staticmethod
+    def _extract_citation_number(cit_id: str) -> tuple[int, int, int]:
+        """Extract sortable tuple from citation ID for ordering.
+
+        Returns (999, 999, 999) for malformed IDs to sort them last.
+        """
+        try:
+            if cit_id.startswith("PLAN-"):
+                num = int(cit_id.replace("PLAN-", ""))
+                return (0, 0, num)
+            parts_list = cit_id.replace("CIT-", "").split("-")
+            if len(parts_list) == 2:
+                return (1, int(parts_list[0]), int(parts_list[1]))
+        except Exception:
+            pass
+        return (999, 999, 999)
+
     def __init__(
         self,
         config: dict[str, Any],
@@ -573,7 +590,7 @@ class ReportingAgent(BaseAgent):
                 parts_list = cit_id.replace("CIT-", "").split("-")
                 if len(parts_list) == 2:
                     return (1, int(parts_list[0]), int(parts_list[1]))
-            except:
+            except Exception:
                 pass
             return (999, 999, 999)
 
@@ -585,7 +602,7 @@ class ReportingAgent(BaseAgent):
                     if citation_id and citation_id not in [c["citation_id"] for c in all_citations]:
                         all_citations.append({"citation_id": citation_id})
 
-        all_citations.sort(key=lambda x: extract_citation_number(x["citation_id"]))
+        all_citations.sort(key=lambda x: self._extract_citation_number(x["citation_id"]))
 
         for idx, cit in enumerate(all_citations, 1):
             citation_map[cit["citation_id"]] = idx
@@ -594,7 +611,6 @@ class ReportingAgent(BaseAgent):
 
     def _generate_references(self, blocks: list[TopicBlock]) -> str:
         """Generate References section"""
-        parts = ["## References\n"]
 
         # If using CitationManager, generate from JSON file
         if self.citation_manager:
@@ -947,7 +963,7 @@ class ReportingAgent(BaseAgent):
                 parts_list = cit_id.replace("CIT-", "").split("-")
                 if len(parts_list) == 2:
                     return (1, int(parts_list[0]), int(parts_list[1]))
-            except:
+            except Exception:
                 pass
             return (999, 999, 999)
 
@@ -1238,11 +1254,6 @@ class ReportingAgent(BaseAgent):
             )
 
         # Create enhanced section data with subsection guidance
-        enhanced_section = {
-            "title": section.get("title", block.sub_topic),
-            "instruction": section.get("instruction", ""),
-            "subsection_structure": subsection_info,
-        }
 
         # Prepare block data with subsection hints
         block_data = self._ser_block(block)

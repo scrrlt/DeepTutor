@@ -15,8 +15,6 @@ not unified with this base class.
 
 from abc import ABC, abstractmethod
 import os
-from pathlib import Path
-import sys
 import time
 from typing import Any, AsyncGenerator
 
@@ -211,7 +209,7 @@ class BaseAgent(ABC):
         Returns:
             Retry count
         """
-        return self.agent_config.get("max_retries", settings.retry.max_retries)
+        return self.agent_config.get("max_retries", settings.llm_retry.max_retries)
 
     # -------------------------------------------------------------------------
     # Token Tracking

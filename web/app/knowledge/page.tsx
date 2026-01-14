@@ -354,7 +354,6 @@ export default function KnowledgePage() {
     });
 
     kbsNamesRef.current = kbs.map((kb) => kb.name);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kbs, loading]);
 
   // Cleanup all connections on component unmount

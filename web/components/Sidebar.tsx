@@ -199,14 +199,6 @@ export default function Sidebar() {
               </h1>
             </div>
             <div className="flex items-center gap-0.5">
-              {/* Collapse button */}
-              <button
-                onClick={toggleSidebar}
-                className="text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
-                title={t("Collapse sidebar")}
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </button>
               <a
                 href="https://hkuds.github.io/DeepTutor/"
                 target="_blank"
@@ -293,6 +285,15 @@ export default function Sidebar() {
           />
           <span>{t("Settings")}</span>
         </Link>
+
+        {/* Collapse button at bottom */}
+        <button
+          onClick={toggleSidebar}
+          className="w-full mt-2 flex items-center justify-center p-2 rounded-md text-slate-400 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-700 hover:text-blue-500 dark:hover:text-blue-400 hover:shadow-sm border border-transparent hover:border-slate-100 dark:hover:border-slate-600"
+          title={t("Collapse sidebar")}
+        >
+          <ChevronsLeft className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );

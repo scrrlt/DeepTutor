@@ -74,13 +74,13 @@ features:
 }
 
 /* Hero 区域 Roadmap 按钮特殊样式 */
-.VPButton.alt[href="/DeepTutor/zh/roadmap"] {
+.VPButton.alt[href$="/roadmap"] {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   color: white !important;
   border: none !important;
 }
 
-.VPButton.alt[href="/DeepTutor/zh/roadmap"]:hover {
+.VPButton.alt[href$="/roadmap"]:hover {
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
   transform: translateY(-2px);
 }

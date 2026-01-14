@@ -17,6 +17,27 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    try:
+        from raganything import RAGAnything
+    except ImportError:
+        pass
+
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from dotenv import load_dotenv
+
+from src.services.embedding import get_embedding_config
+from src.services.llm import get_llm_config
+
+# Import RAGService for dynamic provider selection based on RAG_PROVIDER env var
+from src.services.rag.service import RAGService
+
+load_dotenv(dotenv_path=".env", override=False)
 
 from src.logging import get_logger
 from src.services.embedding import get_embedding_config
@@ -182,11 +203,16 @@ class KnowledgeBaseInitializer:
         file_paths = [str(doc_file) for doc_file in doc_files]
 
         try:
+            timeout_seconds = int(os.getenv("RAG_INIT_TIMEOUT_SECONDS", "600"))
             # Process all documents using the RAGService
-            success = await rag_service.initialize(
-                kb_name=self.kb_name,
-                file_paths=file_paths,
-                extract_numbered_items=True,  # Enable numbered items extraction
+            success = await asyncio.wait_for(
+                rag_service.initialize(
+                    kb_name=self.kb_name,
+                    file_paths=file_paths,
+                    extract_numbered_items=True,  # Enable numbered items extraction
+                    parse_timeout_seconds=timeout_seconds,
+                ),
+                timeout=timeout_seconds,
             )
 
             if success:
@@ -206,9 +232,12 @@ class KnowledgeBaseInitializer:
                 )
 
         except asyncio.TimeoutError:
-            error_msg = "Processing timeout (>10 minutes)"
-            logger.error("✗ Timeout processing documents")
+            error_msg = f"Processing timeout (>{int(os.getenv('RAG_INIT_TIMEOUT_SECONDS', '600'))}s)"
+            logger.error(f"✗ Timeout processing documents")
             logger.error("Possible causes: Large files, slow embedding API, network issues")
+            logger.error(
+                "If this stalls at MinerU parsing, try setting RAG_PROVIDER=lightrag (text-only) or RAG_PROVIDER=llamaindex (fast)."
+            )
             self.progress_tracker.update(
                 ProgressStage.ERROR,
                 "Timeout processing documents",
@@ -442,12 +471,33 @@ class KnowledgeBaseInitializer:
                     logger.info(f"Text chunks: {len(chunks)}")
 
             if vector_store_dir.exists():
-                metadata_file = vector_store_dir / "metadata.json"
-                if metadata_file.exists():
-                    with open(metadata_file, encoding="utf-8") as f:
+                info_file = vector_store_dir / "info.json"
+                if info_file.exists():
+                    with open(info_file, encoding="utf-8") as f:
                         metadata = json.load(f)
-                        logger.info(f"Vector embeddings: {metadata.get('num_embeddings', 0)}")
-                        logger.info(f"Embedding dimension: {metadata.get('dimension', 0)}")
+                        logger.info(
+                            f"Vector embeddings: {metadata.get('num_chunks', metadata.get('num_embeddings', 0))}"
+                        )
+                        logger.info(
+                            f"Embedding dimension: {metadata.get('embedding_dim', metadata.get('dimension', 0))}"
+                        )
+                else:
+                    # Fallback to old metadata.json if info.json doesn't exist
+                    metadata_file = vector_store_dir / "metadata.json"
+                    if metadata_file.exists():
+                        logger.warning(
+                            f"Using deprecated metadata.json format for {self.kb_name}. "
+                            "This format will be removed in a future major release. "
+                            "To migrate, create an info.json file in the same directory with "
+                            "equivalent fields (e.g., map 'num_embeddings' → 'num_chunks' and "
+                            "'dimension' → 'embedding_dim'). "
+                            "Refer to the project documentation for up-to-date migration details "
+                            "and any available migration scripts."
+                        )
+                        with open(metadata_file, encoding="utf-8") as f:
+                            metadata = json.load(f)
+                            logger.info(f"Vector embeddings: {metadata.get('num_embeddings', 0)}")
+                            logger.info(f"Embedding dimension: {metadata.get('dimension', 0)}")
         except Exception as e:
             logger.warning(f"Could not retrieve statistics: {e!s}")
 

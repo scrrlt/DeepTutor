@@ -86,6 +86,14 @@ outputs/
 cache/
 **/cache/
 .cache/
+**/.cache/
+
+!src/utils/cache/
+!src/utils/cache/**
+
+src/utils/cache/**/__pycache__/
+src/utils/cache/**/__pycache__/*
+src/utils/cache/**/*.py[cod]
 
 # Log files
 *.log
@@ -191,6 +199,8 @@ $RECYCLE.BIN/
 .coverage.*
 htmlcov/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .tox/
 nosetests.xml
 coverage.xml
@@ -271,3 +281,5 @@ celerybeat.pid
 *.wav
 *.ogg
 !demo/*.mp4
+.vercel
+.env*.local

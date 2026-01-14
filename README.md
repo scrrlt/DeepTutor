@@ -1,3 +1,43 @@
+<div align="center">
+
+<img src="assets/logo-ver2.png" alt="DeepTutor Logo" width="150" style="border-radius: 15px;">
+
+# DeepTutor: AI-Powered Personalized Learning Assistant
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](LICENSE)
+
+<p align="center">
+  <a href="https://discord.gg/zpP9cssj"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+  &nbsp;&nbsp;
+  <a href="./Communication.md"><img src="https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white" alt="Feishu"></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/HKUDS/DeepTutor/issues/78"><img src="https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>
+</p>
+
+
+
+[**Quick Start**](#quick-start) · [**Core Modules**](#core-modules) · [**FAQ**](#faq)
+
+[**Branch Index (Fork Governance)**](docs/BRANCHES.md)
+
+[🇨🇳 中文](assets/README/README_CN.md) · [🇯🇵 日本語](assets/README/README_JA.md) · [🇪🇸 Español](assets/README/README_ES.md) · [🇫🇷 Français](assets/README/README_FR.md) · [🇸🇦 العربية](assets/README/README_AR.md) · [🇷🇺 Русский](assets/README/README_RU.md) · [🇮🇳 हिन्दी](assets/README/README_HI.md) · [🇵🇹 Português](assets/README/README_PT.md)
+
+</div>
+
+<div align="center">
+
+📚 **Massive Document Knowledge Q&A** &nbsp;•&nbsp; 🎨 
+**Interactive Learning Visualization**<br>
+🎯 **Knowledge Reinforcement** &nbsp;•&nbsp; 🔍 **Deep Research & Idea Generation**
+
+</div>
+
+---
 ### 📰 News
 
 > **[2026.1.1]** Join our [Discord Community](https://discord.gg/zpP9cssj) and [GitHub Discussions](https://github.com/HKUDS/DeepTutor/discussions) - shape the future of DeepTutor! 💬
@@ -115,7 +155,7 @@
 </a>
 
 **Deep Research**  
-<sub>Knowledge Extension from Textbook with RAG, Web and Paper-search</sub>
+<sub>Knowledge Extention from Textbook with RAG, Web and Paper-search</sub>
 
 </td>
 <td width="33%" align="center">
@@ -406,7 +446,7 @@ cd web && npm install && npm run dev -- -p 3782
 ```
 
 **Note**: Create `web/.env.local`:
-```bash
+```
 NEXT_PUBLIC_API_BASE=http://localhost:8001
 ```
 
@@ -1421,7 +1461,7 @@ This will extract numbered items (Definitions, Theorems, Equations, etc.) from y
 We hope DeepTutor could become a gift for the community. 🎁
 
 <a href="https://github.com/HKUDS/DeepTutor/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=HKUDS/DeepTutor&max=999" alt="Contributors to HKUDS/DeepTutor" />
+  <img src="https://contrib.rocks/image?repo=HKUDS/DeepTutor&max=999" />
 </a>
 
 </div>
@@ -1447,3 +1487,8 @@ This project is licensed under the ***[AGPL-3.0 License](LICENSE)***.
 <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.DeepTutor&style=for-the-badge&color=00d4ff" alt="Views">
 
 </div>
+  
+ 
+   
+ 
+ 

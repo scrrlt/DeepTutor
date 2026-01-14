@@ -94,7 +94,7 @@ class RAGAnythingPipeline:
         def vision_model_func(
             prompt,
             system_prompt=None,
-            history_messages=[],
+            history_messages=None,
             image_data=None,
             messages=None,
             **kwargs,

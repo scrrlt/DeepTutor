@@ -1,95 +1,45 @@
-import anthropic
-
+from ..provider import BaseLLMProvider
 from ..registry import register_provider
-from ..telemetry import track_llm_call
-from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
-from .base_provider import BaseLLMProvider
-
+from typing import AsyncGenerator
+import anthropic
 
 @register_provider("anthropic")
 class AnthropicProvider(BaseLLMProvider):
-    """Anthropic Claude Provider."""
+    """Anthropic (Claude) Provider"""
+
+    price_per_input_token = 3.00 / 1_000_000
+    price_per_output_token = 15.00 / 1_000_000
 
     def __init__(self, config):
         super().__init__(config)
-
         self.client = anthropic.AsyncAnthropic(
             api_key=self.api_key,
+            base_url=self.base_url
         )
 
-    @track_llm_call("anthropic")
-    async def complete(self, prompt: str, **kwargs) -> TutorResponse:
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
-        kwargs.pop("stream", None)
+    async def complete(self, prompt: str, **kwargs) -> str:
+        model = kwargs.get("model") or self.config.model_name or "claude-3-5-sonnet-20240620"
 
         async def _call_api():
             response = await self.client.messages.create(
                 model=model,
-                max_tokens=kwargs.pop("max_tokens", 1024),
-                messages=[{"role": "user", "content": prompt}],
-                **kwargs,
+                max_tokens=kwargs.get("max_tokens", 4096),
+                messages=[{"role": "user", "content": prompt}]
             )
-
-            content = response.content[0].text if response.content else ""
-            usage = {
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            }
-
-            return TutorResponse(
-                content=content,
-                raw_response=response.model_dump(),
-                usage=usage,
-                provider="anthropic",
-                model=model,
-                finish_reason=response.stop_reason,
-                cost_estimate=self.calculate_cost(usage),
-            )
+            return response.content[0].text
 
         return await self.execute_with_retry(_call_api)
 
-    @track_llm_call("anthropic")
-    async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
-        max_tokens = kwargs.pop("max_tokens", 1024)
+    async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
+        model = kwargs.get("model") or self.config.model_name or "claude-3-5-sonnet-20240620"
 
-        async def _create_stream():
-            return await self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
-                stream=True,
-                **kwargs,
-            )
-
-        stream = await self.execute_with_retry(_create_stream)
-        accumulated_content = ""
-        usage = None
+        stream = await self.client.messages.create(
+            model=model,
+            max_tokens=kwargs.get("max_tokens", 4096),
+            messages=[{"role": "user", "content": prompt}],
+            stream=True
+        )
 
         async for chunk in stream:
-            if chunk.type == "content_block_delta" and chunk.delta.text:
-                delta = chunk.delta.text
-                accumulated_content += delta
-
-                yield TutorStreamChunk(
-                    content=accumulated_content,
-                    delta=delta,
-                    provider="anthropic",
-                    model=model,
-                    is_complete=False,
-                )
-            elif chunk.type == "message_delta" and hasattr(chunk, "usage"):
-                # Extract usage from the final message delta
-                usage = {
-                    "input_tokens": chunk.usage.input_tokens,
-                    "output_tokens": chunk.usage.output_tokens,
-                }
-
-        yield TutorStreamChunk(
-            content=accumulated_content,
-            delta="",
-            provider="anthropic",
-            model=model,
-            is_complete=True,
-            usage=usage,
-        )
+            if chunk.type == "content_block_delta":
+                yield chunk.delta.text

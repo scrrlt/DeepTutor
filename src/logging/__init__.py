@@ -25,79 +25,100 @@ Usage:
     stats.print_summary()
 """
 
-# Core logging
-# Adapters for external libraries
-from .adapters import (
-    LightRAGLogContext,
-    LightRAGLogForwarder,
-    LlamaIndexLogContext,
-    LlamaIndexLogForwarder,
-    get_lightrag_forwarding_config,
-)
+import sys
 
-# Configuration
-from .config import (
-    LoggingConfig,
-    get_default_log_dir,
-    load_logging_config,
-)
+if __name__ == "logging":
+    import importlib.machinery
+    import importlib.util
+    import sysconfig
 
-# Handlers
-from .handlers import (
-    ConsoleHandler,
-    FileHandler,
-    JSONFileHandler,
-    LogInterceptor,
-    RotatingFileHandler,
-    WebSocketLogHandler,
-)
-from .logger import (
-    ConsoleFormatter,
-    FileFormatter,
-    Logger,
-    LogLevel,
-    get_logger,
-    reset_logger,
-)
+    if sys.modules.get("logging") is sys.modules.get(__name__):
+        del sys.modules["logging"]
 
-# Statistics tracking
-from .stats import (
-    MODEL_PRICING,
-    LLMCall,
-    LLMStats,
-    estimate_tokens,
-    get_pricing,
-)
+    _stdlib_path = sysconfig.get_path("stdlib")
+    _spec = importlib.machinery.PathFinder.find_spec("logging", [_stdlib_path])
+    if _spec is None or _spec.loader is None:
+        raise ImportError("Could not load stdlib logging module")
 
-__all__ = [
-    # Core
-    "Logger",
-    "LogLevel",
-    "get_logger",
-    "reset_logger",
-    "ConsoleFormatter",
-    "FileFormatter",
+    _stdlib_logging = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_stdlib_logging)
+    sys.modules["logging"] = _stdlib_logging
+    globals().update(_stdlib_logging.__dict__)
+
+else:
+    # Core logging
+    # Adapters for external libraries
+    from .adapters import (
+        LightRAGLogContext,
+        LightRAGLogForwarder,
+        LlamaIndexLogContext,
+        LlamaIndexLogForwarder,
+        get_lightrag_forwarding_config,
+    )
+
+    # Configuration
+    from .config import (
+        LoggingConfig,
+        get_default_log_dir,
+        load_logging_config,
+    )
+
     # Handlers
-    "ConsoleHandler",
-    "FileHandler",
-    "JSONFileHandler",
-    "RotatingFileHandler",
-    "WebSocketLogHandler",
-    "LogInterceptor",
-    # Adapters
-    "LightRAGLogContext",
-    "LightRAGLogForwarder",
-    "get_lightrag_forwarding_config",
-    "LlamaIndexLogContext",
-    "LlamaIndexLogForwarder",
-    # Stats
-    "LLMStats",
-    "LLMCall",
-    "get_pricing",
-    "estimate_tokens",
-    "MODEL_PRICING",
-    # Config
-    "LoggingConfig",
-    "load_logging_config",
-    "get_default_log_dir",
-]
+    from .handlers import (
+        ConsoleHandler,
+        FileHandler,
+        JSONFileHandler,
+        LogInterceptor,
+        RotatingFileHandler,
+        WebSocketLogHandler,
+    )
+    from .logger import (
+        ConsoleFormatter,
+        FileFormatter,
+        Logger,
+        LogLevel,
+        get_logger,
+        reset_logger,
+    )
+
+    # Statistics tracking
+    from .stats import (
+        MODEL_PRICING,
+        LLMCall,
+        LLMStats,
+        estimate_tokens,
+        get_pricing,
+    )
+
+    __all__ = [
+        # Core
+        "Logger",
+        "LogLevel",
+        "get_logger",
+        "reset_logger",
+        "ConsoleFormatter",
+        "FileFormatter",
+        # Handlers
+        "ConsoleHandler",
+        "FileHandler",
+        "JSONFileHandler",
+        "RotatingFileHandler",
+        "WebSocketLogHandler",
+        "LogInterceptor",
+        # Adapters
+        "LightRAGLogContext",
+        "LightRAGLogForwarder",
+        "get_lightrag_forwarding_config",
+        "LlamaIndexLogContext",
+        "LlamaIndexLogForwarder",
+        # Stats
+        "LLMStats",
+        "LLMCall",
+        "get_pricing",
+        "estimate_tokens",
+        "MODEL_PRICING",
+        # Config
+        "LoggingConfig",
+        "load_logging_config",
+        "get_default_log_dir",
+    ]

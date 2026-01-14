@@ -17,7 +17,9 @@ from typing import Any
 
 import yaml
 
-from ...services.config import parse_language
+from src.services.config import load_config_with_main, parse_language
+from src.services.llm import get_llm_config
+
 from .analysis_loop import InvestigateAgent, NoteAgent
 
 # Dual-Loop Architecture
@@ -232,7 +234,6 @@ class MainSolver:
         self.logger.display_manager = get_display_manager()
 
         # Initialize performance monitor (disabled by default - performance logging is deprecated)
-        monitoring_config = self.config.get("monitoring", {})
         # Disable performance monitor by default to avoid creating performance directory
         self.monitor = PerformanceMonitor(
             enabled=False,
@@ -850,6 +851,10 @@ class MainSolver:
 
 
 if __name__ == "__main__":
+    # Add project root to path when running this file directly
+    project_root = Path(__file__).parent.parent.parent.parent
+    sys.path.insert(0, str(project_root))
+
     from dotenv import load_dotenv
 
     load_dotenv()

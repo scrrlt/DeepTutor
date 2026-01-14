@@ -9,6 +9,26 @@ from typing import Type
 
 from ..base import BaseSearchProvider
 
+
+class SearchProviderError(Exception):
+    """
+    Base exception for errors originating from web search providers.
+
+    This exception is intended to be raised by concrete `BaseSearchProvider`
+    implementations when a provider-specific operation fails in a way that
+    callers may want to handle distinctly from generic runtime errors.
+
+    Typical scenarios include (but are not limited to):
+      * Misconfiguration or missing credentials for a provider.
+      * Provider API returning an error response (e.g., quota exceeded, 4xx/5xx).
+      * Transient network or availability issues specific to a provider.
+
+    Callers that interact with providers can catch this exception to implement
+    provider-agnostic error handling, logging, or retries without depending on
+    the concrete provider class.
+    """
+
+
 _PROVIDERS: dict[str, Type[BaseSearchProvider]] = {}
 
 
@@ -126,4 +146,10 @@ __all__ = [
     "get_available_providers",
     "get_providers_info",
     "get_default_provider",
+    "baidu",
+    "exa",
+    "jina",
+    "perplexity",
+    "serper",
+    "tavily",
 ]

@@ -23,8 +23,8 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.logging import Logger, get_logger
-from src.services.config import load_config_with_main
 from src.tools.rag_tool import rag_search
+from src.utils.config_manager import ConfigManager
 
 
 def ensure_list(value: Any, default: list | None = None) -> list:
@@ -102,8 +102,8 @@ class AgentCoordinator:
         self.output_dir = output_dir
 
         # Load configuration (with main.yaml merge) first
-        project_root = Path(__file__).parent.parent.parent.parent
-        self.config = load_config_with_main("question_config.yaml", project_root)
+        config_manager = ConfigManager()
+        self.config = config_manager.load_config_with_module("question_config.yaml")
 
         # Initialize logger (from config)
         log_dir = self.config.get("paths", {}).get("user_log_dir") or self.config.get(

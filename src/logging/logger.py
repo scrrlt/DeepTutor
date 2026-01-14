@@ -447,8 +447,9 @@ class Logger:
                     else str(tool_input)
                 )
                 self.debug(f"Tool Input: {input_str[:500]}...")
-            except:
-                pass
+            except Exception as e:
+                # Avoid re-stringifying tool_input here; keep it minimal.
+                self.debug(f"Tool Input: <unserializable> ({type(e).__name__})")
         if tool_output is not None:
             try:
                 output_str = (
@@ -457,8 +458,8 @@ class Logger:
                     else str(tool_output)
                 )
                 self.debug(f"Tool Output: {output_str[:500]}...")
-            except:
-                pass
+            except Exception as e:
+                self.debug(f"Tool Output: <unserializable> ({type(e).__name__})")
 
     def log_llm_input(
         self,

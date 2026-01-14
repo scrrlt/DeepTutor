@@ -7,7 +7,7 @@ Pure LightRAG retriever (text-only, no multimodal).
 
 from pathlib import Path
 import sys
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, Dict, Optional
 
 from ..base import BaseComponent
 

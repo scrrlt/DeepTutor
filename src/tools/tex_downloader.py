@@ -22,6 +22,8 @@ import zipfile
 
 import requests
 
+from src.logging import get_logger
+
 
 class TexDownloadResult:
     """LaTeX download result"""
@@ -51,6 +53,7 @@ class TexDownloader:
         """
         self.workspace_dir = Path(workspace_dir)
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
+        self.logger = get_logger("TexDownloader")
 
     def download_arxiv_source(
         self, arxiv_url: str, arxiv_id: str | None = None
@@ -125,8 +128,10 @@ class TexDownloader:
             )
 
         except requests.exceptions.RequestException as e:
+            self.logger.error(f"Download failed for {arxiv_id}: {e!s}")
             return TexDownloadResult(success=False, error=f"Download failed: {e!s}")
-        except Exception as e:
+        except (OSError, ValueError, tarfile.TarError, zipfile.BadZipFile, UnicodeDecodeError) as e:
+            self.logger.error(f"Processing failed for {arxiv_id}: {e!s}")
             return TexDownloadResult(success=False, error=f"Processing failed: {e!s}")
 
     def _extract_arxiv_id(self, url: str) -> str | None:
@@ -139,17 +144,17 @@ class TexDownloader:
     def _is_tar_file(self, file_path: Path) -> bool:
         """Check if file is a tar file"""
         try:
-            with tarfile.open(file_path, "r:*") as tar:
+            with tarfile.open(file_path, "r:*"):
                 return True
-        except:
+        except (OSError, tarfile.TarError):
             return False
 
     def _is_zip_file(self, file_path: Path) -> bool:
         """Check if file is a zip file"""
         try:
-            with zipfile.ZipFile(file_path, "r") as zip_file:
+            with zipfile.ZipFile(file_path, "r"):
                 return True
-        except:
+        except (OSError, zipfile.BadZipFile):
             return False
 
     def _extract_tar(self, tar_path: Path, extract_dir: Path):
@@ -204,7 +209,7 @@ class TexDownloader:
                 content = tex_file.read_text(encoding="utf-8", errors="ignore")
                 if r"\documentclass" in content:
                     return tex_file
-            except:
+            except OSError:
                 continue
 
         # 3. Return largest tex file
@@ -215,7 +220,8 @@ class TexDownloader:
         """Read tex file content"""
         try:
             return tex_path.read_text(encoding="utf-8", errors="ignore")
-        except Exception as e:
+        except (OSError, UnicodeDecodeError) as e:
+            self.logger.error(f"Failed to read tex file {tex_path}: {e!s}")
             raise Exception(f"Failed to read tex file: {e!s}")
 
 
@@ -229,7 +235,12 @@ def read_tex_file(tex_path: str) -> str:
     Returns:
         tex content
     """
-    return Path(tex_path).read_text(encoding="utf-8", errors="ignore")
+    try:
+        return Path(tex_path).read_text(encoding="utf-8", errors="ignore")
+    except (OSError, UnicodeDecodeError) as e:
+        logger = get_logger("TexDownloader")
+        logger.error(f"Failed to read tex file {tex_path}: {e!s}")
+        raise Exception(f"Failed to read tex file: {e!s}")
 
 
 # ========== Usage Example ==========

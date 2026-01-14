@@ -12,7 +12,7 @@ class TutorResponse(BaseModel):
     provider: str
     model: str
     finish_reason: Optional[str] = None
-    cost_estimate: float = 0.0
+    cost_estimate: Optional[float] = 0.0
 
 
 class TutorStreamChunk(BaseModel):

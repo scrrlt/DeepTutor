@@ -95,8 +95,6 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
     # 3. Merge configurations: main.yaml as base, sub-module config overrides
     merged_config = _deep_merge(main_config, module_config)
 
-    return merged_config
-
 
 async def load_config_with_main_async(
     config_file: str, project_root: Path | None = None

@@ -2,124 +2,14 @@
 Error Mapping - Map provider-specific errors to unified exceptions.
 """
 
-from __future__ import annotations
-
-from dataclasses import dataclass
-import logging
-from typing import Callable, List, Optional, Type
-
-try:
-    import openai  # type: ignore
-
-    _HAS_OPENAI = True
-except ImportError:  # pragma: no cover
-    openai = None  # type: ignore
-    _HAS_OPENAI = False
+from .exceptions import LLMBaseError, ProviderContextWindowError, ProviderQuotaExceededError
 
 
-logger = logging.getLogger(__name__)
-
-
-class LLMError(Exception):
-    """Base exception for all LLM-related errors."""
-
-
-class LLMAPIError(LLMError):
-    """Generic API error raised for provider-specific failures."""
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        status_code: Optional[int] = None,
-        provider: Optional[str] = None,
-    ) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.provider = provider
-
-
-class LLMAuthenticationError(LLMAPIError):
-    """Authentication/authorization related error for LLM providers."""
-
-
-class LLMRateLimitError(LLMAPIError):
-    """Rate limiting / quota exhaustion error for LLM providers."""
-
-
-class ProviderContextWindowError(LLMAPIError):
-    """Error indicating the request exceeded the provider's context window."""
-
-
-ErrorClassifier = Callable[[Exception], bool]
-
-
-@dataclass(frozen=True)
-class MappingRule:
-    classifier: ErrorClassifier
-    factory: Callable[[Exception, Optional[str]], LLMError]
-
-
-def _instance_of(*types: Type[BaseException]) -> ErrorClassifier:
-    return lambda exc: isinstance(exc, types)
-
-
-def _message_contains(*needles: str) -> ErrorClassifier:
-    def _classifier(exc: Exception) -> bool:
-        msg = str(exc).lower()
-        return any(needle in msg for needle in needles)
-
-    return _classifier
-
-
-_GLOBAL_RULES: List[MappingRule] = [
-    MappingRule(
-        classifier=_message_contains("rate limit", "429", "quota"),
-        factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
-    ),
-    MappingRule(
-        classifier=_message_contains("context length", "maximum context"),
-        factory=lambda exc, provider: ProviderContextWindowError(str(exc), provider=provider),
-    ),
-]
-
-if _HAS_OPENAI:
-    _GLOBAL_RULES[:0] = [
-        MappingRule(
-            classifier=_instance_of(openai.AuthenticationError),
-            factory=lambda exc, provider: LLMAuthenticationError(str(exc), provider=provider),
-        ),
-        MappingRule(
-            classifier=_instance_of(openai.RateLimitError),
-            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
-        ),
-    ]
-
-# Attempt to load Anthropic and Google rules if SDKs are present
-try:
-    import anthropic
-
-    _GLOBAL_RULES.append(
-        MappingRule(
-            classifier=_instance_of(anthropic.RateLimitError),
-            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
-        )
-    )
-except ImportError:
-    pass
-
-
-def map_error(exc: Exception, provider: Optional[str] = None) -> LLMError:
-    """Map provider-specific errors to unified internal exceptions."""
-    # Heuristic check for status codes before rules
-    status_code = getattr(exc, "status_code", None)
-    if status_code == 401:
-        return LLMAuthenticationError(str(exc), provider=provider)
-    if status_code == 429:
-        return LLMRateLimitError(str(exc), provider=provider)
-
-    for rule in _GLOBAL_RULES:
-        if rule.classifier(exc):
-            return rule.factory(exc, provider)
-
-    return LLMAPIError(str(exc), status_code=status_code, provider=provider)
+def map_error(e: Exception) -> LLMBaseError:
+    """Map provider-specific errors to unified exceptions."""
+    error_str = str(e).lower()
+    if "rate limit" in error_str or "429" in error_str or "quota" in error_str:
+        return ProviderQuotaExceededError()
+    if "maximum context length" in error_str or "context_length_exceeded" in error_str:
+        return ProviderContextWindowError()
+    return LLMBaseError(str(e))

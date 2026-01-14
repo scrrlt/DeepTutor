@@ -12,13 +12,14 @@ Features:
 """
 
 from datetime import datetime
+import json
 from typing import Any
 
 import requests
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
-from . import register_provider
+from . import SearchProviderError, register_provider
 
 
 @register_provider("baidu")
@@ -101,9 +102,9 @@ class BaiduProvider(BaseSearchProvider):
         if response.status_code != 200:
             try:
                 error_data = response.json() if response.text else {}
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 error_data = {}
-            raise Exception(
+            raise SearchProviderError(
                 f"Baidu AI Search API error: {response.status_code} - "
                 f"{error_data.get('message', response.text)}"
             )

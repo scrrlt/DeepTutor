@@ -1,34 +1,34 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Send,
-  Loader2,
-  Bot,
-  User,
-  Database,
-  Globe,
-  Calculator,
-  FileText,
-  Microscope,
-  Lightbulb,
-  Trash2,
-  ExternalLink,
-  BookOpen,
-  Sparkles,
-  Edit3,
-  GraduationCap,
-  PenTool,
-} from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
+import {
+  BookOpen,
+  Bot,
+  Calculator,
+  Database,
+  Edit3,
+  ExternalLink,
+  Globe,
+  GraduationCap,
+  Lightbulb,
+  Loader2,
+  Microscope,
+  PenTool,
+  Send,
+  Trash2,
+  User,
+} from "lucide-react";
 import { useGlobal } from "@/context/GlobalContext";
 import { apiUrl } from "@/lib/api";
 import { processLatexContent } from "@/lib/latex";
 import { getTranslation } from "@/lib/i18n";
+import { KBErrorDisplay } from "@/components/KBErrorDisplay";
+import { WelcomeScreen } from "@/components/WelcomeScreen";
+import { ChatInterface } from "@/components/ChatInterface";
 
 interface KnowledgeBase {
   name: string;
@@ -40,7 +40,6 @@ export default function HomePage() {
     chatState,
     setChatState,
     sendChatMessage,
-    clearChatHistory,
     newChatSession,
     uiSettings,
   } = useGlobal();
@@ -48,15 +47,27 @@ export default function HomePage() {
 
   const [inputMessage, setInputMessage] = useState("");
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
+  const [kbError, setKbError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Fetch knowledge bases
   useEffect(() => {
-    fetch(apiUrl("/api/v1/knowledge/list"))
-      .then((res) => res.json())
-      .then((data) => {
+    const controller = new AbortController();
+
+    const run = async () => {
+      try {
+        const res = await fetch(apiUrl("/api/v1/knowledge/list"), {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
+        const data = await res.json();
+
         setKbs(data);
+        setKbError(null); // Clear any previous error
         if (!chatState.selectedKb) {
           const defaultKb = data.find((kb: KnowledgeBase) => kb.is_default);
           if (defaultKb) {
@@ -65,8 +76,35 @@ export default function HomePage() {
             setChatState((prev) => ({ ...prev, selectedKb: data[0].name }));
           }
         }
-      })
-      .catch((err) => console.error("Failed to fetch KBs:", err));
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+
+        console.error("Failed to fetch KBs:", err);
+        const message = typeof err?.message === "string" ? err.message : "";
+        let errorMessage = "Failed to load knowledge bases.";
+
+        if (message.includes("fetch") || message.includes("Failed to fetch")) {
+          errorMessage =
+            "Cannot connect to backend server. Please ensure the backend is running on port 8001.";
+        } else if (message.includes("HTTP 404")) {
+          errorMessage =
+            "Knowledge base API not found. Please check your backend configuration.";
+        } else if (message.includes("HTTP 500")) {
+          errorMessage = "Backend server error. Please check the server logs.";
+        } else if (message) {
+          errorMessage += ` ${message}`;
+        }
+
+        errorMessage += " You can still use the chat without knowledge bases.";
+        setKbError(errorMessage);
+      }
+    };
+
+    void run();
+
+    return () => {
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -195,22 +233,25 @@ export default function HomePage() {
 
               {/* KB Selector */}
               {chatState.enableRag && (
-                <select
-                  value={chatState.selectedKb}
-                  onChange={(e) =>
-                    setChatState((prev) => ({
-                      ...prev,
-                      selectedKb: e.target.value,
-                    }))
-                  }
-                  className="text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 dark:text-slate-200"
-                >
-                  {kbs.map((kb) => (
-                    <option key={kb.name} value={kb.name}>
-                      {kb.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-col gap-2">
+                  <select
+                    value={chatState.selectedKb}
+                    onChange={(e) =>
+                      setChatState((prev) => ({
+                        ...prev,
+                        selectedKb: e.target.value,
+                      }))
+                    }
+                    className="text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 dark:text-slate-200"
+                  >
+                    {kbs.map((kb) => (
+                      <option key={kb.name} value={kb.name}>
+                        {kb.name}
+                      </option>
+                    ))}
+                  </select>
+                  {kbError && <KBErrorDisplay error={kbError} />}
+                </div>
               )}
             </div>
 

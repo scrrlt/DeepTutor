@@ -20,8 +20,6 @@ from src.agents.base_agent import BaseAgent
 from src.services.config import load_config_with_main
 from src.services.tts import get_tts_config
 
-# Import shared stats from edit_agent for legacy compatibility
-
 # Define storage path (unified under user/co-writer/ directory)
 USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
 
@@ -129,11 +127,7 @@ class NarratorAgent(BaseAgent):
         self.logger.info(f"  Default Voice: {self.default_voice}")
 
     async def process(
-        self,
-        content: str,
-        style: str = "friendly",
-        voice: Optional[str] = None,
-        skip_audio: bool = False,
+        self, content: str, style: str = "friendly", voice: str = None, skip_audio: bool = False
     ) -> dict[str, Any]:
         """
         Main processing method - alias for narrate().
@@ -254,7 +248,7 @@ class NarratorAgent(BaseAgent):
             self.logger.warning(f"Failed to extract key points: {e}")
             return []
 
-    async def generate_audio(self, script: str, voice: str = None) -> dict[str, Any]:
+    async def generate_audio(self, script: str, voice: str | None = None) -> dict[str, Any]:
         """
         Convert narration script to audio using OpenAI TTS API
 
@@ -339,13 +333,10 @@ class NarratorAgent(BaseAgent):
 
             self.logger.info(f"Audio saved to: {audio_path}")
 
-            # Use correct path: co-writer/audio (matching the actual storage directory)
-            relative_path = f"co-writer/audio/{audio_filename}"
-            audio_access_url = f"/api/outputs/{relative_path}"
+            # Audio access URL removed for security reasons
 
             return {
                 "audio_path": str(audio_path),
-                "audio_url": audio_access_url,
                 "audio_id": audio_id,
                 "voice": voice,
             }
@@ -358,7 +349,7 @@ class NarratorAgent(BaseAgent):
         self,
         content: str,
         style: str = "friendly",
-        voice: str = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """

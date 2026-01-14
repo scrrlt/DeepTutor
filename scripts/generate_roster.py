@@ -84,7 +84,7 @@ def fetch_github_api(url: str, token: str = None, count_only: bool = False) -> t
                                 total_count += len(more_data)
                                 if len(more_data) < per_page:
                                     break
-                        except:
+                        except Exception:
                             break
                     break
         except Exception as e:
@@ -140,13 +140,11 @@ def generate_modern_roster_svg(
         text_color = "#e6edf3"
         muted_color = "#8b949e"
         border_color = "#30363d"
-        accent_color = "#58a6ff"
     else:
         bg_color = "#ffffff"
         text_color = "#1f2328"
         muted_color = "#656d76"
         border_color = "#d0d7de"
-        accent_color = "#0969da"
 
     # Calculate dimensions
     overlap = 12  # How much avatars overlap
@@ -157,7 +155,6 @@ def generate_modern_roster_svg(
     padding_y = 16
 
     # Text measurements (approximate)
-    title_width = len(title) * 9
     others_text = f"and {others_count:,} others" if others_count > 0 else ""
     others_width = len(others_text) * 7 if others_text else 0
 

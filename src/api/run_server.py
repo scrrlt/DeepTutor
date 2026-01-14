@@ -50,12 +50,17 @@ if __name__ == "__main__":
     # Filter out non-existent directories to avoid warnings
     reload_excludes = [d for d in reload_excludes if Path(d).exists()]
 
-    # Start uvicorn server with reload enabled
+    # Start uvicorn server. On Windows, reload spawns a subprocess and can re-trigger
+    # import-time issues; make it opt-in via ENABLE_RELOAD=true.
+    enable_reload = os.getenv("ENABLE_RELOAD", "false").lower() == "true"
+    if sys.platform != "win32":
+        enable_reload = os.getenv("ENABLE_RELOAD", "true").lower() == "true"
+
     uvicorn.run(
         "src.api.main:app",
         host="0.0.0.0",
         port=backend_port,
-        reload=True,
+        reload=enable_reload,
         reload_excludes=reload_excludes,
         log_level="info",
     )

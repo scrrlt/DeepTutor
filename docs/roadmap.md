@@ -2,7 +2,9 @@
 
 Our vision for DeepTutor's future development.
 
-## ✅ Recently Completed (v0.4.0)
+- 🔄 **More RAG Pipelines** — Expanding retrieval architectures and backends
+- 🗄️ **Database Robustness & Visualization** — Stability improvements and visual insights
+- 🐛 **Bug Fixing** — Addressing reported issues and edge cases
 
 - [x] **RAG Module Decoupling** — Modular RAG architecture with provider-agnostic interface
   - Currently supports RAG-Anything (MinerU + LightRAG)

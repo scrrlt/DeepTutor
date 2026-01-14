@@ -62,17 +62,16 @@ repos:
   # ============================================
   # Frontend code formatting and linting
   # ============================================
-  # Note: ESLint is disabled for now due to missing config file in /web
-  # - repo: https://github.com/pre-commit/mirrors-eslint
-  #   rev: v9.17.0
-  #   hooks:
-  #     - id: eslint
-  #       files: ^web/.*\.(js|jsx|ts|tsx)$
-  #       exclude: ^web/(node_modules|\.next|out|dist|build)/
-  #       additional_dependencies:
-  #         - eslint@^9.0.0
-  #         - eslint-config-next@^15.0.0
-  #         - "@eslint/eslintrc"
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.39.1
+    hooks:
+      - id: eslint
+        files: ^web/.*\.(js|jsx|ts|tsx)$
+        exclude: ^web/(node_modules|\.next|out|dist|build|next\.config\.js|postcss\.config\.js|tailwind\.config\.js)$
+        additional_dependencies:
+          - eslint@^9.0.0
+          - eslint-config-next@^16.0.0
+        args: [--config, web/eslint.config.mjs]
   #       args: [--fix]
 
   - repo: https://github.com/pre-commit/mirrors-prettier

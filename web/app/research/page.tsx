@@ -278,7 +278,7 @@ export default function ResearchPage() {
         {
           id: Date.now().toString(),
           role: "assistant",
-          content: `Network error. Try again.`,
+          content: "Network error. Try again.",
         },
       ]);
     } finally {

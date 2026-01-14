@@ -1,0 +1,63 @@
+steps:
+  # Build and push the Docker image using Kaniko (with remote layer caching)
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - '--dockerfile=./Dockerfile'
+      - '--context=dir://.'
+      - '--destination=gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
+      - '--cache=true'
+      - '--cache-ttl=24h'
+
+  # Deploy to Cloud Run with secrets from Secret Manager
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'deeptutor'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
+      - '--platform'
+      - 'managed'
+      - '--region'
+      - 'us-central1'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8001'
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=gemini-api-key:latest'
+      - '--set-secrets'
+      - 'OPENAI_API_KEY=openai-api-key:latest'
+      - '--set-secrets'
+      - 'VERCEL_API_KEY=vercel-api-key:latest'
+      - '--set-secrets'
+      - 'VERTEX_API_KEY=vertex-api-key:latest'
+      - '--set-secrets'
+      - 'GITHUB_OAUTH_TOKEN=scrrlt-github-oauthtoken-2238c3:latest'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production'
+      - '--set-env-vars'
+      - 'LLM_PROVIDER=gemini'
+      - '--set-env-vars'
+      - 'LLM_MODEL=gemini-1.5-flash'
+      - '--set-env-vars'
+      - 'EMBEDDING_PROVIDER=openai'
+      - '--set-env-vars'
+      - 'EMBEDDING_MODEL=text-embedding-3-small'
+      - '--set-env-vars'
+      - 'EMBEDDING_DIMENSION=1536'
+      - '--set-env-vars'
+      - 'SECRET_KEY=deeptutor-production-secret-key'
+      - '--set-env-vars=^|^CORS_ORIGINS=["https://deeptutor.vercel.app","https://deeptutor-git-main-scrrlt.vercel.app"]'
+      - '--set-env-vars'
+      - 'LOG_LEVEL=INFO'
+
+# Configure logging for service account usage
+options:
+  logging: CLOUD_LOGGING_ONLY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+# Set timeout
+timeout: '12000s'

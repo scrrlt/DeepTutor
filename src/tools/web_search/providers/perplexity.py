@@ -18,6 +18,23 @@ from ..types import Citation, SearchResult, WebSearchResponse
 from . import register_provider
 
 
+class PerplexityImportError(ImportError):
+    """Raised when perplexity package is not installed."""
+
+    def __init__(self):
+        super().__init__(
+            "perplexity module is not installed. To use Perplexity search, "
+            "please install: pip install perplexityai"
+        )
+
+
+class PerplexityEmptyResponseError(ValueError):
+    """Raised when Perplexity API returns no choices."""
+
+    def __init__(self, model: str):
+        super().__init__(f"Perplexity API returned no choices for model: {model}")
+
+
 @register_provider("perplexity")
 class PerplexityProvider(BaseSearchProvider):
     """Perplexity AI search provider"""
@@ -37,11 +54,8 @@ class PerplexityProvider(BaseSearchProvider):
         if self._client is None:
             try:
                 from perplexity import Perplexity
-            except ImportError as e:
-                raise ImportError(
-                    "perplexityai module is not installed. To use Perplexity search, please install: "
-                    "pip install perplexityai"
-                ) from e
+            except ImportError:
+                raise PerplexityImportError() from None
             self._client = Perplexity(api_key=self.api_key)
         return self._client
 
@@ -64,7 +78,7 @@ class PerplexityProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(f"Calling Perplexity API with model={model}")
+        self.logger.debug("Calling Perplexity API with model=%s", model)
         completion = self.client.chat.completions.create(
             model=model,
             messages=[
@@ -73,8 +87,8 @@ class PerplexityProvider(BaseSearchProvider):
             ],
         )
 
-        if not completion.choices or len(completion.choices) == 0:
-            raise ValueError("Perplexity API returned no choices")
+        if not completion.choices:
+            raise PerplexityEmptyResponseError(model)
 
         answer = completion.choices[0].message.content
 

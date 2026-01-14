@@ -21,7 +21,7 @@ import requests
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
-from . import register_provider
+from . import SearchProviderError, register_provider
 
 
 class SerperAPIError(Exception):
@@ -90,11 +90,11 @@ class SerperProvider(BaseSearchProvider):
 
         if response.status_code != 200:
             try:
-                error_data = response.json()
+                error_data = response.json() if response.text else {}
             except (json.JSONDecodeError, ValueError):
-                error_data = {"message": response.text}
-            self.logger.error(f"Serper API error: {response.status_code} - {error_data}")
-            raise SerperAPIError(
+                error_data = {}
+            self.logger.error(f"Serper API error: {response.status_code}")
+            raise SearchProviderError(
                 f"Serper API error: {response.status_code} - "
                 f"{error_data.get('message', response.text)}"
             )

@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { GlobalProvider } from "@/context/GlobalContext";
 import ThemeScript from "@/components/ThemeScript";
+import { DebugPanelDrawer } from "@/components/DebugPanelDrawer";
 
 // Use Inter font with swap display for better loading
-const font = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["system-ui", "sans-serif"],
-});
+const font = { className: "" };
 
 export const metadata: Metadata = {
   title: "DeepTutor Platform",
@@ -35,6 +31,7 @@ export default function RootLayout({
               {children}
             </main>
           </div>
+          <DebugPanelDrawer />
         </GlobalProvider>
       </body>
     </html>

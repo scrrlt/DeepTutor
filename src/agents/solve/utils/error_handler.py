@@ -5,14 +5,111 @@ Error Handler - Error handling and retry mechanism
 """
 
 from collections.abc import Callable
-from typing import Any, Optional
+import functools
+import logging
+import threading
+from typing import Any
+import warnings
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
-import tenacity
+logger = logging.getLogger("Solver.error_handler")
 
-from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
-from src.logging.logger import get_logger
-from src.services.llm.exceptions import LLMParseError
+# Lazy-load valid tools configuration to avoid I/O at module import time
+_DEFAULT_VALID_TOOLS = ["rag_naive", "rag_hybrid", "web_search", "query_item", "none"]
+
+
+class _LazyValidTools:
+    """
+    Lazily resolves the list of valid tools on first use.
+
+    This avoids performing configuration I/O at module import time while
+    preserving list-like behavior for existing callers.
+    """
+
+    def __init__(self, default_tools: list[str]):
+        self._default_tools = list(default_tools)  # Create a copy to prevent mutation
+        self._tools: list[str] | None = None
+        self._lock = asyncio.Lock()
+
+    async def get_tools(self) -> list[str]:
+        # Double-check locking pattern for async
+        if self._tools is not None:
+            return self._tools
+
+        async with self._lock:
+            # Check again in case another task initialized it while we waited
+            if self._tools is not None:
+                return self._tools
+
+            # Perform initialization
+            try:
+                from src.services.config import (
+                    PROJECT_ROOT,
+                    load_config_with_main,
+                )
+
+                config = load_config_with_main("main.yaml", PROJECT_ROOT)
+                self._tools = config.get("solve", {}).get("valid_tools", self._default_tools)
+            except (ImportError, FileNotFoundError, OSError, KeyError) as exc:
+                logger.warning(
+                    "Failed to load valid_tools from config (%s). Using defaults. "
+                    "Ensure the config file exists and contains solve.valid_tools. Original error: %s",
+                    type(exc).__name__,
+                    exc,
+                )
+                self._tools = self._default_tools
+            return self._tools
+
+    def _load(self) -> list[str]:
+        # DEPRECATED: This method is deprecated and may cause thread-safety issues.
+        # It no longer attempts to load from config to avoid race conditions.
+        # Use get_tools() instead for async-safe access.
+        warnings.warn(
+            "_load() is deprecated and no longer loads from config. "
+            "Use get_tools() instead for async-safe access.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        # Return already loaded tools or defaults - no config loading to avoid race conditions
+        return self._tools if self._tools is not None else self._default_tools
+
+    def __iter__(self):
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, return defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return iter(tools)
+
+    def __contains__(self, item: object) -> bool:
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, check defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return item in tools
+
+    def __len__(self) -> int:
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, return length of defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return len(tools)
+
+    def __getitem__(self, index):
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, index into defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return tools[index]
+
+    def __bool__(self) -> bool:
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, evaluate truthiness of defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return bool(tools)
+
+    def __repr__(self) -> str:
+        # Avoid calling _load() to prevent race conditions with async get_tools()
+        # If tools haven't been loaded yet, represent defaults
+        tools = self._tools if self._tools is not None else self._default_tools
+        return repr(tools)
+
+
+_VALID_TOOLS_CONFIG = _LazyValidTools(_DEFAULT_VALID_TOOLS)
 
 
 def _format_validation_errors(e: ValidationError) -> str:
@@ -157,16 +254,30 @@ def retry_on_parse_error(
         Decorated function
     """
 
-    def decorator(func: Callable):
-        return tenacity.retry(
-            retry=tenacity.retry_if_exception_type(*exceptions),
-            wait=tenacity.wait_exponential(multiplier=backoff, min=delay, max=60),
-            stop=tenacity.stop_after_attempt(max_retries + 1),
-            before_sleep=lambda retry_state: logger.warning(
-                f"Parse failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
-                f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
-            ),
-        )(func)
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            current_delay = delay
+
+            for attempt in range(max_retries + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except ParseError as e:
+                    if attempt == max_retries:
+                        # Last attempt failed, raise exception
+                        raise e
+
+                    # Wait and retry
+                    logger.warning(
+                        f"⚠️ Parse failed (attempt {attempt + 1}), retrying in {current_delay:.1f}s..."
+                    )
+                    await asyncio.sleep(current_delay)
+                    current_delay *= backoff
+
+            # Should not reach here
+            raise ParseError("Retry attempts exhausted")
+
+        return wrapper
 
     return decorator
 
@@ -208,14 +319,14 @@ def validate_output(
 
 
 def safe_parse(
-    text: str, parser_func: Callable, default: Any = None, raise_on_error: bool = False
+    text: str, parser_func: Callable[[str], Any], default: Any = None, raise_on_error: bool = False
 ) -> Any:
     """
-    Safe parsing (catch exceptions and return default value)
+    Safely parse text using a parser function
 
     Args:
-        parser_func: Parser function
         text: Text to parse
+        parser_func: Parser function
         default: Default value
         raise_on_error: Whether to raise exception on error
 
@@ -228,35 +339,47 @@ def safe_parse(
         if raise_on_error:
             raise LLMParseError(f"Parsing failed: {e!s}") from e
 
-        logger.error(
-            f"Parsing failed; falling back to default value {default!r}. This may affect behavior. Error: {e!s}",
-            exc_info=True,
-        )
+        logger.warning(f"⚠️ Parsing failed, using default value: {e!s}")
         return default
 
 
-def validate_investigate_output(
-    output: dict[str, Any], valid_tools: list[str] = VALID_INVESTIGATE_TOOLS
+async def validate_investigate_output(
+    output: dict[str, Any],
+    valid_tools: list[str] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> bool:
-    """Validate InvestigateAgent output using Pydantic model"""
-    # Check if custom tools are provided
-    if valid_tools != VALID_INVESTIGATE_TOOLS:
-        # For custom tools, do manual validation
-        validate_output(output, ["reasoning"], {"reasoning": str})
-        tools = output.get("tools", [])
-        if not isinstance(tools, list) or len(tools) < 1:
-            raise LLMParseError("tools must be a non-empty list")
+    """Validate InvestigateAgent output (refactored: multi-tool intent)"""
+    if valid_tools is None:
+        if config is not None:
+            # Use provided config
+            valid_tools = config.get("solve", {}).get("valid_tools", _DEFAULT_VALID_TOOLS)
+        else:
+            # Fallback to lazy loading
+            valid_tools = await _VALID_TOOLS_CONFIG.get_tools()
+    required_fields = ["reasoning", "tools"]
+    field_types = {"reasoning": str, "tools": list}
 
-        for i, tool in enumerate(tools):
-            if not isinstance(tool, dict):
-                raise LLMParseError(f"tool[{i}] must be a dictionary")
-            tool_type = tool.get("tool_type", "").lower()
-            if tool_type not in valid_tools:
-                raise LLMParseError(
-                    f"tool[{i}] tool_type must be one of {valid_tools}, got: {tool_type}"
-                )
-            if tool_type != "none" and not tool.get("query"):
-                raise LLMParseError(f"tool[{i}] missing query")
+    validate_output(output, required_fields, field_types)
+
+    tools = output["tools"]
+    if not tools:
+        raise ParseError("tools list cannot be empty")
+
+    for idx, tool in enumerate(tools):
+        if not isinstance(tool, dict):
+            raise ParseError(f"tool[{idx}] must be a dictionary")
+
+        tool_type = tool.get("tool_type", "").lower()
+        query = tool.get("query", "")
+        identifier = tool.get("identifier", "")
+
+        if tool_type not in valid_tools:
+            raise ParseError(
+                f"tool[{idx}] tool_type must be one of {valid_tools}, got: {tool_type}"
+            )
+
+        if tool_type == "none":
+            continue
 
         # Check none tool exclusivity
         has_none = any(t.get("tool_type", "").lower() == "none" for t in tools)
@@ -264,23 +387,40 @@ def validate_investigate_output(
             raise LLMParseError("When 'none' tool exists, no other tool intents should be provided")
         return True
 
-    # Use Pydantic for standard validation
-    try:
-        InvestigateOutput(**output)
-        return True
-    except ValidationError as e:
-        error_details = _format_validation_errors(e)
-        raise LLMParseError(f"InvestigateAgent output validation failed: {error_details}") from e
+        if tool_type == "query_item" and not (identifier or query):
+            raise ParseError("query_item must provide identifier or query")
+
+    # Validate none tool constraint after all tools are validated as dictionaries
+    validate_none_tool_constraint(tools, "tool_type")
+
+    return True
 
 
 def validate_note_output(output: dict[str, Any]) -> bool:
-    """Validate NoteAgent output using Pydantic model"""
-    try:
-        NoteOutput(**output)
-        return True
-    except ValidationError as e:
-        error_details = _format_validation_errors(e)
-        raise LLMParseError(f"NoteAgent output validation failed: {error_details}") from e
+    """Validate NoteAgent output (new format: only summary and citations)"""
+    required_fields = ["summary"]
+    field_types = {"summary": str}
+
+    # For backward compatibility, citations is optional (may be missing in older cached data)
+    if "citations" in output:
+        field_types["citations"] = list
+
+    validate_output(output, required_fields, field_types)
+
+    # Validate citations list if present
+    if "citations" in output:
+        citations = output["citations"]
+        # validate_output already ensures citations is a list
+
+        for citation in citations:
+            if not isinstance(citation, dict):
+                raise ParseError(f"citation must be a dictionary, got: {type(citation)}")
+
+            # citations should contain reference_id, source, content
+            if "reference_id" not in citation and "source" not in citation:
+                raise ParseError("citation must contain reference_id or source")
+
+    return True
 
 
 def validate_reflect_output(output: dict[str, Any]) -> bool:
@@ -295,49 +435,6 @@ def validate_reflect_output(output: dict[str, Any]) -> bool:
         ) from e
 
 
-def validate_plan_output(output: dict[str, Any]) -> bool:
-    """Validate PlanAgent output using Pydantic model"""
-    try:
-        PlanOutput(**output)
-        return True
-    except ValidationError as e:
-        error_details = _format_validation_errors(e)
-        raise LLMParseError(f"PlanAgent output validation failed: {error_details}") from e
-
-
-def validate_solve_output(
-    output: dict[str, Any], valid_tool_types: list[str] = VALID_SOLVE_TOOLS
-) -> bool:
-    """Validate SolveAgent output using Pydantic model"""
-    # Check if custom tools are provided
-    if valid_tool_types != VALID_SOLVE_TOOLS:
-        # For custom tools, do manual validation
-        validate_output(output, ["tool_calls"], {"tool_calls": list})
-        tool_calls = output.get("tool_calls", [])
-        if not isinstance(tool_calls, list) or len(tool_calls) < 1:
-            raise LLMParseError("tool_calls must be a non-empty list")
-
-        for i, tool_call in enumerate(tool_calls):
-            if not isinstance(tool_call, dict):
-                raise LLMParseError(f"tool_call[{i}] must be a dictionary")
-            if "tool_type" not in tool_call or "query" not in tool_call:
-                raise LLMParseError(f"tool_call[{i}] missing required fields: tool_type, query")
-            tool_type = tool_call.get("tool_type", "").lower()
-            if tool_type not in valid_tool_types:
-                raise LLMParseError(
-                    f"Invalid tool_type: {tool_type}, must be one of {valid_tool_types}"
-                )
-        return True
-
-    # Use Pydantic for standard validation
-    try:
-        SolveOutput(**output)
-        return True
-    except ValidationError as e:
-        error_details = _format_validation_errors(e)
-        raise LLMParseError(f"SolveAgent output validation failed: {error_details}") from e
-
-
 def validate_none_tool_constraint(
     tools: list[dict[str, Any]], tool_type_key: str = "tool_type"
 ) -> None:
@@ -347,17 +444,108 @@ def validate_none_tool_constraint(
     Args:
         tools: List of tool dictionaries
         tool_type_key: Key to access tool type in each dict (default: "tool_type")
-
     Raises:
-        LLMParseError: If none tool constraint is violated
+        ParseError: If none tool constraint is violated
     """
     has_none = any(
-        isinstance(tool_type := tool.get(tool_type_key), str) and tool_type.lower() == "none"
+        isinstance(tool.get(tool_type_key), str) and tool.get(tool_type_key).lower() == "none"
         for tool in tools
     )
 
     if has_none and len(tools) > 1:
-        raise LLMParseError(
-            f"When 'none' tool exists, no other tool intents should be provided. "
-            f"Found {len(tools)} tools with types: {[tool.get(tool_type_key) for tool in tools]}"
-        )
+        raise ParseError("When 'none' tool exists, no other tool intents should be provided")
+
+
+async def validate_solve_output(
+    output: dict[str, Any],
+    valid_tools: list[str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> bool:
+    """Validate SolveAgent output (tool plan format)"""
+    if valid_tools is None:
+        if config is not None:
+            # Use provided config
+            valid_tools = config.get("solve", {}).get("valid_tools", _DEFAULT_VALID_TOOLS)
+        else:
+            # Fallback to lazy loading
+            valid_tools = await _VALID_TOOLS_CONFIG.get_tools()
+
+    required_fields = ["tool_calls"]
+    field_types = {"tool_calls": list}
+
+
+    tool_calls = output["tool_calls"]
+    has_terminating_call = any(
+        call.get("type", "").lower() in ("none", "finish") for call in tool_calls
+    )
+    if has_terminating_call and len(tool_calls) > 1:
+        # Check for terminating tools (none/finish) - they cannot coexist with other tools
+        terminating_tools = [
+            call for call in tool_calls if call.get("type", "").lower() in ("none", "finish")
+        ]
+        if terminating_tools and len(tool_calls) > 1:
+            raise ParseError(
+                "When terminating tools (none/finish) exist, no other tool calls should be provided"
+            )
+
+    # Track if we've seen a terminating tool for ordering validation
+    has_terminating_tool = False
+
+    for idx, tool_call in enumerate(tool_calls):
+        if not isinstance(tool_call, dict):
+            raise ParseError(f"tool_calls[{idx}] must be a dictionary")
+
+        tool_type = tool_call.get("type", "").strip().lower()
+        intent = tool_call.get("intent", "").strip()
+
+        if not tool_type:
+            raise ParseError(f"tool_calls[{idx}] missing type")
+
+        if tool_type not in valid_tools:
+            raise ParseError(
+                f"tool_calls[{idx}] type must be one of {valid_tools}, got: {tool_type}"
+            )
+
+        # Check for terminating tools
+        if tool_type in ("none", "finish"):
+            if has_terminating_tool:
+                raise ParseError(
+                    f"tool_calls[{idx}] cannot have multiple terminating tools (none/finish)"
+                )
+            has_terminating_tool = True
+        elif has_terminating_tool:
+            raise ParseError(
+                f"tool_calls[{idx}] cannot have non-terminating tools after none/finish"
+            )
+
+        # All tools except "none" need an intent
+        if tool_type != "none" and not intent:
+            raise ParseError(f"tool_calls[{idx}] missing intent for {tool_type}")
+
+    return True
+
+
+if __name__ == "__main__":
+    # Test validation functions
+    test_investigate_output = {
+        "investigation_summary": "This round investigation target...",
+        "actions": [
+            {"type": "rag_naive", "query": "What is linear convolution?", "priority": "high"}
+        ],
+        "followup_suggestions": "If definition is unclear..",
+    }
+
+    try:
+        validate_investigate_output(test_investigate_output)
+        print("✓ InvestigateAgent output validation passed")
+    except ParseError as e:
+        print(f"✗ InvestigateAgent output validation failed: {e}")
+
+    # Test missing required fields
+    test_invalid_output = {"tools": []}
+
+    try:
+        validate_investigate_output(test_invalid_output)
+        print("✓ Invalid output validation passed (should not happen)")
+    except ParseError as e:
+        print(f"✗ Invalid output validation failed (expected): {e}")

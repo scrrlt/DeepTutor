@@ -16,19 +16,27 @@ import os
 from pathlib import Path
 import shutil
 import sys
-import tempfile
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from dotenv import load_dotenv
 
-# Attempt imports for dynamic dependencies
-try:
-    from lightrag.llm.openai import openai_complete_if_cache
-    from lightrag.utils import EmbeddingFunc
-except ImportError:
-    # These will be caught during runtime if needed
-    openai_complete_if_cache = None
-    EmbeddingFunc = None
+openai_complete_if_cache = None
+EmbeddingFunc = None
+
+
+def _load_lightrag_deps():
+    global openai_complete_if_cache, EmbeddingFunc
+    if openai_complete_if_cache is not None and EmbeddingFunc is not None:
+        return
+    try:
+        from lightrag.llm.openai import openai_complete_if_cache as _openai_complete_if_cache
+        from lightrag.utils import EmbeddingFunc as _EmbeddingFunc
+
+        openai_complete_if_cache = _openai_complete_if_cache
+        EmbeddingFunc = _EmbeddingFunc
+    except Exception:
+        openai_complete_if_cache = None
+        EmbeddingFunc = None
 
 # Type hinting support for dynamic imports
 if TYPE_CHECKING:
@@ -74,11 +82,9 @@ from src.services.embedding import (
     reset_embedding_client,
 )
 from src.services.llm import get_llm_config
+from src.utils.error_utils import format_exception_message
 
 logger = get_logger("KnowledgeInit")
-
-# Default base directory for knowledge bases
-DEFAULT_BASE_DIR = "./data/knowledge_bases"
 
 
 class DocumentAdder:
@@ -204,6 +210,12 @@ class DocumentAdder:
         if raganything_cls is None:
             raise ImportError("RAGAnything module not found.")
 
+        _load_lightrag_deps()
+        if openai_complete_if_cache is None:
+            raise ImportError(
+                "LightRAG dependencies are not available. Please install the lightrag package to enable document ingestion."
+            )
+
         # Pre-import progress stage if needed to avoid overhead in loop
         ProgressStage = None
         if self.progress_tracker:
@@ -215,9 +227,7 @@ class DocumentAdder:
         base_url = self.base_url or self.llm_cfg.base_url
 
         # LLM Function Wrapper
-        def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-            if history_messages is None:
-                history_messages = []
+        def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
             return openai_complete_if_cache(
                 model,
                 prompt,
@@ -237,8 +247,6 @@ class DocumentAdder:
             messages=None,
             **kwargs,
         ):
-            if history_messages is None:
-                history_messages = []
             # If pre-formatted messages are provided, sanitize them
             if messages:
                 safe_messages = self._filter_valid_messages(messages)
@@ -364,13 +372,14 @@ class DocumentAdder:
                 self._record_successful_hash(doc_file)
                 logger.info(f"  ✓ Processed & Indexed: {doc_file.name}")
             except Exception as e:
-                logger.exception(f"  ✗ Failed {doc_file.name}: {e}")
+                logger.error(f"  ✗ Failed {doc_file.name}: {format_exception_message(e)}")
 
         await self.fix_structure()
         return processed_files
 
     def _record_successful_hash(self, file_path: Path):
         """Update metadata with the hash of a successfully processed file."""
+        # Recalculate hash from the staged file to ensure it matches what was processed
         file_hash = self._get_file_hash(file_path)
         try:
             metadata = {}
@@ -382,15 +391,8 @@ class DocumentAdder:
                 metadata["file_hashes"] = {}
 
             metadata["file_hashes"][file_path.name] = file_hash
-            # Atomic write: write to temp file, then rename
-            fd, tmp_path = tempfile.mkstemp(dir=self.kb_dir, suffix=".json")
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    json.dump(metadata, f, indent=2, ensure_ascii=False)
-                os.replace(tmp_path, self.metadata_file)
-            except Exception:
-                os.unlink(tmp_path)
-                raise
+            with open(self.metadata_file, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.warning(f"Could not update hash metadata: {e}")
 
@@ -438,11 +440,8 @@ class DocumentAdder:
         if not processed_files:
             return
 
-        llm_cfg = getattr(self, "llm_cfg", None)
-        if llm_cfg is None:
-            llm_cfg = get_llm_config()
-        api_key = self.api_key or llm_cfg.api_key
-        base_url = self.base_url or llm_cfg.base_url
+        api_key = self.api_key or self.llm_cfg.api_key
+        base_url = self.base_url or self.llm_cfg.base_url
         output_file = self.kb_dir / "numbered_items.json"
 
         for doc_file in processed_files:
@@ -486,7 +485,7 @@ async def main():
     parser.add_argument("kb_name", help="KB Name")
     parser.add_argument("--docs", nargs="+", help="Files")
     parser.add_argument("--docs-dir", help="Directory")
-    parser.add_argument("--base-dir", default=DEFAULT_BASE_DIR)
+    parser.add_argument("--base-dir", default="./knowledge_bases")
     parser.add_argument("--api-key", default=os.getenv("LLM_API_KEY"))
     parser.add_argument("--base-url", default=os.getenv("LLM_HOST"))
     parser.add_argument("--allow-duplicates", action="store_true")

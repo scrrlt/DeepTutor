@@ -111,8 +111,6 @@ class TestPromptManager:
         pm.load_prompts("research", "research_agent", "en")
         pm.load_prompts("guide", "chat_agent", "en")
 
-        initial_count = len(pm._cache)
-
         # Clear only research cache
         pm.clear_cache("research")
 

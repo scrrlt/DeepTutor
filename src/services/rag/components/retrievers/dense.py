@@ -92,11 +92,8 @@ class DenseRetriever(BaseComponent):
         with open(metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
-        if info_file.exists():
-            with open(info_file, "r", encoding="utf-8") as f:
-                info = json.load(f)
-        else:
-            info = {"use_faiss": False}
+        with open(info_file, "r", encoding="utf-8") as f:
+            info = json.load(f)
 
         use_faiss = info.get("use_faiss", False)
 
@@ -110,24 +107,35 @@ class DenseRetriever(BaseComponent):
             # Load FAISS index
             index = self.faiss.read_index(str(index_file))
 
-            # Normalize query vector for cosine similarity without modifying original
-            norm = np.linalg.norm(query_embedding)
-            if norm > 0:
-                query_vec = (query_embedding / norm).reshape(1, -1)
-            else:
-                query_vec = query_embedding.reshape(1, -1)
+            # Normalize query vector for cosine similarity
+            query_vec = query_embedding.reshape(1, -1)
+            self.faiss.normalize_L2(query_vec)
 
             # Search
             distances, indices = index.search(query_vec, min(top_k, len(metadata)))
 
             # Build results
             results = []
-            for dist, idx in zip(distances[0], indices[0]):
+            for dist, idx in zip(distances[0], indices[0], strict=True):
                 if idx < len(metadata):  # Valid index
-                    score = 1.0 / (1.0 + dist)  # Convert distance to similarity score
-                    results.append((score, metadata[idx]))
+                    # NOTE: This conversion is specific to a FAISS IndexFlatL2 index where BOTH
+                    # the stored vectors and the query vector have been L2-normalized to unit
+                    # length. The stored vectors are normalized during indexing (see vector.py
+                    # line 121), and the query vector is normalized just before search above.
+                    #
+                    # FAISS IndexFlatL2 returns squared L2 distances for these unit-normalized
+                    # vectors. For unit vectors:
+                    #   L2_distance² = 2 - 2 * cosine_similarity
+                    #   ⇒ cosine_similarity = 1 - L2_distance² / 2
+                    #
+                    similarity = (
+                        1.0 - dist / 2
+                    )  # Convert squared L2 distance to cosine-like similarity for unit vectors
+                    similarity = max(0.0, min(1.0, similarity))  # Clamp to [0,1]
+                    results.append((similarity, metadata[idx]))
         else:
-            # Fallback: Load embeddings and use cosine similarity
+            # Fallback: Load embeddings and use cosine similarity            # Validate kb_name to prevent directory traversal
+            self._validate_kb_path(kb_name)
             embeddings_file = kb_dir / "embeddings.pkl"
             if not embeddings_file.exists():
                 self.logger.error(f"Embeddings file not found: {embeddings_file}")
@@ -136,17 +144,24 @@ class DenseRetriever(BaseComponent):
             with open(embeddings_file, "rb") as f:
                 embeddings = pickle.load(f)
 
-            # Normalize for cosine similarity (avoid division by zero)
+            # Normalize for cosine similarity
             query_norm = np.linalg.norm(query_embedding)
-            if query_norm > 0:
+            if query_norm > 1e-8:
                 query_vec = query_embedding / query_norm
             else:
-                query_vec = query_embedding  # Keep as is if zero norm
+                # If the query embedding is (near) zero, use a zero vector to avoid
+                # numerical instability and produce zero similarity scores.
+                query_vec = np.zeros_like(query_embedding)
 
-            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-            # Replace zero norms with 1 to avoid division by zero
-            norms = np.where(norms == 0, 1, norms)
-            doc_vecs = embeddings / norms
+            doc_norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            # Safely normalize document embeddings; documents with (near) zero norm
+            # become zero vectors instead of being scaled by a large factor.
+            doc_vecs = np.divide(
+                embeddings,
+                doc_norms,
+                out=np.zeros_like(embeddings),
+                where=doc_norms > 1e-8,
+            )
 
             # Compute similarities
             similarities = np.dot(doc_vecs, query_vec)
