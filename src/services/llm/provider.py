@@ -4,6 +4,8 @@ import os
 import asyncio
 import random
 import logging
+import json
+from pathlib import Path
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -98,27 +100,40 @@ class LLMProviderManager:
     def __init__(self):
         self._providers: Dict[str, LLMProvider] = {}
         self._active: Optional[str] = None
+        self._providers_file = Path(__file__).parent.parent.parent / "data" / "user" / "llm_providers.json"
+        self._load_providers()
+
+    def _load_providers(self):
+        """Load providers from file."""
+        if self._providers_file.exists():
+            try:
+                with open(self._providers_file, 'r') as f:
+                    data = json.load(f)
+                    self._providers = {name: LLMProvider(**prov) for name, prov in data.get('providers', {}).items()}
+                    self._active = data.get('active')
+            except Exception as e:
+                logger.warning(f"Failed to load providers from {self._providers_file}: {e}")
+
+    def _save_providers(self):
+        """Save providers to file."""
+        try:
+            self._providers_file.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                'providers': {name: prov.model_dump() for name, prov in self._providers.items()},
+                'active': self._active
+            }
+            with open(self._providers_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save providers to {self._providers_file}: {e}")
 
     def list_providers(self):
         return list(self._providers.values())
 
     async def get_active_provider_async(self) -> Optional[LLMProvider]:
         """Async version of get_active_provider."""
-        raw_providers = await self._load_providers_async()
-        providers = [LLMProvider(**p) for p in raw_providers]
-        for p in providers:
-            if p.is_active:
-                return p
-        return None
-
-    async def get_active_provider_async(self) -> Optional[LLMProvider]:
-        """Async version of get_active_provider."""
-        raw_providers = await self._load_providers_async()
-        providers = [LLMProvider(**p) for p in raw_providers]
-        for p in providers:
-            if p.is_active:
-                return p
-        return None
+        # Since we load synchronously, just return the active one
+        return self.get_active_provider()
 
     def add_provider(self, provider: LLMProvider) -> LLMProvider:
         key = provider.name
@@ -127,6 +142,7 @@ class LLMProviderManager:
         self._providers[key] = provider
         if provider.is_active or self._active is None:
             self.set_active_provider(key)
+        self._save_providers()
         return self._providers[key]
 
     def update_provider(self, name: str, updates: Dict[str, Any]) -> Optional[LLMProvider]:
@@ -137,6 +153,7 @@ class LLMProviderManager:
         self._providers[name] = updated
         if updated.is_active:
             self.set_active_provider(name)
+        self._save_providers()
         return updated
 
     def delete_provider(self, name: str) -> bool:
@@ -150,6 +167,7 @@ class LLMProviderManager:
             for key in self._providers.keys():
                 self.set_active_provider(key)
                 break
+        self._save_providers()
         return True
 
     def set_active_provider(self, name: str) -> Optional[LLMProvider]:
@@ -158,6 +176,7 @@ class LLMProviderManager:
         self._active = name
         for key, prov in list(self._providers.items()):
             self._providers[key] = prov.model_copy(update={"is_active": key == name})
+        self._save_providers()
         return self._providers[name]
 
     def get_active_provider(self) -> Optional[LLMProvider]:
