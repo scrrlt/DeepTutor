@@ -186,19 +186,14 @@ addopts = [
 # ============================================
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = false  # Less strict for CI
-warn_unused_configs = false
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false  # Less strict for CI
-disallow_untyped_decorators = false
-no_implicit_optional = false  # Less strict for CI
-warn_redundant_casts = false
-warn_unused_ignores = false
-warn_no_return = false
-warn_unreachable = false
-strict_equality = false
-show_error_codes = false
+# Only show the summary line if there are errors
+pretty = false
+show_error_context = false
+# Limit the number of errors shown
+max_errors = 10
+warn_return_any = true
+warn_no_return = true
+show_error_codes = true
 ignore_missing_imports = true
 follow_imports = "silent"
 
@@ -211,14 +206,9 @@ ignore_errors = true
 module = "src.tools.*"
 ignore_errors = true  # Some tools may have dynamic imports
 
-# For CI integration, ignore all errors initially
-[[tool.mypy.overrides]]
-module = "src.*"
-ignore_errors = true
-
 # ============================================
 # Bandit security linting configuration
 # ============================================
 [tool.bandit]
 exclude_dirs = ["tests", "scripts"]
-skips = ["B101", "B601", "B110", "B112", "B311", "B403", "B404", "B603", "B105", "B202", "B104", "B301", "B501", "B701", "B607"]  # Skip common issues for CI compatibility
+skips = ["B101", "B311", "B403", "B404"]  # B101=assert, B311=random, B403/B404=pickle/subprocess imports
