@@ -1,38 +1,34 @@
+fastapi>=0.104.0
+uvicorn>=0.23.0
+pydantic>=2.4.0
 python-dotenv>=1.0.0
-PyYAML>=6.0
-tiktoken>=0.5.0
-requests>=2.32.2
-openai>=1.30.0
-google-generativeai>=0.8.0
-anthropic>=0.30.0
-perplexityai>=0.1.0
-dashscope>=1.14.0
-aiohttp>=3.9.4
-httpx>=0.27.0
-urllib3>=2.2.1
-jinja2>=3.1.0
 
-# ============================================
-# Async support
-# ============================================
-nest_asyncio>=1.5.8
-fastapi>=0.100.0
-uvicorn[standard]>=0.24.0
-websockets>=12.0
-python-multipart>=0.0.6
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
+LangChain & LLM
 
-# ============================================
-# RAG and knowledge base
-# ============================================
-# lightrag-hku>=1.0.0
-# raganything>=0.1.0
+langchain>=0.0.330
+langchain-openai>=0.0.2
+openai>=1.3.0
+tiktoken>=0.5.1
 
-# ============================================
-# Academic and research tools
-# ============================================
+Vector Store
+
+chromadb>=0.4.15
+
+Utils
+
+aiohttp>=3.8.6
+tenacity>=8.2.3
+PyYAML>=6.0.1
+regex>=2023.10.3
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+
+Research & Processing
+
 arxiv>=2.0.0
+raganything>=0.1.0
+
+============================================
 
 # ============================================
 # Scientific computing (for RAG and code execution)
@@ -49,20 +45,11 @@ numpy>=1.24.0
 # faiss-cpu>=1.7.4   # Uncomment for CPU-only FAISS support (faster search)
 # faiss-gpu>=1.7.4   # Uncomment if you have GPU and want GPU acceleration
 
-# ============================================
-# Development tools
-# ============================================
+# Runtime PDF Processing (Memory Safe)
+pdfplumber>=0.10.0
+psutil>=5.9.5
+
+
+Development tools (Runtime)
+
 pre-commit>=3.0.0
-# llama-cloud==0.1.35
-# llama-cloud-services==0.6.54
-# llama-index==0.14.12
-# llama-index-cli==0.5.3
-# llama-index-core==0.14.12
-# llama-index-embeddings-openai==0.5.1
-# llama-index-indices-managed-llama-cloud==0.9.4
-# llama-index-instrumentation==0.4.2
-# llama-index-llms-openai==0.6.12
-# llama-index-readers-file==0.5.6
-# llama-index-readers-llama-parse==0.5.1
-# llama-index-workflows==2.11.6
-# llama-parse==0.6.54

@@ -12,6 +12,22 @@ run_code_workspace/
 src/agents/question/reference_papers/
 tests/
 
+# Repro harness artifacts and logs
+tests/performance/oom_repro/logs/
+tests/performance/oom_repro/*.pdf
+tests/performance/oom_repro/*.db
+tests/performance/oom_repro/*.sqlite
+tests/performance/oom_repro/*.tar
+tests/performance/oom_repro/*.zip
+
+# Repro harness artifacts and logs
+tests/performance/oom_repro/logs/
+tests/performance/oom_repro/*.pdf
+tests/performance/oom_repro/*.db
+tests/performance/oom_repro/*.sqlite
+tests/performance/oom_repro/*.tar
+tests/performance/oom_repro/*.zip
+
 # ============================================
 # Python Related
 # ============================================
@@ -50,6 +66,10 @@ ENV/
 .venv/
 env.bak/
 venv.bak/
+
+# Local env overrides
+.env.local
+.env.*.local
 
 # ============================================
 # Node.js and Frontend Build
@@ -92,8 +112,29 @@ src/utils/cache/**/__pycache__/
 src/utils/cache/**/__pycache__/*
 src/utils/cache/**/*.py[cod]
 
+# Hugging Face / transformers / torch caches
+.cache/huggingface/
+.cache/torch/
+transformers_cache/
+hf_cache/
+torch_cache/
+# user-level caches (optional)
+~/.cache/huggingface/
+~/.cache/torch/
+
+# Vector DB / embeddings / index files
+embeddings/
+**/embeddings/
+vectordb/
+vector_store/
+faiss.index
+chroma.db
+chroma-collections.parquet
+pinecone-*.db
+
 # Log files
 *.log
+tests/performance/oom_repro/logs/
 
 # ============================================
 # IDE and Editors
@@ -127,7 +168,7 @@ src/utils/cache/**/*.py[cod]
 
 # Emacs
 *~
-\#*\#
+#*#
 /.emacs.desktop
 /.emacs.desktop.lock
 *.elc

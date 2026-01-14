@@ -1,199 +1,98 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Parse PDF files using MinerU and save results to reference_papers directory
+Parse PDF files using pdfplumber with strict memory controls.
 """
 
-import argparse
-from datetime import datetime
-from pathlib import Path
-import shutil
-import subprocess
+import logging
+import gc
+import os
 import sys
+import pdfplumber
+from typing import Generator, Tuple
 
+logger = logging.getLogger(__name__)
 
-def check_mineru_installed():
-    """Check if MinerU is installed"""
-    try:
-        result = subprocess.run(
-            ["magic-pdf", "--version"], check=False, capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            return "magic-pdf"
-    except FileNotFoundError:
-        pass
-
-    try:
-        result = subprocess.run(
-            ["mineru", "--version"], check=False, capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            return "mineru"
-    except FileNotFoundError:
-        pass
-
-    return None
-
-
-def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str = None):
+class PDFParser:
     """
-    Parse PDF file using MinerU
+    Memory-efficient PDF parser that yields content page-by-page.
+    Designed for low-resource environments (APUs, shared RAM).
 
-    Args:
-        pdf_path: Path to PDF file
-        output_base_dir: Base path for output directory, defaults to reference_papers
-
-    Returns:
-        bool: Whether parsing was successful
+    Guarantees:
+    - At most one live pdfplumber Page object at a time.
+    - Explicitly breaks pdfplumber's internal page cache to prevent linear growth.
+    - Forces cleanup after file close.
     """
-    mineru_cmd = check_mineru_installed()
-    if not mineru_cmd:
-        print("✗ Error: MinerU installation not detected")
-        print("Please install MinerU first:")
-        print("  pip install magic-pdf[full]")
-        print("or")
-        print("  pip install mineru")
-        print("or visit: https://github.com/opendatalab/MinerU")
-        return False
 
-    print(f"✓ Detected MinerU command: {mineru_cmd}")
+    def parse_generator(self, file_path: str) -> Generator[Tuple[str, int, int], None, None]:
+        """
+        Yields (text, page_number, byte_size) tuples.
+        byte_size is an approximate Python-side footprint (sys.getsizeof).
+        """
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return
 
-    pdf_path = Path(pdf_path).resolve()
-    if not pdf_path.exists():
-        print(f"✗ Error: PDF file does not exist: {pdf_path}")
-        return False
+        try:
+            # pdfplumber.open returns a ContextManager
+            with pdfplumber.open(file_path) as pdf:
+                # Use len() to get count without loading all pages
+                total_pages = len(pdf.pages)
+                logger.info(f"Opened PDF with {total_pages} pages: {file_path}")
 
-    if not pdf_path.suffix.lower() == ".pdf":
-        print(f"✗ Error: File is not PDF format: {pdf_path}")
-        return False
+                # Iterate by index to avoid loading all page objects into a list
+                for i in range(total_pages):
+                    page = None
+                    try:
+                        # Lazy load single page
+                        page = pdf.pages[i]
 
-    script_dir = Path(__file__).parent.parent.parent.parent.parent
-    if output_base_dir is None:
-        output_base_dir = script_dir / "reference_papers"
-    else:
-        output_base_dir = Path(output_base_dir)
+                        # Extract text (layout=False is faster and lighter)
+                        text = page.extract_text(layout=False) or ""
 
-    output_base_dir.mkdir(parents=True, exist_ok=True)
+                        # Approximate Python memory footprint
+                        byte_size = sys.getsizeof(text)
 
-    pdf_name = pdf_path.stem
-    output_dir = output_base_dir / pdf_name
+                        # Yield result
+                        yield text, (i + 1), byte_size
 
-    if output_dir.exists():
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = output_base_dir / f"{pdf_name}_backup_{timestamp}"
-        print(f"⚠️ Directory already exists, backing up to: {backup_dir.name}")
-        shutil.move(str(output_dir), str(backup_dir))
+                    except Exception as e:
+                        logger.error(f"Error parsing page {i + 1} of {file_path}: {e}")
+                        yield "", (i + 1), 0
+                    finally:
+                        # Flush page-level caches if present
+                        if page is not None:
+                            try:
+                                page.flush_cache()
+                            except Exception:
+                                pass
 
-    print(f"📄 PDF file: {pdf_path}")
-    print(f"📁 Output directory: {output_dir}")
-    print("→ Starting parsing...")
+                        # CRITICAL FIX:
+                        # pdfplumber caches Page objects in pdf.pages.
+                        # Deleting the local variable is NOT sufficient.
+                        # We must explicitly break the reference in the list.
+                        try:
+                            pdf.pages[i] = None
+                        except Exception:
+                            pass
 
-    try:
-        temp_output = output_base_dir / "temp_mineru_output"
-        temp_output.mkdir(parents=True, exist_ok=True)
+                        del page
 
-        cmd = [mineru_cmd, "-p", str(pdf_path), "-o", str(temp_output)]
+        except Exception as e:
+            logger.error(f"Critical error opening PDF {file_path}: {e}")
+            raise
+        finally:
+            # Force cleanup after file close to reclaim buffers and file handles
+            gc.collect()
 
-        print(f"🔧 Executing command: {' '.join(cmd)}")
-
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-
-        if result.returncode != 0:
-            print("✗ MinerU parsing failed:")
-            print(f"Stdout: {result.stdout}")
-            print(f"Stderr: {result.stderr}")
-            if temp_output.exists():
-                shutil.rmtree(temp_output)
-            return False
-
-        print("✓ MinerU parsing completed!")
-
-        generated_folders = list(temp_output.iterdir())
-
-        if not generated_folders:
-            print("⚠️ Warning: No generated files found in temp directory")
-            if temp_output.exists():
-                shutil.rmtree(temp_output)
-            return False
-
-        source_folder = generated_folders[0] if generated_folders[0].is_dir() else temp_output
-
-        # Create target directory and move content
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Move MinerU-generated content to target directory
-        if source_folder.exists() and source_folder.is_dir():
-            # If source_folder is the PDF-named directory, move its contents
-            for item in source_folder.iterdir():
-                dest_item = output_dir / item.name
-                if dest_item.exists():
-                    if dest_item.is_dir():
-                        shutil.rmtree(dest_item)
-                    else:
-                        dest_item.unlink()
-                shutil.move(str(item), str(dest_item))
-            print(f"📦 Files saved to: {output_dir}")
-        else:
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            shutil.move(str(source_folder), str(output_dir))
-            print(f"📦 Files saved to: {output_dir}")
-
-        if temp_output.exists():
-            shutil.rmtree(temp_output)
-
-        print("\n📋 Generated files:")
-        for item in output_dir.rglob("*"):
-            if item.is_file():
-                rel_path = item.relative_to(output_dir)
-                print(f"  - {rel_path}")
-
-        return True
-
-    except Exception as e:
-        print(f"✗ Error occurred during parsing: {e!s}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(
-        description="Parse PDF files using MinerU and save results to reference_papers directory",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Parse a single PDF file
-  python pdf_parser.py /path/to/paper.pdf
-
-  # Parse PDF and specify output directory
-  python pdf_parser.py /path/to/paper.pdf -o /custom/output/dir
-        """,
-    )
-
-    parser.add_argument("pdf_path", type=str, help="Path to PDF file")
-
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        default=None,
-        help="Base path for output directory (default: reference_papers)",
-    )
-
-    args = parser.parse_args()
-
-    success = parse_pdf_with_mineru(args.pdf_path, args.output)
-
-    if success:
-        print("\n✓ Parsing completed!")
-        sys.exit(0)
-    else:
-        print("\n✗ Parsing failed!")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+    def parse(self, file_path: str) -> str:
+        """
+        Legacy method.
+        WARNING:
+        Loads the entire document into memory.
+        Use parse_generator() for large files.
+        """
+        logger.warning(f"Using non-streaming parse for {file_path}. High memory usage risk.")
+        full_text = []
+        for text, _, _ in self.parse_generator(file_path):
+            full_text.append(text)
+        return "\n".join(full_text)
