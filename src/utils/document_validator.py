@@ -4,9 +4,9 @@
 Document Validator - Validation utilities for document uploads
 """
 
+import mimetypes
 import os
 import re
-import mimetypes
 from typing import ClassVar
 
 
