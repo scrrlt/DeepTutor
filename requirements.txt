@@ -51,11 +51,7 @@ llama-index>=0.14.12
 
 # RAG runtime dependencies (enabled for Cloud Run)
 lightrag-hku>=1.0.0
-raganything>=0.1.0
 filelock>=3.13.0
-
-# PDF parsing
-PyMuPDF>=1.23.0
 
 # ============================================
 # Academic and research tools

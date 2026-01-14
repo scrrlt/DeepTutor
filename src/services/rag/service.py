@@ -54,7 +54,7 @@ class RAGService:
         # LLM configuration
         self.logger = get_logger("RAGService")
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
-        self.provider = provider or os.getenv("RAG_PROVIDER", "raganything")
+        self.provider = provider or os.getenv("RAG_PROVIDER", "llamaindex")
         self._pipeline = None
 
     def _get_pipeline(self):
