@@ -37,6 +37,7 @@ from typing import Any
 from src.logging import get_logger
 from src.services.config import PROJECT_ROOT, load_config_with_main
 
+from .base import BaseSearchProvider
 from .consolidation import AnswerConsolidator
 
 # Backwards compatibility alias

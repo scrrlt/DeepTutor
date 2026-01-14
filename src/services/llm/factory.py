@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any, AsyncGenerator, Dict, List, Optional
 import os
 
+from src.logging import get_logger
+
 from .config import LLMConfig
 from .registry import get_provider_class, list_providers
 
