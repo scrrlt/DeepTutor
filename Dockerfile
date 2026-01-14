@@ -253,27 +253,6 @@ EOF
 
 RUN sed -i 's/\r$//' /app/start-frontend.sh && chmod +x /app/start-frontend.sh
 
-# Create entrypoint script
-RUN cat > /app/entrypoint.sh <<'EOF'
-#!/bin/bash
-set -e
-
-echo "============================================"
-echo "🚀 Starting DeepTutor"
-echo "============================================"
-
-# Set default ports if not provided
-export BACKEND_PORT=${PORT:-${BACKEND_PORT:-8001}}
-export FRONTEND_PORT=${FRONTEND_PORT:-3782}
-
-echo "📌 Backend Port: ${BACKEND_PORT}"
-echo "📌 Frontend Port: ${FRONTEND_PORT}"
-
-# Cloud Run expects the container to listen on $PORT. Start the backend directly.
-exec /bin/bash /app/start-backend.sh
-EOF
-
-RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Expose ports
 EXPOSE 8001 3782
@@ -282,8 +261,8 @@ EXPOSE 8001 3782
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${BACKEND_PORT:-8001}/ || exit 1
 
-# Set entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Start backend (Cloud Run expects the container to listen on $PORT)
+CMD ["sh", "-c", "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
 
 # ============================================
 # Stage 4: Development Image (Optional)
