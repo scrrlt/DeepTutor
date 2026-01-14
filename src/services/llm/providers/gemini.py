@@ -34,4 +34,5 @@ class GeminiProvider(BaseLLMProvider):
                     yield chunk.text
         except Exception as e:
             # Log and re-raise; retry logic for generators is complex
+            logger.error(f"Error in Gemini stream: {e}")
             raise

@@ -90,12 +90,6 @@ logger = get_logger("KnowledgeInit")
 class DocumentAdder:
     """Add documents to existing knowledge base with Hash-validation"""
 
-DEFAULT_BASE_DIR = Path("./knowledge_bases")
-
-
-class DocumentAdder:
-    """Add documents to existing knowledge base with Hash-validation"""
-
     def __init__(
         self,
         kb_name: str,
