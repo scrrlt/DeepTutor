@@ -259,7 +259,6 @@ class NarratorAgent(BaseAgent):
         Returns:
             Dict containing:
                 - audio_path: Audio file path
-                - audio_url: Audio access URL
                 - audio_id: Unique audio identifier
                 - voice: Voice used
         """

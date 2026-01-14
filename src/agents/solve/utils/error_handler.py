@@ -7,9 +7,15 @@ Error Handler - Error handling and retry mechanism
 from collections.abc import Callable
 import functools
 import logging
-import threading
+import asyncio
 from typing import Any
 import warnings
+
+from typing import Optional
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
+from src.services.llm.exceptions import LLMParseError
+from src.logging import get_logger
 
 logger = logging.getLogger("Solver.error_handler")
 
@@ -385,7 +391,6 @@ async def validate_investigate_output(
         has_none = any(t.get("tool_type", "").lower() == "none" for t in tools)
         if has_none and len(tools) > 1:
             raise LLMParseError("When 'none' tool exists, no other tool intents should be provided")
-        return True
 
         if tool_type == "query_item" and not (identifier or query):
             raise ParseError("query_item must provide identifier or query")

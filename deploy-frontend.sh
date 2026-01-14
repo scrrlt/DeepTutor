@@ -38,12 +38,12 @@ npm run build
 
 # Deploy to Vercel with environment variables
 echo "🚀 Deploying to Vercel..."
-vercel --prod \
+DEPLOY_OUTPUT=$(vercel --prod \
     --env NEXT_PUBLIC_API_BASE="${API_BASE_URL}" \
-    --yes
+    --yes)
 
-# Get the deployment URL
-DEPLOYMENT_URL=$(vercel --prod 2>/dev/null | grep -o 'https://[^ ]*\.vercel\.app')
+# Get the deployment URL from the output
+DEPLOYMENT_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://[^ ]*\.vercel\.app')
 
 echo ""
 echo "✅ Frontend deployment completed successfully!"

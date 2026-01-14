@@ -28,6 +28,10 @@ class GeminiProvider(BaseLLMProvider):
         return await self.execute_with_retry(_call_api)
 
     async def stream(self, prompt: str, **kwargs) -> AsyncGenerator[str, None]:
-        async for chunk in await self.model.generate_content_async(prompt, stream=True):
-            if chunk.text:
-                yield chunk.text
+        try:
+            async for chunk in await self.model.generate_content_async(prompt, stream=True):
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            # Log and re-raise; retry logic for generators is complex
+            raise

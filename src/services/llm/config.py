@@ -73,6 +73,11 @@ class LLMConfig:
 _llm_config: Optional[LLMConfig] = None
 
 
+def _strip_value(val: Optional[str]) -> Optional[str]:
+    """Strip whitespace from value if not None."""
+    return val.strip() if val else None
+
+
 def _get_llm_config_from_env() -> LLMConfig:
     """Get LLM configuration from environment variables."""
     binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
@@ -81,6 +86,13 @@ def _get_llm_config_from_env() -> LLMConfig:
     base_url = _strip_value(os.getenv("LLM_HOST"))
     api_version = _strip_value(os.getenv("LLM_API_VERSION"))
 
+    return LLMConfig(
+        provider_name=binding,
+        api_key=api_key,
+        base_url=base_url,
+        model_name=model,
+        api_version=api_version,
+    )
 
 async def get_llm_config_async() -> LLMConfig:
     """

@@ -50,6 +50,11 @@ class LLMConfigurationError(LLMError):
     pass
 
 
+class LLMParseError(LLMError):
+    """Error parsing LLM response."""
+    pass
+
+
 class LLMProviderError(LLMError):
     """Base class for provider/API failures."""
 

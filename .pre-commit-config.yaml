@@ -27,7 +27,9 @@ repos:
 
       # Check YAML files for syntax errors
       - id: check-yaml
-        args: [--unsafe]  # Allow custom tags in YAML
+        # Only skip check for files that legitimately need custom tags
+        exclude: ^(\.github/workflows/|cloudbuild\.)
+
 
       # Check JSON files for syntax errors
       - id: check-json

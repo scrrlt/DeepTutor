@@ -7,7 +7,7 @@ Knowledge graph indexer using LightRAG.
 
 from pathlib import Path
 import sys
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ...types import Document
 from ..base import BaseComponent
@@ -21,7 +21,7 @@ class GraphIndexer(BaseComponent):
     """
 
     name = "graph_indexer"
-    _instances: Dict[str, any] = {}  # Cache RAG instances
+    _instances: Dict[str, Any] = {}  # Cache RAG instances
 
     def __init__(self, kb_base_dir: Optional[str] = None):
         """

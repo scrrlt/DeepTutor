@@ -314,7 +314,7 @@ def build_auth_headers(
     if binding_lower in ["anthropic", "claude"]:
         headers["x-api-key"] = api_key
         headers["anthropic-version"] = "2023-06-01"
-    elif binding_lower == "azure_openai":
+    elif binding_lower in ["azure", "azure_openai"]:
         headers["api-key"] = api_key
     elif binding_lower == "gemini":
         # Gemini uses API key in URL query parameter, not header

@@ -582,17 +582,7 @@ class ReportingAgent(BaseAgent):
         # Fallback: build from blocks when no CitationManager available
         citation_map = {}
 
-        def extract_citation_number(cit_id):
-            try:
-                if cit_id.startswith("PLAN-"):
-                    num = int(cit_id.replace("PLAN-", ""))
-                    return (0, 0, num)
-                parts_list = cit_id.replace("CIT-", "").split("-")
-                if len(parts_list) == 2:
-                    return (1, int(parts_list[0]), int(parts_list[1]))
-            except Exception:
-                pass
-            return (999, 999, 999)
+
 
         all_citations = []
         for block in blocks:
@@ -964,20 +954,11 @@ class ReportingAgent(BaseAgent):
                 if len(parts_list) == 2:
                     return (1, int(parts_list[0]), int(parts_list[1]))
             except Exception:
-                pass
-            return (999, 999, 999)
+        if not all_citations:
+            return "## References\n\n*No citations available.*\n"
 
-        all_citations.sort(key=lambda x: extract_citation_number(x["citation_id"]))
-
-        # Generate numbered references in academic paper style
-        # Using simple ref-N anchor format for clickable inline citations
-        for idx, cit in enumerate(all_citations, 1):
-            trace = cit["trace"]
-            citation_id = cit["citation_id"]
-
-            # Use simple ref-N anchor format (consistent with _generate_references_from_manager)
-            anchor = f"ref-{idx}"
-            tool_type = trace.tool_type.lower() if trace.tool_type else ""
+        # Sort by citation_id (extract numeric parts for sorting)
+        all_citations.sort(key=lambda x: self._extract_citation_number(x["citation_id"]))
 
             # Tool name display
             tool_display = {

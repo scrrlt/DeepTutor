@@ -242,12 +242,11 @@
 
 ## 📋 Todo
 > 🌟 Star to follow our future updates!
-- [ x ] Support More RAG Pipelines
-- [ x ] DataBase Robostness and Visualization
-- [   ] Personalized Interaction with Notebook
+- [x] Support More RAG Pipelines
+- [x] DataBase Robustness and Visualization
+- [ ] Personalized Interaction with Notebook
 
 ## 🚀 Getting Started
-
 ### Step 1: Pre-Configuration
 
 **① Clone Repository**

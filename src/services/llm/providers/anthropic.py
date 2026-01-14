@@ -26,6 +26,8 @@ class AnthropicProvider(BaseLLMProvider):
                 max_tokens=kwargs.get("max_tokens", 4096),
                 messages=[{"role": "user", "content": prompt}]
             )
+            if not response.content:
+                return ""
             return response.content[0].text
 
         return await self.execute_with_retry(_call_api)

@@ -16,10 +16,8 @@ class AzureConfig:
         """Validate Azure config."""
         if not self.deployment:
             raise ValueError("AZURE_DEPLOYMENT_NAME is required for Azure provider")
-        if not self.api_version:
-            raise ValueError("AZURE_API_VERSION must be set")
-        # Validate deployment name format
-        if not self.deployment.replace('-', '').replace('_', '').isalnum():
+        # Validate deployment name format (alphanumeric, hyphens, underscores, dots)
+        if not all(c.isalnum() or c in '-_.' for c in self.deployment):
             raise ValueError("AZURE_DEPLOYMENT_NAME contains invalid characters")
 
 

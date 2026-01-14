@@ -119,6 +119,7 @@ DEFAULTS: Dict[str, Any] = {
             "new_topic_min_score": 0.85,
             "execution_mode": "series",
             "max_parallel_topics": 1,
+            "iteration_mode": "fixed",
             "enable_rag_naive": True,
             "enable_rag_hybrid": True,
             "enable_paper_search": True,

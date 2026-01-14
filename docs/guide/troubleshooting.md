@@ -16,14 +16,6 @@
 
 ## Port occupied after Ctrl+C?
 
-## Frontend Build Issues
-
-| Problem | Solution |
-|:--------|:---------|
-| `next build` gets stuck or panics in a `tokio-runtime-worker` Turbopack Rust backtrace | Force webpack: `npm run build -- --webpack`. If it still fails, delete `web/.next` and retry. |
-
-## Docker Issues
-
 After pressing Ctrl+C during a running task (e.g., deep research), restarting shows "port already in use" error.
 
 **Cause**
@@ -42,6 +34,8 @@ taskkill /PID <PID> /F
 ```
 
 Then restart the service with `python scripts/start_web.py`.
+
+## Frontend Build Issues
 
 ---
 

@@ -74,7 +74,7 @@ def load_parsed_paper(paper_dir: Path) -> tuple[str | None, list[dict] | None, P
     return markdown_content, content_list, images_dir
 
 
-def extract_questions_with_llm(
+async def extract_questions_with_llm(
     markdown_content: str,
     content_list: list[dict] | None,
     images_dir: Path,
@@ -181,63 +181,20 @@ Please analyze the above exam paper content, extract all question information, a
         llm_kwargs["response_format"] = {"type": "json_object"}
 
     try:
-        # Call LLM via unified Factory (async, so we need to run in event loop)
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're in an existing event loop, run in a thread
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    llm_complete(
-                        prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        model=model,
-                        api_key=api_key,
-                        base_url=base_url,
-                        api_version=api_version,
-                        binding=binding,
-                        **llm_kwargs,
-                    ),
-                )
-                result_text = future.result()
-        else:
-            # No running loop, use run_until_complete
-            result_text = loop.run_until_complete(
-                llm_complete(
-                    prompt=user_prompt,
-                    system_prompt=system_prompt,
-                    model=model,
-                    api_key=api_key,
-                    base_url=base_url,
-                    api_version=api_version,
-                    binding=binding,
-                    **llm_kwargs,
-                )
-            )
-    except RuntimeError as e:
-        if "already running" in str(e):
-            # Fallback: use asyncio.run in a thread
-            import concurrent.futures
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    llm_complete(
-                        prompt=user_prompt,
-                        system_prompt=system_prompt,
-                        model=model,
-                        api_key=api_key,
-                        base_url=base_url,
-                        api_version=api_version,
-                        binding=binding,
-                        **llm_kwargs,
-                    ),
-                )
-                result_text = future.result()
-        else:
-            raise
+        # Call LLM via unified Factory
+        result_text = await llm_complete(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            api_version=api_version,
+            binding=binding,
+            **llm_kwargs,
+        )
+    except Exception as e:
+        print(f"✗ LLM call failed: {e!s}")
+        raise
 
     # Parse JSON response
     try:
@@ -296,7 +253,7 @@ def save_questions_json(questions: list[dict[str, Any]], output_dir: Path, paper
     return output_file
 
 
-def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) -> bool:
+async def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) -> bool:
     """
     Extract questions from parsed exam paper
 
@@ -329,7 +286,7 @@ def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) 
         )
         return False
 
-    questions = extract_questions_with_llm(
+    questions = await extract_questions_with_llm(
         markdown_content=markdown_content,
         content_list=content_list,
         images_dir=images_dir,
@@ -381,7 +338,7 @@ Examples:
 
     args = parser.parse_args()
 
-    success = extract_questions_from_paper(args.paper_dir, args.output)
+    success = asyncio.run(extract_questions_from_paper(args.paper_dir, args.output))
 
     if success:
         sys.exit(0)

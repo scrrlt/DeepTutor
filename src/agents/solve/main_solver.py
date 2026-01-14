@@ -12,6 +12,7 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import sys
 import traceback
 from typing import Any
 
@@ -835,6 +836,18 @@ class MainSolver:
         citation_memory: CitationMemory,
         output_dir: str | None,
     ) -> dict[str, Any]:
+        """
+        Execute tool calls for a given solve step.
+
+        Args:
+            step: The solve chain step containing tool calls
+            solve_memory: Memory for solve operations
+            citation_memory: Memory for citations
+            output_dir: Directory for output files
+
+        Returns:
+            dict: Tool execution results
+        """
         tool_result = await self.tool_agent.process(
             step=step,
             solve_memory=solve_memory,

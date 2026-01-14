@@ -40,9 +40,6 @@ from src.services.rag.service import RAGService
 load_dotenv(dotenv_path=".env", override=False)
 
 from src.logging import get_logger
-from src.services.embedding import get_embedding_config
-from src.services.llm import get_llm_config
-from src.services.rag.service import RAGService
 
 logger = get_logger("KnowledgeInit")
 
