@@ -20,6 +20,13 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from dotenv import load_dotenv
 
+try:
+    from filelock import FileLock
+except ImportError:
+    FileLock = None
+
+import copy
+
 openai_complete_if_cache = None
 EmbeddingFunc = None
 
@@ -37,6 +44,7 @@ def _load_lightrag_deps():
     except Exception:
         openai_complete_if_cache = None
         EmbeddingFunc = None
+
 
 # Type hinting support for dynamic imports
 if TYPE_CHECKING:
@@ -290,7 +298,7 @@ class DocumentAdder:
 
             # 4. Merge Logic: Avoid back-to-back user messages
             if current_messages and current_messages[-1].get("role") == "user":
-                last_msg = current_messages[-1]
+                last_msg = copy.deepcopy(current_messages[-1])
                 # If last content is string, convert to list format first
                 if isinstance(last_msg["content"], str):
                     last_msg["content"] = [{"type": "text", "text": last_msg["content"]}]
@@ -301,6 +309,8 @@ class DocumentAdder:
                 else:
                     # Fallback if structure is unexpected, just append new message
                     current_messages.append({"role": "user", "content": user_content})
+                    continue
+                current_messages[-1] = last_msg
             else:
                 current_messages.append({"role": "user", "content": user_content})
 
@@ -383,20 +393,28 @@ class DocumentAdder:
         """Update metadata with the hash of a successfully processed file."""
         # Recalculate hash from the staged file to ensure it matches what was processed
         file_hash = self._get_file_hash(file_path)
+        lock_path = self.metadata_file.with_suffix(".lock")
         try:
-            metadata = {}
-            if self.metadata_file.exists():
-                with open(self.metadata_file, "r", encoding="utf-8") as f:
-                    metadata = json.load(f)
-
-            if "file_hashes" not in metadata:
-                metadata["file_hashes"] = {}
-
-            metadata["file_hashes"][file_path.name] = file_hash
-            with open(self.metadata_file, "w", encoding="utf-8") as f:
-                json.dump(metadata, f, indent=2, ensure_ascii=False)
+            if FileLock:
+                with FileLock(lock_path):
+                    self._update_metadata_file(file_path, file_hash)
+            else:
+                self._update_metadata_file(file_path, file_hash)
         except Exception as e:
             logger.warning(f"Could not update hash metadata: {e}")
+
+    def _update_metadata_file(self, file_path: Path, file_hash: str):
+        metadata = {}
+        if self.metadata_file.exists():
+            with open(self.metadata_file, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+
+        if "file_hashes" not in metadata:
+            metadata["file_hashes"] = {}
+
+        metadata["file_hashes"][file_path.name] = file_hash
+        with open(self.metadata_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
 
     @staticmethod
     def _filter_valid_messages(messages):
@@ -442,8 +460,13 @@ class DocumentAdder:
         if not processed_files:
             return
 
-        api_key = self.api_key or self.llm_cfg.api_key
-        base_url = self.base_url or self.llm_cfg.base_url
+        llm_cfg = getattr(self, "llm_cfg", None)
+        api_key = self.api_key or (llm_cfg.api_key if llm_cfg else None)
+        base_url = self.base_url or (llm_cfg.base_url if llm_cfg else None)
+        if not api_key or not base_url:
+            raise ValueError(
+                "API key and base URL must be provided either via constructor or LLM config"
+            )
         output_file = self.kb_dir / "numbered_items.json"
 
         for doc_file in processed_files:

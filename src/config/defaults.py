@@ -25,7 +25,7 @@ DEFAULTS: Dict[str, Any] = {
         "solve_output_dir": "./data/user/solve",
     },
     "llm": {
-        "model": "gpt-4o-mini",  # Default model
+        "model": "gpt-4.1-mini",  # Default model
         "provider": "openai",
     },
     "tools": {

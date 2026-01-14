@@ -17,7 +17,8 @@ fi
 
 SERVICE_NAME="deeptutor-backend"
 REGION="us-central1"
-IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+REPOSITORY="deeptutor-repo"
+IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}"
 
 echo "🚀 Deploying DeepTutor Backend to Google Cloud Run"
 echo "=================================================="
@@ -41,8 +42,20 @@ gcloud config set project ${PROJECT_ID}
 # Enable required APIs
 echo "🔌 Enabling required APIs..."
 gcloud services enable run.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
+
+# Create Artifact Registry repository if it doesn't exist
+echo "📦 Creating Artifact Registry repository..."
+gcloud artifacts repositories create ${REPOSITORY} \
+    --repository-format=docker \
+    --location=${REGION} \
+    --description="Docker repository for DeepTutor" \
+    --async || echo "Repository may already exist, continuing..."
+
+# Configure Docker to use Artifact Registry
+echo "🔧 Configuring Docker for Artifact Registry..."
+gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
 # Build and push Docker image
 echo "🏗️ Building and pushing Docker image..."
@@ -61,7 +74,7 @@ gcloud run deploy ${SERVICE_NAME} \
     --max-instances 10 \
     --timeout 300 \
     --concurrency 80 \
-    --set-env-vars "ENVIRONMENT=production"
+    --set-env-vars "ENVIRONMENT=production,API_KEY=REPLACE_ME,OPENAI_API_KEY=REPLACE_ME,PROVIDER=REPLACE_ME,LLM_MODEL=REPLACE_ME,EMBEDDING_MODEL=REPLACE_ME,VECTOR_DB_URL=REPLACE_ME"
 
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format="value(status.url)")

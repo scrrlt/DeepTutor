@@ -10,7 +10,7 @@ class CostCalculator:
 
     PRICING = {
         "gpt-4o": {"input": 5.00, "output": 15.00},
-        "claude-3-5-sonnet": {"input": 3.00, "output": 15.00}
+        "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
     }
 
     def calculate_cost(self, usage: Dict, model: str) -> float:
@@ -19,10 +19,12 @@ class CostCalculator:
             return 0.0
 
         pricing = self.PRICING[model]
-        input_tokens = usage.get('prompt_tokens', 0)
-        output_tokens = usage.get('completion_tokens', 0)
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
 
-        return (input_tokens * pricing["input"] / 1_000_000) + (output_tokens * pricing["output"] / 1_000_000)
+        return (input_tokens * pricing["input"] / 1_000_000) + (
+            output_tokens * pricing["output"] / 1_000_000
+        )
 
     def check_budget(self, user_id: str, estimated_tokens: int) -> bool:
         """Check if user can afford the request."""

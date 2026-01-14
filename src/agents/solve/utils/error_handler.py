@@ -482,17 +482,12 @@ async def validate_solve_output(
 
     tool_calls = output["tool_calls"]
     has_terminating_call = any(
-        call.get("type", "").lower() in ("none", "finish") for call in tool_calls
+        call.get("tool_type", "").lower() in ("none", "finish") for call in tool_calls
     )
     if has_terminating_call and len(tool_calls) > 1:
-        # Check for terminating tools (none/finish) - they cannot coexist with other tools
-        terminating_tools = [
-            call for call in tool_calls if call.get("type", "").lower() in ("none", "finish")
-        ]
-        if terminating_tools and len(tool_calls) > 1:
-            raise ParseError(
-                "When terminating tools (none/finish) exist, no other tool calls should be provided"
-            )
+        raise ParseError(
+            "When terminating tools (none/finish) exist, no other tool calls should be provided"
+        )
 
     # Track if we've seen a terminating tool for ordering validation
     has_terminating_tool = False
@@ -501,7 +496,7 @@ async def validate_solve_output(
         if not isinstance(tool_call, dict):
             raise ParseError(f"tool_calls[{idx}] must be a dictionary")
 
-        tool_type = tool_call.get("type", "").strip().lower()
+        tool_type = tool_call.get("tool_type", "").strip().lower()
         intent = tool_call.get("intent", "").strip()
 
         if not tool_type:
