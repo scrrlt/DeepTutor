@@ -51,6 +51,7 @@ class RAGService:
             provider: RAG pipeline provider to use.
                       Defaults to RAG_PROVIDER env var or "raganything".
         """
+        # LLM configuration
         self.logger = get_logger("RAGService")
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
         self.provider = provider or os.getenv("RAG_PROVIDER", "raganything")
@@ -59,9 +60,13 @@ class RAGService:
     def _get_pipeline(self):
         """Get or create pipeline instance."""
         if self._pipeline is None:
-            from .factory import get_pipeline
-
-            self._pipeline = get_pipeline(self.provider, kb_base_dir=self.kb_base_dir)
+            try:
+                from .factory import get_pipeline
+                self._pipeline = get_pipeline(self.provider, kb_base_dir=self.kb_base_dir)
+            except Exception as e:
+                self.logger.error(f"Failed to load RAG pipeline '{self.provider}': {e}")
+                # Fallback to a safe state if possible
+                raise
         return self._pipeline
 
     async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:

@@ -9,15 +9,7 @@ import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from llama_index.core import (
-    Document,
-    Settings,
-    StorageContext,
-    VectorStoreIndex,
-    load_index_from_storage,
-)
-from llama_index.core.base.embeddings.base import BaseEmbedding
-from llama_index.core.bridge.pydantic import PrivateAttr
+# Lazy imports for llama_index to avoid start-up crashes if not installed
 
 from src.logging import get_logger
 from src.services.embedding import get_embedding_client, get_embedding_config
@@ -28,56 +20,47 @@ DEFAULT_KB_BASE_DIR = str(
 )
 
 
-class CustomEmbedding(BaseEmbedding):
-    """
-    Custom embedding adapter for OpenAI-compatible APIs.
+def get_custom_embedding():
+    from llama_index.core.base.embeddings.base import BaseEmbedding
+    from llama_index.core.bridge.pydantic import PrivateAttr
 
-    Works with any OpenAI-compatible endpoint including:
-    - Google Gemini (text-embedding-004)
-    - OpenAI (text-embedding-ada-002, text-embedding-3-*)
-    - Azure OpenAI
-    - Local models with OpenAI-compatible API
-    """
+    class CustomEmbedding(BaseEmbedding):
+        """
+        Custom embedding adapter for OpenAI-compatible APIs.
+        """
+        _client: Any = PrivateAttr()
 
-    _client: Any = PrivateAttr()
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            from src.services.embedding import get_embedding_client
+            self._client = get_embedding_client()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._client = get_embedding_client()
+        @classmethod
+        def class_name(cls) -> str:
+            return "custom_embedding"
 
-    @classmethod
-    def class_name(cls) -> str:
-        return "custom_embedding"
+        async def _aget_query_embedding(self, query: str) -> List[float]:
+            embeddings = await self._client.embed([query])
+            return embeddings[0]
 
-    async def _aget_query_embedding(self, query: str) -> List[float]:
-        """Get embedding for a query."""
-        embeddings = await self._client.embed([query])
-        return embeddings[0]
+        async def _aget_text_embedding(self, text: str) -> List[float]:
+            embeddings = await self._client.embed([text])
+            return embeddings[0]
 
-    async def _aget_text_embedding(self, text: str) -> List[float]:
-        """Get embedding for a text."""
-        embeddings = await self._client.embed([text])
-        return embeddings[0]
+        def _get_query_embedding(self, query: str) -> List[float]:
+            import nest_asyncio
+            nest_asyncio.apply()
+            return asyncio.run(self._aget_query_embedding(query))
 
-    def _get_query_embedding(self, query: str) -> List[float]:
-        """Sync version - called by LlamaIndex sync API."""
-        # Use nest_asyncio to allow nested event loops
-        import nest_asyncio
+        def _get_text_embedding(self, text: str) -> List[float]:
+            import nest_asyncio
+            nest_asyncio.apply()
+            return asyncio.run(self._aget_text_embedding(text))
 
-        nest_asyncio.apply()
-        return asyncio.run(self._aget_query_embedding(query))
-
-    def _get_text_embedding(self, text: str) -> List[float]:
-        """Sync version - called by LlamaIndex sync API."""
-        # Use nest_asyncio to allow nested event loops
-        import nest_asyncio
-
-        nest_asyncio.apply()
-        return asyncio.run(self._aget_text_embedding(text))
-
-    async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Get embeddings for multiple texts."""
-        return await self._client.embed(texts)
+        async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+            return await self._client.embed(texts)
+            
+    return CustomEmbedding()
 
 
 class LlamaIndexPipeline:
@@ -104,11 +87,13 @@ class LlamaIndexPipeline:
 
     def _configure_settings(self):
         """Configure LlamaIndex global settings."""
+        from llama_index.core import Settings
+        
         # Get embedding config
         embedding_cfg = get_embedding_config()
 
         # Configure custom embedding that works with any OpenAI-compatible API
-        Settings.embed_model = CustomEmbedding()
+        Settings.embed_model = get_custom_embedding()
 
         # Configure chunking
         Settings.chunk_size = 512
@@ -120,17 +105,9 @@ class LlamaIndexPipeline:
         )
 
     async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
-        """
-        Initialize KB using real LlamaIndex components.
-
-        Args:
-            kb_name: Knowledge base name
-            file_paths: List of file paths to process
-            **kwargs: Additional arguments
-
-        Returns:
-            True if successful
-        """
+        """Initialize KB using real LlamaIndex components."""
+        from llama_index.core import Document, VectorStoreIndex
+        
         self.logger.info(
             f"Initializing KB '{kb_name}' with {len(file_paths)} files using LlamaIndex"
         )
@@ -219,18 +196,9 @@ class LlamaIndexPipeline:
         mode: str = "hybrid",
         **kwargs,
     ) -> Dict[str, Any]:
-        """
-        Search using LlamaIndex query engine.
-
-        Args:
-            query: Search query
-            kb_name: Knowledge base name
-            mode: Search mode (ignored, LlamaIndex uses similarity)
-            **kwargs: Additional arguments (top_k, etc.)
-
-        Returns:
-            Search results dictionary
-        """
+        """Search using LlamaIndex query engine."""
+        from llama_index.core import StorageContext, load_index_from_storage
+        
         self.logger.info(f"Searching KB '{kb_name}' with query: {query[:50]}...")
 
         kb_dir = Path(self.kb_base_dir) / kb_name

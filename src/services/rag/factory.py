@@ -7,15 +7,8 @@ Factory for creating and managing RAG pipelines.
 
 from typing import Callable, Dict, List, Optional
 
-from .pipelines import lightrag, llamaindex
-from .pipelines.raganything import RAGAnythingPipeline
-
-# Pipeline registry
-_PIPELINES: Dict[str, Callable] = {
-    "raganything": RAGAnythingPipeline,  # Full multimodal: MinerU parser, deep analysis (slow, thorough)
-    "lightrag": lightrag.LightRAGPipeline,  # Knowledge graph: PDFParser, fast text-only (medium speed)
-    "llamaindex": llamaindex.LlamaIndexPipeline,  # Vector-only: Simple chunking, fast (fastest)
-}
+# Pipeline registry (deprecated, using lazy loading in get_pipeline)
+_PIPELINES: Dict[str, Callable] = {}
 
 
 def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, **kwargs):
@@ -33,26 +26,25 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
     Raises:
         ValueError: If pipeline name is not found
     """
-    if name not in _PIPELINES:
-        available = list(_PIPELINES.keys())
-        raise ValueError(f"Unknown pipeline: {name}. Available: {available}")
+    # Lazy imports to prevent eager failures if dependencies are missing
+    if name == "lightrag":
+        from .pipelines.lightrag import LightRAGPipeline
+        return LightRAGPipeline(kb_base_dir=kb_base_dir)
+    
+    elif name == "academic":
+        from .pipelines.academic import AcademicPipeline
+        return AcademicPipeline(kb_base_dir=kb_base_dir)
 
-    factory = _PIPELINES[name]
+    elif name == "llamaindex":
+        from .pipelines.llamaindex import LlamaIndexPipeline
+        return LlamaIndexPipeline(**(kwargs | {"kb_base_dir": kb_base_dir} if kb_base_dir else kwargs))
 
-    # Handle different pipeline types:
-    # - lightrag, academic: functions that return RAGPipeline
-    # - llamaindex, raganything: classes that need instantiation
-    if name in ("lightrag", "academic"):
-        # LightRAGPipeline and AcademicPipeline are factory functions
-        return factory(kb_base_dir=kb_base_dir)
-    elif name in ("llamaindex", "raganything"):
-        # LlamaIndexPipeline and RAGAnythingPipeline are classes
-        if kb_base_dir:
-            kwargs["kb_base_dir"] = kb_base_dir
-        return factory(**kwargs)
-    else:
-        # Default: try calling with kb_base_dir
-        return factory(kb_base_dir=kb_base_dir)
+    elif name == "raganything":
+        from .pipelines.raganything import RAGAnythingPipeline
+        return RAGAnythingPipeline(**(kwargs | {"kb_base_dir": kb_base_dir} if kb_base_dir else kwargs))
+
+    available = ["lightrag", "academic", "llamaindex", "raganything"]
+    raise ValueError(f"Unknown pipeline: {name}. Available: {available}")
 
 
 def list_pipelines() -> List[Dict[str, str]]:

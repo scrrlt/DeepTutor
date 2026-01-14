@@ -9,8 +9,6 @@ from pathlib import Path
 import sys
 from typing import Any, Dict, List, Optional
 
-from lightrag.llm.openai import openai_complete_if_cache
-
 from src.logging import get_logger
 from src.logging.adapters import LightRAGLogContext
 
@@ -71,6 +69,7 @@ class RAGAnythingPipeline:
 
         self._setup_raganything_path()
 
+        from lightrag.llm.openai import openai_complete_if_cache
         from openai import AsyncOpenAI
         from raganything import RAGAnything, RAGAnythingConfig
 

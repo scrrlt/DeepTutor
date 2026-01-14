@@ -5,17 +5,13 @@ Academic Pipeline
 Pipeline optimized for academic documents with numbered item extraction.
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from ..components.chunkers import NumberedItemExtractor, SemanticChunker
-from ..components.embedders import OpenAIEmbedder
-from ..components.indexers import GraphIndexer
-from ..components.parsers import TextParser
-from ..components.retrievers import HybridRetriever
-from ..pipeline import RAGPipeline
+if TYPE_CHECKING:
+    from ..pipeline import RAGPipeline
 
 
-def AcademicPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
+def AcademicPipeline(kb_base_dir: Optional[str] = None) -> "RAGPipeline":
     """
     Create an academic document pipeline.
 
@@ -33,6 +29,13 @@ def AcademicPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     Returns:
         Configured RAGPipeline
     """
+    from ..components.chunkers import NumberedItemExtractor, SemanticChunker
+    from ..components.embedders import OpenAIEmbedder
+    from ..components.indexers import GraphIndexer
+    from ..components.parsers import TextParser
+    from ..components.retrievers import HybridRetriever
+    from ..pipeline import RAGPipeline
+
     return (
         RAGPipeline("academic", kb_base_dir=kb_base_dir)
         .parser(TextParser())

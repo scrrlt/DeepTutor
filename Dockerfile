@@ -55,6 +55,7 @@ WORKDIR /app
 
 # Install system dependencies
 # Note: libgl1 and libglib2.0-0 are required for OpenCV (used by mineru)
+# libmagic1 is for file type detection, poppler-utils for PDF processing
 # Rust is required for building tiktoken and other packages without pre-built wheels
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -65,6 +66,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxext6 \
     libxrender1 \
+    libmagic1 \
+    poppler-utils \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/* \
@@ -111,6 +114,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxext6 \
     libxrender1 \
+    libmagic1 \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node.js from frontend-builder stage (avoids re-downloading from NodeSource)

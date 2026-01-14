@@ -6,15 +6,13 @@ Pure LightRAG pipeline (text-only, no multimodal processing).
 Faster than RAGAnything for text-heavy documents.
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from ..components.indexers import LightRAGIndexer
-from ..components.parsers import PDFParser
-from ..components.retrievers import LightRAGRetriever
-from ..pipeline import RAGPipeline
+if TYPE_CHECKING:
+    from ..pipeline import RAGPipeline
 
 
-def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
+def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> "RAGPipeline":
     """
     Create a pure LightRAG pipeline (text-only, no multimodal).
 
@@ -34,6 +32,11 @@ def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     Returns:
         Configured RAGPipeline
     """
+    from ..components.indexers import LightRAGIndexer
+    from ..components.parsers import PDFParser
+    from ..components.retrievers import LightRAGRetriever
+    from ..pipeline import RAGPipeline
+
     return (
         RAGPipeline("lightrag", kb_base_dir=kb_base_dir)
         .parser(PDFParser())
