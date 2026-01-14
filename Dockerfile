@@ -195,7 +195,7 @@ RUN cat > /app/start-backend.sh <<'EOF'
 #!/bin/bash
 set -e
 
-BACKEND_PORT=${BACKEND_PORT:-8001}
+BACKEND_PORT=${PORT:-${BACKEND_PORT:-8001}}
 
 echo "[Backend]  🚀 Starting FastAPI backend on port ${BACKEND_PORT}..."
 
@@ -258,43 +258,14 @@ echo "🚀 Starting DeepTutor"
 echo "============================================"
 
 # Set default ports if not provided
-export BACKEND_PORT=${BACKEND_PORT:-8001}
+export BACKEND_PORT=${PORT:-${BACKEND_PORT:-8001}}
 export FRONTEND_PORT=${FRONTEND_PORT:-3782}
 
 echo "📌 Backend Port: ${BACKEND_PORT}"
 echo "📌 Frontend Port: ${FRONTEND_PORT}"
 
-# Check for required environment variables
-if [ -z "$LLM_API_KEY" ]; then
-    echo "⚠️  Warning: LLM_API_KEY not set"
-    echo "   Please provide LLM configuration via environment variables or .env file"
-fi
-
-if [ -z "$LLM_MODEL" ]; then
-    echo "⚠️  Warning: LLM_MODEL not set"
-    echo "   Please configure LLM_MODEL in your .env file"
-fi
-
-# Initialize user data directories if empty
-echo "📁 Checking data directories..."
-if [ ! -f "/app/data/user/user_history.json" ]; then
-    echo "   Initializing user data directories..."
-    python -c "
-from pathlib import Path
-from src.services.setup import init_user_directories
-init_user_directories(Path('/app'))
-" 2>/dev/null || echo "   ⚠️ Directory initialization skipped (will be created on first use)"
-fi
-
-echo "============================================"
-echo "📦 Configuration loaded from:"
-echo "   - Environment variables (.env file)"
-echo "   - config/main.yaml"
-echo "   - config/agents.yaml"
-echo "============================================"
-
-# Start supervisord
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/deeptutor.conf
+# Cloud Run expects the container to listen on $PORT. Start the backend directly.
+exec /bin/bash /app/start-backend.sh
 EOF
 
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
