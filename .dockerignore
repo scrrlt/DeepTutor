@@ -85,6 +85,11 @@ yarn-error.log*
 web/.next/
 out/
 web/out/
+web/dist/
+web/build/
+web/.vercel/
+figs/
+gifs/
 
 # ============================================
 # IDE and Editor

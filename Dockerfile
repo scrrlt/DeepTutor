@@ -140,6 +140,7 @@ COPY --from=frontend-builder /app/web/node_modules ./web/node_modules
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
+COPY assets/ ./assets/
 COPY pyproject.toml ./
 COPY requirements.txt ./
 
