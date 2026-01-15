@@ -276,8 +276,8 @@ ENTRYPOINT []
 # Switch to non-root user for security
 USER deeptutor
 
-# Start backend (Cloud Run expects the container to listen on $PORT)
-CMD ["sh", "-c", "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
+# Set entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # ============================================
 # Stage 4: Development Image (Optional)
