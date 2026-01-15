@@ -9,7 +9,7 @@ Execution flow: Install backend -> Install frontend -> Verify all packages
 import os
 from pathlib import Path
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 # Set Windows console UTF-8 encoding

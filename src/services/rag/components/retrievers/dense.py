@@ -7,7 +7,7 @@ Dense vector-based retriever using FAISS or cosine similarity.
 
 import json
 from pathlib import Path
-import pickle
+import pickle  # nosec B403
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -134,7 +134,7 @@ class DenseRetriever(BaseComponent):
                 return self._empty_response(query)
 
             with open(embeddings_file, "rb") as f:
-                embeddings = pickle.load(f)
+                embeddings = pickle.load(f)  # nosec B301
 
             # Normalize for cosine similarity (avoid division by zero)
             query_norm = np.linalg.norm(query_embedding)

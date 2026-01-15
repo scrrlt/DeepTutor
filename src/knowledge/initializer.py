@@ -25,6 +25,10 @@ from src.services.rag.service import RAGService
 
 logger = get_logger("KnowledgeInit")
 
+# Set PyTorch CUDA allocation config to prevent GPU fragmentation on Windows
+# This must be set at import time before PyTorch is imported to take effect
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 # Import numbered items extraction functionality
 from src.knowledge.extract_numbered_items import process_content_list
 from src.knowledge.progress_tracker import ProgressStage, ProgressTracker

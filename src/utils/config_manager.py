@@ -159,8 +159,8 @@ class ConfigManager:
                     if os.path.exists(tmp_path):
                         try:
                             os.remove(tmp_path)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to remove temp file {tmp_path}: {e}")
         except ConfigError as ce:
             logger.error(
                 "Refusing to save invalid config: %s",

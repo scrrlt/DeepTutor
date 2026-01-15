@@ -7,7 +7,7 @@ Provides centralized configuration and adapter selection.
 """
 
 import logging
-from typing import Any, Dict, Optional, Type
+from typing import Any, ClassVar, Dict, Optional, Type
 
 from .adapters.base import BaseEmbeddingAdapter
 from .adapters.cohere import CohereEmbeddingAdapter
@@ -29,7 +29,7 @@ class EmbeddingProviderManager:
     """
 
     # Mapping of binding names to adapter classes
-    ADAPTER_MAPPING: Dict[str, Type[BaseEmbeddingAdapter]] = {
+    ADAPTER_MAPPING: ClassVar[Dict[str, Type[BaseEmbeddingAdapter]]] = {
         "openai": OpenAICompatibleEmbeddingAdapter,
         "azure_openai": OpenAICompatibleEmbeddingAdapter,
         "jina": JinaEmbeddingAdapter,

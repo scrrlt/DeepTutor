@@ -660,9 +660,11 @@ class AITutorStarter:
             choice = input("\nPlease select (1-4): ").strip()
             if choice == "1":
                 print("\n🚀 Starting backend service...")
-                print("Command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload")
+                print(
+                    "Command: python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload"
+                )
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 subprocess.run(
                     [
@@ -671,19 +673,20 @@ class AITutorStarter:
                         "uvicorn",
                         "api.main:app",
                         "--host",
-                        "0.0.0.0",
+                        "127.0.0.1",
                         "--port",
                         "8000",
                         "--reload",
                     ],
                     check=False,
+                    shell=False,
                 )
                 break
             if choice == "2":
                 print("\n🚀 Starting frontend service...")
                 print("Command: cd web && npm run dev")
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 web_dir = Path(__file__).parent / "web"
                 subprocess.run(["npm", "run", "dev"], check=False, cwd=web_dir)
@@ -692,7 +695,7 @@ class AITutorStarter:
                 print("\n🚀 Starting both frontend and backend services...")
                 print("Command: python start_web.py")
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 subprocess.run([sys.executable, "start_web.py"], check=False)
                 break

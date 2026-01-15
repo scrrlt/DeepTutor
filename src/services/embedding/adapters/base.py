@@ -72,12 +72,13 @@ class BaseEmbeddingAdapter(ABC):
                 - dimensions: Embedding vector dimensions
                 - request_timeout: Request timeout in seconds
         """
-        self.api_key = config.get("api_key")
-        self.base_url = config.get("base_url")
-        self.api_version = config.get("api_version")
-        self.model = config.get("model")
-        self.dimensions = config.get("dimensions")
-        self.request_timeout = config.get("request_timeout", 30)
+        self.api_key: Optional[str] = config.get("api_key")
+        self.base_url: Optional[str] = config.get("base_url")
+        self.api_version: Optional[str] = config.get("api_version")
+        # Model can be omitted here; concrete adapters may provide provider-specific defaults.
+        self.model: Optional[str] = config.get("model")
+        self.dimensions: Optional[int] = config.get("dimensions")
+        self.request_timeout: int = int(config.get("request_timeout", 30))
 
     @abstractmethod
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:

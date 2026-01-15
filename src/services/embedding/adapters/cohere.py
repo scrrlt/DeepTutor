@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
     """Adapter for Cohere Embed API (v1 and v2)."""
 
-    MODELS_INFO = {
+    MODELS_INFO: Dict[str, Dict[str, Any]] = {
         "embed-v4.0": {
             "dimensions": [256, 512, 1024, 1536],
             "default": 1024,
@@ -55,7 +55,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
         input_type = request.input_type or "search_document"
 
         if api_version == "v1":
-            payload = {
+            payload: Dict[str, Any] = {
                 "texts": request.texts,
                 "model": model_name,
                 "input_type": input_type,
@@ -64,7 +64,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             if not request.truncate:
                 payload["truncate"] = "NONE"
         else:
-            payload = {
+            payload: Dict[str, Any] = {
                 "texts": request.texts,
                 "model": model_name,
                 "embedding_types": ["float"],

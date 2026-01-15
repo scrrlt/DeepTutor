@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 

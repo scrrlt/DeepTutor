@@ -321,8 +321,10 @@ class BaseAgent(ABC):
                     user_prompt=user_prompt,
                     response_text=response,
                 )
-            except Exception:
-                pass  # Don't let tracking errors affect main flow
+            except Exception as e:
+                logger.debug(
+                    f"Tracking error ignored: {e}"
+                )  # Don't let tracking errors affect main flow
 
         # 2. Always use shared LLMStats
         stats = self.get_stats(self.module_name)

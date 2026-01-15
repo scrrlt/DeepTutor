@@ -8,7 +8,7 @@ Provides fast similarity search for RAG retrieval.
 
 import json
 from pathlib import Path
-import pickle
+import pickle  # nosec B403
 from typing import List, Optional
 
 import numpy as np

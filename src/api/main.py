@@ -231,9 +231,12 @@ if __name__ == "__main__":
         if d.exists()
     ]
 
+    # Bind to localhost only for the built-in development server to avoid
+    # unintentionally exposing the API on the local network. Production
+    # deployments should configure the host/interface explicitly.
     uvicorn.run(
         "api.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=backend_port,
         reload=True,
         reload_excludes=reload_excludes,

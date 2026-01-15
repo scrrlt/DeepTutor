@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 import shutil
 
+from src.logging import get_logger
+
 
 class KnowledgeBaseManager:
     """Manager for knowledge bases"""
@@ -23,6 +25,7 @@ class KnowledgeBaseManager:
         # Config file to track knowledge bases
         self.config_file = self.base_dir / "kb_config.json"
         self.config = self._load_config()
+        self.logger = get_logger("Knowledge")
 
     def _load_config(self) -> dict:
         """Load knowledge base configuration (kb_config.json only stores KB list)"""
@@ -60,8 +63,8 @@ class KnowledgeBaseManager:
                 kb_list.append(kb_name)
             else:
                 # If in config but directory doesn't exist, log warning but don't add
-                print(
-                    f"Warning: Knowledge base '{kb_name}' is in config but directory does not exist: {kb_dir}"
+                self.logger.warning(
+                    f"Knowledge base '{kb_name}' is in config but directory does not exist: {kb_dir}"
                 )
 
         # If no config file or config is empty, fallback to scanning directory (backward compatibility)
@@ -197,8 +200,8 @@ class KnowledgeBaseManager:
 
         # Verify knowledge base is in config (if not, give warning but don't block)
         if kb_name not in self.config.get("knowledge_bases", {}):
-            print(
-                f"Warning: Knowledge base '{kb_name}' is not in kb_config.json, but directory exists"
+            self.logger.warning(
+                f"Knowledge base '{kb_name}' is not in kb_config.json, but directory exists"
             )
 
         info = {
@@ -215,7 +218,7 @@ class KnowledgeBaseManager:
                 with open(metadata_file, encoding="utf-8") as f:
                     info["metadata"] = json.load(f)
             except Exception as e:
-                print(f"Warning: Failed to read metadata.json for KB '{kb_name}': {e}")
+                self.logger.warning(f"Failed to read metadata.json for KB '{kb_name}': {e}")
                 info["metadata"] = {}
         else:
             # metadata.json doesn't exist, use empty dict
@@ -364,7 +367,7 @@ class KnowledgeBaseManager:
         rag_storage_dir = kb_dir / "rag_storage"
 
         if not rag_storage_dir.exists():
-            print(f"RAG storage does not exist for '{kb_name}'")
+            self.logger.info(f"RAG storage does not exist for '{kb_name}'")
             return False
 
         # Backup if requested
@@ -372,13 +375,13 @@ class KnowledgeBaseManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_dir = kb_dir / f"rag_storage_backup_{timestamp}"
             shutil.copytree(rag_storage_dir, backup_dir)
-            print(f"✓ Backed up to: {backup_dir}")
+            self.logger.success(f"Backed up to: {backup_dir}")
 
         # Delete RAG storage
         shutil.rmtree(rag_storage_dir)
         rag_storage_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"✓ RAG storage cleaned for '{kb_name}'")
+        self.logger.success(f"RAG storage cleaned for '{kb_name}'")
         return True
 
     def link_folder(self, kb_name: str, folder_path: str) -> dict:

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
-    MODELS_INFO = {
+    MODELS_INFO: Dict[str, int] = {
         "all-minilm": 384,
         "all-mpnet-base-v2": 768,
         "nomic-embed-text": 768,
@@ -20,7 +20,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        payload = {
+        payload: Dict[str, Any] = {
             "model": request.model or self.model,
             "input": request.texts,
         }

@@ -1,6 +1,3 @@
-import os
-
-import httpx
 import openai
 
 from ..registry import register_provider
@@ -16,15 +13,10 @@ class OpenAIProvider(BaseLLMProvider):
     def __init__(self, config):
         super().__init__(config)
 
-        # SSL handling for dev/troubleshooting
-        http_client = None
-        if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
-            http_client = httpx.AsyncClient(verify=False)
-
         self.client = openai.AsyncOpenAI(
             api_key=self.api_key,
             base_url=self.base_url or None,
-            http_client=http_client,
+            http_client=None,
         )
 
     @track_llm_call("openai")

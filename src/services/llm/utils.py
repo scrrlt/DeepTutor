@@ -43,7 +43,7 @@ LOCAL_PORTS = [
 LOCAL_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "0.0.0.0",
+    "0.0.0.0",  # nosec B104
 ]
 
 # Ports that need /v1 suffix for OpenAI compatibility

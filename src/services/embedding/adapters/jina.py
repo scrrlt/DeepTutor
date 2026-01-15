@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
-    MODELS_INFO = {
+    MODELS_INFO: Dict[str, Dict[str, Any]] = {
         "jina-embeddings-v3": {"default": 1024, "dimensions": [32, 64, 128, 256, 512, 768, 1024]},
         "jina-embeddings-v4": {"default": 1024, "dimensions": [32, 64, 128, 256, 512, 768, 1024]},
     }
@@ -30,7 +30,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             "Content-Type": "application/json",
         }
 
-        payload = {
+        payload: Dict[str, Any] = {
             "input": request.texts,
             "model": request.model or self.model,
         }

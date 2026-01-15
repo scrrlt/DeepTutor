@@ -5,12 +5,15 @@ Query Numbered Item Tool - Query definitions, theorems, formulas, figures, etc.
 """
 
 import json
+import logging
 from pathlib import Path
 import sys
 
 # Add parent directory to path (insert at front to prioritize project modules)
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+logger = logging.getLogger(__name__)
 
 
 def query_numbered_item(
@@ -81,8 +84,8 @@ def query_numbered_item(
                 with open(config_file, encoding="utf-8") as f:
                     config = json.load(f)
                     kb_name = config.get("default")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load kb_config.json: {e}")
 
         if not kb_name:
             return {

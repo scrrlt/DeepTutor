@@ -79,6 +79,8 @@ class EmbeddingClient:
         try:
             response = await adapter.embed(request)
 
+            self._validate_embeddings_response(response.embeddings, texts)
+
             self.logger.debug(
                 f"Generated {len(response.embeddings)} embeddings using {self.config.binding}"
             )
@@ -108,6 +110,29 @@ class EmbeddingClient:
                 return loop.run_until_complete(self.embed(texts))
         except RuntimeError:
             return asyncio.run(self.embed(texts))
+
+    def _validate_embeddings_response(self, embeddings: List[List[float]], texts: List[str]) -> None:
+        """
+        Validate the embeddings response from the adapter.
+
+        Args:
+            embeddings: The embeddings returned by the adapter
+            texts: The original input texts
+
+        Raises:
+            ValueError: If the embeddings are invalid
+        """
+        if (
+            embeddings is None
+            or not isinstance(embeddings, list)
+            or len(embeddings) == 0
+            or len(embeddings) != len(texts)
+            or any(not isinstance(emb, list) or len(emb) == 0 for emb in embeddings)
+        ):
+            raise ValueError(
+                f"Invalid embeddings response: expected {len(texts)} non-empty lists of floats, "
+                f"got {type(embeddings)} with {len(embeddings) if isinstance(embeddings, list) else 'N/A'} items"
+            )
 
     def get_embedding_func(self):
         """

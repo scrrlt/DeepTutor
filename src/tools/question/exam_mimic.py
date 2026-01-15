@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 import json
+import logging
 import os
 from pathlib import Path
 import sys
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
 # Project root is 3 levels up from src/tools/question/
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+logger = logging.getLogger(__name__)
 
 # Note: AgentCoordinator is imported inside functions to avoid circular import
 from src.services.llm.config import get_llm_config
@@ -166,17 +169,17 @@ async def mimic_exam_questions(
                     # This is a basic check; for robust security, whitelist allowed parents explicitly if needed.
                     latest_dir = resolved_p
                     break
-                except Exception:
-                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to resolve path {p}: {e}")
 
-        if not latest_dir:
-            error_msg = f"Exam directory not found: {paper_dir}"
+
+        if latest_dir is None:
+            error_msg = f"Paper directory not found: {paper_dir}"
             await send_progress("error", {"content": error_msg})
             return {
                 "success": False,
                 "error": f"{error_msg}\nSearched paths: {[str(p) for p in possible_paths]}",
             }
-        # Note: latest_dir was already resolved in the loop above, no need to override
 
         # Ensure auto subdirectory exists
         auto_dir = latest_dir / "auto"

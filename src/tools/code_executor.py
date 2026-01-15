@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import os
 from pathlib import Path
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tempfile
 import time

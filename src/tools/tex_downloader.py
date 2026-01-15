@@ -12,15 +12,20 @@ Version: v1.0
 Based on: TODO.md specification
 """
 
+import logging
 import os
 from pathlib import Path
 import re
 import shutil
 import tarfile
+from tarfile import TarInfo
 import tempfile
+from typing import Generator
 import zipfile
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 class TexDownloadResult:
@@ -77,7 +82,7 @@ class TexDownloader:
             source_url = f"https://arxiv.org/e-print/{arxiv_id}"
 
             # Download source package
-            print(f"  Downloading source: {source_url}")
+            logger.info(f"  Downloading source: {source_url}")
             response = requests.get(source_url, timeout=30)
             response.raise_for_status()
 
@@ -139,47 +144,65 @@ class TexDownloader:
     def _is_tar_file(self, file_path: Path) -> bool:
         """Check if file is a tar file"""
         try:
-            with tarfile.open(file_path, "r:*") as tar:
+            with tarfile.open(file_path, "r:*"):
                 return True
-        except:
+        except Exception:
             return False
 
     def _is_zip_file(self, file_path: Path) -> bool:
         """Check if file is a zip file"""
         try:
-            with zipfile.ZipFile(file_path, "r") as zip_file:
+            with zipfile.ZipFile(file_path, "r"):
                 return True
-        except:
+        except Exception:
             return False
 
-    def _extract_tar(self, tar_path: Path, extract_dir: Path):
+    def _extract_tar(self, tar_path: Path, extract_dir: Path) -> None:
         """Extract tar file safely (prevent ZipSlip/TarSlip)"""
         with tarfile.open(tar_path, "r:*") as tar:
             # Safe extraction filter
-            def is_within_directory(directory, target):
+            def is_within_directory(directory: str, target: str) -> bool:
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
-                prefix = os.path.commonprefix([abs_directory, abs_target])
-                return prefix == abs_directory
+                try:
+                    common = os.path.commonpath([abs_directory, abs_target])
+                    return common == abs_directory
+                except ValueError:
+                    return False
 
-            def safe_members(members):
+            def safe_members(members: list[TarInfo]) -> Generator[TarInfo, None, None]:
                 for member in members:
                     member_path = os.path.join(extract_dir, member.name)
-                    if not is_within_directory(extract_dir, member_path):
-                        print(f"Suspicious file path in tar: {member.name}. Skipping.")
+                    if not is_within_directory(str(extract_dir), member_path):
+                        logger.warning(f"Suspicious file path in tar: {member.name}. Skipping.")
                         continue
                     yield member
 
-            tar.extractall(extract_dir, members=safe_members(tar))
+            tar.extractall(extract_dir, members=safe_members(tar.getmembers()))
 
-    def _extract_zip(self, zip_path: Path, extract_dir: Path):
+    def _is_within_directory(self, directory: str, target: str) -> bool:
+        """Check if target path is within directory (prevent ZipSlip/TarSlip)"""
+        abs_directory = os.path.abspath(directory)
+        abs_target = os.path.abspath(target)
+        try:
+            common = os.path.commonpath([abs_directory, abs_target])
+            return common == abs_directory
+        except ValueError:
+            return False
+
+    def _extract_zip(self, zip_path: Path, extract_dir: Path) -> None:
         """Extract zip file"""
         with zipfile.ZipFile(zip_path, "r") as zip_file:
-            zip_file.extractall(extract_dir)
+            for member in zip_file.namelist():
+                member_path = os.path.join(extract_dir, member)
+                if not self._is_within_directory(str(extract_dir), member_path):
+                    logger.warning(f"Suspicious file path in zip: {member}. Skipping.")
+                    continue
+                zip_file.extract(member, extract_dir)
 
     def _find_main_tex(self, directory: Path) -> Path | None:
         """
-        Find main tex file
+        Find the main tex file in the extracted directory.
 
         Priority:
         1. main.tex
@@ -204,7 +227,8 @@ class TexDownloader:
                 content = tex_file.read_text(encoding="utf-8", errors="ignore")
                 if r"\documentclass" in content:
                     return tex_file
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to read tex file {tex_file}: {e}")
                 continue
 
         # 3. Return largest tex file
@@ -245,9 +269,12 @@ if __name__ == "__main__":
     )
 
     if result.success:
-        print("✓ Download successful!")
-        print(f"  File path: {result.tex_path}")
-        print(f"  Content length: {len(result.tex_content)} characters")
-        print(f"  Content preview: {result.tex_content[:500]}...")
+        logger.info("✓ Download successful!")
+        logger.info(f"  File path: {result.tex_path}")
+        if result.tex_content:
+            logger.info(f"  Content length: {len(result.tex_content)} characters")
+            logger.info(f"  Content preview: {result.tex_content[:500]}...")
+        else:
+            logger.info("  No content available")
     else:
-        print(f"✗ Download failed: {result.error}")
+        logger.error(f"✗ Download failed: {result.error}")

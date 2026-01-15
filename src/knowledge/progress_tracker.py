@@ -96,7 +96,7 @@ class ProgressTracker:
             try:
                 callback(progress)
             except Exception as e:
-                print(f"[ProgressTracker] Callback error: {e}")
+                _logger.error(f"Callback error: {e}")
 
     def _save_progress(self, progress: dict):
         """Save progress to file"""
@@ -105,7 +105,7 @@ class ProgressTracker:
             with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to save progress: {e}")
+            _logger.error(f"Failed to save progress: {e}")
 
     def update(
         self,
@@ -152,11 +152,11 @@ class ProgressTracker:
             else:
                 logger.progress(progress_msg)
         except Exception:
-            # If logging fails, print to console
+            # If logging fails, log to console
             prefix = f"[{self.task_id}]" if self.task_id else ""
-            print(f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})")
+            _logger.info(f"{prefix} {message} ({current}/{total if total > 0 else '?'})")
             if error:
-                print(f"{prefix} [ProgressTracker] Error: {error}")
+                _logger.error(f"{prefix} Error: {error}")
 
         self._save_progress(progress)
         self._notify(progress)
@@ -170,7 +170,7 @@ class ProgressTracker:
             with open(self.progress_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to read progress: {e}")
+            _logger.error(f"Failed to read progress: {e}")
             return None
 
     def clear(self):
@@ -179,4 +179,4 @@ class ProgressTracker:
             try:
                 self.progress_file.unlink()
             except Exception as e:
-                print(f"[ProgressTracker] Failed to clear progress: {e}")
+                _logger.error(f"Failed to clear progress: {e}")

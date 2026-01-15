@@ -8,7 +8,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 

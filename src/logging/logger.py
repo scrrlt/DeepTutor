@@ -571,7 +571,7 @@ class Logger:
                 self._log(log_level, f"[Tokens: {' '.join(token_info_parts)}]", symbol=" ")
         else:
             # Summary output
-            token_info = ""
+            token_info = ""  # nosec B105
             if input_tokens is not None and output_tokens is not None:
                 token_info = f" [Tokens: in={input_tokens}, out={output_tokens}, total={input_tokens + output_tokens}]"
             if cost is not None:
