@@ -25,7 +25,7 @@ class SemanticChunker(BaseComponent):
         self,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        separators: List[str] = None,
+        separators: List[str] | None = None,
     ):
         """
         Initialize semantic chunker.

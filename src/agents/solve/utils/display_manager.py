@@ -192,7 +192,7 @@ class DisplayManager:
     def log(self, message: str):
         """Add log"""
         if not self.rich_available:
-            print(message)
+            logger.info(message)
             return
 
         # Simple cleaning

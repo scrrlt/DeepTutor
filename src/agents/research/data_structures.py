@@ -12,6 +12,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class TopicStatus(Enum):
     """Topic block status enumeration"""
@@ -432,7 +436,7 @@ class DynamicTopicQueue:
             try:
                 self.save_to_json(self.state_file)
             except Exception as exc:
-                print(f"⚠️ Failed to save queue progress: {exc}")
+                logger.error(f"⚠️ Failed to save queue progress: {exc}")
 
     @classmethod
     def load_from_json(cls, filepath: str) -> "DynamicTopicQueue":

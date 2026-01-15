@@ -30,7 +30,9 @@ from .token_tracker import TokenTracker, get_token_tracker
 LLMLogger = Logger
 
 
-def get_llm_logger(research_id: str = None, log_dir: str = None, agent_name: str = None):
+def get_llm_logger(
+    research_id: str | None = None, log_dir: str | None = None, agent_name: str | None = None
+):
     """Get logger for LLM calls (backwards compatibility)"""
     name = agent_name or "Research"
     return get_logger(name, log_dir=log_dir)

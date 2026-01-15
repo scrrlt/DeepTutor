@@ -20,7 +20,7 @@ from src.agents.research.research_pipeline import ResearchPipeline
 from src.services.llm import get_llm_config
 
 
-def load_config(config_path: str = None, preset: str = None) -> dict:
+def load_config(config_path: str | None = None, preset: str | None = None) -> dict:
     """
     Load configuration file (with main.yaml merge)
 

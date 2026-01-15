@@ -857,6 +857,6 @@ if __name__ == "__main__":
     async def test():
         solver = MainSolver(kb_name="ai_textbook")
         result = await solver.solve(question="What is linear convolution?", verbose=True)
-        print(f"Output file: {result['output_md']}")
+        logger.info(f"Output file: {result['output_md']}")
 
     asyncio.run(test())

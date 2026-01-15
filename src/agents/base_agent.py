@@ -83,6 +83,17 @@ class BaseAgent(ABC):
         self.module_name = module_name
         self.agent_name = agent_name
         self.language = language
+        # Initialize instance attributes with proper types
+        self.api_key: str | None = None
+        self.base_url: str | None = None
+        self.model: str | None = None
+        self.api_version: str | None = None
+        self.binding: str = "openai"
+        self.llm_config: dict[str, Any] = {}
+        self.agent_config: dict[str, Any] = {}
+        self.enabled: bool = True
+        self.prompts: dict[str, Any] | None = None
+        self.token_tracker: Any | None = None
         # Ensure config is always a dict (not a dataclass like LLMConfig)
         if config is None:
             self.config = {}
@@ -95,6 +106,9 @@ class BaseAgent(ABC):
 
         # Load agent parameters from unified config (agents.yaml)
         self._agent_params = get_agent_params(module_name)
+        if not isinstance(self._agent_params, dict):
+            # Fallback to default values if get_agent_params fails
+            self._agent_params = {"temperature": 0.7, "max_tokens": 2000}
 
         # Load LLM configuration
         try:
@@ -119,7 +133,10 @@ class BaseAgent(ABC):
         if hasattr(llm_cfg, "__dataclass_fields__"):
             from dataclasses import asdict
 
-            self.llm_config = asdict(llm_cfg)
+            try:
+                self.llm_config = asdict(llm_cfg)
+            except Exception:
+                self.llm_config = {}
         else:
             self.llm_config = llm_cfg if isinstance(llm_cfg, dict) else {}
 
@@ -322,7 +339,7 @@ class BaseAgent(ABC):
                     response_text=response,
                 )
             except Exception as e:
-                logger.debug(
+                self.logger.debug(
                     f"Tracking error ignored: {e}"
                 )  # Don't let tracking errors affect main flow
 
@@ -545,9 +562,9 @@ class BaseAgent(ABC):
                 self.logger.log_llm_output(
                     agent_name=self.agent_name,
                     stage=stage_label,
-                    response=full_response[:200] + "..."
-                    if len(full_response) > 200
-                    else full_response,
+                    response=(
+                        full_response[:200] + "..." if len(full_response) > 200 else full_response
+                    ),
                     metadata={
                         "length": len(full_response),
                         "duration": call_duration,

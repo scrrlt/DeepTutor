@@ -16,6 +16,10 @@ from typing import AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
+from src.logging import get_logger
+
+logger = get_logger(__name__)
+
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
     build_auth_headers,
@@ -245,7 +249,7 @@ async def stream(
         raise  # Re-raise LLM errors as-is
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        print(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.error(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
 
         try:
             content = await complete(
@@ -335,7 +339,7 @@ async def fetch_models(
                             for m in data
                         ]
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error(f"Error fetching models from {base_url}: {e}")
 
         return []
 

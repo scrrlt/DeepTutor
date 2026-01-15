@@ -424,7 +424,7 @@ async def upload_files(
     kb_name: str,
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
-    rag_provider: str = Form(None),
+    rag_provider: str | None = Form(None),
 ):
     """Upload files to a knowledge base and process them in background."""
     try:
@@ -435,8 +435,8 @@ async def upload_files(
 
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
         except ValueError as e:
             raise HTTPException(status_code=500, detail=f"LLM config error: {e!s}")
 
@@ -526,8 +526,8 @@ async def create_knowledge_base(
 
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
         except ValueError as e:
             raise HTTPException(status_code=500, detail=f"LLM config error: {e!s}")
 

@@ -121,7 +121,7 @@ class ChatAgent(BaseAgent):
             message_tokens.append((msg, tokens))
 
         # Build history from newest to oldest, stop when limit reached
-        truncated = []
+        truncated: list[dict[str, str]] = []
         total_tokens = 0
 
         for msg, tokens in reversed(message_tokens):
@@ -180,7 +180,7 @@ class ChatAgent(BaseAgent):
             Tuple of (context_string, sources_dict)
         """
         context_parts = []
-        sources = {"rag": [], "web": []}
+        sources: dict[str, list] = {"rag": [], "web": []}
 
         # RAG retrieval
         if enable_rag and kb_name:
@@ -197,9 +197,9 @@ class ChatAgent(BaseAgent):
                     sources["rag"].append(
                         {
                             "kb_name": kb_name,
-                            "content": rag_answer[:500] + "..."
-                            if len(rag_answer) > 500
-                            else rag_answer,
+                            "content": (
+                                rag_answer[:500] + "..." if len(rag_answer) > 500 else rag_answer
+                            ),
                         }
                     )
                     self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
@@ -247,12 +247,18 @@ class ChatAgent(BaseAgent):
         messages = []
 
         # System prompt
-        system_prompt = self.get_prompt("system", "You are a helpful AI assistant.")
+        system_prompt = (
+            self.get_prompt("system", "You are a helpful AI assistant.")
+            or "You are a helpful AI assistant."
+        )
         messages.append({"role": "system", "content": system_prompt})
 
         # Add context if available
         if context:
-            context_template = self.get_prompt("context_template", "Reference context:\n{context}")
+            context_template = (
+                self.get_prompt("context_template", "Reference context:\n{context}")
+                or "Reference context:\n{context}"
+            )
             context_msg = context_template.format(context=context)
             messages.append({"role": "system", "content": context_msg})
 

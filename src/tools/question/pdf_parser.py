@@ -46,7 +46,7 @@ def check_mineru_installed():
     return None
 
 
-def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str = None):
+def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str | None = None):
     """
     Parse PDF file using MinerU
 
@@ -81,18 +81,18 @@ def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str = None):
     # Project root is 3 levels up from src/tools/question/
     project_root = Path(__file__).parent.parent.parent.parent
     if output_base_dir is None:
-        output_base_dir = project_root / "reference_papers"
+        output_base_dir_path = project_root / "reference_papers"
     else:
-        output_base_dir = Path(output_base_dir)
+        output_base_dir_path = Path(output_base_dir)
 
-    output_base_dir.mkdir(parents=True, exist_ok=True)
+    output_base_dir_path.mkdir(parents=True, exist_ok=True)
 
     pdf_name = pdf_path.stem
-    output_dir = output_base_dir / pdf_name
+    output_dir = output_base_dir_path / pdf_name
 
     if output_dir.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_dir = output_base_dir / f"{pdf_name}_backup_{timestamp}"
+        backup_dir = output_base_dir_path / f"{pdf_name}_backup_{timestamp}"
         print(f"⚠️ Directory already exists, backing up to: {backup_dir.name}")
         shutil.move(str(output_dir), str(backup_dir))
 
@@ -101,7 +101,7 @@ def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str = None):
     print("→ Starting parsing...")
 
     try:
-        temp_output = output_base_dir / "temp_mineru_output"
+        temp_output = output_base_dir_path / "temp_mineru_output"
         temp_output.mkdir(parents=True, exist_ok=True)
 
         cmd = [mineru_cmd, "-p", str(pdf_path), "-o", str(temp_output)]

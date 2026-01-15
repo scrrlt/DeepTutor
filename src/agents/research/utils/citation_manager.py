@@ -15,6 +15,10 @@ from typing import Any
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class CitationManager:
     """Citation manager with global ID management"""
@@ -128,7 +132,7 @@ class CitationManager:
                         # Fallback: restore counters from existing citations
                         self._restore_counters_from_citations()
             except Exception as e:
-                print(f"⚠️ Failed to load citation file: {e}")
+                logger.error(f"⚠️ Failed to load citation file: {e}")
                 self._citations = {}
         else:
             self._citations = {}
@@ -171,7 +175,7 @@ class CitationManager:
             with open(self.citations_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"⚠️ Failed to save citation file: {e}")
+            logger.error(f"⚠️ Failed to save citation file: {e}")
 
     def validate_citation_references(self, text: str) -> dict[str, Any]:
         """
@@ -278,7 +282,7 @@ class CitationManager:
                 return True
             return False
         except Exception as e:
-            print(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
+            logger.error(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
             return False
 
     def _extract_rag_citation(
@@ -333,7 +337,7 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse RAG source info: {e}")
+            logger.error(f"⚠️ Failed to parse RAG source info: {e}")
 
         return citation_info
 
@@ -380,7 +384,7 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse web source info: {e}")
+            logger.error(f"⚠️ Failed to parse web source info: {e}")
 
         return citation_info
 
@@ -443,7 +447,7 @@ class CitationManager:
 
             return citation_info
         except Exception as e:
-            print(f"⚠️ Failed to parse paper citation: {e}")
+            logger.error(f"⚠️ Failed to parse paper citation: {e}")
             # Still return the basic citation info
             return citation_info
 
@@ -573,7 +577,7 @@ class CitationManager:
 
     # ========== Reference Number Mapping Methods ==========
 
-    def _get_citation_dedup_key(self, citation: dict, paper: dict = None) -> str:
+    def _get_citation_dedup_key(self, citation: dict, paper: dict | None = None) -> str:
         """
         Generate unique key for citation deduplication
 

@@ -137,7 +137,7 @@ class ResearchPipeline:
         self._init_logger()
 
         # Initialize Agents
-        self.agents = {}
+        self.agents: dict[str, Any] = {}
         self._init_agents()
 
         # Tool instances
@@ -1142,8 +1142,8 @@ class ResearchPipeline:
         block_id: str,
         sub_topic: str,
         execution_mode: str,
-        current_block: int = None,
-        total_blocks: int = None,
+        current_block: int | None = None,
+        total_blocks: int | None = None,
     ) -> Callable:
         """
         Create a progress callback for research iterations

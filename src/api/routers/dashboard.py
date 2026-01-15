@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.api.utils.history import history_manager
 
+
 router = APIRouter()
 
 

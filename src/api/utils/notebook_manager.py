@@ -295,8 +295,8 @@ class NotebookManager:
         title: str,
         user_query: str,
         output: str,
-        metadata: dict = None,
-        kb_name: str = None,
+        metadata: dict | None = None,
+        kb_name: str | None = None,
     ) -> dict:
         """
         Add record to one or more notebooks

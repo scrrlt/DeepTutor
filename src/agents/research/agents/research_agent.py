@@ -17,6 +17,9 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import DynamicTopicQueue, TopicBlock
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -146,9 +149,11 @@ class ResearchAgent(BaseAgent):
             )
 
         if phase1_tools:
-            guidance_parts.append(f"""**Phase 1: Basic Exploration (early iterations)**
+            guidance_parts.append(
+                f"""**Phase 1: Basic Exploration (early iterations)**
 Focus on building foundational knowledge:
-{chr(10).join(phase1_tools)}""")
+{chr(10).join(phase1_tools)}"""
+            )
 
         # Phase 2: Deep mining (introduce external tools if enabled)
         phase2_tools = []
@@ -164,9 +169,11 @@ Focus on building foundational knowledge:
             phase2_tools.append("- `web_search`: Get practical application cases, industry trends")
 
         if phase2_tools:
-            guidance_parts.append(f"""**Phase 2: Deep Mining (middle iterations)**
+            guidance_parts.append(
+                f"""**Phase 2: Deep Mining (middle iterations)**
 Deep dive and expand knowledge:
-{chr(10).join(phase2_tools)}""")
+{chr(10).join(phase2_tools)}"""
+            )
 
         # Phase 3: Completion (all available external tools)
         phase3_tools = []
@@ -184,14 +191,18 @@ Deep dive and expand knowledge:
             )
 
         if phase3_tools:
-            guidance_parts.append(f"""**Phase 3: Completion and Supplement (late iterations)**
+            guidance_parts.append(
+                f"""**Phase 3: Completion and Supplement (late iterations)**
 Fill gaps and expand horizons:
-{chr(10).join(phase3_tools)}""")
+{chr(10).join(phase3_tools)}"""
+            )
 
         # If no external tools enabled, add a note
         if not has_paper and not has_web:
-            guidance_parts.append("""**Note**: Only knowledge base tools (RAG) are available.
-Focus on thoroughly exploring the knowledge base from multiple angles.""")
+            guidance_parts.append(
+                """**Note**: Only knowledge base tools (RAG) are available.
+Focus on thoroughly exploring the knowledge base from multiple angles."""
+            )
 
         return "\n\n".join(guidance_parts)
 
@@ -473,18 +484,18 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             }
         """
         block_id_prefix = f"[{topic_block.block_id}]"
-        print(f"\n{block_id_prefix} {'=' * 70}")
-        print(f"{block_id_prefix} 🔬 ResearchAgent - Executing Research")
-        print(f"{block_id_prefix} {'=' * 70}")
-        print(f"{block_id_prefix} Topic: {topic_block.sub_topic}")
-        print(f"{block_id_prefix} Overview: {topic_block.overview}")
-        print(
+        logger.info(f"\n{block_id_prefix} {'=' * 70}")
+        logger.info(f"{block_id_prefix} 🔬 ResearchAgent - Executing Research")
+        logger.info(f"{block_id_prefix} {'=' * 70}")
+        logger.info(f"{block_id_prefix} Topic: {topic_block.sub_topic}")
+        logger.info(f"{block_id_prefix} Overview: {topic_block.overview}")
+        logger.info(
             f"{block_id_prefix} Max iterations: {self.max_iterations}, Mode: {self.iteration_mode}\n"
         )
 
         iteration = 0
         current_knowledge = ""
-        tools_used = []
+        tools_used: list[str] = []
         queries_used = []  # Track all queries for progress display
 
         # Helper to send progress updates
@@ -497,7 +508,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
 
         while iteration < self.max_iterations:
             iteration += 1
-            print(f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】")
+            logger.info(f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】")
 
             # Send iteration started progress
             send_progress(
@@ -520,7 +531,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             )
 
             if suff.get("is_sufficient", False):
-                print(
+                logger.info(
                     f"{block_id_prefix}   ✓ Current topic is sufficient, ending research for this topic"
                 )
                 send_progress(
@@ -555,11 +566,11 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             if isinstance(new_topic, str) and new_topic.strip():
                 trimmed_topic = new_topic.strip()
                 if should_add_new_topic is False:
-                    print(
+                    logger.info(
                         f"{block_id_prefix}   ↩️ LLM determined not to add new topic《{trimmed_topic}》, skipping"
                     )
                 elif new_topic_score < min_score:
-                    print(
+                    logger.info(
                         f"{block_id_prefix}   ↩️ New topic《{trimmed_topic}》score {new_topic_score:.2f} below threshold {min_score:.2f}, skipping"
                     )
                 else:
@@ -572,7 +583,9 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                     else:
                         added = manager_agent.add_new_topic(trimmed_topic, new_overview or "")
                     if added:
-                        print(f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue")
+                        logger.info(
+                            f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue"
+                        )
                         send_progress(
                             "new_topic_added",
                             iteration=iteration,
@@ -581,14 +594,16 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                             new_overview=new_overview or "",
                         )
                 if new_topic_reason:
-                    print(f"{block_id_prefix}     Reason: {new_topic_reason}")
+                    logger.info(f"{block_id_prefix}     Reason: {new_topic_reason}")
 
             query = plan.get("query", "").strip()
             tool_type = plan.get("tool_type", "rag_hybrid")
             rationale = plan.get("rationale", "")
 
             if not query:
-                print(f"{block_id_prefix}   ⚠️ Generated query is empty, skipping this iteration")
+                logger.warning(
+                    f"{block_id_prefix}   ⚠️ Generated query is empty, skipping this iteration"
+                )
                 send_progress(
                     "query_empty", iteration=iteration, max_iterations=self.max_iterations
                 )

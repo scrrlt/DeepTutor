@@ -15,6 +15,9 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import ToolTrace
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -67,20 +70,20 @@ class NoteAgent(BaseAgent):
             citation_id must be obtained from CitationManager before calling this method.
             Use CitationManager.get_next_citation_id() or its async variant.
         """
-        print(f"\n{'=' * 70}")
-        print("📝 NoteAgent - Information Recording and Summary")
-        print(f"{'=' * 70}")
-        print(f"Tool: {tool_type}")
-        print(f"Query: {query}")
-        print(f"Citation ID: {citation_id}")
-        print(f"Raw Answer Length: {len(raw_answer)} characters\n")
+        logger.info(f"\n{'=' * 70}")
+        logger.info("📝 NoteAgent - Information Recording and Summary")
+        logger.info(f"{'=' * 70}")
+        logger.info(f"Tool: {tool_type}")
+        logger.info(f"Query: {query}")
+        logger.info(f"Citation ID: {citation_id}")
+        logger.info(f"Raw Answer Length: {len(raw_answer)} characters\n")
 
         # Generate summary
         summary = await self._generate_summary(
             tool_type=tool_type, query=query, raw_answer=raw_answer, topic=topic, context=context
         )
 
-        print(f"✓ Summary generation completed ({len(summary)} characters)")
+        logger.info(f"✓ Summary generation completed ({len(summary)} characters)")
 
         # Create ToolTrace with the provided citation ID
         tool_id = self._generate_tool_id()

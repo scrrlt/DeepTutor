@@ -60,7 +60,7 @@ async def _call_llm_async(
     base_url: str | None,
     max_tokens: int = 2000,
     temperature: float = 0.1,
-    model: str = None,
+    model: str | None = None,
 ) -> str:
     """Asynchronously call LLM"""
     # If model not specified, get from env_config

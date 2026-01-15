@@ -153,21 +153,28 @@ class EditAgent(BaseAgent):
         action_verbs = {"rewrite": "Rewrite", "shorten": "Shorten", "expand": "Expand"}
         action_verb = action_verbs.get(action, "Rewrite")
 
-        action_template = self.get_prompt(
-            "action_template",
-            "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n",
+        action_template = (
+            self.get_prompt(
+                "action_template",
+                "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n",
+            )
+            or "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n"
         )
         user_prompt = action_template.format(action_verb=action_verb, instruction=instruction)
 
         if context:
-            context_template = self.get_prompt(
-                "context_template", "Reference Context:\n{context}\n\n"
+            context_template = (
+                self.get_prompt("context_template", "Reference Context:\n{context}\n\n")
+                or "Reference Context:\n{context}\n\n"
             )
             user_prompt += context_template.format(context=context)
 
-        text_template = self.get_prompt(
-            "user_template",
-            "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations.",
+        text_template = (
+            self.get_prompt(
+                "user_template",
+                "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations.",
+            )
+            or "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations."
         )
         user_prompt += text_template.format(text=text)
 

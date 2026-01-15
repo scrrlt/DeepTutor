@@ -29,7 +29,7 @@ Usage:
 
     # Streaming (with automatic retry on connection)
     async for chunk in stream("Hello!", system_prompt="You are helpful."):
-        print(chunk, end="")
+        logger.info(chunk, end="")
 
     # Custom retry configuration
     response = await complete(

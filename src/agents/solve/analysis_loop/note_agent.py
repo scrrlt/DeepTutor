@@ -14,6 +14,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..memory import CitationMemory, InvestigateMemory, KnowledgeItem
 from ..utils import ParseError, validate_note_output
@@ -113,7 +116,7 @@ class NoteAgent(BaseAgent):
                 validate_note_output(parsed_result)
                 if verbose:
                     summary_len = len(parsed_result.get("summary", ""))
-                    print(f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}")
+                    logger.info(f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}")
             except ParseError as e:
                 failed_ids.append({"cite_id": cite_id, "reason": str(e)})
                 continue
@@ -140,7 +143,7 @@ class NoteAgent(BaseAgent):
                     citation_memory.save()
                 except ValueError:
                     if verbose:
-                        print(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
+                        logger.warning(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
 
             processed_details.append(
                 {

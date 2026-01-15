@@ -77,7 +77,7 @@ async def generate_question_from_reference(
 async def mimic_exam_questions(
     pdf_path: str | None = None,
     paper_dir: str | None = None,
-    kb_name: str = None,
+    kb_name: str | None = None,
     output_dir: str | None = None,
     max_questions: int | None = None,
     ws_callback: WsCallback | None = None,
@@ -171,7 +171,6 @@ async def mimic_exam_questions(
                     break
                 except Exception as e:
                     logger.warning(f"Failed to resolve path {p}: {e}")
-
 
         if latest_dir is None:
             error_msg = f"Paper directory not found: {paper_dir}"
@@ -384,8 +383,8 @@ async def mimic_exam_questions(
             # Create a fresh coordinator for each question
             llm_config = get_llm_config()
             coordinator = AgentCoordinator(
-                api_key=llm_config.api_key,
-                base_url=llm_config.base_url,
+                api_key=getattr(llm_config, "api_key", None),
+                base_url=getattr(llm_config, "base_url", None),
                 api_version=getattr(llm_config, "api_version", None),
                 max_rounds=10,
                 kb_name=kb_name,

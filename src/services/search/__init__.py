@@ -133,9 +133,9 @@ def web_search(
 
     Example:
         >>> result = web_search("What is machine learning?")
-        >>> print(result["answer"])
+        >>> logger.info(result["answer"])
         Machine learning is a subset of artificial intelligence...
-        >>> print(result["citations"])
+        >>> logger.info(result["citations"])
         [{"id": 1, "url": "https://...", "title": "...", ...}]
     """
     # Load config from main.yaml

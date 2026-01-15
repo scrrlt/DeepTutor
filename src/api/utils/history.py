@@ -36,7 +36,7 @@ class HistoryManager:
         self.history_file = self.base_dir / "user_history.json"
         self._ensure_file()
 
-    def _ensure_file(self):
+    def _ensure_file(self) -> None:
         """
         Ensure history file exists with correct format.
         If file exists but has wrong format, it will be fixed on next save.
@@ -98,7 +98,7 @@ class HistoryManager:
             # Any other error, return empty list
             return []
 
-    def _save_history(self, history: list[dict]):
+    def _save_history(self, history: list[dict]) -> None:
         # Load existing file to preserve metadata if it's in dict format
         try:
             with open(self.history_file, encoding="utf-8") as f:

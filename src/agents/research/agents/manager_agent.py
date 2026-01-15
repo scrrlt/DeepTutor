@@ -15,6 +15,9 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import DynamicTopicQueue, TopicBlock
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ManagerAgent(BaseAgent):
@@ -63,8 +66,8 @@ class ManagerAgent(BaseAgent):
         if block:
             # Mark as researching
             self.queue.mark_researching(block.block_id)
-            print(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
-            print(f"   Topic: {block.sub_topic}")
+            logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
+            logger.info(f"   Topic: {block.sub_topic}")
 
         return block
 
@@ -83,7 +86,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_completed(block_id)
         if success:
-            print(f"✓ ManagerAgent: Task {block_id} completed")
+            logger.info(f"✓ ManagerAgent: Task {block_id} completed")
 
         return success
 
@@ -154,9 +157,9 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_failed(block_id)
         if success:
-            print(f"✗ ManagerAgent: Task {block_id} failed")
+            logger.error(f"✗ ManagerAgent: Task {block_id} failed")
             if reason:
-                print(f"   Reason: {reason}")
+                logger.info(f"   Reason: {reason}")
 
         return success
 
@@ -178,12 +181,14 @@ class ManagerAgent(BaseAgent):
         if not normalized:
             raise ValueError("New topic title cannot be empty")
         if self.queue.has_topic(normalized):
-            print(f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition")
+            logger.warning(
+                f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition"
+            )
             return None
 
         block = self.queue.add_block(normalized, overview)
-        print(f"✓ ManagerAgent: Added new topic {block.block_id}")
-        print(f"   Topic: {sub_topic}")
+        logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
+        logger.info(f"   Topic: {sub_topic}")
 
         return block
 
@@ -210,13 +215,13 @@ class ManagerAgent(BaseAgent):
             return {}
 
         stats = self.queue.get_statistics()
-        print("\n📊 Queue Status:")
-        print(f"   Total Topics: {stats['total_blocks']}")
-        print(f"   Pending: {stats['pending']}")
-        print(f"   Researching: {stats['researching']}")
-        print(f"   Completed: {stats['completed']}")
-        print(f"   Failed: {stats['failed']}")
-        print(f"   Total Tool Calls: {stats['total_tool_calls']}")
+        logger.info("\n📊 Queue Status:")
+        logger.info(f"   Total Topics: {stats['total_blocks']}")
+        logger.info(f"   Pending: {stats['pending']}")
+        logger.info(f"   Researching: {stats['researching']}")
+        logger.info(f"   Completed: {stats['completed']}")
+        logger.error(f"   Failed: {stats['failed']}")
+        logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
 
         return stats
 

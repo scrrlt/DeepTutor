@@ -53,12 +53,12 @@ class CodeFixer:
         files_with_logging = set()
         for root, dirs, files in os.walk(self.src_dir):
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     filepath = os.path.join(root, file)
                     try:
-                        with open(filepath, 'r', encoding='utf-8') as f:
+                        with open(filepath, "r", encoding="utf-8") as f:
                             content = f.read()
-                            if 'from src.logging import' in content or 'import logging' in content:
+                            if "from src.logging import" in content or "import logging" in content:
                                 files_with_logging.add(filepath)
                     except Exception:
                         pass
@@ -67,14 +67,18 @@ class CodeFixer:
     def _should_skip_print_replacement(self, filepath: str) -> bool:
         """Check if file should be skipped for print replacement"""
         rel_path = os.path.relpath(filepath, self.project_root)
+        # Normalize path separators for cross-platform compatibility
+        rel_path = rel_path.replace("\\", "/")
 
         # Skip CLI tools and scripts
         for skip_pattern in self.skip_print_files:
-            if rel_path.startswith(skip_pattern):
+            # Normalize skip pattern too
+            skip_pattern = skip_pattern.replace("\\", "/")
+            if rel_path.startswith(skip_pattern) or skip_pattern in rel_path:
                 return True
 
         # Skip files that are mainly CLI
-        if any(keyword in rel_path for keyword in ['main.py', 'cli', 'command']):
+        if any(keyword in rel_path for keyword in ["main.py", "cli", "command"]):
             return True
 
         return False
@@ -83,31 +87,31 @@ class CodeFixer:
         """Determine appropriate log level for print content"""
         content_lower = print_content.lower()
 
-        if any(word in content_lower for word in ['error', 'failed', 'exception', '✗', 'err']):
-            return 'error'
-        elif any(word in content_lower for word in ['warning', 'warn', '⚠️']):
-            return 'warning'
-        elif any(word in content_lower for word in ['debug']):
-            return 'debug'
-        elif any(word in content_lower for word in ['success', '✓', 'completed']):
-            return 'info'
+        if any(word in content_lower for word in ["error", "failed", "exception", "✗", "err"]):
+            return "error"
+        elif any(word in content_lower for word in ["warning", "warn", "⚠️"]):
+            return "warning"
+        elif any(word in content_lower for word in ["debug"]):
+            return "debug"
+        elif any(word in content_lower for word in ["success", "✓", "completed"]):
+            return "info"
         else:
-            return 'info'
+            return "info"
 
     def _add_logging_to_file(self, content: str, filepath: str) -> str:
         """Add logging import and logger initialization to file"""
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Check if already has logging
-        if 'from src.logging import' in content or 'import logging' in content:
+        if "from src.logging import" in content or "import logging" in content:
             return content
 
         # Find import section
         import_end = 0
         for i, line in enumerate(lines):
-            if line.startswith('import ') or line.startswith('from '):
+            if line.startswith("import ") or line.startswith("from "):
                 import_end = i + 1
-            elif line.strip() and not line.startswith('#'):
+            elif line.strip() and not line.startswith("#"):
                 break
 
         # Add logging import
@@ -119,7 +123,9 @@ class CodeFixer:
             # Add logger initialization
             logger_added = False
             for i in range(len(lines)):
-                if lines[i].startswith('class ') or (lines[i].startswith('def ') and 'main' not in lines[i]):
+                if lines[i].startswith("class ") or (
+                    lines[i].startswith("def ") and "main" not in lines[i]
+                ):
                     lines.insert(i, f"logger = get_logger(__name__)")
                     lines.insert(i + 1, "")
                     logger_added = True
@@ -129,7 +135,7 @@ class CodeFixer:
                 lines.insert(import_end + 3, f"logger = get_logger(__name__)")
                 lines.insert(import_end + 4, "")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _replace_prints_in_file(self, filepath: str) -> Tuple[bool, int]:
         """Replace print statements in a single file"""
@@ -137,7 +143,7 @@ class CodeFixer:
             return False, 0
 
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
 
             original_content = content
@@ -146,7 +152,7 @@ class CodeFixer:
             content = self._add_logging_to_file(content, filepath)
 
             # Replace print statements
-            print_pattern = r'(\s*)print\(([^)]+(?:\n[^)]*)*)\)'
+            print_pattern = r"(\s*)print\(([^)]+(?:\n[^)]*)*)\)"
             replacements = 0
 
             def replace_print(match):
@@ -160,12 +166,16 @@ class CodeFixer:
             content = re.sub(print_pattern, replace_print, content, flags=re.MULTILINE)
 
             if content != original_content and not self.dry_run:
-                with open(filepath, 'w', encoding='utf-8') as f:
+                with open(filepath, "w", encoding="utf-8") as f:
                     f.write(content)
-                print(f"✅ Fixed {replacements} print statements in {os.path.relpath(filepath, self.project_root)}")
+                print(
+                    f"✅ Fixed {replacements} print statements in {os.path.relpath(filepath, self.project_root)}"
+                )
                 return True, replacements
             elif content != original_content and self.dry_run:
-                print(f"🔍 Would fix {replacements} print statements in {os.path.relpath(filepath, self.project_root)}")
+                print(
+                    f"🔍 Would fix {replacements} print statements in {os.path.relpath(filepath, self.project_root)}"
+                )
                 return True, replacements
 
         except Exception as e:
@@ -183,7 +193,7 @@ class CodeFixer:
 
         for root, dirs, files in os.walk(self.src_dir):
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     filepath = os.path.join(root, file)
                     changed, count = self._replace_prints_in_file(filepath)
                     if changed:
@@ -201,15 +211,25 @@ class CodeFixer:
 
         try:
             result = subprocess.run(
-                ['mypy', 'src', '--ignore-missing-imports', '--no-error-summary', '--show-error-codes'],
-                capture_output=True, text=True, cwd=self.project_root
+                [
+                    "mypy",
+                    "src",
+                    "--ignore-missing-imports",
+                    "--no-error-summary",
+                    "--show-error-codes",
+                ],
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
             )
 
             if result.returncode == 0:
                 print("✅ No type annotation errors found")
                 return
 
-            errors = [line for line in result.stdout.split('\n') if 'error:' in line and 'src/' in line]
+            errors = [
+                line for line in result.stdout.split("\n") if "error:" in line and "src/" in line
+            ]
             print(f"⚠️ Found {len(errors)} type annotation errors")
 
             if self.dry_run:
@@ -249,12 +269,13 @@ class CodeFixer:
 
 def main():
     parser = argparse.ArgumentParser(description="Fix common codebase issues")
-    parser.add_argument('--dry-run', action='store_true',
-                       help='Show what would be changed without making changes')
-    parser.add_argument('--fix-prints', action='store_true',
-                       help='Replace print statements with logging calls')
-    parser.add_argument('--fix-types', action='store_true',
-                       help='Fix type annotation errors')
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be changed without making changes"
+    )
+    parser.add_argument(
+        "--fix-prints", action="store_true", help="Replace print statements with logging calls"
+    )
+    parser.add_argument("--fix-types", action="store_true", help="Fix type annotation errors")
 
     args = parser.parse_args()
 

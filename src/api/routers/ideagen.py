@@ -57,7 +57,11 @@ class IdeaGenStage:
 
 
 async def send_status(
-    websocket: WebSocket, stage: str, message: str, data: dict = None, task_id: str = None
+    websocket: WebSocket,
+    stage: str,
+    message: str,
+    data: dict | None = None,
+    task_id: str | None = None,
 ):
     """Unified status sending function"""
     payload = {

@@ -158,16 +158,16 @@ class LLMStats:
         total_tokens = self.total_prompt_tokens + self.total_completion_tokens
 
         print()
-        print("=" * 60)
-        print(f"📊 [{self.module_name}] LLM Usage Summary")
-        print("=" * 60)
-        print(f"  Model       : {self.model_used or 'Unknown'}")
-        print(f"  API Calls   : {len(self.calls)}")
-        print(
+        logger.info("=" * 60)
+        logger.info(f"📊 [{self.module_name}] LLM Usage Summary")
+        logger.info("=" * 60)
+        logger.info(f"  Model       : {self.model_used or 'Unknown'}")
+        logger.info(f"  API Calls   : {len(self.calls)}")
+        logger.info(
             f"  Tokens      : {total_tokens:,} (Input: {self.total_prompt_tokens:,}, Output: {self.total_completion_tokens:,})"
         )
-        print(f"  Cost        : ${self.total_cost:.6f} USD")
-        print("=" * 60)
+        logger.info(f"  Cost        : ${self.total_cost:.6f} USD")
+        logger.info("=" * 60)
         print()
 
     def reset(self):

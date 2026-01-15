@@ -50,8 +50,8 @@ async def optimize_topic(request: OptimizeRequest):
         # Inject API keys
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
         except Exception as e:
             return {"error": f"LLM config error: {e!s}"}
 
@@ -248,8 +248,8 @@ async def websocket_research_run(websocket: WebSocket):
         # Inject API keys from env if not in config
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
             api_version = getattr(llm_config, "api_version", None)
         except ValueError as e:
             await websocket.send_json({"error": f"LLM configuration error: {e!s}"})

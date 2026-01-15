@@ -16,7 +16,10 @@ import json
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import ToolTrace
+from src.logging import get_logger
 from src.tools.rag_tool import rag_search
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -86,20 +89,20 @@ class DecomposeAgent(BaseAgent):
                 "mode": str
             }
         """
-        print(f"\n{'=' * 70}")
-        print("🔀 DecomposeAgent - Topic Decomposition")
-        print(f"{'=' * 70}")
-        print(f"Main Topic: {topic}")
-        print(f"Mode: {mode}")
-        print(f"RAG Enabled: {self.enable_rag}")
+        logger.info(f"\n{'=' * 70}")
+        logger.info("🔀 DecomposeAgent - Topic Decomposition")
+        logger.info(f"{'=' * 70}")
+        logger.info(f"Main Topic: {topic}")
+        logger.info(f"Mode: {mode}")
+        logger.info(f"RAG Enabled: {self.enable_rag}")
         if mode == "auto":
-            print(f"Max Subtopic Limit: {num_subtopics}\n")
+            logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
         else:
-            print(f"Expected Subtopic Count: {num_subtopics}\n")
+            logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
 
         # If RAG is disabled, use direct LLM generation without RAG context
         if not self.enable_rag:
-            print("⚠️ RAG is disabled, generating subtopics directly from LLM...")
+            logger.warning("⚠️ RAG is disabled, generating subtopics directly from LLM...")
             return await self._process_without_rag(topic, num_subtopics, mode)
 
         if mode == "auto":
@@ -123,7 +126,7 @@ class DecomposeAgent(BaseAgent):
         Returns:
             Dictionary containing decomposition results
         """
-        print("\n🎯 Generating subtopics directly (no RAG)...")
+        logger.info("\n🎯 Generating subtopics directly (no RAG)...")
 
         system_prompt = self.get_prompt(
             "system",
@@ -183,7 +186,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         except Exception:
             sub_topics = []
 
-        print(f"✓ Generated {len(sub_topics)} subtopics (without RAG)")
+        logger.info(f"✓ Generated {len(sub_topics)} subtopics (without RAG)")
 
         return {
             "main_topic": topic,
@@ -198,19 +201,19 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
     async def _process_manual_mode(self, topic: str, num_subtopics: int) -> dict[str, Any]:
         """Manual mode: generate subtopics based on specified count"""
         # Step 1: Generate sub-queries
-        print("\n🔍 Step 1: Generating sub-queries...")
+        logger.info("\n🔍 Step 1: Generating sub-queries...")
         sub_queries = await self._generate_sub_queries(topic, num_subtopics)
-        print(f"✓ Generated {len(sub_queries)} sub-queries")
+        logger.info(f"✓ Generated {len(sub_queries)} sub-queries")
 
         # Step 2: Execute RAG retrieval to get background knowledge
-        print("\n🔍 Step 2: Executing RAG retrieval...")
+        logger.info("\n🔍 Step 2: Executing RAG retrieval...")
         rag_contexts = {}
         for i, query in enumerate(sub_queries, 1):
             try:
                 result = await rag_search(query=query, kb_name=self.kb_name, mode=self.rag_mode)
                 rag_answer = result.get("answer", "")
                 rag_contexts[query] = rag_answer
-                print(f"  ✓ Query {i}/{len(sub_queries)}: {query[:50]}...")
+                logger.info(f"  ✓ Query {i}/{len(sub_queries)}: {query[:50]}...")
 
                 # Record citation (if citation manager is enabled)
                 if self.citation_manager:
@@ -242,7 +245,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                         raw_answer=raw_answer_json,
                     )
             except Exception as e:
-                print(f"  ✗ Query {i} failed: {e!s}")
+                logger.error(f"  ✗ Query {i} failed: {e!s}")
                 rag_contexts[query] = ""
 
         # Merge all RAG contexts
@@ -251,12 +254,12 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         )
 
         # Step 3: Generate subtopics based on RAG background
-        print("\n🎯 Step 3: Generating subtopics...")
+        logger.info("\n🎯 Step 3: Generating subtopics...")
         sub_topics = await self._generate_sub_topics(
             topic=topic, rag_context=combined_rag_context, num_subtopics=num_subtopics
         )
 
-        print(f"✓ Generated {len(sub_topics)} subtopics")
+        logger.info(f"✓ Generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,
@@ -271,12 +274,12 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
     async def _process_auto_mode(self, topic: str, max_subtopics: int) -> dict[str, Any]:
         """Auto mode: autonomously generate subtopics based on topic and RAG context"""
         # Step 1: First perform a broad RAG retrieval to get topic-related background knowledge
-        print("\n🔍 Step 1: Executing RAG retrieval to get background knowledge...")
+        logger.info("\n🔍 Step 1: Executing RAG retrieval to get background knowledge...")
         try:
             # Use topic itself as query to get related background
             result = await rag_search(query=topic, kb_name=self.kb_name, mode=self.rag_mode)
             rag_context = result.get("answer", "")
-            print(f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)")
+            logger.info(f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)")
 
             # Record citation (if citation manager is enabled)
             if self.citation_manager:
@@ -308,16 +311,16 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                     raw_answer=raw_answer_json,
                 )
         except Exception as e:
-            print(f"  ✗ RAG retrieval failed: {e!s}")
+            logger.error(f"  ✗ RAG retrieval failed: {e!s}")
             rag_context = ""
 
         # Step 2: Autonomously generate subtopics based on topic and RAG context
-        print("\n🎯 Step 2: Autonomously generating subtopics...")
+        logger.info("\n🎯 Step 2: Autonomously generating subtopics...")
         sub_topics = await self._generate_sub_topics_auto(
             topic=topic, rag_context=rag_context, max_subtopics=max_subtopics
         )
 
-        print(f"✓ Autonomously generated {len(sub_topics)} subtopics")
+        logger.info(f"✓ Autonomously generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,

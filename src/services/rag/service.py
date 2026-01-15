@@ -107,7 +107,7 @@ class RAGService:
         Example:
             service = RAGService()
             result = await service.search("What is ML?", "textbook")
-            print(result["answer"])
+            logger.info(result["answer"])
         """
         # Get the provider from KB metadata, fallback to instance provider
         provider = self._get_provider_for_kb(kb_name)
@@ -212,7 +212,7 @@ class RAGService:
         Example:
             providers = RAGService.list_providers()
             for p in providers:
-                print(f"{p['id']}: {p['description']}")
+                logger.info(f"{p['id']}: {p['description']}")
         """
         from .factory import list_pipelines
 
