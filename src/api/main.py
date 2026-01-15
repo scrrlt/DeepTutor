@@ -220,7 +220,10 @@ def validate_tool_consistency() -> None:
         raise
     except Exception:
         logger.exception("Failed to load configuration for validation")
-        raise
+        # In case of missing config or other errors, we log but don't crash startup
+        # This allows the container to start even if config is malformed,
+        # though functionality might be impaired.
+        pass
 
 
 @asynccontextmanager

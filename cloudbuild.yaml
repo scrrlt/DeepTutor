@@ -2,7 +2,6 @@ steps:
   # Build and push the Docker image using Kaniko (with remote layer caching)
   - name: 'gcr.io/kaniko-project/executor:latest'
     args:
-<<<<<<< HEAD
       - '--dockerfile=Dockerfile'
       - '--context=/workspace'
       - '--destination=gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
@@ -11,18 +10,6 @@ steps:
       - '--cache-ttl=24h'
       - '--build-arg=INSTALL_RAG=${_INSTALL_RAG}'
       - '--single-snapshot'
-=======
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
-      - '.'
-
-  # Push the Docker image to Google Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
->>>>>>> 3f9a8bb (fix(cloudbuild): use BUILD_ID for image tags)
 
   # Deploy to Cloud Run with secrets from Secret Manager
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'

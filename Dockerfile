@@ -42,7 +42,7 @@ RUN npm run build
 # ============================================
 # Stage 2: Python Base with Dependencies
 # ============================================
-FROM python:3.11-slim AS python-base
+FROM python:3.12-slim AS python-base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -84,7 +84,7 @@ RUN pip install --upgrade pip && \
 # ============================================
 # Stage 3: Production Image
 # ============================================
-FROM python:3.11-slim AS production
+FROM python:3.12-slim AS production
 
 # Labels
 LABEL maintainer="DeepTutor Team" \
@@ -96,7 +96,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     NODE_ENV=production \
-    # Default ports (can be overridden)
     BACKEND_PORT=8001 \
     FRONTEND_PORT=3782
 
@@ -116,6 +115,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libmagic1 \
     poppler-utils \
+    build-essential \
+    pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node.js from frontend-builder stage (avoids re-downloading from NodeSource)
@@ -126,7 +128,7 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && node --version && npm --version
 
 # Copy Python packages from builder stage
-COPY --from=python-base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-base /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=python-base /usr/local/bin /usr/local/bin
 
 # Copy built frontend from frontend-builder stage
@@ -188,7 +190,7 @@ environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"
 [program:frontend]
 command=/bin/bash /app/start-frontend.sh
 directory=/app/web
-autostart=false
+autostart=true
 autorestart=false
 startsecs=5
 stdout_logfile=/dev/fd/1
