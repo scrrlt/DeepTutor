@@ -16,7 +16,12 @@ from typing import AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
+from src.logging import get_logger
+
 from .exceptions import LLMAPIError, LLMConfigError
+
+
+logger = get_logger(__name__)
 from .utils import (
     build_auth_headers,
     build_chat_url,
@@ -335,7 +340,7 @@ async def fetch_models(
                             for m in data
                         ]
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error(f"Error fetching models from {base_url}: {e}")
 
         return []
 

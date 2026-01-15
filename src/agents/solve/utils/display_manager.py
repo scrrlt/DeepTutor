@@ -20,6 +20,11 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 class DisplayManager:
     """
@@ -192,7 +197,7 @@ class DisplayManager:
     def log(self, message: str):
         """Add log"""
         if not self.rich_available:
-            print(message)
+            logger.info(message)
             return
 
         # Simple cleaning

@@ -103,11 +103,11 @@ class ReportingAgent(BaseAgent):
               "citations": int
             }
         """
-        print(f"\n{'=' * 70}")
-        print("📄 ReportingAgent - Report Generation")
-        print(f"{'=' * 70}")
-        print(f"Topic: {topic}")
-        print(f"Topic Blocks: {len(queue.blocks)}\n")
+        self.logger.info(f"\n{'=' * 70}")
+        self.logger.info("📄 ReportingAgent - Report Generation")
+        self.logger.info(f"{'=' * 70}")
+        self.logger.info(f"Topic: {topic}")
+        self.logger.info(f"Topic Blocks: {len(queue.blocks)}\n")
 
         # Store progress_callback for use in _write_report
         self._progress_callback = progress_callback
@@ -119,7 +119,7 @@ class ReportingAgent(BaseAgent):
         # 1) Deduplication
         print("🔄 Step 1: Deduplication and cleaning...")
         cleaned_blocks = await self._deduplicate_blocks(queue.blocks)
-        print(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
+        self.logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
         self._notify_progress(
             progress_callback, "deduplicate_completed", kept_blocks=len(cleaned_blocks)
         )
@@ -127,7 +127,7 @@ class ReportingAgent(BaseAgent):
         # 2) Outline
         print("\n📋 Step 2: Generating outline...")
         outline = await self._generate_outline(topic, cleaned_blocks)
-        print("✓ Outline generation completed")
+        self.logger.info("✓ Outline generation completed")
         self._notify_progress(
             progress_callback, "outline_completed", sections=len(outline.get("sections", []))
         )
@@ -138,17 +138,17 @@ class ReportingAgent(BaseAgent):
         # 3) Writing
         print("\n✍️  Step 3: Writing report...")
         report_markdown = await self._write_report(topic, cleaned_blocks, outline)
-        print("✓ Report writing completed")
+        self.logger.info("✓ Report writing completed")
         self._notify_progress(progress_callback, "writing_completed")
 
         word_count = len(report_markdown)
         sections = len(cleaned_blocks)
         citations = sum(len(b.tool_traces) for b in cleaned_blocks)
 
-        print("\n📊 Report Statistics:")
-        print(f"   Word Count: {word_count}")
-        print(f"   Sections: {sections}")
-        print(f"   Citations: {citations}")
+        self.logger.info("\n📊 Report Statistics:")
+        self.logger.info(f"   Word Count: {word_count}")
+        self.logger.info(f"   Sections: {sections}")
+        self.logger.info(f"   Citations: {citations}")
         self._notify_progress(
             progress_callback,
             "reporting_completed",

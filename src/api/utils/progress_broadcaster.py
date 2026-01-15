@@ -7,6 +7,11 @@ from typing import Optional
 
 from fastapi import WebSocket
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 class ProgressBroadcaster:
     """Manages WebSocket broadcasting of knowledge base progress"""
@@ -28,9 +33,7 @@ class ProgressBroadcaster:
             if kb_name not in self._connections:
                 self._connections[kb_name] = set()
             self._connections[kb_name].add(websocket)
-            print(
-                f"[ProgressBroadcaster] Connected WebSocket for KB '{kb_name}' (total: {len(self._connections[kb_name])})"
-            )
+            logger.info(f"[ProgressBroadcaster] Connected WebSocket for KB '{kb_name}' (total: {len(self._connections[kb_name])})")
 
     async def disconnect(self, kb_name: str, websocket: WebSocket):
         """Disconnect WebSocket connection"""
@@ -39,7 +42,7 @@ class ProgressBroadcaster:
                 self._connections[kb_name].discard(websocket)
                 if not self._connections[kb_name]:
                     del self._connections[kb_name]
-                print(f"[ProgressBroadcaster] Disconnected WebSocket for KB '{kb_name}'")
+                logger.info(f"[ProgressBroadcaster] Disconnected WebSocket for KB '{kb_name}'")
 
     async def broadcast(self, kb_name: str, progress: dict):
         """Broadcast progress update to all WebSocket connections for specified knowledge base"""

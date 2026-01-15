@@ -18,6 +18,11 @@ from lightrag.llm.openai import openai_complete_if_cache
 _lightrag_logger = logging.getLogger("lightrag")
 _openai_logger = logging.getLogger("openai")
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 from .capabilities import supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
@@ -519,7 +524,7 @@ async def fetch_models(
                         ]
             return []
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error(f"Error fetching models from {base_url}: {e}")
             return []
 
 

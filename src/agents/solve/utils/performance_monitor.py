@@ -14,6 +14,11 @@ from pathlib import Path
 import time
 from typing import Any
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class PerformanceMetrics:
@@ -256,25 +261,25 @@ class PerformanceMonitor:
 
     def print_summary(self):
         """Print overall statistics summary"""
-        print("=" * 60)
-        print("Performance Monitoring Summary")
-        print("=" * 60)
-        print(f"Total Duration: {self.total_duration:.2f}s")
-        print(f"Total Tokens: {self.total_tokens}")
-        print(f"Total API Calls: {self.total_api_calls}")
-        print(f"Total Errors: {self.total_errors}")
-        print()
-        print("Agent Details:")
-        print("-" * 60)
+        logger.info("=" * 60)
+        logger.info("Performance Monitoring Summary")
+        logger.info("=" * 60)
+        logger.info(f"Total Duration: {self.total_duration:.2f}s")
+        logger.info(f"Total Tokens: {self.total_tokens}")
+        logger.info(f"Total API Calls: {self.total_api_calls}")
+        logger.error(f"Total Errors: {self.total_errors}")
+        logger.info()
+        logger.info("Agent Details:")
+        logger.info("-" * 60)
 
         for agent_name, metrics in self.metrics.items():
-            print(f"\n{agent_name}:")
-            print(f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A")
-            print(f"  Tokens: {metrics.total_tokens}")
-            print(f"  API Calls: {metrics.api_calls}")
-            print(f"  Errors: {metrics.errors}")
+            logger.info(f"\n{agent_name}:")
+            logger.info(f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A")
+            logger.info(f"  Tokens: {metrics.total_tokens}")
+            logger.info(f"  API Calls: {metrics.api_calls}")
+            logger.error(f"  Errors: {metrics.errors}")
 
-        print("=" * 60)
+        logger.info("=" * 60)
 
     def reset(self):
         """Reset all statistics"""
@@ -369,7 +374,7 @@ def init_monitor_from_config(config: dict) -> PerformanceMonitor:
 if __name__ == "__main__":
     # Test performance monitoring
     print("Performance Monitoring Test")
-    print("=" * 60)
+    logger.info("=" * 60)
 
     # Create monitor
     monitor = PerformanceMonitor(enabled=True)
@@ -404,4 +409,4 @@ if __name__ == "__main__":
 
     # Save results
     saved_path = monitor.save()
-    print(f"\nPerformance metrics saved to: {saved_path}")
+    logger.info(f"\nPerformance metrics saved to: {saved_path}")
