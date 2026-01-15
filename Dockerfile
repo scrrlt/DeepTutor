@@ -120,6 +120,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user for security
+RUN groupadd -r deeptutor && useradd -r -g deeptutor -s /bin/bash -m deeptutor
+
 # Copy Node.js from frontend-builder stage (avoids re-downloading from NodeSource)
 COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=frontend-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
@@ -145,6 +148,9 @@ COPY scripts/ ./scripts/
 COPY assets/ ./assets/
 COPY pyproject.toml ./
 COPY requirements.txt ./
+
+# Change ownership of /app directory to non-root user
+RUN chown -R deeptutor:deeptutor /app
 
 # Create necessary directories (these will be overwritten by volume mounts)
 RUN mkdir -p \
@@ -266,6 +272,9 @@ EXPOSE 8001 3782
 
 # Override ENTRYPOINT for Cloud Run (single process on $PORT)
 ENTRYPOINT []
+
+# Switch to non-root user for security
+USER deeptutor
 
 # Start backend (Cloud Run expects the container to listen on $PORT)
 CMD ["sh", "-c", "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
