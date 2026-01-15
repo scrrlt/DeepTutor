@@ -21,15 +21,17 @@ class OpenAIProvider(BaseLLMProvider):
 
     def __init__(self, config: LLMConfig) -> None:
         super().__init__(config)
+        self.client: openai.AsyncOpenAI | None = None
 
-        # Use shared httpx client for connection pooling and Keep-Alive
-        http_client = get_shared_http_client()
-
-        self.client = openai.AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url or None,
-            http_client=http_client,
-        )
+    async def _get_client(self) -> openai.AsyncOpenAI:
+        if self.client is None:
+            http_client = await get_shared_http_client()
+            self.client = openai.AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url or None,
+                http_client=http_client,
+            )
+        return self.client
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
@@ -41,7 +43,8 @@ class OpenAIProvider(BaseLLMProvider):
         kwargs.pop("stream", None)
 
         async def _call_api():
-            response = await self.client.chat.completions.create(
+            client = await self._get_client()
+            response = await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 **kwargs,
@@ -74,7 +77,8 @@ class OpenAIProvider(BaseLLMProvider):
         )
 
         async def _create_stream():
-            return await self.client.chat.completions.create(
+            client = await self._get_client()
+            return await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 stream=True,

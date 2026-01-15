@@ -34,7 +34,9 @@ def test_app():
     
     @app.get("/test/circuit-breaker")
     async def test_circuit_breaker():
-        raise LLMError("Circuit breaker open for provider openai")
+        error = LLMError("Circuit breaker open for provider openai")
+        setattr(error, "is_circuit_breaker", True)
+        raise error
     
     @app.get("/test/rate-limit")
     async def test_rate_limit():

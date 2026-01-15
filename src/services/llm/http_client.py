@@ -15,16 +15,15 @@ clients (requests, aiohttp, httpx) by standardizing on httpx which supports:
 - Keep-Alive connections
 """
 
-import threading
-from typing import Optional
+import asyncio
 
 import httpx
 
-_shared_client: Optional[httpx.AsyncClient] = None
-_shared_client_lock = threading.Lock()
+_shared_client: httpx.AsyncClient | None = None
+_shared_client_lock = asyncio.Lock()
 
 
-def get_shared_http_client() -> httpx.AsyncClient:
+async def get_shared_http_client() -> httpx.AsyncClient:
     """
     Get or create the shared httpx.AsyncClient instance.
 
@@ -39,7 +38,7 @@ def get_shared_http_client() -> httpx.AsyncClient:
     """
     global _shared_client
 
-    with _shared_client_lock:
+    async with _shared_client_lock:
         if _shared_client is None:
             _shared_client = httpx.AsyncClient(
                 limits=httpx.Limits(
@@ -63,12 +62,11 @@ async def close_shared_http_client() -> None:
     """
     global _shared_client
 
-    client_to_close: Optional[httpx.AsyncClient] = None
-    if _shared_client is not None:
-        with _shared_client_lock:
-            if _shared_client is not None:
-                client_to_close = _shared_client
-                _shared_client = None
+    client_to_close: httpx.AsyncClient | None = None
+    async with _shared_client_lock:
+        if _shared_client is not None:
+            client_to_close = _shared_client
+            _shared_client = None
 
     if client_to_close is not None:
         await client_to_close.aclose()

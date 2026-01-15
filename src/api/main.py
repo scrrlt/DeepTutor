@@ -7,23 +7,6 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-from src.api.routers import (
-    agent_config,
-    chat,
-    co_writer,
-    config,
-    dashboard,
-    guide,
-    ideagen,
-    knowledge,
-    notebook,
-    question,
-    research,
-    settings,
-    solve,
-    system,
-)
 from src.logging import get_logger
 from src.services.llm.exceptions import (
     LLMAPIError,
@@ -35,6 +18,7 @@ from src.services.llm.exceptions import (
 
 logger = get_logger("API")
 
+
 def get_safe_detail(exc: Exception) -> str | None:
     """
     Return a safe detail string for non-production environments.
@@ -42,7 +26,8 @@ def get_safe_detail(exc: Exception) -> str | None:
     In production, return None to avoid leaking sensitive details.
     """
     environment = os.getenv("ENVIRONMENT", "").strip().lower()
-    if environment in {"production", "prod"}:
+    allowed = {"development", "dev", "local", "test", "testing"}
+    if environment not in allowed:
         return None
     detail = str(exc).strip()
     return detail or None
@@ -57,6 +42,88 @@ def _normalize_status_code(value: object) -> int:
     if status_code < 100 or status_code > 599:
         return 500
     return status_code
+
+
+def _include_routers(app: FastAPI) -> None:
+    from src.api.routers import (
+        agent_config,
+        chat,
+        co_writer,
+        config,
+        dashboard,
+        guide,
+        ideagen,
+        knowledge,
+        notebook,
+        question,
+        research,
+        settings,
+        solve,
+        system,
+    )
+
+    app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
+    app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
+    app.include_router(
+        question.router,
+        prefix="/api/v1/question",
+        tags=["question"],
+    )
+    app.include_router(
+        research.router,
+        prefix="/api/v1/research",
+        tags=["research"],
+    )
+    app.include_router(
+        knowledge.router,
+        prefix="/api/v1/knowledge",
+        tags=["knowledge"],
+    )
+    app.include_router(
+        dashboard.router,
+        prefix="/api/v1/dashboard",
+        tags=["dashboard"],
+    )
+    app.include_router(
+        co_writer.router,
+        prefix="/api/v1/co_writer",
+        tags=["co_writer"],
+    )
+    app.include_router(
+        notebook.router,
+        prefix="/api/v1/notebook",
+        tags=["notebook"],
+    )
+    app.include_router(
+        guide.router,
+        prefix="/api/v1/guide",
+        tags=["guide"],
+    )
+    app.include_router(
+        ideagen.router,
+        prefix="/api/v1/ideagen",
+        tags=["ideagen"],
+    )
+    app.include_router(
+        settings.router,
+        prefix="/api/v1/settings",
+        tags=["settings"],
+    )
+    app.include_router(
+        system.router,
+        prefix="/api/v1/system",
+        tags=["system"],
+    )
+    app.include_router(
+        config.router,
+        prefix="/api/v1/config",
+        tags=["config"],
+    )
+    app.include_router(
+        agent_config.router,
+        prefix="/api/v1/agent-config",
+        tags=["agent-config"],
+    )
 
 CONFIG_DRIFT_ERROR_TEMPLATE = (
     "Configuration Drift Detected: Tools {drift} found in agents.yaml "
@@ -167,6 +234,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Validate configuration consistency
     validate_tool_consistency()
 
+    _include_routers(app)
+
     yield
 
     # Execute on shutdown
@@ -197,8 +266,8 @@ app = FastAPI(
 
 
 # Global exception handlers for proper HTTP status codes
-@app.exception_handler(Exception)
-async def llm_error_handler(request: Request, exc: Exception) -> JSONResponse:
+@app.exception_handler(LLMError)
+async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
     """
     Handle LLM-related errors with appropriate HTTP status codes.
 
@@ -321,23 +390,6 @@ except Exception:
         user_dir.mkdir(parents=True)
 
 app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
-
-# Include routers
-app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
-app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
-app.include_router(question.router, prefix="/api/v1/question", tags=["question"])
-app.include_router(research.router, prefix="/api/v1/research", tags=["research"])
-app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
-app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
-app.include_router(co_writer.router, prefix="/api/v1/co_writer", tags=["co_writer"])
-app.include_router(notebook.router, prefix="/api/v1/notebook", tags=["notebook"])
-app.include_router(guide.router, prefix="/api/v1/guide", tags=["guide"])
-app.include_router(ideagen.router, prefix="/api/v1/ideagen", tags=["ideagen"])
-app.include_router(settings.router, prefix="/api/v1/settings", tags=["settings"])
-app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
-app.include_router(config.router, prefix="/api/v1/config", tags=["config"])
-app.include_router(agent_config.router, prefix="/api/v1/agent-config", tags=["agent-config"])
-
 
 @app.get("/")
 async def root():

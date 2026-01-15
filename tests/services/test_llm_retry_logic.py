@@ -9,54 +9,68 @@ Tests the centralized retry mechanism in factory.py to ensure:
 4. Circuit breaker integration works correctly
 """
 
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
+
+from src.services.llm import cloud_provider
 from src.services.llm.exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
+    LLMError,
     LLMRateLimitError,
     LLMTimeoutError,
-    LLMError,
 )
 from src.services.llm.factory import _is_retriable_error, complete
 
 
 class TestRetriableErrorDetection:
     """Test _is_retriable_error function for correct error classification."""
-    
+
     def test_timeout_error_is_retriable(self):
         """Timeout errors should be retried."""
         error = LLMTimeoutError("Request timed out")
         assert _is_retriable_error(error) is True
-    
+
     def test_rate_limit_error_is_retriable(self):
         """Rate limit errors (429) should be retried."""
         error = LLMRateLimitError("Rate limit exceeded")
         assert _is_retriable_error(error) is True
-    
+
     def test_authentication_error_not_retriable(self):
         """Authentication errors (401) should NOT be retried."""
         error = LLMAuthenticationError("Invalid API key")
         assert _is_retriable_error(error) is False
-    
+
     def test_server_error_5xx_is_retriable(self):
         """Server errors (5xx) should be retried."""
         for status_code in [500, 502, 503, 504]:
             error = LLMAPIError("Server error", status_code=status_code)
-            assert _is_retriable_error(error) is True, f"Status {status_code} should be retriable"
-    
+            assert _is_retriable_error(error) is True, (
+                f"Status {status_code} should be retriable"
+            )
+
     def test_client_error_4xx_not_retriable(self):
         """Client errors (4xx except 429) should NOT be retried."""
         for status_code in [400, 401, 403, 404]:
             error = LLMAPIError("Client error", status_code=status_code)
-            assert _is_retriable_error(error) is False, f"Status {status_code} should not be retriable"
-    
+            assert _is_retriable_error(error) is False, (
+                f"Status {status_code} should not be retriable"
+            )
+
     def test_429_rate_limit_via_api_error_is_retriable(self):
         """429 rate limit via LLMAPIError should be retried."""
         error = LLMAPIError("Rate limit", status_code=429)
         assert _is_retriable_error(error) is True
+
+
+class TestProviderInterfaces:
+    """Test that provider interfaces expose expected call methods."""
+
+    def test_cloud_provider_has_complete_and_stream(self):
+        """Cloud provider must implement complete and stream."""
+        assert hasattr(cloud_provider, "complete")
+        assert hasattr(cloud_provider, "stream")
 
 
 class TestNoNestedRetries:
@@ -172,11 +186,12 @@ class TestExponentialBackoff:
     @pytest.mark.asyncio
     async def test_retry_delays_increase_exponentially(self):
         """Verify that retry delays increase exponentially."""
-        with (
-            patch("src.services.llm.factory.cloud_provider") as mock_cloud,
-            patch("tenacity._asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-        ):
+        with patch("src.services.llm.factory.cloud_provider") as mock_cloud:
             call_count = 0
+            sleep_calls = []
+
+            async def fake_sleep(duration: float) -> None:
+                sleep_calls.append(duration)
 
             async def track_time(*args, **kwargs):
                 nonlocal call_count
@@ -194,12 +209,13 @@ class TestExponentialBackoff:
                 api_key="test-key",
                 max_retries=3,
                 retry_delay=0.1,
+                sleep=fake_sleep,
             )
 
             assert call_count == 3
-            assert mock_sleep.await_count == 2
-            delay1 = mock_sleep.await_args_list[0][0][0]
-            delay2 = mock_sleep.await_args_list[1][0][0]
+            assert len(sleep_calls) == 2
+            delay1 = sleep_calls[0]
+            delay2 = sleep_calls[1]
             assert delay2 > delay1, "Exponential backoff not working"
 
 

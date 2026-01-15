@@ -71,6 +71,14 @@ class BaseLLMProvider(ABC):
             setattr(error, "is_circuit_breaker", True)
             raise error
 
+    def _should_record_failure(self, error: LLMError) -> bool:
+        if isinstance(error, (LLMRateLimitError, LLMTimeoutError)):
+            return True
+        if isinstance(error, LLMAPIError):
+            status_code = getattr(error, "status_code", None)
+            return status_code is not None and status_code >= 500
+        return False
+
     async def execute(
         self,
         func: Callable[..., Awaitable[Any]],
@@ -93,8 +101,9 @@ class BaseLLMProvider(ABC):
                 return result
         except Exception as e:
             record_provider_call(self.provider_name, success=False)
-            record_call_failure(self.provider_name)
             mapped_e = self._map_exception(e)
+            if self._should_record_failure(mapped_e):
+                record_call_failure(self.provider_name)
             raise mapped_e from e
 
     async def execute_with_retry(
@@ -128,7 +137,8 @@ class BaseLLMProvider(ABC):
 
                 if attempt >= max_retries or not is_retriable:
                     record_provider_call(self.provider_name, success=False)
-                    record_call_failure(self.provider_name)
+                    if self._should_record_failure(mapped_e):
+                        record_call_failure(self.provider_name)
                     raise mapped_e from e
 
                 delay = (1.5**attempt) + (random.random() * 0.5)

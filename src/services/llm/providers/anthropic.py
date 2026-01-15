@@ -20,14 +20,16 @@ class AnthropicProvider(BaseLLMProvider):
 
     def __init__(self, config: LLMConfig) -> None:
         super().__init__(config)
+        self.client: anthropic.AsyncAnthropic | None = None
 
-        # Use shared httpx client for connection pooling and Keep-Alive
-        http_client = get_shared_http_client()
-
-        self.client = anthropic.AsyncAnthropic(
-            api_key=self.api_key,
-            http_client=http_client,
-        )
+    async def _get_client(self) -> anthropic.AsyncAnthropic:
+        if self.client is None:
+            http_client = await get_shared_http_client()
+            self.client = anthropic.AsyncAnthropic(
+                api_key=self.api_key,
+                http_client=http_client,
+            )
+        return self.client
 
     @track_llm_call("anthropic")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
@@ -39,7 +41,8 @@ class AnthropicProvider(BaseLLMProvider):
         kwargs.pop("stream", None)
 
         async def _call_api():
-            response = await self.client.messages.create(
+            client = await self._get_client()
+            response = await client.messages.create(
                 model=model,
                 max_tokens=kwargs.pop("max_tokens", 1024),
                 messages=[{"role": "user", "content": prompt}],
@@ -62,7 +65,7 @@ class AnthropicProvider(BaseLLMProvider):
                 cost_estimate=self.calculate_cost(usage),
             )
 
-        return await self.execute_with_retry(_call_api)
+        return await self.execute(_call_api)
 
     @track_llm_call("anthropic")
     async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
@@ -74,7 +77,8 @@ class AnthropicProvider(BaseLLMProvider):
         max_tokens = kwargs.pop("max_tokens", 1024)
 
         async def _create_stream():
-            return await self.client.messages.create(
+            client = await self._get_client()
+            return await client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],

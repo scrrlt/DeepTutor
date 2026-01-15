@@ -31,7 +31,7 @@ Retry Mechanism:
 """
 
 import asyncio
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List
 
 import tenacity
 
@@ -72,10 +72,7 @@ def _is_retriable_error(error: Exception) -> bool:
     - Not found (404)
     - Client errors (4xx except 429)
     """
-    from aiohttp import ClientError
-    from requests.exceptions import RequestException
-
-    if isinstance(error, (asyncio.TimeoutError, ClientError, RequestException)):
+    if isinstance(error, asyncio.TimeoutError):
         return True
     if isinstance(error, LLMTimeoutError):
         return True
@@ -93,13 +90,12 @@ def _is_retriable_error(error: Exception) -> bool:
             # Don't retry on client errors (4xx except 429)
             if 400 <= status_code < 500:
                 return False
-        return True  # Retry by default for unknown API errors
+        return False
 
-    # For other exceptions (network errors, etc.), retry
-    return True
+    return False
 
 
-def _should_use_local(base_url: Optional[str]) -> bool:
+def _should_use_local(base_url: str | None) -> bool:
     """
     Determine if we should use the local provider based on URL.
 
@@ -115,15 +111,16 @@ def _should_use_local(base_url: Optional[str]) -> bool:
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    binding: str | None = None,
+    messages: List[Dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
+    sleep: Callable[[float], Awaitable[None] | None] | None = None,
     **kwargs,
 ) -> str:
     """
@@ -190,19 +187,31 @@ async def complete(
         return False
 
     # Define the actual completion function with tenacity retry
-    @tenacity.retry(
-        retry=(
+    retry_kwargs: Dict[str, Any] = {
+        "retry": (
             tenacity.retry_if_exception_type(LLMRateLimitError)
             | tenacity.retry_if_exception_type(LLMTimeoutError)
             | tenacity.retry_if_exception(_is_retriable_llm_api_error)
         ),
-        wait=tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60),
-        stop=tenacity.stop_after_attempt(max_retries + 1),
-        before_sleep=lambda retry_state: logger.warning(
-            f"LLM call failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
-            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
+        "wait": tenacity.wait_exponential(
+            multiplier=retry_delay,
+            min=retry_delay,
+            max=60,
         ),
-    )
+        "stop": tenacity.stop_after_attempt(max_retries + 1),
+        "before_sleep": lambda retry_state: logger.warning(
+            "LLM call failed (attempt %d/%d), retrying in %.1fs... "
+            "Error: %s",
+            retry_state.attempt_number,
+            max_retries + 1,
+            retry_state.upcoming_sleep,
+            retry_state.outcome.exception(),
+        ),
+    }
+    if sleep is not None:
+        retry_kwargs["sleep"] = sleep
+
+    @tenacity.retry(**retry_kwargs)
     async def _do_complete(**call_kwargs):
         try:
             if use_local:
@@ -239,12 +248,12 @@ async def complete(
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    binding: str | None = None,
+    messages: List[Dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,

@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 name = "ai-tutor"
 version = "0.5.0"
 description = "An intelligent learning companion with multi-agent collaboration and RAG"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 
