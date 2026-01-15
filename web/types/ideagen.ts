@@ -32,4 +32,3 @@ export const INITIAL_IDEAGEN_STATE: IdeaGenState = {
   generatedIdeas: [],
   progress: null,
 };
-

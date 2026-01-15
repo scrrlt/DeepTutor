@@ -8,11 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { wsUrl, apiUrl } from "@/lib/api";
-import {
-  ChatState,
-  HomeChatMessage,
-  INITIAL_CHAT_STATE,
-} from "@/types/chat";
+import { ChatState, HomeChatMessage, INITIAL_CHAT_STATE } from "@/types/chat";
 
 // Context type
 interface ChatContextType {
@@ -269,4 +265,3 @@ export const useChat = () => {
   if (!context) throw new Error("useChat must be used within ChatProvider");
   return context;
 };
-

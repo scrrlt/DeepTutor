@@ -34,6 +34,16 @@ class NarratorAgent(BaseAgent):
     """Note Narration Agent - Generate narration script and convert to audio"""
 
     def __init__(self, language: str = "en"):
+        """
+        Initialize NarratorAgent.
+
+        Args:
+            language: Language setting ('en' | 'zh'), default 'en'
+
+        Note: LLM configuration (api_key, base_url, model, etc.) is loaded
+        automatically from the unified config service. Use refresh_config()
+        to pick up configuration changes made in Settings.
+        """
         # Use "narrator" as module_name to get independent temperature/max_tokens config
         super().__init__(
             module_name="narrator",

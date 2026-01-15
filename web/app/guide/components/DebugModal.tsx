@@ -9,7 +9,11 @@ interface DebugModalProps {
   onFix: (description: string) => Promise<boolean>;
 }
 
-export default function DebugModal({ isOpen, onClose, onFix }: DebugModalProps) {
+export default function DebugModal({
+  isOpen,
+  onClose,
+  onFix,
+}: DebugModalProps) {
   const [description, setDescription] = useState("");
   const [fixing, setFixing] = useState(false);
 
@@ -91,4 +95,3 @@ export default function DebugModal({ isOpen, onClose, onFix }: DebugModalProps) 
     </div>
   );
 }
-

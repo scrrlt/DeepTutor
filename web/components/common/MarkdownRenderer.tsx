@@ -70,7 +70,13 @@ export default function MarkdownRenderer({
 
   // Code block styling
   const codeComponents = {
-    code: ({ node, inline, className: codeClassName, children, ...props }: any) => {
+    code: ({
+      node,
+      inline,
+      className: codeClassName,
+      children,
+      ...props
+    }: any) => {
       if (inline) {
         return (
           <code
@@ -117,4 +123,3 @@ export default function MarkdownRenderer({
     </div>
   );
 }
-

@@ -43,4 +43,3 @@ export const INITIAL_CHAT_STATE: ChatState = {
   enableWebSearch: false,
   currentStage: null,
 };
-

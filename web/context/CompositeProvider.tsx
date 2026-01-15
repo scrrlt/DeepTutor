@@ -29,4 +29,3 @@ export function CompositeProvider({ children }: { children: React.ReactNode }) {
     </UISettingsProvider>
   );
 }
-

@@ -7,6 +7,7 @@ Manages multiple knowledge bases and provides utilities for accessing them.
 """
 
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -134,6 +135,7 @@ class KnowledgeBaseManager:
         # Use centralized config service only (no longer stored in kb_config.json)
         try:
             from src.services.config import get_kb_config_service
+
             kb_config_service = get_kb_config_service()
             kb_config_service.set_default_kb(name)
         except Exception as e:
@@ -142,7 +144,7 @@ class KnowledgeBaseManager:
     def get_default(self) -> str | None:
         """
         Get default knowledge base name.
-        
+
         Priority:
         1. Centralized config service (knowledge_base_configs.json)
         2. First knowledge base in the list (auto-fallback)
@@ -150,18 +152,19 @@ class KnowledgeBaseManager:
         # Try centralized config first
         try:
             from src.services.config import get_kb_config_service
+
             kb_config_service = get_kb_config_service()
             default_kb = kb_config_service.get_default_kb()
             if default_kb and default_kb in self.list_knowledge_bases():
                 return default_kb
         except Exception:
             pass
-        
+
         # Fallback to first knowledge base in sorted list
         kb_list = self.list_knowledge_bases()
         if kb_list:
             return kb_list[0]
-        
+
         return None
 
     def get_metadata(self, name: str | None = None) -> dict:
@@ -378,10 +381,6 @@ class KnowledgeBaseManager:
         print(f"✓ RAG storage cleaned for '{kb_name}'")
         return True
 
-
-def main():
-    # ============================================================
-
     def link_folder(self, kb_name: str, folder_path: str) -> dict:
         """
         Link a local folder to a knowledge base.
@@ -409,14 +408,12 @@ def main():
 
         # Get supported files in folder
         supported_extensions = {".pdf", ".docx", ".doc", ".txt", ".md", ".markdown"}
-        files = []
+        files: list[Path] = []
         for ext in supported_extensions:
             files.extend(folder.glob(f"**/*{ext}"))
 
         # Generate folder ID
-        import hashlib
-
-        folder_id = hashlib.md5(str(folder).encode()).hexdigest()[:8]
+        folder_id = hashlib.md5(str(folder).encode(), usedforsecurity=False).hexdigest()[:8]
 
         # Load existing linked folders from metadata
         kb_dir = self.base_dir / kb_name
@@ -434,13 +431,13 @@ def main():
             metadata["linked_folders"] = []
 
         # Check if already linked
-        existing_ids = [f["id"] for f in metadata.get("linked_folders", [])]
+        existing_ids = [lf["id"] for lf in metadata.get("linked_folders", [])]
         if folder_id in existing_ids:
             # If already linked, treat as success (idempotent)
             # Find and return existing info
-            for f in metadata.get("linked_folders", []):
-                if f["id"] == folder_id:
-                    return f
+            for linked in metadata.get("linked_folders", []):
+                if linked["id"] == folder_id:
+                    return linked
 
         # Add folder info
         folder_info = {

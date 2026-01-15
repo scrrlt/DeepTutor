@@ -8,11 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { apiUrl } from "@/lib/api";
-import {
-  initializeTheme,
-  setTheme,
-  getStoredTheme,
-} from "@/lib/theme";
+import { initializeTheme, setTheme, getStoredTheme } from "@/lib/theme";
 import { UISettings, Theme, Language } from "@/types/common";
 
 // Language storage key
@@ -159,4 +155,3 @@ export const useUISettings = () => {
     throw new Error("useUISettings must be used within UISettingsProvider");
   return context;
 };
-

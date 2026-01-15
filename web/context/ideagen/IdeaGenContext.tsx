@@ -12,8 +12,9 @@ interface IdeaGenContextType {
 const IdeaGenContext = createContext<IdeaGenContextType | undefined>(undefined);
 
 export function IdeaGenProvider({ children }: { children: React.ReactNode }) {
-  const [ideaGenState, setIdeaGenState] =
-    useState<IdeaGenState>(INITIAL_IDEAGEN_STATE);
+  const [ideaGenState, setIdeaGenState] = useState<IdeaGenState>(
+    INITIAL_IDEAGEN_STATE,
+  );
 
   return (
     <IdeaGenContext.Provider
@@ -33,4 +34,3 @@ export const useIdeaGen = () => {
     throw new Error("useIdeaGen must be used within IdeaGenProvider");
   return context;
 };
-

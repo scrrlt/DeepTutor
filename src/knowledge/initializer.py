@@ -73,7 +73,7 @@ class KnowledgeBaseInitializer:
 
         if "knowledge_bases" not in config:
             config["knowledge_bases"] = {}
-        
+
         # Remove old "default" field if exists (migration)
         if "default" in config:
             del config["default"]
@@ -110,16 +110,17 @@ class KnowledgeBaseInitializer:
                 json.dump(metadata, indent=2, ensure_ascii=False, fp=f)
 
             logger.info(f"  ✓ Updated metadata with RAG provider: {provider}")
-            
+
             # Also save to centralized config file
             try:
                 from src.services.config import get_kb_config_service
+
                 kb_config_service = get_kb_config_service()
                 kb_config_service.set_rag_provider(self.kb_name, provider)
-                logger.info(f"  ✓ Saved RAG provider to centralized config")
+                logger.info("  ✓ Saved RAG provider to centralized config")
             except Exception as config_err:
                 logger.warning(f"Failed to save to centralized config: {config_err}")
-                
+
         except Exception as e:
             logger.warning(f"Failed to update metadata with provider: {e}")
 

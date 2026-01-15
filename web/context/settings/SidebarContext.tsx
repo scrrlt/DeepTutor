@@ -36,8 +36,9 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // Sidebar dimensions state
-  const [sidebarWidth, setSidebarWidthState] =
-    useState<number>(SIDEBAR_DEFAULT_WIDTH);
+  const [sidebarWidth, setSidebarWidthState] = useState<number>(
+    SIDEBAR_DEFAULT_WIDTH,
+  );
   const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(false);
 
   // Sidebar customization state
@@ -175,4 +176,3 @@ export const useSidebar = () => {
 
 // Re-export the SidebarNavOrder type for convenience
 export type { SidebarNavOrder };
-

@@ -135,7 +135,16 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown")
 
 
-app = FastAPI(title="DeepTutor API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="DeepTutor API",
+    version="1.0.0",
+    lifespan=lifespan,
+    # Disable automatic trailing slash redirects to prevent protocol downgrade issues
+    # when deployed behind HTTPS reverse proxies (e.g., nginx).
+    # Without this, FastAPI's 307 redirects may change HTTPS to HTTP.
+    # See: https://github.com/HKUDS/DeepTutor/issues/112
+    redirect_slashes=False,
+)
 
 # Configure CORS
 app.add_middleware(

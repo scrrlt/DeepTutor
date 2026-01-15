@@ -69,4 +69,3 @@ ${html}
 
   return { injectKaTeX };
 }
-

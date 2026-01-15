@@ -51,7 +51,14 @@ export const LOCAL_PROVIDER_URLS: Record<string, string> = {
 };
 
 // Voice options for TTS
-export const VOICE_OPTIONS = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+export const VOICE_OPTIONS = [
+  "alloy",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "shimmer",
+];
 
 // Helper functions to get env var names
 export function getEnvVarForBaseUrl(configType: ConfigType): string {
@@ -73,4 +80,3 @@ export function getEnvVarForApiKey(configType: ConfigType): string {
   };
   return mapping[configType];
 }
-

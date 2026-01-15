@@ -510,4 +510,3 @@ export default function ConfigForm({
     </form>
   );
 }
-

@@ -80,4 +80,3 @@ export const INITIAL_SOLVER_STATE: SolverState = {
     progress: {},
   },
 };
-

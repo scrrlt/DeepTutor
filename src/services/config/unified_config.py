@@ -130,6 +130,126 @@ class UnifiedConfigManager:
         SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
         self._initialized = True
 
+        # Ensure default configs exist and are synced with env on startup
+        self._ensure_default_configs()
+
+    def _ensure_default_configs(self) -> None:
+        """
+        Ensure default configurations exist in storage files and sync with env.
+
+        This method is called on startup to:
+        1. Create a "default" config entry in each config file if it doesn't exist
+        2. Sync the model/provider fields from env variables (these may change)
+        3. Store base_url/api_key as {"use_env": "VAR_NAME"} references
+        """
+        for config_type in ConfigType:
+            try:
+                self._ensure_default_config_for_type(config_type)
+            except Exception as e:
+                logger.warning(f"Failed to ensure default config for {config_type.value}: {e}")
+
+    def _ensure_default_config_for_type(self, config_type: ConfigType) -> None:
+        """Ensure default config exists and is synced for a specific config type."""
+        env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
+        data = self._load_configs(config_type)
+
+        # Find existing default config in the configs list
+        default_config = None
+        default_index = -1
+        for i, cfg in enumerate(data.get("configs", [])):
+            if cfg.get("id") == "default":
+                default_config = cfg
+                default_index = i
+                break
+
+        # Build the default config to store
+        stored_default = self._build_stored_default_config(config_type, env_mapping)
+
+        if default_config is None:
+            # Add default config to the list
+            if "configs" not in data:
+                data["configs"] = []
+            data["configs"].insert(0, stored_default)
+            logger.info(f"Created default config for {config_type.value}")
+        else:
+            # Update only the dynamic fields (model, provider) from env
+            # Keep other fields unchanged (they reference env vars)
+            if config_type == ConfigType.LLM:
+                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
+                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
+            elif config_type == ConfigType.EMBEDDING:
+                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
+                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
+                dim_str = _get_env_value(env_mapping.get("dimensions"))
+                default_config["dimensions"] = (
+                    int(dim_str) if dim_str and dim_str.isdigit() else 3072
+                )
+            elif config_type == ConfigType.TTS:
+                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
+                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
+                default_config["voice"] = _get_env_value(env_mapping.get("voice")) or "alloy"
+            elif config_type == ConfigType.SEARCH:
+                default_config["provider"] = (
+                    _get_env_value(env_mapping.get("provider")) or "perplexity"
+                )
+
+            data["configs"][default_index] = default_config
+            logger.debug(f"Updated default config for {config_type.value}")
+
+        self._save_configs(config_type, data)
+
+    def _build_stored_default_config(
+        self, config_type: ConfigType, env_mapping: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Build the default configuration to be stored in JSON (with env references)."""
+        base_config = {
+            "id": "default",
+            "name": "Default (from .env)",
+            "is_default": True,
+        }
+
+        if config_type == ConfigType.LLM:
+            return {
+                **base_config,
+                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "model": _get_env_value(env_mapping.get("model")) or "",
+                "base_url": {"use_env": "LLM_HOST"},
+                "api_key": {"use_env": "LLM_API_KEY"},
+                "api_version": {"use_env": "LLM_API_VERSION"},
+            }
+
+        elif config_type == ConfigType.EMBEDDING:
+            dim_str = _get_env_value(env_mapping.get("dimensions"))
+            return {
+                **base_config,
+                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "model": _get_env_value(env_mapping.get("model")) or "",
+                "dimensions": int(dim_str) if dim_str and dim_str.isdigit() else 3072,
+                "base_url": {"use_env": "EMBEDDING_HOST"},
+                "api_key": {"use_env": "EMBEDDING_API_KEY"},
+                "api_version": {"use_env": "EMBEDDING_API_VERSION"},
+            }
+
+        elif config_type == ConfigType.TTS:
+            return {
+                **base_config,
+                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "model": _get_env_value(env_mapping.get("model")) or "",
+                "voice": _get_env_value(env_mapping.get("voice")) or "alloy",
+                "base_url": {"use_env": "TTS_URL"},
+                "api_key": {"use_env": "TTS_API_KEY"},
+                "api_version": {"use_env": "TTS_BINDING_API_VERSION"},
+            }
+
+        elif config_type == ConfigType.SEARCH:
+            return {
+                **base_config,
+                "provider": _get_env_value(env_mapping.get("provider")) or "perplexity",
+                "api_key": {"use_env": "SEARCH_API_KEY"},
+            }
+
+        return base_config
+
     def _get_storage_path(self, config_type: ConfigType) -> Path:
         """Get the storage file path for a config type."""
         return SETTINGS_DIR / f"{config_type.value}_configs.json"
@@ -280,23 +400,46 @@ class UnifiedConfigManager:
         """
         List all configurations for a service type.
         Includes the default config (from .env) and user-defined configs.
+
+        For display purposes, the default config shows:
+        - Current model/provider from env (dynamically refreshed)
+        - base_url/api_key as "***" (hidden for security)
         """
         data = self._load_configs(config_type)
-
-        # Build default config
-        default_config = self._build_default_config(config_type)
-
-        # Get user configs
-        user_configs = data.get("configs", [])
-
-        # Mark active config
+        configs = data.get("configs", [])
         active_id = data.get("active_id", "default")
 
-        all_configs = [default_config] + user_configs
-        for cfg in all_configs:
-            cfg["is_active"] = cfg.get("id") == active_id
+        # Build a display version of the default config (with current env values)
+        display_default = self._build_default_config(config_type)
 
-        return all_configs
+        # Process all configs for display
+        result = []
+        has_default = False
+
+        for cfg in configs:
+            if cfg.get("id") == "default":
+                # Use the dynamically built display config for default
+                has_default = True
+                display_cfg = display_default.copy()
+                display_cfg["is_active"] = active_id == "default"
+                result.append(display_cfg)
+            else:
+                # For user configs, create a display copy
+                display_cfg = dict(cfg)
+                # Hide api_key if it's not an env reference
+                if "api_key" in display_cfg:
+                    api_key = display_cfg["api_key"]
+                    if not isinstance(api_key, dict):  # Not {"use_env": ...}
+                        display_cfg["api_key"] = "***"
+                display_cfg["is_active"] = cfg.get("id") == active_id
+                result.append(display_cfg)
+
+        # If no default config found in file, prepend the display default
+        if not has_default:
+            display_default["is_active"] = active_id == "default"
+            result.insert(0, display_default)
+
+        return result
 
     def get_config(self, config_type: ConfigType, config_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific configuration by ID."""

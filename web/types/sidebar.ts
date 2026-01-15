@@ -35,4 +35,3 @@ export const DEFAULT_NAV_ORDER: SidebarNavOrder = {
     "/co_writer",
   ],
 };
-

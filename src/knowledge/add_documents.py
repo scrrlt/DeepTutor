@@ -530,10 +530,11 @@ class DocumentAdder:
             # Update RAG provider if specified
             if self.rag_provider:
                 metadata["rag_provider"] = self.rag_provider
-                
+
                 # Also save to centralized config file
                 try:
                     from src.services.config import get_kb_config_service
+
                     kb_config_service = get_kb_config_service()
                     kb_config_service.set_rag_provider(self.kb_name, self.rag_provider)
                 except Exception as config_err:

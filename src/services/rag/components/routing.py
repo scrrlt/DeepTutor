@@ -284,4 +284,3 @@ class FileTypeRouter:
         """
         doc_type = cls.get_document_type(file_path)
         return doc_type in (DocumentType.TEXT, DocumentType.MARKDOWN)
-

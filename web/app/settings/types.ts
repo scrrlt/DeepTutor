@@ -38,4 +38,3 @@ export interface PortsInfo {
 
 export type ConfigType = "llm" | "embedding" | "tts" | "search";
 export type TabType = "overview" | ConfigType;
-

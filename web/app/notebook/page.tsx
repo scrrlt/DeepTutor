@@ -30,6 +30,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
@@ -875,7 +876,7 @@ export default function NotebookPage() {
                 <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-600">
                   <div className="prose prose-slate dark:prose-invert max-w-none prose-sm">
                     <ReactMarkdown
-                      remarkPlugins={[remarkMath]}
+                      remarkPlugins={[remarkGfm, remarkMath]}
                       rehypePlugins={[rehypeKatex]}
                     >
                       {processLatexContent(selectedRecord.output)}

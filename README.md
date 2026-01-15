@@ -245,10 +245,11 @@
 > 🌟 Star to follow our future updates!
 - [ x ] Multi-linguistic support
 - [ x ] DeepTutor Community
-- [ x ] Incremental Knowledge-base Edit
-- [ x ] Personalized Workspace
+- [ x ] Video & Audio file support
+- [ x ] Atomic RAG pipeline customize
+- [ - ] Incremental Knowledge-base Edit
+- [ - ] Personalized Workspace
 - [ - ] DataBase Visualization
-- [ - ] Atomic RAG pipeline customize
 - [ - ] Online Demo
 
 ## 🚀 Getting Started
@@ -1357,6 +1358,66 @@ docker run -d --name deeptutor \
 **Solution**
 - **Check backend logs**
 - **Confirm URL format**: `ws://localhost:8001/api/v1/...`
+
+</details>
+
+<details>
+<summary><b>Settings page shows "Error loading data" with HTTPS reverse proxy?</b></summary>
+
+**Problem**
+
+When deploying behind an HTTPS reverse proxy (e.g., nginx), the Settings page shows "Error loading data" and browser DevTools reveals that HTTPS requests are being redirected to HTTP (307 redirect).
+
+**Cause**
+
+This issue has been fixed in v0.5.0+. If you're using an older version, the problem was caused by FastAPI's automatic trailing slash redirects generating HTTP URLs instead of preserving the original HTTPS protocol.
+
+**Solution (for v0.5.0+)**
+
+Update to the latest version. The fix disables automatic slash redirects to prevent protocol downgrade.
+
+**Recommended nginx Configuration**
+
+When using nginx as an HTTPS reverse proxy, use the following configuration:
+
+```nginx
+# Frontend
+location / {
+    proxy_pass http://localhost:3782;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# Backend API
+location /api/ {
+    proxy_pass http://localhost:8001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;  # Important: preserves original protocol
+}
+
+# WebSocket support
+location /api/v1/ {
+    proxy_pass http://localhost:8001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+**Environment Variable**
+
+Set in `.env`:
+```bash
+NEXT_PUBLIC_API_BASE=https://your-domain.com:port
+```
+
+See: [GitHub Issue #112](https://github.com/HKUDS/DeepTutor/issues/112)
 
 </details>
 

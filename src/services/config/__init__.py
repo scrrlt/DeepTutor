@@ -16,6 +16,11 @@ Provides three types of configuration:
 """
 
 # Re-export everything from loader.py (existing functionality)
+# Export knowledge base config service
+from .knowledge_base_config import (
+    KnowledgeBaseConfigService,
+    get_kb_config_service,
+)
 from .loader import (
     PROJECT_ROOT,
     get_agent_params,
@@ -33,12 +38,6 @@ from .unified_config import (
     get_active_search_config,
     get_active_tts_config,
     get_config_manager,
-)
-
-# Export knowledge base config service
-from .knowledge_base_config import (
-    KnowledgeBaseConfigService,
-    get_kb_config_service,
 )
 
 __all__ = [

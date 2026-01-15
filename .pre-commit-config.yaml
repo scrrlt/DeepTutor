@@ -72,11 +72,14 @@ repos:
         pass_filenames: false
 
   # Replaced Safety with pip-audit due to version 3.x breakdown
-  - repo: https://github.com/pypa/pip-audit
-    rev: v2.7.3
-    hooks:
-      - id: pip-audit
-        args: ["--desc", "on"]
+  # NOTE: pip-audit disabled due to pip-api upstream bug with non-ASCII paths on Windows
+  # (UnicodeDecodeError when username contains Chinese characters)
+  # See: https://github.com/di/pip-api/issues/123
+  # - repo: https://github.com/pypa/pip-audit
+  #   rev: v2.7.3
+  #   hooks:
+  #     - id: pip-audit
+  #       args: ["--desc", "on"]
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.0

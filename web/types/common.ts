@@ -46,4 +46,3 @@ export interface UISettings {
   theme: Theme;
   language: Language;
 }
-

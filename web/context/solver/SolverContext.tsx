@@ -180,8 +180,6 @@ export function SolverProvider({ children }: { children: React.ReactNode }) {
 
 export const useSolver = () => {
   const context = useContext(SolverContext);
-  if (!context)
-    throw new Error("useSolver must be used within SolverProvider");
+  if (!context) throw new Error("useSolver must be used within SolverProvider");
   return context;
 };
-

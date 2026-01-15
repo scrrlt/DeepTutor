@@ -227,4 +227,3 @@ export const useResearch = () => {
     throw new Error("useResearch must be used within ResearchProvider");
   return context;
 };
-

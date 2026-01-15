@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
@@ -414,7 +415,7 @@ export default function HomePage() {
                       <div className="bg-white dark:bg-slate-800 px-5 py-4 rounded-2xl rounded-tl-none border border-slate-200 dark:border-slate-700 shadow-sm">
                         <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
                           <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
+                            remarkPlugins={[remarkGfm, remarkMath]}
                             rehypePlugins={[rehypeKatex]}
                           >
                             {processLatexContent(msg.content)}

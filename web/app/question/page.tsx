@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useGlobal } from "@/context/GlobalContext";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
@@ -637,7 +638,7 @@ export default function QuestionPage() {
                       {/* Question Text */}
                       <div className="prose prose-slate dark:prose-invert max-w-none">
                         <ReactMarkdown
-                          remarkPlugins={[remarkMath]}
+                          remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[rehypeKatex]}
                         >
                           {processLatexContent(
@@ -697,7 +698,7 @@ export default function QuestionPage() {
                                   </span>
                                   <div className="flex-1">
                                     <ReactMarkdown
-                                      remarkPlugins={[remarkMath]}
+                                      remarkPlugins={[remarkGfm, remarkMath]}
                                       rehypePlugins={[rehypeKatex]}
                                     >
                                       {processLatexContent(String(val))}
@@ -731,7 +732,7 @@ export default function QuestionPage() {
                             </p>
                             <div className="text-emerald-800 dark:text-emerald-200 prose prose-sm dark:prose-invert max-w-none">
                               <ReactMarkdown
-                                remarkPlugins={[remarkMath]}
+                                remarkPlugins={[remarkGfm, remarkMath]}
                                 rehypePlugins={[rehypeKatex]}
                               >
                                 {processLatexContent(
@@ -751,7 +752,7 @@ export default function QuestionPage() {
                               </p>
                               <div className="text-slate-700 dark:text-slate-300 prose prose-sm dark:prose-invert max-w-none">
                                 <ReactMarkdown
-                                  remarkPlugins={[remarkMath]}
+                                  remarkPlugins={[remarkGfm, remarkMath]}
                                   rehypePlugins={[rehypeKatex]}
                                 >
                                   {processLatexContent(
@@ -798,7 +799,10 @@ export default function QuestionPage() {
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[remarkMath]}
+                                          remarkPlugins={[
+                                            remarkGfm,
+                                            remarkMath,
+                                          ]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(
@@ -818,7 +822,10 @@ export default function QuestionPage() {
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[remarkMath]}
+                                          remarkPlugins={[
+                                            remarkGfm,
+                                            remarkMath,
+                                          ]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(
@@ -839,7 +846,10 @@ export default function QuestionPage() {
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
-                                            remarkPlugins={[remarkMath]}
+                                            remarkPlugins={[
+                                              remarkGfm,
+                                              remarkMath,
+                                            ]}
                                             rehypePlugins={[rehypeKatex]}
                                           >
                                             {processLatexContent(
@@ -860,7 +870,10 @@ export default function QuestionPage() {
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
-                                            remarkPlugins={[remarkMath]}
+                                            remarkPlugins={[
+                                              remarkGfm,
+                                              remarkMath,
+                                            ]}
                                             rehypePlugins={[rehypeKatex]}
                                           >
                                             {processLatexContent(
@@ -878,7 +891,10 @@ export default function QuestionPage() {
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[remarkMath]}
+                                          remarkPlugins={[
+                                            remarkGfm,
+                                            remarkMath,
+                                          ]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(

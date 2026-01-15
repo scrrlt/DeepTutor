@@ -113,7 +113,8 @@ export function QuestionProvider({ children }: { children: React.ReactNode }) {
                 ...prev.progress,
                 progress: {
                   ...prev.progress.progress,
-                  total: data.total_questions || data.reference_questions.length,
+                  total:
+                    data.total_questions || data.reference_questions.length,
                 },
               },
             }));
@@ -442,8 +443,7 @@ export function QuestionProvider({ children }: { children: React.ReactNode }) {
               ...prev.results,
               {
                 success: true,
-                question_id:
-                  data.question_id || `q_${prev.results.length + 1}`,
+                question_id: data.question_id || `q_${prev.results.length + 1}`,
                 question: data.question,
                 validation: data.validation,
                 rounds: data.rounds || 1,
@@ -654,4 +654,3 @@ export const useQuestion = () => {
     throw new Error("useQuestion must be used within QuestionProvider");
   return context;
 };
-

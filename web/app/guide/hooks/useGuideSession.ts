@@ -12,8 +12,9 @@ import {
  * Hook for managing guide session state and API interactions
  */
 export function useGuideSession() {
-  const [sessionState, setSessionState] =
-    useState<SessionState>(INITIAL_SESSION_STATE);
+  const [sessionState, setSessionState] = useState<SessionState>(
+    INITIAL_SESSION_STATE,
+  );
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
@@ -34,11 +35,7 @@ export function useGuideSession() {
   }, []);
 
   const addChatMessage = useCallback(
-    (
-      role: "user" | "assistant" | "system",
-      content: string,
-      id?: string,
-    ) => {
+    (role: "user" | "assistant" | "system", content: string, id?: string) => {
       setChatMessages((prev) => [
         ...prev,
         {
@@ -408,4 +405,3 @@ export function useGuideSession() {
     fixHtml,
   };
 }
-
