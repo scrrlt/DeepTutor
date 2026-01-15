@@ -183,8 +183,8 @@ environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"
 [program:frontend]
 command=/bin/bash /app/start-frontend.sh
 directory=/app/web
-autostart=true
-autorestart=true
+autostart=false
+autorestart=false
 startsecs=5
 stdout_logfile=/dev/fd/1
 stdout_logfile_maxbytes=0
