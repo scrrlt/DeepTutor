@@ -257,9 +257,8 @@ RUN sed -i 's/\r$//' /app/start-frontend.sh && chmod +x /app/start-frontend.sh
 # Expose ports
 EXPOSE 8001 3782
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${BACKEND_PORT:-8001}/ || exit 1
+# Override ENTRYPOINT for Cloud Run (single process on $PORT)
+ENTRYPOINT []
 
 # Start backend (Cloud Run expects the container to listen on $PORT)
 CMD ["sh", "-c", "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
