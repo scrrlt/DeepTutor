@@ -2,8 +2,8 @@ steps:
   # Build and push the Docker image using Kaniko (with remote layer caching)
   - name: 'gcr.io/kaniko-project/executor:latest'
     args:
-      - '--dockerfile=./Dockerfile'
-      - '--context=dir://.'
+      - '--dockerfile=Dockerfile'
+      - '--context=/workspace'
       - '--destination=gcr.io/$PROJECT_ID/deeptutor:$BUILD_ID'
       - '--target=production'
       - '--cache=true'
