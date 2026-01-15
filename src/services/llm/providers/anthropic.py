@@ -1,5 +1,9 @@
+from typing import Any
+
 import anthropic
 
+from ..config import LLMConfig
+from ..http_client import get_shared_http_client
 from ..registry import register_provider
 from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
@@ -12,18 +16,26 @@ logger = get_logger(__name__)
 
 @register_provider("anthropic")
 class AnthropicProvider(BaseLLMProvider):
-    """Anthropic Claude Provider."""
+    """Anthropic Claude Provider with shared HTTP client."""
 
-    def __init__(self, config):
+    def __init__(self, config: LLMConfig) -> None:
         super().__init__(config)
+
+        # Use shared httpx client for connection pooling and Keep-Alive
+        http_client = get_shared_http_client()
 
         self.client = anthropic.AsyncAnthropic(
             api_key=self.api_key,
+            http_client=http_client,
         )
 
     @track_llm_call("anthropic")
-    async def complete(self, prompt: str, **kwargs) -> TutorResponse:
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
+    async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
+        model = (
+            kwargs.pop("model", None)
+            or self.config.model_name
+            or "claude-3-sonnet-20240229"
+        )
         kwargs.pop("stream", None)
 
         async def _call_api():
@@ -53,8 +65,12 @@ class AnthropicProvider(BaseLLMProvider):
         return await self.execute_with_retry(_call_api)
 
     @track_llm_call("anthropic")
-    async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
+    async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
+        model = (
+            kwargs.pop("model", None)
+            or self.config.model_name
+            or "claude-3-sonnet-20240229"
+        )
         max_tokens = kwargs.pop("max_tokens", 1024)
 
         async def _create_stream():

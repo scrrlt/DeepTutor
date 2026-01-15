@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
+from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routers import (
@@ -22,8 +25,38 @@ from src.api.routers import (
     system,
 )
 from src.logging import get_logger
+from src.services.llm.exceptions import (
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
 
 logger = get_logger("API")
+
+def get_safe_detail(exc: Exception) -> str | None:
+    """
+    Return a safe detail string for non-production environments.
+
+    In production, return None to avoid leaking sensitive details.
+    """
+    environment = os.getenv("ENVIRONMENT", "").strip().lower()
+    if environment in {"production", "prod"}:
+        return None
+    detail = str(exc).strip()
+    return detail or None
+
+
+def _normalize_status_code(value: object) -> int:
+    """Normalize and validate an HTTP status code, defaulting to 500."""
+    try:
+        status_code = int(value)
+    except (TypeError, ValueError):
+        return 500
+    if status_code < 100 or status_code > 599:
+        return 500
+    return status_code
 
 CONFIG_DRIFT_ERROR_TEMPLATE = (
     "Configuration Drift Detected: Tools {drift} found in agents.yaml "
@@ -33,7 +66,7 @@ CONFIG_DRIFT_ERROR_TEMPLATE = (
 )
 
 
-def validate_tool_consistency():
+def validate_tool_consistency() -> None:
     """
     Validate that the tools configured for agents are consistent with the main application
     configuration.
@@ -104,8 +137,12 @@ def validate_tool_consistency():
         main_config = load_config_with_main("main.yaml", project_root)
         agent_config_data = load_config_with_main("agents.yaml", project_root)
 
-        main_tools = set(main_config.get("solve", {}).get("valid_tools", []))
-        agent_tools = set(agent_config_data.get("investigate", {}).get("valid_tools", []))
+        main_tools = set(
+            main_config.get("solve", {}).get("valid_tools", [])
+        )
+        agent_tools = set(
+            agent_config_data.get("investigate", {}).get("valid_tools", [])
+        )
 
         if not agent_tools.issubset(main_tools):
             drift = agent_tools - main_tools
@@ -119,7 +156,7 @@ def validate_tool_consistency():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifecycle management
     Gracefully handle startup and shutdown events, avoid CancelledError
@@ -131,8 +168,20 @@ async def lifespan(app: FastAPI):
     validate_tool_consistency()
 
     yield
+
     # Execute on shutdown
     logger.info("Application shutdown")
+
+    # Close shared HTTP client to release connections
+    try:
+        from src.services.llm.http_client import close_shared_http_client
+
+        await close_shared_http_client()
+        logger.info("Shared HTTP client closed successfully")
+    except Exception as e:
+        logger.error(
+            f"Error closing shared HTTP client: {e}"
+        )
 
 
 app = FastAPI(
@@ -145,6 +194,105 @@ app = FastAPI(
     # See: https://github.com/HKUDS/DeepTutor/issues/112
     redirect_slashes=False,
 )
+
+
+# Global exception handlers for proper HTTP status codes
+@app.exception_handler(Exception)
+async def llm_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handle LLM-related errors with appropriate HTTP status codes.
+
+    Circuit breaker errors return 503 Service Unavailable to allow clients
+    to handle backpressure correctly. Other LLM errors are mapped based on
+    their type (rate limit -> 429, auth -> 401, etc.).
+    """
+    # Circuit breaker - return 503 Service Unavailable
+    if isinstance(exc, LLMError) and getattr(exc, "is_circuit_breaker", False):
+        logger.warning(f"Circuit breaker triggered: {exc}")
+        content = {
+            "error": "service_unavailable",
+            "message": (
+                "The LLM service is temporarily unavailable. "
+                "Please try again later."
+            ),
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=content,
+        )
+    
+    # Rate limit errors - return 429 Too Many Requests
+    if isinstance(exc, LLMRateLimitError):
+        logger.warning(f"Rate limit exceeded: {exc}")
+        content = {
+            "error": "rate_limit_exceeded",
+            "message": "Rate limit exceeded. Please try again later.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content=content,
+        )
+    
+    # Authentication errors - return 401 Unauthorized
+    if isinstance(exc, LLMAuthenticationError):
+        logger.error(f"Authentication error: {exc}")
+        content = {
+            "error": "authentication_failed",
+            "message": (
+                "LLM authentication failed. "
+                "Please check your API credentials."
+            ),
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=content,
+        )
+    
+    # Timeout errors - return 504 Gateway Timeout
+    if isinstance(exc, LLMTimeoutError):
+        logger.warning(f"LLM timeout: {exc}")
+        content = {
+            "error": "gateway_timeout",
+            "message": "The LLM request timed out. Please try again.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            content=content,
+        )
+    
+    # Generic LLM API errors - map based on status code
+    if isinstance(exc, LLMAPIError):
+        status_code = _normalize_status_code(getattr(exc, "status_code", None))
+        logger.error(
+            f"LLM API error (status {status_code}): {exc}"
+        )
+        content = {
+            "error": "llm_api_error",
+            "message": "An error occurred while communicating with the LLM.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status_code,
+            content=content,
+        )
+    
+    # Re-raise for other exceptions to be handled by default handler
+    raise exc
+
 
 # Configure CORS
 app.add_middleware(
