@@ -10,7 +10,7 @@ import logging
 import os
 from typing import AsyncGenerator, Dict, List, Optional
 
-import aiohttp
+import httpx
 from lightrag.llm.openai import openai_complete_if_cache
 
 from src.logging import get_logger
@@ -193,7 +193,7 @@ async def _openai_complete(
     except Exception:
         pass  # Fall through to direct call
 
-    # Fallback: Direct aiohttp call
+    # Fallback: Direct httpx call
     if not content and base_url:
         # Build URL using unified utility (use binding for Azure detection)
         url = build_chat_url(base_url, api_version, binding)
@@ -218,22 +218,21 @@ async def _openai_complete(
         if "response_format" in kwargs:
             data["response_format"] = kwargs["response_format"]
 
-        timeout = aiohttp.ClientTimeout(total=120)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, headers=headers, json=data) as resp:
-                if resp.status == 200:
-                    result = await resp.json()
-                    if "choices" in result and result["choices"]:
-                        msg = result["choices"][0].get("message", {})
-                        # Use unified response extraction
-                        content = extract_response_content(msg)
-                else:
-                    error_text = await resp.text()
-                    raise LLMAPIError(
-                        f"OpenAI API error: {error_text}",
-                        status_code=resp.status,
-                        provider=binding or "openai",
-                    )
+        timeout = httpx.Timeout(120.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, headers=headers, json=data)
+            if resp.status_code == 200:
+                result = resp.json()
+                if "choices" in result and result["choices"]:
+                    msg = result["choices"][0].get("message", {})
+                    # Use unified response extraction
+                    content = extract_response_content(msg)
+            else:
+                raise LLMAPIError(
+                    f"OpenAI API error: {resp.text}",
+                    status_code=resp.status_code,
+                    provider=binding or "openai",
+                )
 
     if content is not None:
         # Clean thinking tags from response using unified utility
@@ -296,14 +295,18 @@ async def _openai_stream(
     if "response_format" in kwargs:
         data["response_format"] = kwargs["response_format"]
 
-    timeout = aiohttp.ClientTimeout(total=300)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(url, headers=headers, json=data) as resp:
-            if resp.status != 200:
-                error_text = await resp.text()
+    timeout = httpx.Timeout(300.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        async with client.stream(
+            "POST",
+            url,
+            headers=headers,
+            json=data,
+        ) as resp:
+            if resp.status_code != 200:
                 raise LLMAPIError(
-                    f"OpenAI stream error: {error_text}",
-                    status_code=resp.status,
+                    f"OpenAI stream error: {resp.text}",
+                    status_code=resp.status_code,
                     provider=binding or "openai",
                 )
 
@@ -311,8 +314,8 @@ async def _openai_stream(
             in_thinking_block = False
             thinking_buffer = ""
 
-            async for line in resp.content:
-                line_str = line.decode("utf-8").strip()
+            async for line_str in resp.aiter_lines():
+                line_str = line_str.strip()
                 if not line_str or not line_str.startswith("data:"):
                     continue
 
@@ -388,19 +391,18 @@ async def _anthropic_complete(
         "temperature": kwargs.get("temperature", 0.7),
     }
 
-    timeout = aiohttp.ClientTimeout(total=120)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(url, headers=headers, json=data) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise LLMAPIError(
-                    f"Anthropic API error: {error_text}",
-                    status_code=response.status,
-                    provider="anthropic",
-                )
+    timeout = httpx.Timeout(120.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(url, headers=headers, json=data)
+        if response.status_code != 200:
+            raise LLMAPIError(
+                f"Anthropic API error: {response.text}",
+                status_code=response.status_code,
+                provider="anthropic",
+            )
 
-            result = await response.json()
-            return result["content"][0]["text"]
+        result = response.json()
+        return result["content"][0]["text"]
 
 
 async def _anthropic_stream(
@@ -447,19 +449,23 @@ async def _anthropic_stream(
         "stream": True,
     }
 
-    timeout = aiohttp.ClientTimeout(total=300)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(url, headers=headers, json=data) as response:
-            if response.status != 200:
-                error_text = await response.text()
+    timeout = httpx.Timeout(300.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        async with client.stream(
+            "POST",
+            url,
+            headers=headers,
+            json=data,
+        ) as response:
+            if response.status_code != 200:
                 raise LLMAPIError(
-                    f"Anthropic stream error: {error_text}",
-                    status_code=response.status,
+                    f"Anthropic stream error: {response.text}",
+                    status_code=response.status_code,
                     provider="anthropic",
                 )
 
-            async for line in response.content:
-                line_str = line.decode("utf-8").strip()
+            async for line_str in response.aiter_lines():
+                line_str = line_str.strip()
                 if not line_str or not line_str.startswith("data:"):
                     continue
 
@@ -481,9 +487,9 @@ async def _anthropic_stream(
 
 async def fetch_models(
     base_url: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     binding: str = "openai",
-) -> List[str]:
+) -> list[str]:
     """
     Fetch available models from cloud provider.
 
@@ -503,24 +509,26 @@ async def fetch_models(
     # Remove Content-Type for GET request
     headers.pop("Content-Type", None)
 
-    timeout = aiohttp.ClientTimeout(total=30)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    timeout = httpx.Timeout(30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             url = f"{base_url}/models"
-            async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
-                    elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                if "data" in data and isinstance(data["data"], list):
+                    return [
+                        m.get("id") or m.get("name")
+                        for m in data["data"]
+                        if m.get("id") or m.get("name")
+                    ]
+                if isinstance(data, list):
+                    return [
+                        m.get("id") or m.get("name")
+                        if isinstance(m, dict)
+                        else str(m)
+                        for m in data
+                    ]
             return []
         except Exception as e:
             logger.error(f"Error fetching models from {base_url}: {e}")

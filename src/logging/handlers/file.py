@@ -5,11 +5,15 @@ File Log Handlers
 File-based logging with rotation support.
 """
 
-import asyncio
 from datetime import datetime
 import json
 import logging
-from logging.handlers import RotatingFileHandler as BaseRotatingFileHandler
+import queue
+from logging.handlers import (
+    QueueHandler,
+    QueueListener,
+    RotatingFileHandler as BaseRotatingFileHandler,
+)
 from pathlib import Path
 from typing import Optional
 
@@ -96,15 +100,9 @@ class RotatingFileHandler(BaseRotatingFileHandler):
         self.setFormatter(FileFormatter())
 
 
-class JSONFileHandler(logging.Handler):
+class _JSONFileWriterHandler(logging.Handler):
     """
-    A logging handler that writes structured JSON logs to a file.
-    Each line is a valid JSON object (JSONL format).
-
-    Useful for:
-    - LLM call logging
-    - Structured analysis
-    - Log parsing and analysis
+    Blocking JSON file writer used by QueueListener.
     """
 
     def __init__(
@@ -131,7 +129,7 @@ class JSONFileHandler(logging.Handler):
         self.setLevel(level)
         self.setFormatter(logging.Formatter("%(message)s"))
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         """Emit a log record as JSON."""
         try:
             # Build JSON entry
@@ -153,6 +151,40 @@ class JSONFileHandler(logging.Handler):
 
         except Exception:
             self.handleError(record)
+
+
+class JSONFileHandler(QueueHandler):
+    """
+    Queue-based JSON file handler to avoid blocking the event loop.
+
+    Uses a background QueueListener thread for file I/O.
+    """
+
+    def __init__(
+        self,
+        filepath: str,
+        level: int = logging.DEBUG,
+        encoding: str = "utf-8",
+    ):
+        log_queue: "queue.Queue[logging.LogRecord]" = queue.SimpleQueue()
+        super().__init__(log_queue)
+
+        writer = _JSONFileWriterHandler(
+            filepath=filepath,
+            level=level,
+            encoding=encoding,
+        )
+        writer.setFormatter(logging.Formatter("%(message)s"))
+
+        self._listener = QueueListener(log_queue, writer)
+        self._listener.start()
+        self.setLevel(level)
+
+    def close(self) -> None:
+        try:
+            self._listener.stop()
+        finally:
+            super().close()
 
 
 def create_task_logger(

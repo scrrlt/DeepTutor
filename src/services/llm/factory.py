@@ -42,6 +42,7 @@ from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
+    LLMConfigError,
     LLMRateLimitError,
     LLMTimeoutError,
 )
@@ -157,6 +158,9 @@ async def complete(
 
     # Determine which provider to use
     use_local = _should_use_local(base_url)
+
+    if not use_local and not api_key:
+        raise LLMConfigError("API key is required for cloud providers")
 
     # Define helper to determine if a generic LLMAPIError is retriable
     def _is_retriable_llm_api_error(exc: BaseException) -> bool:

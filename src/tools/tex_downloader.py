@@ -23,7 +23,7 @@ import tempfile
 from typing import Generator
 import zipfile
 
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class TexDownloader:
 
             # Download source package
             logger.info(f"  Downloading source: {source_url}")
-            response = requests.get(source_url, timeout=30)
+            response = httpx.get(source_url, timeout=30)
             response.raise_for_status()
 
             # Create temporary directory
@@ -129,7 +129,7 @@ class TexDownloader:
                 success=True, tex_path=str(final_tex_path), tex_content=tex_content
             )
 
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             return TexDownloadResult(success=False, error=f"Download failed: {e!s}")
         except Exception as e:
             return TexDownloadResult(success=False, error=f"Processing failed: {e!s}")

@@ -3,18 +3,18 @@ Local LLM Provider
 ==================
 
 Handles all local/self-hosted LLM calls (LM Studio, Ollama, vLLM, llama.cpp, etc.)
-Uses aiohttp instead of httpx for better compatibility with local servers.
+Uses httpx for async HTTP calls with connection pooling.
 
 Key features:
-- Uses aiohttp (httpx has known 502 issues with some local servers like LM Studio)
+- Uses httpx async client for local servers
 - Handles thinking tags (<think>) from reasoning models like Qwen
 - Extended timeouts for potentially slower local inference
 """
 
 import json
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import AsyncGenerator, Dict, List
 
-import aiohttp
+import httpx
 
 from src.logging import get_logger
 
@@ -36,16 +36,16 @@ DEFAULT_TIMEOUT = 300  # 5 minutes
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: List[Dict[str, str]] | None = None,
     **kwargs,
 ) -> str:
     """
     Complete a prompt using local LLM server.
 
-    Uses aiohttp for better compatibility with local servers.
+    Uses httpx async client for local servers.
 
     Args:
         prompt: The user prompt (ignored if messages provided)
@@ -90,19 +90,18 @@ async def complete(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
+    timeout = httpx.Timeout(kwargs.get("timeout", DEFAULT_TIMEOUT))
 
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(url, json=data, headers=headers) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise LLMAPIError(
-                    f"Local LLM error: {error_text}",
-                    status_code=response.status,
-                    provider="local",
-                )
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(url, json=data, headers=headers)
+        if response.status_code != 200:
+            raise LLMAPIError(
+                f"Local LLM error: {response.text}",
+                status_code=response.status_code,
+                provider="local",
+            )
 
-            result = await response.json()
+        result = response.json()
 
             if "choices" in result and result["choices"]:
                 msg = result["choices"][0].get("message", {})
@@ -112,22 +111,22 @@ async def complete(
                 content = clean_thinking_tags(content)
                 return content
 
-            return ""
+        return ""
 
 
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: List[Dict[str, str]] | None = None,
     **kwargs,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.
 
-    Uses aiohttp for better compatibility with local servers.
+    Uses httpx async client for local servers.
     Falls back to non-streaming if streaming fails.
 
     Args:
@@ -172,16 +171,20 @@ async def stream(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
+    timeout = httpx.Timeout(kwargs.get("timeout", DEFAULT_TIMEOUT))
 
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, json=data, headers=headers) as response:
-                if response.status != 200:
-                    error_text = await response.text()
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                "POST",
+                url,
+                json=data,
+                headers=headers,
+            ) as response:
+                if response.status_code != 200:
                     raise LLMAPIError(
-                        f"Local LLM stream error: {error_text}",
-                        status_code=response.status,
+                        f"Local LLM stream error: {response.text}",
+                        status_code=response.status_code,
                         provider="local",
                     )
 
@@ -189,8 +192,8 @@ async def stream(
                 in_thinking_block = False
                 thinking_buffer = ""
 
-                async for line in response.content:
-                    line_str = line.decode("utf-8").strip()
+                async for line_str in response.aiter_lines():
+                    line_str = line_str.strip()
 
                     # Skip empty lines
                     if not line_str:
@@ -272,8 +275,8 @@ async def stream(
 
 async def fetch_models(
     base_url: str,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """
     Fetch available models from local LLM server.
 
@@ -295,28 +298,28 @@ async def fetch_models(
     # Remove Content-Type for GET request
     headers.pop("Content-Type", None)
 
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = httpx.Timeout(30.0)
 
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         # Try Ollama /api/tags first
         is_ollama = ":11434" in base_url or "ollama" in base_url.lower()
         if is_ollama:
             try:
                 ollama_url = base_url.replace("/v1", "") + "/api/tags"
-                async with session.get(ollama_url, headers=headers) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if "models" in data:
-                            return [m["name"] for m in data.get("models", [])]
+                resp = await client.get(ollama_url, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if "models" in data:
+                        return [m["name"] for m in data.get("models", [])]
             except Exception:
                 pass
 
         # Try OpenAI-compatible /models
         try:
             models_url = f"{base_url}/models"
-            async with session.get(models_url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
+            resp = await client.get(models_url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
 
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):

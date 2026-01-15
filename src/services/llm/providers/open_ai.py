@@ -3,6 +3,7 @@ from typing import Any
 import openai
 
 from ..config import LLMConfig
+from ..exceptions import LLMConfigError
 from ..http_client import get_shared_http_client
 from ..registry import register_provider
 from ..telemetry import track_llm_call
@@ -35,11 +36,9 @@ class OpenAIProvider(BaseLLMProvider):
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "gpt-4o"
-        )
+        model = kwargs.pop("model", None) or self.config.model
+        if not model:
+            raise LLMConfigError("Model not configured for OpenAI provider")
         kwargs.pop("stream", None)
 
         async def _call_api():
@@ -70,11 +69,9 @@ class OpenAIProvider(BaseLLMProvider):
         prompt: str,
         **kwargs: Any,
     ) -> AsyncStreamGenerator:  # type: ignore[override]
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "gpt-4o"
-        )
+        model = kwargs.pop("model", None) or self.config.model
+        if not model:
+            raise LLMConfigError("Model not configured for OpenAI provider")
 
         async def _create_stream():
             client = await self._get_client()

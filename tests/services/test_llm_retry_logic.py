@@ -189,9 +189,7 @@ class TestExponentialBackoff:
         with patch("src.services.llm.factory.cloud_provider") as mock_cloud:
             call_count = 0
             sleep_calls = []
-
-            async def fake_sleep(duration: float) -> None:
-                sleep_calls.append(duration)
+            mock_sleep = AsyncMock(side_effect=sleep_calls.append)
 
             async def track_time(*args, **kwargs):
                 nonlocal call_count
@@ -209,10 +207,11 @@ class TestExponentialBackoff:
                 api_key="test-key",
                 max_retries=3,
                 retry_delay=0.1,
-                sleep=fake_sleep,
+                sleep=mock_sleep,
             )
 
             assert call_count == 3
+            assert mock_sleep.await_count == 2
             assert len(sleep_calls) == 2
             delay1 = sleep_calls[0]
             delay2 = sleep_calls[1]

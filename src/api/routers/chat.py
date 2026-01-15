@@ -14,7 +14,8 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 _project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
-from src.agents.chat import ChatAgent, SessionManager
+from src.agents.chat import ChatAgent
+from src.agents.chat.session_manager import get_session_manager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm.config import get_llm_config
@@ -28,7 +29,7 @@ logger = get_logger("ChatAPI", level="INFO", log_dir=log_dir)
 router = APIRouter()
 
 # Initialize session manager
-session_manager = SessionManager()
+session_manager = get_session_manager()
 
 
 # =============================================================================

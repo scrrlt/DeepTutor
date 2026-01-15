@@ -14,7 +14,7 @@ Features:
 from datetime import datetime
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -94,7 +94,7 @@ class BaiduProvider(BaseSearchProvider):
         if instruction:
             payload["instruction"] = instruction
 
-        response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
+        response = httpx.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
 
         if response.status_code != 200:
             try:

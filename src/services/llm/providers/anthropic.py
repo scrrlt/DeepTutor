@@ -3,6 +3,7 @@ from typing import Any
 import anthropic
 
 from ..config import LLMConfig
+from ..exceptions import LLMConfigError
 from ..http_client import get_shared_http_client
 from ..registry import register_provider
 from ..telemetry import track_llm_call
@@ -33,11 +34,9 @@ class AnthropicProvider(BaseLLMProvider):
 
     @track_llm_call("anthropic")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "claude-3-sonnet-20240229"
-        )
+        model = kwargs.pop("model", None) or self.config.model
+        if not model:
+            raise LLMConfigError("Model not configured for Anthropic provider")
         kwargs.pop("stream", None)
 
         async def _call_api():
@@ -69,11 +68,9 @@ class AnthropicProvider(BaseLLMProvider):
 
     @track_llm_call("anthropic")
     async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "claude-3-sonnet-20240229"
-        )
+        model = kwargs.pop("model", None) or self.config.model
+        if not model:
+            raise LLMConfigError("Model not configured for Anthropic provider")
         max_tokens = kwargs.pop("max_tokens", 1024)
 
         async def _create_stream():

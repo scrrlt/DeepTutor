@@ -15,12 +15,11 @@ jinja2>=3.1.0              # Template engine for search consolidation
 # ============================================
 # HTTP and API clients
 # ============================================
-requests>=2.32.2
 openai>=1.30.0
 anthropic>=0.30.0          # Anthropic Claude API
 perplexityai>=0.1.0
 dashscope>=1.14.0
-aiohttp>=3.9.4
+redis>=5.0.0
 httpx>=0.27.0
 urllib3>=2.2.1
 
@@ -74,6 +73,7 @@ PyMuPDF>=1.26.0      # For PDF text extraction (fast and reliable)
 # Development and testing tools
 # ============================================
 pytest>=7.0.0              # Testing framework
+hypothesis>=6.90.0
 pre-commit>=3.0.0
 safety<3.0.0               # Pin to stable 2.x version, 3.0.0 is broken
 bandit>=1.8.0

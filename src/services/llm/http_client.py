@@ -20,7 +20,7 @@ import asyncio
 import httpx
 
 _shared_client: httpx.AsyncClient | None = None
-_shared_client_lock = asyncio.Lock()
+_shared_client_lock: asyncio.Lock | None = None
 
 
 async def get_shared_http_client() -> httpx.AsyncClient:
@@ -37,6 +37,11 @@ async def get_shared_http_client() -> httpx.AsyncClient:
         httpx.AsyncClient: Shared HTTP client instance
     """
     global _shared_client
+
+    global _shared_client_lock
+
+    if _shared_client_lock is None:
+        _shared_client_lock = asyncio.Lock()
 
     async with _shared_client_lock:
         if _shared_client is None:
@@ -61,6 +66,9 @@ async def close_shared_http_client() -> None:
     are properly closed.
     """
     global _shared_client
+
+    if _shared_client_lock is None:
+        return
 
     client_to_close: httpx.AsyncClient | None = None
     async with _shared_client_lock:

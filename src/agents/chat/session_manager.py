@@ -11,6 +11,7 @@ This module handles:
 """
 
 import json
+import os
 from pathlib import Path
 import time
 from typing import Any
@@ -124,6 +125,7 @@ class SessionManager:
         self._save_sessions(sessions)
 
         return session
+
 
     def get_session(self, session_id: str) -> dict[str, Any] | None:
         """
@@ -296,6 +298,141 @@ class SessionManager:
         return count
 
 
+class RedisSessionManager(SessionManager):
+    """Session manager backed by Redis for multi-worker durability."""
+
+    def __init__(self, redis_url: str):
+        from redis import Redis
+
+        self.redis = Redis.from_url(redis_url, decode_responses=True)
+
+    def _session_key(self, session_id: str) -> str:
+        return f"chat:session:{session_id}"
+
+    def _index_key(self) -> str:
+        return "chat:sessions:index"
+
+    def _load_session(self, session_id: str) -> dict[str, Any] | None:
+        raw = self.redis.get(self._session_key(session_id))
+        if not raw:
+            return None
+        return json.loads(raw)
+
+    def _save_session(self, session: dict[str, Any]) -> None:
+        session_id = session["session_id"]
+        self.redis.set(self._session_key(session_id), json.dumps(session))
+        self.redis.zadd(self._index_key(), {session_id: session["updated_at"]})
+
+    def _delete_session(self, session_id: str) -> bool:
+        pipe = self.redis.pipeline()
+        pipe.delete(self._session_key(session_id))
+        pipe.zrem(self._index_key(), session_id)
+        deleted, _ = pipe.execute()
+        return bool(deleted)
+
+    def _list_session_ids(self, limit: int) -> list[str]:
+        return self.redis.zrevrange(self._index_key(), 0, limit - 1)
+
+    def _enforce_limit(self, max_sessions: int) -> None:
+        excess = self.redis.zcard(self._index_key()) - max_sessions
+        if excess <= 0:
+            return
+        to_remove = self.redis.zrange(self._index_key(), 0, excess - 1)
+        if not to_remove:
+            return
+        pipe = self.redis.pipeline()
+        for session_id in to_remove:
+            pipe.delete(self._session_key(session_id))
+            pipe.zrem(self._index_key(), session_id)
+        pipe.execute()
+
+    def create_session(
+        self,
+        title: str = "New Chat",
+        settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        session_id = f"chat_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+        now = time.time()
+        session = {
+            "session_id": session_id,
+            "title": title[:100],
+            "messages": [],
+            "settings": settings or {},
+            "created_at": now,
+            "updated_at": now,
+        }
+        self._save_session(session)
+        self._enforce_limit(100)
+        return session
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        return self._load_session(session_id)
+
+    def update_session(
+        self,
+        session_id: str,
+        messages: list[dict[str, Any]] | None = None,
+        title: str | None = None,
+        settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        session = self._load_session(session_id)
+        if session is None:
+            return None
+        if messages is not None:
+            session["messages"] = messages
+        if title is not None:
+            session["title"] = title[:100]
+        if settings is not None:
+            session["settings"] = settings
+        session["updated_at"] = time.time()
+        self._save_session(session)
+        return session
+
+    def add_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        sources: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        session = self._load_session(session_id)
+        if session is None:
+            return None
+        message = {
+            "role": role,
+            "content": content,
+            "timestamp": time.time(),
+        }
+        if sources:
+            message["sources"] = sources
+        session.setdefault("messages", []).append(message)
+        if session.get("title") == "New Chat" and role == "user":
+            session["title"] = content[:100]
+        session["updated_at"] = time.time()
+        self._save_session(session)
+        return session
+
+    def list_sessions(
+        self,
+        limit: int = 20,
+        include_messages: bool = False,
+    ) -> list[dict[str, Any]]:
+        session_ids = self._list_session_ids(limit)
+        sessions = []
+        for session_id in session_ids:
+            session = self._load_session(session_id)
+            if session is None:
+                continue
+            if not include_messages:
+                session = dict(session)
+                session.pop("messages", None)
+            sessions.append(session)
+        return sessions
+
+    def delete_session(self, session_id: str) -> bool:
+        return self._delete_session(session_id)
+
+
 # Singleton instance for convenience
 _session_manager: SessionManager | None = None
 
@@ -304,8 +441,15 @@ def get_session_manager() -> SessionManager:
     """Get or create the global SessionManager instance."""
     global _session_manager
     if _session_manager is None:
-        _session_manager = SessionManager()
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            try:
+                _session_manager = RedisSessionManager(redis_url)
+            except ImportError:
+                _session_manager = SessionManager()
+        else:
+            _session_manager = SessionManager()
     return _session_manager
 
 
-__all__ = ["SessionManager", "get_session_manager"]
+__all__ = ["RedisSessionManager", "SessionManager", "get_session_manager"]
