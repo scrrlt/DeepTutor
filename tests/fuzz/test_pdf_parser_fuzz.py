@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from src.tools.question import pdf_parser
@@ -21,8 +21,12 @@ def _fake_run(*args: Any, **kwargs: Any):
     return Result()
 
 
-@settings(max_examples=30, deadline=1000)
-@given(st.text(min_size=0, max_size=200))
+@settings(
+    max_examples=30,
+    deadline=1000,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+@given(text=st.text(min_size=0, max_size=200))
 def test_parse_pdf_handles_random_paths(text: str, tmp_path: Path) -> None:
     """Ensure parser handles arbitrary paths without crashing."""
     fake_pdf = tmp_path / "file.pdf"
@@ -37,8 +41,12 @@ def test_parse_pdf_handles_random_paths(text: str, tmp_path: Path) -> None:
         assert isinstance(result, bool)
 
 
-@settings(max_examples=30, deadline=1000)
-@given(st.text(min_size=0, max_size=200))
+@settings(
+    max_examples=30,
+    deadline=1000,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+@given(text=st.text(min_size=0, max_size=200))
 def test_parse_pdf_rejects_non_pdf_paths(text: str, tmp_path: Path) -> None:
     """Non-PDF input should return False without crashing."""
     fake_file = tmp_path / "file.txt"

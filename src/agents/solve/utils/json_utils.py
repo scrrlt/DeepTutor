@@ -30,6 +30,18 @@ def _escape_triple_quoted_strings(text: str) -> str:
     return pattern.sub(replacer, text)
 
 
+def _parse_if_json(value: str) -> dict[str, Any] | list[Any] | None:
+    """Return parsed JSON only when it is an object or array."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+
+    if isinstance(parsed, (dict, list)):
+        return parsed
+    return None
+
+
 def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
     """
     Extract JSON object or array from text.
@@ -59,34 +71,30 @@ def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
 
     if match:
         json_str = match.group(1).strip()
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass
+        parsed = _parse_if_json(json_str)
+        if parsed is not None:
+            return parsed
 
     # 2. Try parsing the full text directly
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    parsed_full = _parse_if_json(text)
+    if parsed_full is not None:
+        return parsed_full
 
     # 3. Try extracting outermost JSON object
     json_obj_pattern = re.compile(r"\{[\s\S]*\}")
     match_obj = json_obj_pattern.search(text)
     if match_obj:
-        try:
-            return json.loads(match_obj.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_obj = _parse_if_json(match_obj.group(0))
+        if parsed_obj is not None:
+            return parsed_obj
 
     # 4. Try extracting outermost JSON array
     json_arr_pattern = re.compile(r"\[[\s\S]*\]")
     match_arr = json_arr_pattern.search(text)
     if match_arr:
-        try:
-            return json.loads(match_arr.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_arr = _parse_if_json(match_arr.group(0))
+        if parsed_arr is not None:
+            return parsed_arr
 
     return None
 

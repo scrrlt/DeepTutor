@@ -11,6 +11,18 @@ import re
 from typing import Any, Dict, Iterable, List, Union
 
 
+def _parse_if_json(value: str) -> Union[Dict[str, Any], List[Any], None]:
+    """Return parsed JSON only when it is an object or array."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+
+    if isinstance(parsed, (dict, list)):
+        return parsed
+    return None
+
+
 def extract_json_from_text(text: str) -> Union[Dict[str, Any], List[Any], None]:
     """
     Extract JSON object or array from text.
@@ -26,31 +38,27 @@ def extract_json_from_text(text: str) -> Union[Dict[str, Any], List[Any], None]:
     code_block = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if code_block:
         snippet = code_block.group(1).strip()
-        try:
-            return json.loads(snippet)
-        except json.JSONDecodeError:
-            pass
+        parsed = _parse_if_json(snippet)
+        if parsed is not None:
+            return parsed
 
     # 2) Parse entire text
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    parsed_full = _parse_if_json(text)
+    if parsed_full is not None:
+        return parsed_full
 
     # 3) Fragment parsing
     obj_match = re.search(r"\{[\s\S]*\}", text)
     if obj_match:
-        try:
-            return json.loads(obj_match.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_obj = _parse_if_json(obj_match.group(0))
+        if parsed_obj is not None:
+            return parsed_obj
 
     arr_match = re.search(r"\[[\s\S]*\]", text)
     if arr_match:
-        try:
-            return json.loads(arr_match.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_arr = _parse_if_json(arr_match.group(0))
+        if parsed_arr is not None:
+            return parsed_arr
 
     return None
 

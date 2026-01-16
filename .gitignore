@@ -195,6 +195,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 develop/
+.hypothesis
 
 # ============================================
 # Jupyter Notebook

@@ -83,7 +83,14 @@ def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str | None = None):
     if output_base_dir is None:
         output_base_dir_path = project_root / "reference_papers"
     else:
-        output_base_dir_path = Path(output_base_dir)
+        if isinstance(output_base_dir, str) and "\x00" in output_base_dir:
+            print("✗ Error: Invalid output directory path")
+            return False
+        try:
+            output_base_dir_path = Path(output_base_dir)
+        except (TypeError, ValueError):
+            print("✗ Error: Invalid output directory path")
+            return False
 
     output_base_dir_path.mkdir(parents=True, exist_ok=True)
 

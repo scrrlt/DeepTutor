@@ -1,9 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 import os
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -274,6 +275,16 @@ async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
     Circuit breaker errors return 503 Service Unavailable to allow clients
     to handle backpressure correctly. Other LLM errors are mapped based on
     their type (rate limit -> 429, auth -> 401, etc.).
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The raised LLMError instance.
+
+    Returns:
+        JSONResponse describing the error with the appropriate status code.
+
+    Raises:
+        LLMError: Re-raised when the error type is not handled explicitly.
     """
     # Circuit breaker - return 503 Service Unavailable
     if isinstance(exc, LLMError) and getattr(exc, "is_circuit_breaker", False):
@@ -281,8 +292,8 @@ async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
         content = {
             "error": "service_unavailable",
             "message": (
-                "The LLM service is temporarily unavailable. "
-                "Please try again later."
+                "Circuit breaker is open; the LLM service is temporarily "
+                "unavailable. Please try again later."
             ),
         }
         safe_detail = get_safe_detail(exc)
@@ -361,6 +372,85 @@ async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
     
     # Re-raise for other exceptions to be handled by default handler
     raise exc
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """
+    Handle uncaught exceptions with a sanitized 500 response.
+
+    HTTPException instances preserve their status code and detail while
+    other exceptions return a generic internal server error message.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The unhandled exception.
+
+    Returns:
+        JSONResponse carrying a sanitized error payload.
+    """
+    if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        raise exc
+    if isinstance(exc, asyncio.CancelledError):
+        raise exc
+    logger.error(f"Unhandled exception: {exc}")
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    message = "An unexpected error occurred. Please try again later."
+
+    if isinstance(exc, HTTPException):
+        status_code = _normalize_status_code(exc.status_code)
+        message = str(exc.detail or message)
+
+    content = {
+        "error": "internal_server_error",
+        "message": message,
+    }
+    safe_detail = get_safe_detail(exc)
+    if safe_detail:
+        content["detail"] = safe_detail
+
+    return JSONResponse(status_code=status_code, content=content)
+
+
+_original_add_exception_handler = FastAPI.add_exception_handler
+
+
+def _add_exception_handler_with_default(
+    self: FastAPI,
+    exc_class_or_status_code: object,
+    handler: object,
+) -> object:
+    """
+    Ensure a default exception handler is always registered.
+
+    Args:
+        exc_class_or_status_code: Exception class or HTTP status code.
+        handler: The handler callable to register.
+
+    Returns:
+        The result from FastAPI.add_exception_handler.
+    """
+    if Exception not in self.exception_handlers:
+        self.exception_handlers[Exception] = generic_exception_handler
+    if ValueError not in self.exception_handlers:
+        self.exception_handlers[ValueError] = generic_exception_handler
+    return _original_add_exception_handler(
+        self,
+        exc_class_or_status_code,
+        handler,
+    )
+
+
+if getattr(
+    FastAPI.add_exception_handler,
+    "_deep_tutor_patched",
+    False,
+) is False:
+    FastAPI.add_exception_handler = _add_exception_handler_with_default
+    FastAPI.add_exception_handler._deep_tutor_patched = True
 
 
 # Configure CORS

@@ -14,8 +14,31 @@ Based on: TODO.md specification
 
 import os
 import re
+from typing import Dict
 
 import tiktoken
+
+
+_ENCODER_CACHE: Dict[str | None, tiktoken.Encoding] = {}
+
+
+def _get_encoder(model: str | None) -> tiktoken.Encoding:
+    """Return a cached tiktoken encoder for the requested model."""
+    key = model or "__default__"
+    cached = _ENCODER_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        if model:
+            encoder = tiktoken.encoding_for_model(model)
+        else:
+            encoder = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        encoder = tiktoken.get_encoding("cl100k_base")
+
+    _ENCODER_CACHE[key] = encoder
+    return encoder
 
 
 class TexChunker:
@@ -31,16 +54,7 @@ class TexChunker:
         # Read model configuration from environment variables
         if model is None:
             model = os.getenv("LLM_MODEL")
-
-        try:
-            if model:
-                self.encoder = tiktoken.encoding_for_model(model)
-            else:
-                # Use cl100k_base as default encoding if no model specified
-                self.encoder = tiktoken.get_encoding("cl100k_base")
-        except Exception:
-            # If model not supported, use cl100k_base (GPT-4 encoding)
-            self.encoder = tiktoken.get_encoding("cl100k_base")
+        self.encoder = _get_encoder(model)
 
     def estimate_tokens(self, text: str) -> int:
         """
