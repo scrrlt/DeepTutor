@@ -6,11 +6,12 @@ Console Log Handler
 Color-coded console output with symbols.
 """
 
-import logging
+from .._stdlib_logging import stdlib_logging
 import sys
 
 
-class ConsoleFormatter(logging.Formatter):
+
+class ConsoleFormatter(stdlib_logging.Formatter):
     """
     Clean console formatter with colors and symbols.
     Format: [Module]    Symbol Message
@@ -39,7 +40,7 @@ class ConsoleFormatter(logging.Formatter):
         "CRITICAL": "✗",
     }
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: stdlib_logging.LogRecord) -> str:
         # Get module name (padded to 12 chars for alignment)
         module = getattr(record, "module_name", record.name)
         module_padded = f"[{module}]".ljust(14)
@@ -58,12 +59,12 @@ class ConsoleFormatter(logging.Formatter):
         return f"{self.DIM}{module_padded}{self.RESET} {color}{symbol}{self.RESET} {message}"
 
 
-class ConsoleHandler(logging.StreamHandler):
+class ConsoleHandler(stdlib_logging.StreamHandler):
     """
     Console handler with color-coded output.
     """
 
-    def __init__(self, level: int = logging.INFO):
+    def __init__(self, level: int = stdlib_logging.INFO):
         """
         Initialize console handler.
 

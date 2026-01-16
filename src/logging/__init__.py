@@ -26,15 +26,6 @@ Usage:
 """
 
 # Core logging
-# Adapters for external libraries
-from .adapters import (
-    LightRAGLogContext,
-    LightRAGLogForwarder,
-    LlamaIndexLogContext,
-    LlamaIndexLogForwarder,
-    get_lightrag_forwarding_config,
-)
-
 # Configuration
 from .config import (
     LoggingConfig,
@@ -101,3 +92,22 @@ __all__ = [
     "load_logging_config",
     "get_default_log_dir",
 ]
+
+
+def __getattr__(name):
+    """Lazy import adapters to avoid circular import issues."""
+    if name in ("LightRAGLogContext", "LightRAGLogForwarder", "get_lightrag_forwarding_config"):
+        from .adapters import LightRAGLogContext, LightRAGLogForwarder, get_lightrag_forwarding_config
+        if name == "LightRAGLogContext":
+            return LightRAGLogContext
+        elif name == "LightRAGLogForwarder":
+            return LightRAGLogForwarder
+        elif name == "get_lightrag_forwarding_config":
+            return get_lightrag_forwarding_config
+    elif name in ("LlamaIndexLogContext", "LlamaIndexLogForwarder"):
+        from .adapters import LlamaIndexLogContext, LlamaIndexLogForwarder
+        if name == "LlamaIndexLogContext":
+            return LlamaIndexLogContext
+        elif name == "LlamaIndexLogForwarder":
+            return LlamaIndexLogForwarder
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

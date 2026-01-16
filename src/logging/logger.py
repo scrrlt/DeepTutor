@@ -13,6 +13,9 @@ Example outputs:
     [Knowledge] ✓ Indexed 150 documents
 """
 
+from ._stdlib_logging import stdlib_logging
+
+
 from datetime import datetime
 from enum import Enum
 import json
@@ -37,7 +40,7 @@ class LogLevel(Enum):
     COMPLETE = ("INFO", "✓")  # Checkmark for completion
 
 
-class ConsoleFormatter(logging.Formatter):
+class ConsoleFormatter(stdlib_logging.Formatter):
     """
     Clean console formatter with colors and symbols.
     Format: [Module]    Symbol Message
@@ -66,7 +69,7 @@ class ConsoleFormatter(logging.Formatter):
         stderr_tty = hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
         self.use_colors = stdout_tty or stderr_tty
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: stdlib_logging.LogRecord) -> str:
         # Get module name (padded to 12 chars for alignment)
         module = getattr(record, "module_name", record.name)
         module_padded = f"[{module}]".ljust(14)
@@ -92,7 +95,7 @@ class ConsoleFormatter(logging.Formatter):
         return f"{dim}{module_padded}{reset} {color}{symbol}{reset} {message}"
 
 
-class FileFormatter(logging.Formatter):
+class FileFormatter(stdlib_logging.Formatter):
     """
     Detailed file formatter for log files.
     Format: TIMESTAMP [LEVEL] [Module] Message
@@ -104,7 +107,7 @@ class FileFormatter(logging.Formatter):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: stdlib_logging.LogRecord) -> str:
         # Ensure module_name exists
         if not hasattr(record, "module_name"):
             record.module_name = record.name
@@ -148,11 +151,11 @@ class Logger:
             log_dir: Log directory (default: ../user/logs/)
         """
         self.name = name
-        self.level = getattr(logging, level.upper(), logging.INFO)
+        self.level = getattr(logging, level.upper(), stdlib_logging.INFO)
 
         # Create underlying Python logger
-        self.logger = logging.getLogger(f"ai_tutor.{name}")
-        self.logger.setLevel(logging.DEBUG)  # Capture all, filter at handlers
+        self.logger = stdlib_logging.getLogger(f"ai_tutor.{name}")
+        self.logger.setLevel(stdlib_logging.DEBUG)  # Capture all, filter at handlers
         self.logger.handlers.clear()
         # Setup log directory
         log_dir_path: Path
@@ -169,7 +172,7 @@ class Logger:
 
         # Console handler
         if console_output:
-            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler = stdlib_logging.StreamHandler(sys.stdout)
             console_handler.setLevel(self.level)
             console_handler.setFormatter(ConsoleFormatter())
             self.logger.addHandler(console_handler)
@@ -179,15 +182,15 @@ class Logger:
             timestamp = datetime.now().strftime("%Y%m%d")
             log_file = log_dir_path / f"ai_tutor_{timestamp}.log"
 
-            file_handler = logging.FileHandler(log_file, encoding="utf-8")
-            file_handler.setLevel(logging.DEBUG)  # Log everything to file
+            file_handler = stdlib_logging.FileHandler(log_file, encoding="utf-8")
+            file_handler.setLevel(stdlib_logging.DEBUG)  # Log everything to file
             file_handler.setFormatter(FileFormatter())
             self.logger.addHandler(file_handler)
 
             self._log_file = log_file
 
         # For backwards compatibility with task-specific logging
-        self._task_handlers: List[logging.Handler] = []
+        self._task_handlers: List[stdlib_logging.Handler] = []
 
         # Display manager for TUI (optional, used by solve_agents)
         self.display_manager = None
@@ -207,8 +210,8 @@ class Logger:
         task_path = Path(task_log_file)
         task_path.parent.mkdir(parents=True, exist_ok=True)
 
-        handler = logging.FileHandler(task_log_file, encoding="utf-8")
-        handler.setLevel(logging.DEBUG)
+        handler = stdlib_logging.FileHandler(task_log_file, encoding="utf-8")
+        handler.setLevel(stdlib_logging.DEBUG)
         handler.setFormatter(FileFormatter())
         self.logger.addHandler(handler)
         self._task_handlers.append(handler)
@@ -242,7 +245,7 @@ class Logger:
         extra = {
             "module_name": self.name,
             "symbol": symbol,
-            "display_level": display_level or logging.getLevelName(level),
+            "display_level": display_level or stdlib_logging.getLevelName(level),
         }
         # Extract standard logging parameters from kwargs
         log_kwargs = {
@@ -256,23 +259,23 @@ class Logger:
     # Standard logging methods
     def debug(self, message: str, **kwargs):
         """Debug level log (·)"""
-        self._log(logging.DEBUG, message, symbol="·", **kwargs)
+        self._log(stdlib_logging.DEBUG, message, symbol="·", **kwargs)
 
     def info(self, message: str, **kwargs):
         """Info level log (●)"""
-        self._log(logging.INFO, message, symbol="●", **kwargs)
+        self._log(stdlib_logging.INFO, message, symbol="●", **kwargs)
 
     def warning(self, message: str, **kwargs):
         """Warning level log (⚠)"""
-        self._log(logging.WARNING, message, symbol="⚠", **kwargs)
+        self._log(stdlib_logging.WARNING, message, symbol="⚠", **kwargs)
 
     def error(self, message: str, **kwargs):
         """Error level log (✗)"""
-        self._log(logging.ERROR, message, symbol="✗", **kwargs)
+        self._log(stdlib_logging.ERROR, message, symbol="✗", **kwargs)
 
     def critical(self, message: str, **kwargs):
         """Critical level log (✗)"""
-        self._log(logging.CRITICAL, message, symbol="✗", **kwargs)
+        self._log(stdlib_logging.CRITICAL, message, symbol="✗", **kwargs)
 
     def exception(self, message: str, **kwargs):
         """Log exception with traceback"""
@@ -285,15 +288,15 @@ class Logger:
         """Success log with checkmark (✓)"""
         if elapsed is not None:
             message = f"{message} in {elapsed:.1f}s"
-        self._log(logging.INFO, message, symbol="✓", display_level="SUCCESS", **kwargs)
+        self._log(stdlib_logging.INFO, message, symbol="✓", display_level="SUCCESS", **kwargs)
 
     def progress(self, message: str, **kwargs):
         """Progress log with arrow (→)"""
-        self._log(logging.INFO, message, symbol="→", **kwargs)
+        self._log(stdlib_logging.INFO, message, symbol="→", **kwargs)
 
     def complete(self, message: str, **kwargs):
         """Completion log with checkmark (✓)"""
-        self._log(logging.INFO, message, symbol="✓", display_level="SUCCESS", **kwargs)
+        self._log(stdlib_logging.INFO, message, symbol="✓", display_level="SUCCESS", **kwargs)
 
     def stage(self, stage_name: str, status: str = "start", detail: Optional[str] = None):
         """
@@ -329,7 +332,7 @@ class Logger:
         if detail:
             message += f" | {detail}"
 
-        level = logging.ERROR if status == "error" else logging.INFO
+        level = stdlib_logging.ERROR if status == "error" else stdlib_logging.INFO
         display_level = (
             "ERROR" if status == "error" else ("SUCCESS" if status == "complete" else "INFO")
         )
@@ -358,7 +361,7 @@ class Logger:
             message += " [FAILED]"
 
         self._log(
-            logging.INFO if status != "error" else logging.ERROR,
+            stdlib_logging.INFO if status != "error" else stdlib_logging.ERROR,
             message,
             symbol=symbol,
             display_level=display_level,
@@ -394,7 +397,7 @@ class Logger:
             parts.append(f"{elapsed:.2f}s")
 
         message = " | ".join(parts)
-        self._log(logging.DEBUG, message, symbol="◆")
+        self._log(stdlib_logging.DEBUG, message, symbol="◆")
 
     def separator(self, char: str = "─", length: int = 50):
         """Print a separator line"""
@@ -433,7 +436,7 @@ class Logger:
             message += " [FAILED]"
 
         self._log(
-            logging.INFO if status != "error" else logging.ERROR,
+            stdlib_logging.INFO if status != "error" else stdlib_logging.ERROR,
             message,
             symbol=symbol,
             display_level=display_level,
@@ -517,7 +520,7 @@ class Logger:
         header = " ".join(header_parts)
 
         # Log at appropriate level
-        log_level = logging.DEBUG if level == "DEBUG" else logging.INFO
+        log_level = stdlib_logging.DEBUG if level == "DEBUG" else stdlib_logging.INFO
 
         if level == "DEBUG":
             # Full detailed output
@@ -594,7 +597,7 @@ class Logger:
         This method iterates over a copy of ``self.logger.handlers``, calls
         ``close()`` on each handler to release any underlying resources
         (such as open file streams or other I/O handles), and then removes
-        the handler from the underlying ``logging.Logger`` instance.
+        the handler from the underlying ``stdlib_logging.Logger`` instance.
 
         Note:
             This closes and removes every handler currently attached to this

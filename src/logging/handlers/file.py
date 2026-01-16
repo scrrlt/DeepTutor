@@ -6,8 +6,8 @@ File-based logging with rotation support.
 """
 
 from datetime import datetime
+from .._stdlib_logging import stdlib_logging
 import json
-import logging
 import queue
 from logging.handlers import (
     QueueHandler,
@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 
-class FileFormatter(logging.Formatter):
+class FileFormatter(stdlib_logging.Formatter):
     """
     Detailed file formatter for log files.
     Format: TIMESTAMP [LEVEL] [Module] Message
@@ -30,14 +30,14 @@ class FileFormatter(logging.Formatter):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: stdlib_logging.LogRecord) -> str:
         # Ensure module_name exists
         if not hasattr(record, "module_name"):
             record.module_name = record.name
         return super().format(record)
 
 
-class FileHandler(logging.FileHandler):
+class FileHandler(stdlib_logging.FileHandler):
     """
     File handler with detailed formatting.
     """
@@ -45,7 +45,7 @@ class FileHandler(logging.FileHandler):
     def __init__(
         self,
         filename: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         encoding: str = "utf-8",
     ):
         """
@@ -72,7 +72,7 @@ class RotatingFileHandler(BaseRotatingFileHandler):
     def __init__(
         self,
         filename: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         max_bytes: int = 10 * 1024 * 1024,  # 10MB
         backup_count: int = 5,
         encoding: str = "utf-8",
@@ -100,7 +100,7 @@ class RotatingFileHandler(BaseRotatingFileHandler):
         self.setFormatter(FileFormatter())
 
 
-class _JSONFileWriterHandler(logging.Handler):
+class _JSONFileWriterHandler(stdlib_logging.Handler):
     """
     Blocking JSON file writer used by QueueListener.
     """
@@ -108,7 +108,7 @@ class _JSONFileWriterHandler(logging.Handler):
     def __init__(
         self,
         filepath: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         encoding: str = "utf-8",
     ):
         """
@@ -127,9 +127,9 @@ class _JSONFileWriterHandler(logging.Handler):
         self.filepath = filepath
         self.encoding = encoding
         self.setLevel(level)
-        self.setFormatter(logging.Formatter("%(message)s"))
+        self.setFormatter(stdlib_logging.Formatter("%(message)s"))
 
-    def emit(self, record: logging.LogRecord) -> None:
+    def emit(self, record: stdlib_logging.LogRecord) -> None:
         """Emit a log record as JSON."""
         try:
             # Build JSON entry
@@ -163,10 +163,10 @@ class JSONFileHandler(QueueHandler):
     def __init__(
         self,
         filepath: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         encoding: str = "utf-8",
     ):
-        log_queue: "queue.Queue[logging.LogRecord]" = queue.SimpleQueue()
+        log_queue: "queue.Queue[stdlib_logging.LogRecord]" = queue.SimpleQueue()
         super().__init__(log_queue)
 
         writer = _JSONFileWriterHandler(
@@ -174,7 +174,7 @@ class JSONFileHandler(QueueHandler):
             level=level,
             encoding=encoding,
         )
-        writer.setFormatter(logging.Formatter("%(message)s"))
+        writer.setFormatter(stdlib_logging.Formatter("%(message)s"))
 
         self._listener = QueueListener(log_queue, writer)
         self._listener.start()
@@ -192,7 +192,7 @@ def create_task_logger(
     module_name: str,
     log_dir: str,
     queue: Optional["asyncio.Queue"] = None,
-) -> logging.Logger:
+) -> stdlib_logging.Logger:
     """
     Create a logger for a specific task with file and optional WebSocket output.
 
@@ -212,8 +212,8 @@ def create_task_logger(
     log_path.mkdir(parents=True, exist_ok=True)
 
     # Create logger
-    logger = logging.getLogger(f"ai_tutor.{module_name}.{task_id}")
-    logger.setLevel(logging.DEBUG)
+    logger = stdlib_logging.getLogger(f"ai_tutor.{module_name}.{task_id}")
+    logger.setLevel(stdlib_logging.DEBUG)
     logger.handlers.clear()
     logger.propagate = False
 
@@ -227,7 +227,7 @@ def create_task_logger(
     # WebSocket handler if queue provided
     if queue is not None:
         ws_handler = WebSocketLogHandler(queue)
-        ws_handler.setLevel(logging.INFO)
+        ws_handler.setLevel(stdlib_logging.INFO)
         logger.addHandler(ws_handler)
 
     return logger

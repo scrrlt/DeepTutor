@@ -7,11 +7,12 @@ Forwards LlamaIndex logs to DeepTutor's unified logging system.
 """
 
 from contextlib import contextmanager
-import logging
+from .._ stdlib_logging import stdlib_logging
 from typing import Any, Dict, List, Optional, Tuple
 
 
-class LlamaIndexLogForwarder(logging.Handler):
+
+class LlamaIndexLogForwarder(stdlib_logging.Handler):
     """
     Handler that forwards LlamaIndex logger messages to DeepTutor logger.
     """
@@ -26,9 +27,9 @@ class LlamaIndexLogForwarder(logging.Handler):
         self.ai_tutor_logger = ai_tutor_logger
         self.add_prefix = add_prefix
         # Capture all log levels
-        self.setLevel(logging.DEBUG)
+        self.setLevel(stdlib_logging.DEBUG)
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: stdlib_logging.LogRecord):
         """
         Forward log record to DeepTutor logger.
         """
@@ -37,11 +38,11 @@ class LlamaIndexLogForwarder(logging.Handler):
 
             # Map log levels
             level = record.levelno
-            if level >= logging.ERROR:
+            if level >= stdlib_logging.ERROR:
                 self.ai_tutor_logger.error(message)
-            elif level >= logging.WARNING:
+            elif level >= stdlib_logging.WARNING:
                 self.ai_tutor_logger.warning(message)
-            elif level >= logging.INFO:
+            elif level >= stdlib_logging.INFO:
                 self.ai_tutor_logger.info(message)
             else:
                 self.ai_tutor_logger.debug(message)
@@ -82,18 +83,18 @@ def LlamaIndexLogContext(
 
     # Get LlamaIndex loggers
     llama_loggers = [
-        logging.getLogger("llama_index"),
-        logging.getLogger("llama_index.core"),
-        logging.getLogger("llama_index.vector_stores"),
-        logging.getLogger("llama_index.embeddings"),
+        stdlib_logging.getLogger("llama_index"),
+        stdlib_logging.getLogger("llama_index.core"),
+        stdlib_logging.getLogger("llama_index.vector_stores"),
+        stdlib_logging.getLogger("llama_index.embeddings"),
     ]
 
     # Parse min level
-    min_level_int = getattr(logging, min_level.upper(), logging.INFO)
+    min_level_int = getattr(logging, min_level.upper(), stdlib_logging.INFO)
 
     # Store original state
     original_states: List[Dict[str, Any]] = []
-    forwarders: List[Tuple[logging.Logger, LlamaIndexLogForwarder]] = []
+    forwarders: List[Tuple[stdlib_logging.Logger, LlamaIndexLogForwarder]] = []
 
     for llama_logger in llama_loggers:
         original_states.append(
@@ -107,15 +108,15 @@ def LlamaIndexLogContext(
         # Temporarily remove console handlers
         console_handlers_to_remove = []
         for handler in llama_logger.handlers:
-            if isinstance(handler, logging.StreamHandler):
+            if isinstance(handler, stdlib_logging.StreamHandler):
                 console_handlers_to_remove.append(handler)
 
         for handler in console_handlers_to_remove:
             llama_logger.removeHandler(handler)
 
         # Set level
-        if llama_logger.level > logging.DEBUG:
-            llama_logger.setLevel(logging.DEBUG)
+        if llama_logger.level > stdlib_logging.DEBUG:
+            llama_logger.setLevel(stdlib_logging.DEBUG)
 
         # Add forwarder
         forwarder = LlamaIndexLogForwarder(ai_tutor_logger)

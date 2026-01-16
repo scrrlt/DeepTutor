@@ -7,10 +7,11 @@ Handlers for streaming logs to WebSocket clients.
 """
 
 import asyncio
-import logging
+from .._stdlib_logging import stdlib_logging
 
 
-class WebSocketLogHandler(logging.Handler):
+
+class WebSocketLogHandler(stdlib_logging.Handler):
     """
     A logging handler that streams log records to a WebSocket via asyncio Queue.
 
@@ -46,9 +47,9 @@ class WebSocketLogHandler(logging.Handler):
         super().__init__()
         self.queue = queue
         self.include_module = include_module
-        self.setFormatter(logging.Formatter("%(message)s"))
+        self.setFormatter(stdlib_logging.Formatter("%(message)s"))
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: stdlib_logging.LogRecord):
         """Emit a log record to the queue."""
         try:
             msg = self.format(record)
@@ -93,7 +94,7 @@ class LogInterceptor:
 
     Usage:
         queue = asyncio.Queue()
-        logger = logging.getLogger("ai_tutor.Solver")
+        logger = stdlib_logging.getLogger("ai_tutor.Solver")
 
         with LogInterceptor(logger, queue):
             # All logs from this logger will be streamed to queue
@@ -102,7 +103,7 @@ class LogInterceptor:
 
     def __init__(
         self,
-        logger: logging.Logger,
+        logger: stdlib_logging.Logger,
         queue: asyncio.Queue,
         include_module: bool = True,
     ):

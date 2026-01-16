@@ -7,12 +7,13 @@ Forwards LightRAG and RAG-Anything logs to DeepTutor's unified logging system.
 """
 
 from contextlib import contextmanager
-import logging
+from .._ stdlib_logging import stdlib_logging
 from pathlib import Path
 from typing import Optional
 
 
-class LightRAGLogForwarder(logging.Handler):
+
+class LightRAGLogForwarder(stdlib_logging.Handler):
     """
     Handler that forwards LightRAG logger messages to DeepTutor logger.
     """
@@ -27,9 +28,9 @@ class LightRAGLogForwarder(logging.Handler):
         self.ai_tutor_logger = ai_tutor_logger
         self.add_prefix = add_prefix
         # Capture all log levels
-        self.setLevel(logging.DEBUG)
+        self.setLevel(stdlib_logging.DEBUG)
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: stdlib_logging.LogRecord):
         """
         Forward log record to DeepTutor logger.
         All logs are forwarded as info level to maintain consistent format.
@@ -133,10 +134,10 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     # Get forwarding settings
     add_prefix = config.get("add_prefix", True)
     min_level_str = config.get("min_level", "INFO")
-    min_level = getattr(logging, min_level_str.upper(), logging.INFO)
+    min_level = getattr(logging, min_level_str.upper(), stdlib_logging.INFO)
 
     # Get LightRAG logger
-    lightrag_logger = logging.getLogger("lightrag")
+    lightrag_logger = stdlib_logging.getLogger("lightrag")
 
     # Store original handlers and level to restore later if needed
     original_handlers = lightrag_logger.handlers[:]  # Copy list
@@ -146,7 +147,7 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     # We'll forward all logs through our handler instead
     console_handlers_to_remove = []
     for handler in original_handlers:
-        if isinstance(handler, logging.StreamHandler):
+        if isinstance(handler, stdlib_logging.StreamHandler):
             console_handlers_to_remove.append(handler)
 
     for handler in console_handlers_to_remove:
@@ -155,8 +156,8 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     # Ensure LightRAG logger level is set low enough to capture all logs
     # The logger level controls which logs are created, handler level controls which are processed
     # Set to DEBUG to ensure we capture everything, then filter at handler level
-    if lightrag_logger.level > logging.DEBUG:
-        lightrag_logger.setLevel(logging.DEBUG)
+    if lightrag_logger.level > stdlib_logging.DEBUG:
+        lightrag_logger.setLevel(stdlib_logging.DEBUG)
 
     # Create and add forwarder
     forwarder = LightRAGLogForwarder(ai_tutor_logger, add_prefix=add_prefix)
