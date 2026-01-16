@@ -45,7 +45,7 @@ class LLMConfig(BaseSettings):
     )
 
     # Core fields
-    # Default chosen to keep the factory usable out-of-the-box in dev/test
+    # Default chosen to keep the factory usable
     # without forcing an environment variable.
     model: str = Field(
         "gpt-4o-mini",

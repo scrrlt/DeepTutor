@@ -28,8 +28,10 @@ from src.logging import LLMStats, get_logger
 from src.services.config import get_agent_params
 from src.services.llm import get_token_limit_kwargs, supports_response_format
 from src.services.llm.config import LLMConfig, get_llm_config
+from src.services.llm.exceptions import LLMConfigError
 from src.services.llm.factory import LLMFactory
 from src.services.prompt import get_prompt_manager
+from pydantic import SecretStr
 
 
 class BaseAgent(ABC):
@@ -100,7 +102,21 @@ class BaseAgent(ABC):
 
         # Hardened LLM config resolution
         llm_cfg = config if isinstance(config, LLMConfig) else None
-        llm_cfg = llm_cfg or get_llm_config()
+        if llm_cfg is None:
+            try:
+                llm_cfg = get_llm_config()
+            except LLMConfigError:
+                fallback_model = model or os.getenv("LLM_MODEL") or "gpt-4o-mini"
+                if api_key is not None and not isinstance(api_key, SecretStr):
+                    api_key = SecretStr(api_key)
+
+                llm_cfg = LLMConfig(
+                    model=fallback_model,
+                    binding=binding,
+                    base_url=base_url,
+                    api_key=api_key,
+                    api_version=api_version,
+                )
 
         updates: dict[str, Any] = {}
         if model is not None:
@@ -108,6 +124,8 @@ class BaseAgent(ABC):
         if base_url is not None:
             updates["base_url"] = base_url
         if api_key is not None:
+            if not isinstance(api_key, SecretStr):
+                api_key = SecretStr(api_key)
             updates["api_key"] = api_key
         if api_version is not None:
             updates["api_version"] = api_version
@@ -117,7 +135,7 @@ class BaseAgent(ABC):
         if updates:
             llm_cfg = llm_cfg.model_copy(update=updates)
 
-        self.llm_config = llm_cfg
+        self.llm_config = llm_config = llm_cfg
 
         # Provider instantiation via factory
         self.provider = LLMFactory.get_provider(self.llm_config)

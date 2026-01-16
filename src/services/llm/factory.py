@@ -43,7 +43,28 @@ class LLMFactory:
         from .providers.routing import RoutingProvider  # noqa: F401
 
         provider_cls = registry.get_provider_class("routing")
-        return provider_cls(config)
+        provider = provider_cls(config)
+        if isinstance(provider, BaseLLMProvider):
+            return provider
+
+        class _ProviderAdapter(BaseLLMProvider):
+            def __init__(self, cfg: LLMConfig, wrapped: Any) -> None:
+                self.config = cfg
+                self.provider_name = getattr(cfg, "provider_name", getattr(cfg, "binding", ""))
+                try:
+                    self.api_key = getattr(cfg, "get_api_key", lambda: None)()
+                except Exception:
+                    self.api_key = None
+                self.base_url = getattr(cfg, "base_url", None)
+                self._wrapped = wrapped
+
+            async def complete(self, prompt: str, **kwargs: Any):
+                return await self._wrapped.complete(prompt, **kwargs)
+
+            async def stream(self, prompt: str, **kwargs: Any):
+                return await self._wrapped.stream(prompt, **kwargs)
+
+        return _ProviderAdapter(config, provider)
 
 
 def _apply_config_overrides(
@@ -189,7 +210,16 @@ async def complete(
                 api_version=api_version,
             )
         else:
-            effective_config = get_llm_config()
+            try:
+                effective_config = get_llm_config()
+            except Exception:
+                effective_config = LLMConfig(
+                    model="gpt-4o-mini",
+                    binding=binding or "openai",
+                    base_url=base_url,
+                    api_key=api_key,
+                    api_version=api_version,
+                )
     else:
         effective_config = config
 
@@ -279,7 +309,16 @@ async def stream(
                 api_version=api_version,
             )
         else:
-            effective_config = get_llm_config()
+            try:
+                effective_config = get_llm_config()
+            except Exception:
+                effective_config = LLMConfig(
+                    model="gpt-4o-mini",
+                    binding=binding or "openai",
+                    base_url=base_url,
+                    api_key=api_key,
+                    api_version=api_version,
+                )
     else:
         effective_config = config
 

@@ -62,6 +62,7 @@ class LLMCall:
     prompt_tokens: int
     completion_tokens: int
     cost: float
+    stage: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -80,6 +81,7 @@ class LLMStats:
         """
         self.module_name = module_name
         self.calls: list[LLMCall] = []
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0
@@ -94,7 +96,8 @@ class LLMStats:
         system_prompt: Optional[str] = None,
         user_prompt: Optional[str] = None,
         response: Optional[str] = None,
-    ):
+        stage: Optional[str] = None,
+    ) -> None:
         """
         Add an LLM call to the stats.
 
@@ -105,6 +108,7 @@ class LLMStats:
             system_prompt: System prompt text (for estimation)
             user_prompt: User prompt text (for estimation)
             response: Response text (for estimation)
+            stage: Optional stage label for the call
         """
         # Estimate tokens if not provided
         if prompt_tokens is None and (system_prompt or user_prompt):
@@ -125,9 +129,14 @@ class LLMStats:
 
         # Record call
         call = LLMCall(
-            model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost=cost,
+            stage=stage,
         )
         self.calls.append(call)
+        self.total_calls += 1
 
         # Update totals
         self.total_prompt_tokens += prompt_tokens
@@ -173,6 +182,7 @@ class LLMStats:
     def reset(self):
         """Reset all statistics."""
         self.calls.clear()
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0

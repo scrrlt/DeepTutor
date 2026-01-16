@@ -1,31 +1,29 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-Tests for the ChatAgent.
-"""
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-
 from src.agents.chat.chat_agent import ChatAgent
 
 
 @pytest.fixture
-def chat_agent():
+def chat_agent() -> ChatAgent:
+    """Provides a ChatAgent instance with mocked dependencies.
+
+    Yields:
+        ChatAgent: An instance of the ChatAgent.
     """
-    Provides a ChatAgent instance with mocked dependencies.
-    """
-    with patch('src.agents.base_agent.get_prompt_manager'), \
-         patch('src.agents.base_agent.get_logger'):
+    with patch("src.agents.base_agent.get_prompt_manager"), patch(
+        "src.agents.base_agent.get_logger"
+    ):
         agent = ChatAgent()
         yield agent
 
 
 @pytest.mark.asyncio
 async def test_chat_agent_process_no_stream(chat_agent: ChatAgent):
-    """
-    Tests that the process method correctly calls the call_llm method when stream is False.
+    """Test that the process method correctly calls call_llm when stream is False.
+
+    Args:
+        chat_agent (ChatAgent): The ChatAgent instance.
     """
     chat_agent.call_llm = AsyncMock(return_value="test_response")
 
@@ -37,9 +35,12 @@ async def test_chat_agent_process_no_stream(chat_agent: ChatAgent):
 
 @pytest.mark.asyncio
 async def test_chat_agent_process_with_stream(chat_agent: ChatAgent):
+    """Test that the process method correctly calls stream_llm when stream is True.
+
+    Args:
+        chat_agent (ChatAgent): The ChatAgent instance.
     """
-    Tests that the process method correctly calls the stream_llm method when stream is True.
-    """
+
     async def mock_stream_llm(*args, **kwargs):
         yield "test"
         yield " response"
@@ -48,25 +49,27 @@ async def test_chat_agent_process_with_stream(chat_agent: ChatAgent):
 
     generator = await chat_agent.process("test_message", stream=True)
 
-    chunks = []
-    async for chunk in generator:
-        chunks.append(chunk)
-    
-    assert len(chunks) == 3 # 2 content chunks, 1 meta chunk
-    assert chunks[0]['content'] == 'test'
-    assert chunks[1]['content'] == ' response'
-    assert chunks[2]['type'] == 'meta'
+    chunks = [chunk async for chunk in generator]
+
+    assert len(chunks) == 3  # 2 content chunks, 1 meta chunk
+    assert chunks[0]["content"] == "test"
+    assert chunks[1]["content"] == " response"
+    assert chunks[2]["type"] == "meta"
 
 
 @pytest.mark.asyncio
 async def test_retrieve_context(chat_agent: ChatAgent):
-    """
-    Tests that the _retrieve_context method correctly calls the RAG and web search functions.
+    """Test that _retrieve_context correctly calls RAG and web search.
+
+    Args:
+        chat_agent (ChatAgent): The ChatAgent instance.
     """
     chat_agent._rag_search = AsyncMock(return_value={"answer": "rag_answer"})
     chat_agent._web_search = AsyncMock(return_value={"answer": "web_answer", "citations": []})
 
-    context, sources = await chat_agent._retrieve_context("test_message", "test_kb", True, True)
+    context, sources = await chat_agent._retrieve_context(
+        "test_message", "test_kb", True, True
+    )
 
     chat_agent._rag_search.assert_called_once_with("test_message", kb_name="test_kb")
     chat_agent._web_search.assert_called_once_with("test_message")
@@ -77,13 +80,17 @@ async def test_retrieve_context(chat_agent: ChatAgent):
 
 @pytest.mark.asyncio
 async def test_retrieve_context_exceptions(chat_agent: ChatAgent):
-    """
-    Tests that the _retrieve_context method correctly handles exceptions.
+    """Test that _retrieve_context correctly handles exceptions.
+
+    Args:
+        chat_agent (ChatAgent): The ChatAgent instance.
     """
     chat_agent._rag_search = AsyncMock(side_effect=Exception("RAG Error"))
     chat_agent._web_search = AsyncMock(side_effect=Exception("Web Search Error"))
 
-    context, sources = await chat_agent._retrieve_context("test_message", "test_kb", True, True)
+    context, sources = await chat_agent._retrieve_context(
+        "test_message", "test_kb", True, True
+    )
 
     assert context == ""
     assert len(sources["rag"]) == 0
@@ -91,8 +98,10 @@ async def test_retrieve_context_exceptions(chat_agent: ChatAgent):
     
 
 def test_truncate_history(chat_agent: ChatAgent):
-    """
-    Tests that the _truncate_history method correctly truncates the history.
+    """Test that _truncate_history correctly truncates the history.
+
+    Args:
+        chat_agent (ChatAgent): The ChatAgent instance.
     """
     history = [
         {"role": "user", "content": "This is a long message that should be truncated."},

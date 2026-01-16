@@ -5,34 +5,44 @@
 Tests for the BaseAgent.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.agents.base_agent import BaseAgent
 from src.services.llm.config import LLMConfig
 
 
 class ConcreteAgent(BaseAgent):
+    """A concrete implementation of BaseAgent for testing purposes."""
+
     async def process(self, *args, **kwargs):
+        """Process method for the concrete agent."""
         pass  # pragma: no cover
 
 
 @pytest.fixture
-def base_agent():
+def base_agent() -> BaseAgent:
+    """Provides a BaseAgent instance with mocked dependencies.
+
+    Yields:
+        BaseAgent: An instance of the BaseAgent.
     """
-    Provides a BaseAgent instance with mocked dependencies.
-    """
-    with patch('src.agents.base_agent.get_prompt_manager'), \
-         patch('src.agents.base_agent.get_logger'), \
-         patch('src.agents.base_agent.get_agent_params', return_value={"temperature": 0.5, "max_tokens": 100}):
+    with patch("src.agents.base_agent.get_prompt_manager"), patch(
+        "src.agents.base_agent.get_logger"
+    ), patch(
+        "src.agents.base_agent.get_agent_params",
+        return_value={"temperature": 0.5, "max_tokens": 100},
+    ):
         config = LLMConfig(model="test_model", binding="test_binding")
         agent = ConcreteAgent(module_name="test_module", agent_name="test_agent", config=config)
         yield agent
 
 
 def test_base_agent_initialization(base_agent: BaseAgent):
-    """
-    Tests that the BaseAgent can be initialized correctly.
+    """Test that the BaseAgent is initialized correctly.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
     assert base_agent.module_name == "test_module"
     assert base_agent.agent_name == "test_agent"
@@ -40,8 +50,10 @@ def test_base_agent_initialization(base_agent: BaseAgent):
 
 
 def test_getters(base_agent: BaseAgent):
-    """
-    Tests that the getter methods return the correct values.
+    """Test that the getter methods return the correct values.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
     assert base_agent.get_model() == "test_model"
     assert base_agent.get_temperature() == 0.5
@@ -49,13 +61,15 @@ def test_getters(base_agent: BaseAgent):
 
 
 def test_token_tracking(base_agent: BaseAgent):
-    """
-    Tests that the token tracking methods work correctly.
+    """Test that the token tracking methods work correctly.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
     base_agent.token_tracker = MagicMock()
     base_agent._track_tokens("test_model", "system", "user", "response")
     base_agent.token_tracker.add_usage.assert_called_once()
-    
+
     base_agent.get_stats("test_module").reset()
     base_agent._track_usage("response", "test_stage")
     stats = base_agent.get_stats("test_module")
@@ -64,8 +78,10 @@ def test_token_tracking(base_agent: BaseAgent):
 
 @pytest.mark.asyncio
 async def test_call_llm(base_agent: BaseAgent):
-    """
-    Tests that the call_llm method correctly calls the provider's complete method.
+    """Test that the call_llm method correctly calls the provider's complete method.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
     base_agent.provider = MagicMock()
     base_agent.provider.complete = AsyncMock(return_value=MagicMock(content="test_response"))
@@ -78,9 +94,12 @@ async def test_call_llm(base_agent: BaseAgent):
 
 @pytest.mark.asyncio
 async def test_stream_llm(base_agent: BaseAgent):
+    """Test that the stream_llm method correctly calls the provider's stream method.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
-    Tests that the stream_llm method correctly calls the provider's stream method.
-    """
+
     async def mock_stream(*args, **kwargs):
         yield MagicMock(delta="test")
         yield MagicMock(delta=" response")
@@ -88,16 +107,16 @@ async def test_stream_llm(base_agent: BaseAgent):
     base_agent.provider = MagicMock()
     base_agent.provider.stream = mock_stream
 
-    chunks = []
-    async for chunk in base_agent.stream_llm("user_prompt", "system_prompt"):
-        chunks.append(chunk)
+    chunks = [chunk async for chunk in base_agent.stream_llm("user_prompt", "system_prompt")]
 
     assert "".join(chunks) == "test response"
 
 
 def test_get_prompt(base_agent: BaseAgent):
-    """
-    Tests that the get_prompt method correctly retrieves the prompts.
+    """Test that the get_prompt method correctly retrieves prompts.
+
+    Args:
+        base_agent (BaseAgent): The BaseAgent instance.
     """
     base_agent.prompts = {"system": "system_prompt", "section": {"field": "nested_prompt"}}
 

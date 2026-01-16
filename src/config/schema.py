@@ -16,9 +16,15 @@ class PathsConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class SystemConfig(BaseModel):
+    language: str = "en"
+    model_config = ConfigDict(extra="allow")
+
+
 class AppConfig(BaseModel):
     llm: LLMConfig
     paths: PathsConfig
+    system: SystemConfig = SystemConfig()
     model_config = ConfigDict(extra="allow")
 
     @field_validator("llm", mode="before")

@@ -1,21 +1,19 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-Tests for the CitationMemory.
-"""
-
-import pytest
 import json
 from pathlib import Path
 
-from src.agents.solve.memory.citation_memory import CitationMemory, CitationItem
+import pytest
+from src.agents.solve.memory.citation_memory import CitationItem, CitationMemory
 
 
 @pytest.fixture
-def citation_memory(tmp_path):
-    """
-    Provides a CitationMemory instance with a temporary output directory.
+def citation_memory(tmp_path) -> CitationMemory:
+    """Provides a CitationMemory instance with a temporary output directory.
+
+    Args:
+        tmp_path (Path): Pytest fixture for a temporary directory.
+
+    Yields:
+        CitationMemory: An instance of the CitationMemory.
     """
     memory = CitationMemory(output_dir=str(tmp_path))
     yield memory

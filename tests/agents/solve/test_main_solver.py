@@ -2,17 +2,15 @@
 Tests for the MainSolver.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.agents.solve.main_solver import MainSolver
 
 
 @pytest.mark.asyncio
-async def test_main_solver_default_initialization() -> None:
-    """
-    Tests that the MainSolver can be initialized with default parameters.
-    """
+async def test_main_solver_default_initialization():
+    """Test that the MainSolver can be initialized with default parameters."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -47,10 +45,8 @@ async def test_main_solver_default_initialization() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_custom_config_initialization() -> None:
-    """
-    Tests that the MainSolver can be initialized with a custom configuration file.
-    """
+async def test_main_solver_custom_config_initialization():
+    """Test that the MainSolver can be initialized with a custom configuration file."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -81,10 +77,8 @@ async def test_main_solver_custom_config_initialization() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_ainit_invalid_config() -> None:
-    """
-    Tests that ainit raises a ValueError if the configuration is invalid.
-    """
+async def test_main_solver_ainit_invalid_config():
+    """Test that ainit raises a ValueError if the configuration is invalid."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -109,10 +103,8 @@ async def test_main_solver_ainit_invalid_config() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_ainit_missing_api_key() -> None:
-    """
-    Tests that ainit raises a ValueError if the API key is not set.
-    """
+async def test_main_solver_ainit_missing_api_key():
+    """Test that ainit raises a ValueError if the API key is not set."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -141,10 +133,8 @@ async def test_main_solver_ainit_missing_api_key() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_solve_workflow() -> None:
-    """
-    Tests the overall workflow of the MainSolver's solve method.
-    """
+async def test_main_solver_solve_workflow():
+    """Test the overall workflow of the MainSolver's solve method."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -188,10 +178,8 @@ async def test_main_solver_solve_workflow() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_dual_loop_pipeline() -> None:
-    """
-    Tests the dual-loop pipeline to ensure agents are called in the correct order.
-    """
+async def test_main_solver_dual_loop_pipeline():
+    """Test the dual-loop pipeline to ensure agents are called in the correct order."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,
@@ -275,10 +263,8 @@ async def test_main_solver_dual_loop_pipeline() -> None:
 
 
 @pytest.mark.asyncio
-async def test_main_solver_solve_exception_handling() -> None:
-    """
-    Tests that the solve method correctly handles exceptions.
-    """
+async def test_main_solver_solve_exception_handling():
+    """Test that the solve method correctly handles exceptions."""
     with patch(
         "src.agents.solve.main_solver.load_config_with_main_async",
         new_callable=AsyncMock,

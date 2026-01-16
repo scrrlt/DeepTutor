@@ -78,7 +78,7 @@ def is_local_llm_server(base_url: str) -> bool:
         if hostname in ("localhost", "0.0.0.0", "::1"):
             return True
 
-        # 2. Check IP address ranges (127.0.0.0/8, etc)
+        # 2. Check IP address ranges (loopback, private, etc.)
         try:
             ip = ipaddress.ip_address(hostname)
             return ip.is_loopback or ip.is_private
@@ -93,8 +93,7 @@ def is_local_llm_server(base_url: str) -> bool:
             if domain in base_url_lower:
                 return False
         
-        # If it's not a known cloud domain, and not an IP... 
-        # relying on port might be useful still
+        # If it's not a known cloud domain, fall back to explicit local ports
         for port in LOCAL_PORTS:
             if port in base_url_lower:
                 return True
@@ -128,6 +127,7 @@ def sanitize_url(base_url: str, model: str = "") -> str:
     # Strip known endpoints to get back to base
     # e.g. http://localhost:11434/api/chat -> http://localhost:11434/api
     suffixes = [
+        "/api/chat",
         "/chat/completions",
         "/messages",
         "/v1",
@@ -162,7 +162,7 @@ def clean_thinking_tags(
         Cleaned content without thinking tags
     """
     if not content:
-        return content
+        return ""
 
     # Check if model produces thinking tags (if binding/model provided)
     if binding:
