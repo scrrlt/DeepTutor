@@ -40,6 +40,7 @@ class LLMConfig(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",  # Ignore undefined env vars
         case_sensitive=False,
+        populate_by_name=True,
         frozen=True,
     )
 

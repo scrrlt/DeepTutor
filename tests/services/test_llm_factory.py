@@ -1,6 +1,7 @@
 import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock
 # CORRECTED IMPORT PATH
 from src.services.llm.factory import (
     stream, 
@@ -10,17 +11,18 @@ from src.services.llm.factory import (
     _sanitize_cache_kwargs,
     _is_retriable_llm_api_error
 )
+from src.services.llm.config import LLMConfig
 
 @pytest.fixture(autouse=True)
 def mock_llm_config():
     """Automatically mock LLM configuration for all tests in this file."""
     with patch("src.services.llm.factory.get_llm_config") as mock_get:
-        mock_config = MagicMock()
-        mock_config.binding = "openai"
-        mock_config.model = "gpt-4"
-        mock_config.api_key = "sk-test-key"
-        mock_config.provider_name = "openai" # For compatibility shim
-        mock_get.return_value = mock_config
+        mock_get.return_value = LLMConfig(
+            model="gpt-4",
+            binding="openai",
+            base_url="https://api.openai.com/v1",
+            api_key="sk-test-key",
+        )
         yield mock_get
 
 # Helper to create async generators for mocking
@@ -41,10 +43,10 @@ async def test_stream_aborts_on_mid_stream_failure():
     # Setup: Yields "Hello", then throws ConnectionResetError
     broken_gen = mock_async_gen(["Hello"], error_at_end=ConnectionResetError("Connection lost"))
     
-    # CORRECTED PATCH PATH
-    with patch("src.services.llm.factory.cloud_provider.stream", return_value=broken_gen):
-        # We expect the exception to bubble up, NOT be caught/retried
-        with pytest.raises(ConnectionResetError):
+    # Patch the underlying provider function used by the routing provider.
+    with patch("src.services.llm.cloud_provider.stream", return_value=broken_gen):
+        # We expect the exception to bubble up (no mid-stream retry).
+        with pytest.raises(LLMAPIError):
             results = []
             async for chunk in stream(
                 prompt="test", 
@@ -72,8 +74,7 @@ async def test_stream_retries_on_initial_connection_failure():
         success_gen
     ]
 
-    # CORRECTED PATCH PATH
-    with patch("src.services.llm.factory.cloud_provider.stream", mock_stream_func):
+    with patch("src.services.llm.cloud_provider.stream", mock_stream_func):
         results = []
         async for chunk in stream(
             prompt="test",
@@ -95,9 +96,13 @@ async def test_stream_retries_on_initial_connection_failure():
 ])
 async def test_provider_routing_logic(base_url, should_hit_local):
     """Verifies that URLs are correctly routed to Local vs Cloud providers."""
-    # CORRECTED PATCH PATHS
-    with patch("src.services.llm.factory.local_provider.complete", new_callable=AsyncMock) as mock_local, \
-         patch("src.services.llm.factory.cloud_provider.complete", new_callable=AsyncMock) as mock_cloud:
+    with patch(
+        "src.services.llm.local_provider.complete",
+        new_callable=AsyncMock,
+    ) as mock_local, patch(
+        "src.services.llm.cloud_provider.complete",
+        new_callable=AsyncMock,
+    ) as mock_cloud:
         
         mock_local.return_value = "local_response"
         mock_cloud.return_value = "cloud_response"

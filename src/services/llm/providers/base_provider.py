@@ -159,16 +159,23 @@ class BaseLLMProvider(ABC):
         func: Callable[..., Awaitable[Any]],
         *args: Any,
         max_retries: int = 3,
+        sleep: Callable[[float], Awaitable[None] | None] | None = None,
         **kwargs: Any,
     ) -> Any:
         """Execute with automatic retries using tenacity."""
-        retrying = AsyncRetrying(
-            stop=stop_after_attempt(max_retries + 1),
-            wait=self._wait_strategy,
-            retry=retry_if_exception(self._should_retry_error),
-            reraise=True,
-            before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
-        )
+        retry_kwargs: dict[str, Any] = {
+            "stop": stop_after_attempt(max_retries + 1),
+            "wait": self._wait_strategy,
+            "retry": retry_if_exception(self._should_retry_error),
+            "reraise": True,
+            "before_sleep": tenacity.before_sleep_log(
+                logger, logging.WARNING
+            ),
+        }
+        if sleep is not None:
+            retry_kwargs["sleep"] = sleep
+
+        retrying = AsyncRetrying(**retry_kwargs)
 
         async for attempt in retrying:
             with attempt:

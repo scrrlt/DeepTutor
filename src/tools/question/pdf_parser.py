@@ -61,7 +61,13 @@ def parse_pdf_with_mineru(
 
     # Default to 'reference_papers' in CWD if not specified
     if output_base_dir:
-        output_root = Path(output_base_dir).resolve()
+        try:
+            output_root = Path(output_base_dir).resolve()
+        except (TypeError, ValueError, OSError) as e:
+            logger.error(
+                "Invalid output directory %r: %s", output_base_dir, e
+            )
+            return False
     else:
         # Better than parent.parent... assume relative to execution context or specific env var
         output_root = Path.cwd() / "reference_papers"

@@ -82,13 +82,16 @@ class TestNoNestedRetries:
         Verify that provider.execute is called exactly once per factory retry,
         not multiple times (which would indicate nested retries).
         """
-        with patch("src.services.llm.factory.cloud_provider") as mock_cloud:
-            # Mock provider to fail twice, then succeed
-            mock_cloud.complete = AsyncMock(side_effect=[
-                LLMRateLimitError("Rate limit"),
-                LLMRateLimitError("Rate limit"),
-                "Success"
-            ])
+        with patch(
+            "src.services.llm.cloud_provider.complete",
+            new=AsyncMock(
+                side_effect=[
+                    LLMRateLimitError("Rate limit"),
+                    LLMRateLimitError("Rate limit"),
+                    "Success",
+                ]
+            ),
+        ) as mock_complete:
             
             result = await complete(
                 prompt="test",
@@ -102,13 +105,17 @@ class TestNoNestedRetries:
             assert result == "Success"
             # Should be called exactly 3 times (2 failures + 1 success)
             # NOT 9 times (3 factory retries × 3 provider retries)
-            assert mock_cloud.complete.call_count == 3
+            assert mock_complete.call_count == 3
     
     @pytest.mark.asyncio
     async def test_non_retriable_error_fails_immediately(self):
         """Non-retriable errors should fail without retry."""
-        with patch("src.services.llm.factory.cloud_provider") as mock_cloud:
-            mock_cloud.complete = AsyncMock(side_effect=LLMAuthenticationError("Invalid key"))
+        with patch(
+            "src.services.llm.cloud_provider.complete",
+            new=AsyncMock(
+                side_effect=LLMAuthenticationError("Invalid key")
+            ),
+        ) as mock_complete:
             
             with pytest.raises(LLMAuthenticationError):
                 await complete(
@@ -120,7 +127,7 @@ class TestNoNestedRetries:
                 )
             
             # Should only be called once (no retries)
-            assert mock_cloud.complete.call_count == 1
+            assert mock_complete.call_count == 1
 
 
 class TestCircuitBreakerIntegration:
@@ -186,9 +193,14 @@ class TestExponentialBackoff:
     @pytest.mark.asyncio
     async def test_retry_delays_increase_exponentially(self):
         """Verify that retry delays increase exponentially."""
-        with patch("src.services.llm.factory.cloud_provider") as mock_cloud:
+        with patch(
+            "src.services.llm.providers.base_provider.is_call_allowed",
+            return_value=True,
+        ), patch(
+            "src.services.llm.cloud_provider.complete"
+        ) as mock_complete:
             call_count = 0
-            sleep_calls = []
+            sleep_calls: list[float] = []
             mock_sleep = AsyncMock(side_effect=sleep_calls.append)
 
             async def track_time(*args, **kwargs):
@@ -198,7 +210,7 @@ class TestExponentialBackoff:
                     raise LLMTimeoutError("Timeout")
                 return "Success"
 
-            mock_cloud.complete = AsyncMock(side_effect=track_time)
+            mock_complete.side_effect = track_time
 
             await complete(
                 prompt="test",

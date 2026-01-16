@@ -48,7 +48,7 @@ def test_config_load_from_env(monkeypatch):
     config = get_llm_config()
     
     assert config.model == "gpt-4-test"
-    assert config.api_key == "sk-test-key"
+    assert config.get_api_key() == "sk-test-key"
     assert config.temperature == 0.5
     assert config.binding == "openai"  # Default
     assert config.max_tokens == 4096   # Default
@@ -76,7 +76,7 @@ def test_effective_url_unknown_binding(monkeypatch):
     monkeypatch.setenv("LLM_BINDING", "unknown_provider")
     
     config = LLMConfig()
-    
+
     # Accessing the computed field triggers the logic
     with pytest.raises(LLMConfigError, match="requires explicit base_url"):
         _ = config.effective_url
@@ -97,12 +97,10 @@ def test_alias_provider_name():
     ("claude-3-5-sonnet", "max_tokens"),
     ("deepseek-coder", "max_tokens"),
 ])
-def test_token_param_resolution(monkeypatch, model, expected_param):
-    """Test the logic for determining max_tokens vs max_completion_tokens."""
-    monkeypatch.setenv("LLM_MODEL", model)
-    config = LLMConfig()
-    assert config.token_param_name == expected_param
-    assert config.is_reasoning_model == model.startswith(("o1", "o3"))
+def test_token_param_resolution(model, expected_param):
+    """Token-limit parameter selection lives in model_rules (not config)."""
+    kwargs = get_token_limit_kwargs(model, 123)
+    assert list(kwargs.keys()) == [expected_param]
 
 def test_compatibility_shims():
     """Test the standalone compatibility functions."""
