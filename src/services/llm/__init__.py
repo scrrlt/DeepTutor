@@ -17,10 +17,10 @@ from .capabilities import (
 from .client import LLMClient, get_llm_client, reset_llm_client
 from .config import (
     LLMConfig,
+    clear_llm_config_cache,
     get_llm_config,
-    get_token_limit_kwargs,
-    uses_max_completion_tokens,
 )
+from .model_rules import get_token_limit_kwargs, uses_max_completion_tokens
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -59,6 +59,7 @@ __all__ = [
     # Config
     "LLMConfig",
     "get_llm_config",
+    "clear_llm_config_cache",
     "uses_max_completion_tokens",
     "get_token_limit_kwargs",
     # Capabilities

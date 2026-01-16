@@ -4,6 +4,7 @@ URL handling, response extraction, and thinking-tag cleanup helpers.
 """
 
 import ipaddress
+import os
 import re
 from typing import Any
 from urllib.parse import urlparse
@@ -282,7 +283,10 @@ def build_auth_headers(
 
     if binding_lower in ["anthropic", "claude"]:
         headers["x-api-key"] = api_key
-        headers["anthropic-version"] = "2023-06-01"
+        # Use explicit version configurable via env if needed, defaulting to known stable
+        headers["anthropic-version"] = os.getenv(
+            "ANTHROPIC_API_VERSION", "2023-06-01"
+        )
     elif binding_lower == "azure_openai":
         headers["api-key"] = api_key
     else:

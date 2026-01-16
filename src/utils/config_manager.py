@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
-from threading import Lock
+from threading import RLock
 from typing import Any, Dict, List, Optional
 
 from dotenv import dotenv_values, load_dotenv
@@ -33,7 +33,7 @@ class ConfigManager:
     """
 
     _instance: Optional["ConfigManager"] = None
-    _lock = Lock()
+    _lock = RLock()
 
     def __new__(cls, project_root: Optional[Path] = None):
         if cls._instance is None:

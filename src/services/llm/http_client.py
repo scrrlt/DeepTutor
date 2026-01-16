@@ -1,69 +1,77 @@
-"""Shared async HTTP client for LLM providers.
-
-Provides a singleton httpx.AsyncClient instance for connection pooling and
-Keep-Alive support across providers.
-"""
+"""Shared async HTTP client for LLM providers."""
 
 import asyncio
-
+from typing import Optional
 import httpx
+from src.logging import get_logger
 
-_shared_client: httpx.AsyncClient | None = None
-_shared_client_lock: asyncio.Lock | None = None
+logger = get_logger(__name__)
 
-
-async def get_shared_http_client() -> httpx.AsyncClient:
+class HTTPClientManager:
     """
-    Get or create the shared httpx.AsyncClient instance.
-
-    This client is configured with:
-    - Connection pooling (max 100 connections, 20 keepalive connections)
-    - HTTP/2 support
-    - 30 second timeout
-    - Keep-Alive connections
-
-    Returns:
-        httpx.AsyncClient: Shared HTTP client instance
+    Singleton manager for the shared HTTPX client.
+    Ensures connection pooling and correct event loop binding.
     """
-    global _shared_client
+    _instance: Optional["HTTPClientManager"] = None
+    _lock = asyncio.Lock()
 
-    global _shared_client_lock
+    def __init__(self):
+        self._client: Optional[httpx.AsyncClient] = None
 
-    if _shared_client_lock is None:
-        _shared_client_lock = asyncio.Lock()
+    @classmethod
+    async def get_instance(cls) -> "HTTPClientManager":
+        if cls._instance is None:
+            async with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
 
-    async with _shared_client_lock:
-        if _shared_client is None:
-            _shared_client = httpx.AsyncClient(
+    async def get_client(self) -> httpx.AsyncClient:
+        """Returns the active client, initializing if necessary."""
+        if self._client is None or self._client.is_closed:
+            logger.info("Initializing new shared HTTPX client")
+            self._client = httpx.AsyncClient(
                 limits=httpx.Limits(
                     max_connections=100,
                     max_keepalive_connections=20,
+                    keepalive_expiry=30.0,
                 ),
                 http2=True,
-                timeout=httpx.Timeout(30.0),
+                # INCREASED TIMEOUT: 30s is fatal for reasoning models.
+                # connect=10s (fail fast on net down)
+                # read=120s (wait for long generation)
+                timeout=httpx.Timeout(120.0, connect=10.0),
                 follow_redirects=True,
+                event_hooks={
+                    "response": [self._log_error_responses]
+                }
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """Graceful shutdown."""
+        if self._client and not self._client.is_closed:
+            logger.info("Closing shared HTTPX client")
+            await self._client.aclose()
+            self._client = None
+
+    async def _log_error_responses(self, response: httpx.Response) -> None:
+        """Network-layer observability for failed requests."""
+        if response.status_code >= 400:
+            await response.aread() # Ensure we have body for logging
+            logger.warning(
+                f"HTTP {response.status_code} from {response.url}: "
+                f"{response.text[:200]}" # Truncate for sanity
             )
 
-    return _shared_client
+# Public Accessors (Facade)
+_manager = HTTPClientManager()
 
+async def get_shared_http_client() -> httpx.AsyncClient:
+    # Ensure manager is initialized safely
+    manager = await HTTPClientManager.get_instance()
+    return await manager.get_client()
 
 async def close_shared_http_client() -> None:
-    """
-    Close the shared HTTP client.
-
-    Should be called during application shutdown to ensure all connections
-    are properly closed.
-    """
-    global _shared_client
-
-    if _shared_client_lock is None:
-        return
-
-    client_to_close: httpx.AsyncClient | None = None
-    async with _shared_client_lock:
-        if _shared_client is not None:
-            client_to_close = _shared_client
-            _shared_client = None
-
-    if client_to_close is not None:
-        await client_to_close.aclose()
+    if HTTPClientManager._instance:
+        await HTTPClientManager._instance.close()

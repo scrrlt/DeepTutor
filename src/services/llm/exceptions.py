@@ -3,6 +3,8 @@
 Custom exception hierarchy for the LLM service.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 
@@ -14,19 +16,31 @@ class LLMError(Exception):
         message: str,
         details: dict[str, Any] | None = None,
         provider: str | None = None,
+        request_id: str | None = None,
     ):
         """Initialize an LLMError with optional details and provider."""
         super().__init__(message)
         self.message = message
         self.details = details or {}
         self.provider = provider
+        self.request_id = request_id
+
+    @property
+    def is_retryable(self) -> bool:
+        """Whether the caller should retry this error."""
+        return False
 
     def __str__(self) -> str:
         """Return a formatted error string with provider and details when set."""
-        provider_prefix = f"[{self.provider}] " if self.provider else ""
+        parts: list[str] = []
+        if self.provider:
+            parts.append(f"[{self.provider}]")
+        parts.append(self.message)
+        if self.request_id:
+            parts.append(f"(req_id: {self.request_id})")
         if self.details:
-            return f"{provider_prefix}{self.message} (details: {self.details})"
-        return f"{provider_prefix}{self.message}"
+            parts.append(f"(details: {self.details})")
+        return " ".join(parts)
 
 
 class LLMConfigError(LLMError):
@@ -54,20 +68,24 @@ class LLMAPIError(LLMError):
         status_code: int | None = None,
         provider: str | None = None,
         details: dict[str, Any] | None = None,
+        request_id: str | None = None,
     ):
         """Initialize API error with status code and provider context."""
-        super().__init__(message, details, provider)
+        super().__init__(message, details, provider, request_id)
         self.status_code = status_code
+
+    @property
+    def is_retryable(self) -> bool:
+        if self.status_code is None:
+            return False
+        return self.status_code >= 500
 
     def __str__(self) -> str:
         """Return formatted string including provider and status code."""
-        parts = []
-        if self.provider:
-            parts.append(f"[{self.provider}]")
-        if self.status_code:
-            parts.append(f"HTTP {self.status_code}")
-        parts.append(self.message)
-        return " ".join(parts)
+        base_str = super().__str__()
+        if self.status_code is not None:
+            return f"HTTP {self.status_code} {base_str}"
+        return base_str
 
 
 class LLMTimeoutError(LLMAPIError):
@@ -78,10 +96,20 @@ class LLMTimeoutError(LLMAPIError):
         message: str = "Request timed out",
         timeout: float | None = None,
         provider: str | None = None,
+        request_id: str | None = None,
     ):
         """Initialize timeout error with optional timeout value."""
-        super().__init__(message, status_code=408, provider=provider)
+        super().__init__(
+            message,
+            status_code=408,
+            provider=provider,
+            request_id=request_id,
+        )
         self.timeout = timeout
+
+    @property
+    def is_retryable(self) -> bool:
+        return True
 
 
 class LLMRateLimitError(LLMAPIError):
@@ -92,10 +120,45 @@ class LLMRateLimitError(LLMAPIError):
         message: str = "Rate limit exceeded",
         retry_after: float | None = None,
         provider: str | None = None,
+        details: dict[str, Any] | None = None,
+        request_id: str | None = None,
     ):
         """Initialize rate limit error with optional retry_after value."""
-        super().__init__(message, status_code=429, provider=provider)
+        super().__init__(
+            message,
+            status_code=429,
+            provider=provider,
+            details=details,
+            request_id=request_id,
+        )
         self.retry_after = retry_after
+
+    @property
+    def is_retryable(self) -> bool:
+        return True
+
+
+class LLMServiceUnavailableError(LLMAPIError):
+    """Raised when the service is overloaded or down (HTTP 503)."""
+
+    def __init__(
+        self,
+        message: str = "Service unavailable",
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
+        request_id: str | None = None,
+    ):
+        super().__init__(
+            message,
+            status_code=503,
+            provider=provider,
+            details=details,
+            request_id=request_id,
+        )
+
+    @property
+    def is_retryable(self) -> bool:
+        return True
 
 
 class LLMAuthenticationError(LLMAPIError):
@@ -105,9 +168,21 @@ class LLMAuthenticationError(LLMAPIError):
         self,
         message: str = "Authentication failed",
         provider: str | None = None,
+        details: dict[str, Any] | None = None,
+        request_id: str | None = None,
     ):
         """Initialize authentication error."""
-        super().__init__(message, status_code=401, provider=provider)
+        super().__init__(
+            message,
+            status_code=401,
+            provider=provider,
+            details=details,
+            request_id=request_id,
+        )
+
+    @property
+    def is_retryable(self) -> bool:
+        return False
 
 
 class LLMModelNotFoundError(LLMAPIError):
@@ -145,6 +220,25 @@ class ProviderQuotaExceededError(LLMRateLimitError):
 class ProviderContextWindowError(LLMAPIError):
     """Alias for provider-specific context window errors."""
 
+    def __init__(
+        self,
+        message: str = "Context window exceeded",
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
+        request_id: str | None = None,
+    ):
+        super().__init__(
+            message,
+            status_code=400,
+            provider=provider,
+            details=details,
+            request_id=request_id,
+        )
+
+    @property
+    def is_retryable(self) -> bool:
+        return False
+
 
 __all__ = [
     "LLMError",
@@ -153,6 +247,7 @@ __all__ = [
     "LLMAPIError",
     "LLMTimeoutError",
     "LLMRateLimitError",
+    "LLMServiceUnavailableError",
     "LLMAuthenticationError",
     "LLMModelNotFoundError",
     "LLMParseError",

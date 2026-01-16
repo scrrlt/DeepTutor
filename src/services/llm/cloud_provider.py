@@ -21,7 +21,7 @@ _openai_logger = logging.getLogger("openai")
 logger = get_logger(__name__)
 
 from .capabilities import supports_response_format
-from .config import get_token_limit_kwargs
+from .model_rules import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
 from .utils import (
     build_auth_headers,

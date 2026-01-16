@@ -6,8 +6,10 @@ import yaml
 from src.utils.config_manager import ConfigManager
 
 
+from collections.abc import Generator
+
 @pytest.fixture(autouse=True)
-def reset_config_manager_singleton() -> None:
+def reset_config_manager_singleton() -> Generator[None, None, None]:
     """Ensure ConfigManager singleton is reset for each test."""
     ConfigManager._instance = None  # type: ignore[attr-defined]
     yield

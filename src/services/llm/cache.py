@@ -5,7 +5,7 @@ import asyncio
 import hashlib
 import json
 import os
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from redis.asyncio import Redis
 
@@ -116,36 +116,28 @@ def _sanitize_kwargs_for_hashing(kwargs: dict[str, Any]) -> dict[str, Any]:
 
     sanitized = {}
     for k, v in kwargs.items():
-        # Case-insensitive check against sensitive patterns
-        if k.lower() in sensitive_patterns:
+        # Case-insensitive substring check against sensitive patterns
+        key_lower = k.lower()
+        if any(pattern in key_lower for pattern in sensitive_patterns):
             continue
-
-        # Recursive cleaning could go here, but flat processing is usually sufficient for kwargs
-        if isinstance(v, (str, int, float, bool, type(None))):
-            sanitized[k] = v
-        else:
-            # Force string representation for complex objects (Lists, Dicts, Custom Objects)
-            # This avoids the "try/except JSON" loop later
-            sanitized[k] = str(v)
-
+        sanitized[k] = str(v)
     return sanitized
 
 
 def build_completion_cache_key(
-    *,
     model: str,
     binding: str,
-    base_url: str | None,
-    system_prompt: str,
-    prompt: str,
-    messages: list[dict[str, Any]] | None,
-    kwargs: dict[str, Any],
+    base_url: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+    prompt: Optional[str] = None,
+    messages: Optional[List[Dict[str, Any]]] = None,
+    **kwargs: Any,
 ) -> str:
     """
-    Construct a deterministic SHA-256 cache key.
+    Generate a deterministic cache key.
 
     Args:
-        model: The model identifier.
+        model: The model name.
         binding: The provider binding name.
         base_url: The API base URL.
         system_prompt: The system prompt.
@@ -224,7 +216,7 @@ async def set_cached_completion(
 
     ttl = ttl_seconds if ttl_seconds is not None else DEFAULT_CACHE_TTL
     try:
-        # Fire and forget (await, but don't block logic if it fails)
+        # Best-effort write: await completion but swallow errors
         await client.set(key, value, ex=ttl)
     except Exception as exc:
         logger.warning(f"Cache write error: {exc}")

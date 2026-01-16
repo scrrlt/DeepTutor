@@ -381,7 +381,7 @@ async def stream(
         with attempt:
             iterator = _get_stream_iterator()
             try:
-                first_chunk = await iterator.__anext__()
+                first_chunk = await anext(iterator)
             except StopAsyncIteration:
                 return
             break

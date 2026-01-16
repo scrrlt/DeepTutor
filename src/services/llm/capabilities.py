@@ -1,23 +1,35 @@
 """Provider capability lookups for LLM bindings."""
 
+from __future__ import annotations
+
+from functools import lru_cache
 from typing import Any
 
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
+_OPENAI_COMPATIBLE: dict[str, Any] = {
+    "supports_response_format": True,
+    "supports_streaming": True,
+    "supports_tools": True,
+    "system_in_messages": True,
+}
+
+_LOCAL_SERVER: dict[str, Any] = {
+    "supports_response_format": True,
+    "supports_streaming": True,
+    "supports_tools": False,
+    "system_in_messages": True,
+}
+
+
 PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
     # OpenAI and OpenAI-compatible providers
     "openai": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,  # System prompt goes in messages array
+        **_OPENAI_COMPATIBLE,
         "newer_models_use_max_completion_tokens": True,
     },
     "azure_openai": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
+        **_OPENAI_COMPATIBLE,
         "newer_models_use_max_completion_tokens": True,
         "requires_api_version": True,
     },
@@ -29,7 +41,7 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
         "system_in_messages": False,  # System is a separate parameter
         "has_thinking_tags": False,
     },
-    "claude": {  # Alias for anthropic
+    "claude": {
         "supports_response_format": False,
         "supports_streaming": True,
         "supports_tools": True,
@@ -38,71 +50,27 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     # DeepSeek
     "deepseek": {
-        "supports_response_format": False,  # DeepSeek doesn't support strict JSON schema yet
+        # DeepSeek v3/r1 supports JSON mode (json_object).
+        "supports_response_format": True,
         "supports_streaming": True,
         "supports_tools": True,
         "system_in_messages": True,
         "has_thinking_tags": True,  # DeepSeek reasoner has thinking tags
     },
     # OpenRouter (aggregator, generally OpenAI-compatible)
-    "openrouter": {
-        "supports_response_format": True,  # Depends on underlying model
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
-    },
+    "openrouter": {**_OPENAI_COMPATIBLE},
     # Groq (fast inference)
-    "groq": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
-    },
+    "groq": {**_OPENAI_COMPATIBLE},
     # Together AI
-    "together": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
-    },
-    "together_ai": {  # Alias
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
-    },
+    "together": {**_OPENAI_COMPATIBLE},
+    "together_ai": {**_OPENAI_COMPATIBLE},
     # Mistral
-    "mistral": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": True,
-    },
+    "mistral": {**_OPENAI_COMPATIBLE},
     # Local providers (generally OpenAI-compatible)
-    "ollama": {
-        "supports_response_format": True,  # Ollama supports JSON mode
-        "supports_streaming": True,
-        "supports_tools": False,  # Limited tool support
-        "system_in_messages": True,
-    },
-    "lm_studio": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": False,
-        "system_in_messages": True,
-    },
-    "vllm": {
-        "supports_response_format": True,
-        "supports_streaming": True,
-        "supports_tools": False,
-        "system_in_messages": True,
-    },
-    "llama_cpp": {
-        "supports_response_format": True,  # llama.cpp server supports JSON grammar
-        "supports_streaming": True,
-        "supports_tools": False,
-        "system_in_messages": True,
-    },
+    "ollama": {**_LOCAL_SERVER},
+    "lm_studio": {**_LOCAL_SERVER},
+    "vllm": {**_LOCAL_SERVER},
+    "llama_cpp": {**_LOCAL_SERVER},
 }
 
 # Default capabilities for unknown providers (assume OpenAI-compatible)
@@ -119,11 +87,11 @@ DEFAULT_CAPABILITIES: dict[str, Any] = {
 # Patterns are matched with case-insensitive startswith
 MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
     "deepseek": {
-        "supports_response_format": False,
+        "supports_response_format": True,
         "has_thinking_tags": True,
     },
     "deepseek-reasoner": {
-        "supports_response_format": False,
+        "supports_response_format": True,
         "has_thinking_tags": True,
     },
     "qwen": {
@@ -147,6 +115,12 @@ MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
 }
 
 
+_SORTED_OVERRIDES: tuple[tuple[str, dict[str, Any]], ...] = tuple(
+    sorted(MODEL_OVERRIDES.items(), key=lambda x: -len(x[0]))
+)
+
+
+@lru_cache(maxsize=4096)
 def get_capability(
     binding: str,
     capability: str,
@@ -176,9 +150,8 @@ def get_capability(
     # 1. Check model-specific overrides first
     if model:
         model_lower = model.lower()
-        # Sort by pattern length descending to match most specific first
-        for pattern, overrides in sorted(MODEL_OVERRIDES.items(), key=lambda x: -len(x[0])):
-            if model_lower.startswith(pattern):
+        for pattern, overrides in _SORTED_OVERRIDES:
+            if pattern in model_lower:
                 if capability in overrides:
                     return overrides[capability]
 

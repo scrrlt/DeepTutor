@@ -84,7 +84,8 @@ def _to_bool(value: Optional[str], default: bool) -> bool:
         default: The default value to return if input is None.
 
     Returns:
-        True if value is "true", "1", "yes", or "on" (case-insensitive).
+        True if value is "true", "1", "yes", or "on" (case-insensitive);
+        False for any other non-None value; default if value is None.
     """
     if value is None:
         return default
@@ -138,7 +139,6 @@ def get_embedding_config() -> EmbeddingConfig:
         raise ValueError(
             "EMBEDDING_MODEL not set. Please configure it in .env file or add a configuration in Settings"
         )
-    model_value = model
 
     # Check if API key is required
     # Local providers (Ollama, LM Studio) don't need API keys
@@ -153,8 +153,7 @@ def get_embedding_config() -> EmbeddingConfig:
         raise ValueError(
             "EMBEDDING_HOST not set. Please configure it in .env file or add a configuration in Settings"
         )
-    base_url_value = base_url
-
+    
     # Get optional configuration
     dim = _to_int(dim_str, 3072)
     max_tokens = _to_int(_strip_value(os.getenv("EMBEDDING_MAX_TOKENS")), 8192)
@@ -169,9 +168,9 @@ def get_embedding_config() -> EmbeddingConfig:
 
     return EmbeddingConfig(
         binding=binding,
-        model=model_value,
+        model=model,
         api_key=api_key or "",
-        base_url=base_url_value,
+        base_url=base_url,
         api_version=api_version,
         dim=dim,
         max_tokens=max_tokens,

@@ -103,17 +103,17 @@ class EmbeddingClient:
         import asyncio
 
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.embed(texts))
-                    return future.result()
-            else:
-                return loop.run_until_complete(self.embed(texts))
+            loop = asyncio.get_running_loop()
         except RuntimeError:
+            # No running loop - safe to use asyncio.run()
             return asyncio.run(self.embed(texts))
+
+        # Loop is running - use thread pool to avoid nested event loop
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, self.embed(texts))
+            return future.result()
 
     def _validate_embeddings_response(
         self, embeddings: list[list[float]], texts: list[str]
@@ -189,7 +189,7 @@ def get_embedding_client(config: EmbeddingConfig | None = None) -> EmbeddingClie
     return _client
 
 
-def reset_embedding_client():
+def reset_embedding_client() -> None:
     """Reset the singleton embedding client."""
     global _client
     _client = None

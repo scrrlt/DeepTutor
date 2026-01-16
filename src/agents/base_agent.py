@@ -113,7 +113,7 @@ class BaseAgent(ABC):
         # Load LLM configuration
         try:
             env_llm = get_llm_config()
-            self.api_key = api_key or env_llm.api_key
+            self.api_key = api_key or getattr(env_llm, "get_api_key", lambda: env_llm.api_key)()
             self.base_url = base_url or env_llm.base_url
             self.model = model or env_llm.model
             self.api_version = api_version or getattr(env_llm, "api_version", None)

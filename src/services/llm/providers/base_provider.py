@@ -38,8 +38,8 @@ class BaseLLMProvider(ABC):
         """Initialize provider with shared configuration and traffic control."""
         self.config = config
         self.provider_name = config.provider_name
-        self.api_key = config.api_key
-        self.base_url = getattr(config, "base_url", "")
+        self.api_key = getattr(config, "get_api_key", lambda: config.api_key)()
+        self.base_url = config.base_url or config.effective_url
 
         # Isolation: Each provider gets its own traffic controller instance
         self.traffic_controller: TrafficController
@@ -48,7 +48,9 @@ class BaseLLMProvider(ABC):
             self.traffic_controller = traffic_controller
         else:
             self.traffic_controller = TrafficController(
-                provider_name=self.provider_name
+                provider_name=self.provider_name,
+                max_concurrency=getattr(config, "max_concurrency", 20),
+                requests_per_minute=getattr(config, "requests_per_minute", 600),
             )
 
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
@@ -136,9 +138,12 @@ class BaseLLMProvider(ABC):
         except Exception as exc:
             mapped_exc = self._map_exception(exc)
             record_provider_call(self.provider_name, success=False)
-            if self._should_record_failure(mapped_exc):
-                record_call_failure(self.provider_name)
-            raise mapped_exc from exc
+            if isinstance(mapped_exc, LLMError):
+                if self._should_record_failure(mapped_exc):
+                    record_call_failure(self.provider_name)
+                raise mapped_exc from exc
+            # Internal/runtime errors should bubble up without being rewrapped.
+            raise mapped_exc
 
     async def execute(
         self,

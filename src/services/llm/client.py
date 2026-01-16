@@ -226,11 +226,28 @@ _client: LLMClient | None = None
 
 
 def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
-    """Get or create the singleton LLM client."""
+    """
+    Get or create the singleton LLM client.
+
+    Args:
+        config: Optional configuration override. If client exists, this is ignored
+                (with a warning).
+
+    Returns:
+        The singleton LLMClient instance.
+    """
 
     global _client
     if _client is None:
         _client = LLMClient(config)
+    elif config is not None:
+        import warnings
+
+        warnings.warn(
+            "LLM client already initialized; provided config will be ignored. "
+            "Call reset_llm_client() first to use a different config.",
+            stacklevel=2,
+        )
     return _client
 
 

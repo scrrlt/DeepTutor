@@ -1,22 +1,25 @@
 from typing import Any, Dict
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 
 class LLMConfig(BaseModel):
     model: str
     provider: str = "openai"
+    model_config = ConfigDict(extra="allow")
 
 
 class PathsConfig(BaseModel):
     user_data_dir: str
     knowledge_bases_dir: str
     user_log_dir: str
+    model_config = ConfigDict(extra="allow")
 
 
 class AppConfig(BaseModel):
     llm: LLMConfig
     paths: PathsConfig
+    model_config = ConfigDict(extra="allow")
 
     @field_validator("llm", mode="before")
     @classmethod
