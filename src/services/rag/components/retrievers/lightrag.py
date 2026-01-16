@@ -1,15 +1,13 @@
-"""
-LightRAG Retriever
-==================
+"""Pure LightRAG retriever for text-only queries."""
 
-Pure LightRAG retriever (text-only, no multimodal).
-"""
+import asyncio
 
 from pathlib import Path
 import sys
 from typing import Any, ClassVar, Dict, Optional
 
 from ..base import BaseComponent
+from src.services.llm.cache import get_cache_client
 
 
 class LightRAGRetriever(BaseComponent):
@@ -22,6 +20,7 @@ class LightRAGRetriever(BaseComponent):
 
     name = "lightrag_retriever"
     _instances: ClassVar[Dict[str, Any]] = {}
+    _init_locks: ClassVar[Dict[str, asyncio.Lock]] = {}
 
     def __init__(self, kb_base_dir: Optional[str] = None):
         """
@@ -37,86 +36,69 @@ class LightRAGRetriever(BaseComponent):
             / "knowledge_bases"
         )
 
-    def _get_lightrag_instance(self, kb_name: str):
+    async def _get_lightrag_instance(self, kb_name: str):
         """Get or create a pure LightRAG instance (text-only)."""
         working_dir = str(Path(self.kb_base_dir) / kb_name / "rag_storage")
 
         if working_dir in self._instances:
             return self._instances[working_dir]
 
-        # Add LightRAG path
-        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
-        raganything_path = project_root.parent / "raganything" / "RAG-Anything"
-        if raganything_path.exists() and str(raganything_path) not in sys.path:
-            sys.path.insert(0, str(raganything_path))
+        local_lock = self._init_locks.setdefault(working_dir, asyncio.Lock())
 
-        try:
-            from lightrag import LightRAG
-            from openai import AsyncOpenAI
+        async with local_lock:
+            if working_dir in self._instances:
+                return self._instances[working_dir]
 
-            from src.services.embedding import get_embedding_client
-            from src.services.llm import get_llm_client
-
-            llm_client = get_llm_client()
-            embed_client = get_embedding_client()
-
-            # Create AsyncOpenAI client directly
-            openai_client = AsyncOpenAI(
-                api_key=llm_client.config.api_key,
-                base_url=llm_client.config.base_url,
+            project_root = (
+                Path(__file__).resolve().parent.parent.parent.parent.parent.parent
             )
+            raganything_path = project_root.parent / "raganything" / "RAG-Anything"
+            if raganything_path.exists() and str(raganything_path) not in sys.path:
+                sys.path.insert(0, str(raganything_path))
 
-            # LLM function using services (ASYNC - LightRAG expects async functions)
-            async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-                """Custom async LLM function that bypasses LightRAG's openai_complete_if_cache."""
-                if history_messages is None:
-                    history_messages = []
+            try:
+                from src.services.embedding import get_embedding_client
+                from src.services.llm import get_llm_client
 
-                # Build messages
-                messages = []
-                if system_prompt:
-                    messages.append({"role": "system", "content": system_prompt})
-                messages.extend(history_messages)
-                messages.append({"role": "user", "content": prompt})
+                from lightrag import LightRAG
 
-                # Whitelist only valid OpenAI parameters
-                valid_params = {
-                    "temperature",
-                    "top_p",
-                    "n",
-                    "stream",
-                    "stop",
-                    "max_tokens",
-                    "presence_penalty",
-                    "frequency_penalty",
-                    "logit_bias",
-                    "user",
-                    "seed",
-                }
-                clean_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+                llm_client = get_llm_client()
+                embed_client = get_embedding_client()
 
-                # Call OpenAI API directly (async)
-                response = await openai_client.chat.completions.create(
-                    model=llm_client.config.model,
-                    messages=messages,
-                    **clean_kwargs,
-                )
+                distributed_lock = None
+                acquired = False
+                cache_client = await get_cache_client()
+                if cache_client:
+                    distributed_lock = cache_client.lock(
+                        f"lightrag:init:{working_dir}",
+                        timeout=120,
+                        blocking_timeout=30,
+                    )
+                    acquired = await distributed_lock.acquire()
 
-                return response.choices[0].message.content
+                try:
+                    llm_model_func = llm_client.get_model_func()
 
-            # Create pure LightRAG instance (no multimodal)
-            rag = LightRAG(
-                working_dir=working_dir,
-                llm_model_func=llm_model_func,
-                embedding_func=embed_client.get_embedding_func(),  # Use proper EmbeddingFunc object
-            )
+                    rag = LightRAG(
+                        working_dir=working_dir,
+                        llm_model_func=llm_model_func,
+                        embedding_func=embed_client.get_embedding_func(),
+                    )
 
-            self._instances[working_dir] = rag
-            return rag
+                    self._instances[working_dir] = rag
+                    return rag
+                finally:
+                    if distributed_lock and acquired:
+                        try:
+                            await distributed_lock.release()
+                        except Exception as exc:  # noqa: BLE001
+                            self.logger.warning(
+                                "Failed to release LightRAG init lock: %s", exc
+                            )
 
-        except ImportError as e:
-            self.logger.error(f"Failed to import LightRAG: {e}")
-            raise
+            except ImportError as e:
+                self.logger.error(f"Failed to import LightRAG: {e}")
+                raise
 
     async def process(
         self,
@@ -144,7 +126,7 @@ class LightRAGRetriever(BaseComponent):
         from src.logging.adapters import LightRAGLogContext
 
         with LightRAGLogContext(scene="LightRAG-Search"):
-            rag = self._get_lightrag_instance(kb_name)
+            rag = await self._get_lightrag_instance(kb_name)
 
             # Initialize storages if not already initialized
             await rag.initialize_storages()

@@ -1,3 +1,5 @@
+"""Anthropic provider implementation using shared HTTP client."""
+
 from typing import Any
 
 import anthropic
@@ -20,6 +22,7 @@ class AnthropicProvider(BaseLLMProvider):
     """Anthropic Claude Provider with shared HTTP client."""
 
     def __init__(self, config: LLMConfig) -> None:
+        """Initialize Anthropic provider with shared client."""
         super().__init__(config)
         self.client: anthropic.AsyncAnthropic | None = None
 
@@ -34,6 +37,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     @track_llm_call("anthropic")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
+        """Complete a prompt using Anthropic Messages API."""
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for Anthropic provider")
@@ -68,6 +72,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     @track_llm_call("anthropic")
     async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
+        """Stream content from Anthropic Messages API."""
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for Anthropic provider")

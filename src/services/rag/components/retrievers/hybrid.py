@@ -1,9 +1,4 @@
-"""
-Hybrid Retriever
-================
-
-Hybrid retriever combining multiple retrieval strategies.
-"""
+"""Hybrid retriever combining multiple retrieval strategies."""
 
 from pathlib import Path
 import sys
@@ -67,7 +62,7 @@ class HybridRetriever(BaseComponent):
 
             # LLM function using services (ASYNC - LightRAG expects async functions)
             async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-                """Custom async LLM function that bypasses LightRAG's openai_complete_if_cache."""
+                """Call OpenAI chat completion directly for LightRAG."""
                 if history_messages is None:
                     history_messages = []
 

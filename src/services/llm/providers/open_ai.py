@@ -1,3 +1,5 @@
+"""OpenAI provider implementation using shared HTTP client."""
+
 from typing import Any
 
 import openai
@@ -21,6 +23,7 @@ class OpenAIProvider(BaseLLMProvider):
     """Production-ready OpenAI Provider with shared HTTP client."""
 
     def __init__(self, config: LLMConfig) -> None:
+        """Initialize OpenAI provider with shared client."""
         super().__init__(config)
         self.client: openai.AsyncOpenAI | None = None
 
@@ -36,6 +39,7 @@ class OpenAIProvider(BaseLLMProvider):
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
+        """Complete a prompt using OpenAI chat completions."""
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for OpenAI provider")
@@ -69,6 +73,7 @@ class OpenAIProvider(BaseLLMProvider):
         prompt: str,
         **kwargs: Any,
     ) -> AsyncStreamGenerator:  # type: ignore[override]
+        """Stream chat completion deltas from OpenAI."""
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for OpenAI provider")
@@ -101,6 +106,16 @@ class OpenAIProvider(BaseLLMProvider):
         except openai.APIConnectionError as e:
             logger.error(f"Stream connection failed: {e}")
             raise
+        except TypeError as exc:
+            # Compatibility shim for OpenAI APIConnectionError signature changes
+            try:
+                error = openai.APIConnectionError(
+                    request=None, message=str(exc)
+                )
+                logger.error(f"Stream connection failed: {error}")
+                raise error from exc
+            except TypeError:
+                raise
 
         yield TutorStreamChunk(
             content=accumulated_content,

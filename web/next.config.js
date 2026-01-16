@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 
+const apiBase =
+  process.env.NEXT_PUBLIC_API_BASE_EXTERNAL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  `http://localhost:${process.env.BACKEND_PORT || 8001}`;
+
 const nextConfig = {
+  publicRuntimeConfig: {
+    apiBase,
+  },
   // Move dev indicator to bottom-right corner
   devIndicators: {
     position: "bottom-right",

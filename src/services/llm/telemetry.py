@@ -1,8 +1,6 @@
-"""
-LLM Telemetry
-=============
+"""LLM telemetry helpers.
 
-Basic telemetry tracking for LLM calls.
+Provides basic decorators for telemetry on LLM calls.
 """
 
 import functools
@@ -13,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def track_llm_call(provider_name: str):
-    """
-    Decorator to track LLM calls for telemetry.
+    """Track LLM calls for telemetry.
 
     Args:
         provider_name: Name of the provider being called

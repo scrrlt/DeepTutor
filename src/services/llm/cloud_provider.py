@@ -1,11 +1,9 @@
-"""
-Cloud LLM Provider
-==================
+"""Cloud LLM provider functions.
 
-Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
-Provides both complete() and stream() methods.
+Handle cloud API calls (OpenAI, DeepSeek, Anthropic, etc.).
 """
 
+import asyncio
 import logging
 import os
 from typing import AsyncGenerator, Dict, List, Optional
@@ -190,6 +188,8 @@ async def _openai_complete(
         finally:
             _lightrag_logger.setLevel(original_lightrag_level)
             _openai_logger.setLevel(original_openai_level)
+    except asyncio.CancelledError:
+        raise
     except Exception:
         pass  # Fall through to direct call
 

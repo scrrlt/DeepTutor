@@ -1,6 +1,4 @@
-"""
-LLM Provider Registry
-====================
+"""LLM provider registry.
 
 Simple provider registration system for LLM providers.
 """
@@ -12,8 +10,7 @@ _provider_registry: Dict[str, Type] = {}
 
 
 def register_provider(name: str):
-    """
-    Decorator to register an LLM provider class.
+    """Register an LLM provider class.
 
     Args:
         name: Name to register the provider under

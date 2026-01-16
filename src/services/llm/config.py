@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-LLM Configuration
-=================
+"""LLM configuration management.
 
-Configuration management for LLM services.
-Simplified version - loads from unified config service or falls back to .env.
+Loads settings from the unified config service or environment variables.
 """
 
 from dataclasses import dataclass
@@ -37,6 +34,7 @@ class LLMConfig:
     api_version: Optional[str] = None
     max_tokens: int = 4096
     temperature: float = 0.7
+    provider_name: str = "openai"
 
 
 def _strip_value(value: Optional[str]) -> Optional[str]:

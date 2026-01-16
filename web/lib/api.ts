@@ -1,9 +1,13 @@
 // API configuration and utility functions
 
-// Get API base URL from environment variable
-// This is automatically set by start_web.py based on config/main.yaml
-// The .env.local file is auto-generated on startup with the correct backend port
+import getConfig from "next/config";
+
+// Get API base URL from runtime config (set at process start) with env fallback
+const { publicRuntimeConfig } = getConfig();
+const runtimeApiBase: string | undefined = publicRuntimeConfig?.apiBase;
+
 export const API_BASE_URL =
+  runtimeApiBase ||
   process.env.NEXT_PUBLIC_API_BASE ||
   (() => {
     if (typeof window !== "undefined") {

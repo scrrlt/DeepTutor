@@ -1,10 +1,4 @@
-"""
-Vector Indexer
-==============
-
-Vector-based indexer using dense embeddings with FAISS.
-Provides fast similarity search for RAG retrieval.
-"""
+"""Vector-based indexer using dense embeddings with FAISS."""
 
 import json
 from pathlib import Path

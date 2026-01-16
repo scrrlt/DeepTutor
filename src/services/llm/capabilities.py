@@ -1,21 +1,4 @@
-"""
-Provider Capabilities
-=====================
-
-Centralized configuration for LLM provider capabilities.
-This replaces scattered hardcoded checks throughout the codebase.
-
-Usage:
-    from src.services.llm.capabilities import get_capability, supports_response_format
-
-    # Check if a provider supports response_format
-    if supports_response_format(binding, model):
-        kwargs["response_format"] = {"type": "json_object"}
-
-    # Generic capability check
-    if get_capability(binding, "streaming", default=True):
-        # use streaming
-"""
+"""Provider capability lookups for LLM bindings."""
 
 from typing import Any, Optional
 
@@ -243,9 +226,7 @@ def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
 
 
 def system_in_messages(binding: str, model: Optional[str] = None) -> bool:
-    """
-    Check if system prompt should be in messages array (OpenAI style)
-    or as a separate parameter (Anthropic style).
+    """Check if system prompt should be placed in the messages array.
 
     Args:
         binding: Provider binding name

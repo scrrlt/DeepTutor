@@ -1,15 +1,13 @@
-"""
-Base LLM Provider - Unified interface and configuration.
-"""
+"""Base LLM provider with unified configuration and retries."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 import asyncio
 import logging
 import random
 from typing import Any, Awaitable, Callable, Dict
 
-from ...utils.error_rate_tracker import record_provider_call
-from ...utils.network.circuit_breaker import (
+from src.utils.error_rate_tracker import record_provider_call
+from src.utils.network.circuit_breaker import (
     is_call_allowed,
     record_call_failure,
     record_call_success,
@@ -34,6 +32,7 @@ class BaseLLMProvider(ABC):
     """Base class for all LLM providers with unified config and retries."""
 
     def __init__(self, config: LLMConfig) -> None:
+        """Initialize provider with shared configuration and traffic control."""
         self.config = config
         self.provider_name = config.provider_name
         self.api_key = config.api_key
@@ -46,19 +45,19 @@ class BaseLLMProvider(ABC):
 
             self.traffic_controller = TrafficController(provider_name=self.provider_name)
 
-    @abstractmethod
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
-        pass
+        """Run a completion call for the provider."""
+        raise NotImplementedError
 
-    @abstractmethod
     async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
-        pass
+        """Stream completion chunks for the provider."""
+        raise NotImplementedError
 
     def _map_exception(self, e: Exception) -> LLMError:
         return map_error(e, provider=self.provider_name)
 
     def calculate_cost(self, usage: Dict[str, Any]) -> float:
-        """Placeholder for cost calculation logic."""
+        """Calculate cost estimate for a provider call."""
         return 0.0
 
     def _check_circuit_breaker(self) -> None:

@@ -1,43 +1,23 @@
-"""
-LLM Factory - Central Hub for LLM Calls
-=======================================
+"""LLM factory and routing helpers.
 
-This module serves as the central hub for all LLM calls in DeepTutor.
-It provides a unified interface for agents to call LLMs, routing requests
-to the appropriate provider (cloud or local) based on URL detection.
-
-Architecture:
-    Agents (ChatAgent, GuideAgent, etc.)
-              ↓
-         BaseAgent.call_llm() / stream_llm()
-              ↓
-         LLM Factory (this module)
-              ↓
-    ┌─────────┴─────────┐
-    ↓                   ↓
-CloudProvider      LocalProvider
-(cloud_provider)   (local_provider)
-              ↓                   ↓
-OpenAI/DeepSeek/etc    LM Studio/Ollama/etc
-
-Routing:
-- Automatically routes to local_provider for local URLs (localhost, 127.0.0.1, etc.)
-- Routes to cloud_provider for all other URLs
-
-Retry Mechanism:
-- Automatic retry with exponential backoff for transient errors
-- Configurable max_retries, retry_delay, and exponential_backoff
-- Only retries on retriable errors (timeout, rate limit, server errors)
+Provides unified entry points for cloud and local LLM calls with retry logic.
 """
 
 import asyncio
-from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List
+from functools import partial
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional
 
 import tenacity
 
 from src.logging.logger import get_logger
 
 from . import cloud_provider, local_provider
+from .cache import (
+    DEFAULT_CACHE_TTL,
+    build_completion_cache_key,
+    get_cached_completion,
+    set_cached_completion,
+)
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
@@ -109,6 +89,116 @@ def _should_use_local(base_url: str | None) -> bool:
     return is_local_llm_server(base_url) if base_url else False
 
 
+def _is_retriable_llm_api_error(exc: BaseException) -> bool:
+    """Return True for retriable LLMAPIError instances."""
+    if not isinstance(exc, LLMAPIError):
+        return False
+
+    status_code = getattr(exc, "status_code", None)
+    if status_code is None:
+        return False
+
+    if status_code == 429:
+        return True
+
+    if 500 <= status_code < 600:
+        return True
+
+    return False
+
+
+def _sanitize_cache_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Strip non-cacheable keys before hashing."""
+    cacheable: Dict[str, Any] = {}
+    for key, value in kwargs.items():
+        if key in {"api_key", "api_version"}:
+            continue
+        cacheable[key] = value
+    return cacheable
+
+
+def _build_retrying(
+    *,
+    max_retries: int,
+    retry_delay: float,
+    exponential_backoff: bool,
+    sleep: Callable[[float], Awaitable[None] | None] | None,
+) -> tenacity.AsyncRetrying:
+    if exponential_backoff:
+        wait_strategy = tenacity.wait_exponential(
+            multiplier=retry_delay,
+            min=retry_delay,
+            max=60,
+        )
+    else:
+        wait_strategy = tenacity.wait_fixed(retry_delay)
+
+    def _log_retry(retry_state: tenacity.RetryCallState) -> None:
+        message = (
+            "LLM call failed (attempt %d/%d), retrying in %.1fs... Error: %s"
+            % (
+                retry_state.attempt_number,
+                max_retries + 1,
+                retry_state.upcoming_sleep,
+                retry_state.outcome.exception(),
+            )
+        )
+        logger.warning(message)
+
+    retry_kwargs: Dict[str, Any] = {
+        "retry": (
+            tenacity.retry_if_exception_type(LLMRateLimitError)
+            | tenacity.retry_if_exception_type(LLMTimeoutError)
+            | tenacity.retry_if_exception(_is_retriable_llm_api_error)
+        ),
+        "wait": wait_strategy,
+        "stop": tenacity.stop_after_attempt(max_retries + 1),
+        "before_sleep": _log_retry,
+    }
+    if sleep is not None:
+        retry_kwargs["sleep"] = sleep
+
+    return tenacity.AsyncRetrying(**retry_kwargs)
+
+
+async def _invoke_provider(
+    use_local: bool, call_kwargs: Dict[str, Any]
+) -> str:
+    """Dispatch to provider and normalize errors."""
+    try:
+        if use_local:
+            return await local_provider.complete(**call_kwargs)
+        return await cloud_provider.complete(**call_kwargs)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        # Preserve known LLM errors to avoid altering retry semantics
+        if isinstance(
+            exc,
+            (
+                LLMTimeoutError,
+                LLMRateLimitError,
+                LLMAPIError,
+                LLMAuthenticationError,
+            ),
+        ):
+            raise
+
+        from .error_mapping import map_error
+
+        mapped_error = map_error(exc, provider=call_kwargs.get("binding", "unknown"))
+        raise mapped_error from exc
+
+
+async def _execute_with_retry(
+    call: Callable[[], Awaitable[str]], retrying: tenacity.AsyncRetrying
+) -> str:
+    """Run a call with tenacity retrying wrapper."""
+    async for attempt in retrying:
+        with attempt:
+            return await call()
+
+
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
@@ -122,6 +212,9 @@ async def complete(
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
     sleep: Callable[[float], Awaitable[None] | None] | None = None,
+    use_cache: bool = True,
+    cache_ttl_seconds: int | None = None,
+    cache_key: str | None = None,
     **kwargs,
 ) -> str:
     """
@@ -142,6 +235,10 @@ async def complete(
         max_retries: Maximum number of retry attempts (default: 3)
         retry_delay: Initial delay between retries in seconds (default: 1.0)
         exponential_backoff: Whether to use exponential backoff (default: True)
+        sleep: Optional sleep hook for testing.
+        use_cache: Whether to use Redis-backed cache for completions.
+        cache_ttl_seconds: Optional TTL override for cached responses.
+        cache_key: Optional precomputed cache key.
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
     Returns:
@@ -162,73 +259,6 @@ async def complete(
     if not use_local and not api_key:
         raise LLMConfigError("API key is required for cloud providers")
 
-    # Define helper to determine if a generic LLMAPIError is retriable
-    def _is_retriable_llm_api_error(exc: BaseException) -> bool:
-        """
-        Return True for LLMAPIError instances that represent retriable conditions.
-
-        We only retry on:
-          - HTTP 429 (rate limit), or
-          - HTTP 5xx server errors.
-
-        All other LLMAPIError instances (e.g., 4xx like 400, 401, 403, 404) are treated
-        as non-retriable to avoid unnecessary retries.
-        """
-        if not isinstance(exc, LLMAPIError):
-            return False
-
-        status_code = getattr(exc, "status_code", None)
-        if status_code is None:
-            # Do not retry when status code is unknown to avoid retrying non-transient errors
-            return False
-
-        if status_code == 429:
-            return True
-
-        if 500 <= status_code < 600:
-            return True
-
-        return False
-
-    # Define the actual completion function with tenacity retry
-    retry_kwargs: Dict[str, Any] = {
-        "retry": (
-            tenacity.retry_if_exception_type(LLMRateLimitError)
-            | tenacity.retry_if_exception_type(LLMTimeoutError)
-            | tenacity.retry_if_exception(_is_retriable_llm_api_error)
-        ),
-        "wait": tenacity.wait_exponential(
-            multiplier=retry_delay,
-            min=retry_delay,
-            max=60,
-        ),
-        "stop": tenacity.stop_after_attempt(max_retries + 1),
-        "before_sleep": lambda retry_state: logger.warning(
-            "LLM call failed (attempt %d/%d), retrying in %.1fs... "
-            "Error: %s",
-            retry_state.attempt_number,
-            max_retries + 1,
-            retry_state.upcoming_sleep,
-            retry_state.outcome.exception(),
-        ),
-    }
-    if sleep is not None:
-        retry_kwargs["sleep"] = sleep
-
-    @tenacity.retry(**retry_kwargs)
-    async def _do_complete(**call_kwargs):
-        try:
-            if use_local:
-                return await local_provider.complete(**call_kwargs)
-            else:
-                return await cloud_provider.complete(**call_kwargs)
-        except Exception as e:
-            # Map raw SDK exceptions to unified exceptions for retry logic
-            from .error_mapping import map_error
-
-            mapped_error = map_error(e, provider=call_kwargs.get("binding", "unknown"))
-            raise mapped_error from e
-
     # Build call kwargs
     call_kwargs = {
         "prompt": prompt,
@@ -245,8 +275,41 @@ async def complete(
         call_kwargs["api_version"] = api_version
         call_kwargs["binding"] = binding or "openai"
 
-    # Execute with retry (handled by tenacity decorator)
-    return await _do_complete(**call_kwargs)
+    cache_key_value: str | None = None
+    if use_cache:
+        cache_key_value = cache_key or build_completion_cache_key(
+            model=model,
+            binding=(binding or "openai"),
+            base_url=base_url,
+            system_prompt=system_prompt,
+            prompt=prompt,
+            messages=messages,
+            kwargs=_sanitize_cache_kwargs(call_kwargs),
+        )
+        cached = await get_cached_completion(cache_key_value)
+        if cached is not None:
+            return cached
+
+    retrying = _build_retrying(
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        exponential_backoff=exponential_backoff,
+        sleep=sleep,
+    )
+
+    result = await _execute_with_retry(
+        partial(_invoke_provider, use_local, call_kwargs),
+        retrying,
+    )
+
+    if use_cache and cache_key_value:
+        await set_cached_completion(
+            cache_key_value,
+            result,
+            ttl_seconds=cache_ttl_seconds or DEFAULT_CACHE_TTL,
+        )
+
+    return result
 
 
 async def stream(
@@ -440,9 +503,7 @@ LOCAL_PROVIDER_PRESETS = {
 
 
 def get_provider_presets() -> Dict[str, Any]:
-    """
-    Get all provider presets for frontend display.
-    """
+    """Get all provider presets for frontend display."""
     return {
         "api": API_PROVIDER_PRESETS,
         "local": LOCAL_PROVIDER_PRESETS,

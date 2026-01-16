@@ -1,5 +1,4 @@
-"""
-Jina Reader Search Provider
+"""Jina Reader search provider.
 
 API Docs: https://jina.ai/reader
 Search Endpoint: https://s.jina.ai/{query}
@@ -28,7 +27,7 @@ from . import register_provider
 
 @register_provider("jina")
 class JinaProvider(BaseSearchProvider):
-    """Jina Reader search provider"""
+    """Jina Reader search provider."""
 
     display_name = "Jina"
     description = "SERP with content extraction (free tier)"
@@ -50,11 +49,10 @@ class JinaProvider(BaseSearchProvider):
             query: Search query.
             enrich: If True, fetch full content + images. If False, basic SERP only.
             timeout: Request timeout in seconds.
-        }
-
+        """
+        headers: dict[str, str] = {"Accept": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-    import httpx
         if enrich:
             # Enriched mode: full content + images
             headers["X-Engine"] = "direct"

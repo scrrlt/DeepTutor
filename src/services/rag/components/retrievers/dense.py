@@ -1,9 +1,4 @@
-"""
-Dense Retriever
-===============
-
-Dense vector-based retriever using FAISS or cosine similarity.
-"""
+"""Dense vector retriever using FAISS or cosine similarity."""
 
 import json
 from pathlib import Path

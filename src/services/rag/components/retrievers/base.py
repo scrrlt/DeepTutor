@@ -1,9 +1,4 @@
-"""
-Base Retriever
-==============
-
-Base class for document retrievers.
-"""
+"""Base class for document retrievers."""
 
 from typing import Any, Dict
 

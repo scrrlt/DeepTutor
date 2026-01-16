@@ -1,16 +1,9 @@
-"""
-Local LLM Provider
-==================
+"""Local LLM provider.
 
-Handles all local/self-hosted LLM calls (LM Studio, Ollama, vLLM, llama.cpp, etc.)
-Uses httpx for async HTTP calls with connection pooling.
-
-Key features:
-- Uses httpx async client for local servers
-- Handles thinking tags (<think>) from reasoning models like Qwen
-- Extended timeouts for potentially slower local inference
+Handles local and self-hosted LLM calls with streaming support.
 """
 
+import asyncio
 import json
 from typing import AsyncGenerator, Dict, List
 
@@ -103,13 +96,13 @@ async def complete(
 
         result = response.json()
 
-            if "choices" in result and result["choices"]:
-                msg = result["choices"][0].get("message", {})
-                # Use unified response extraction
-                content = extract_response_content(msg)
-                # Clean thinking tags using unified utility
-                content = clean_thinking_tags(content)
-                return content
+        if "choices" in result and result["choices"]:
+            msg = result["choices"][0].get("message", {})
+            # Use unified response extraction
+            content = extract_response_content(msg)
+            # Clean thinking tags using unified utility
+            content = clean_thinking_tags(content)
+            return content
 
         return ""
 
@@ -183,7 +176,7 @@ async def stream(
             ) as response:
                 if response.status_code != 200:
                     raise LLMAPIError(
-                        f"Local LLM stream error: {response.text}",
+                        f"Local LLM error: {response.text}",
                         status_code=response.status_code,
                         provider="local",
                     )
@@ -250,6 +243,8 @@ async def stream(
 
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         # Streaming failed, fall back to non-streaming
         logger.error(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
@@ -266,6 +261,8 @@ async def stream(
             )
             if content:
                 yield content
+        except asyncio.CancelledError:
+            raise
         except Exception as e2:
             raise LLMAPIError(
                 f"Local LLM failed: streaming={e}, non-streaming={e2}",
@@ -320,27 +317,26 @@ async def fetch_models(
             resp = await client.get(models_url, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
-
-                    # Handle different response formats
-                    if "data" in data and isinstance(data["data"], list):
+                # Handle different response formats
+                if "data" in data and isinstance(data["data"], list):
+                    return [
+                        m.get("id") or m.get("name")
+                        for m in data["data"]
+                        if m.get("id") or m.get("name")
+                    ]
+                if "models" in data and isinstance(data["models"], list):
+                    if data["models"] and isinstance(data["models"][0], dict):
                         return [
                             m.get("id") or m.get("name")
-                            for m in data["data"]
+                            for m in data["models"]
                             if m.get("id") or m.get("name")
                         ]
-                    elif "models" in data and isinstance(data["models"], list):
-                        if data["models"] and isinstance(data["models"][0], dict):
-                            return [
-                                m.get("id") or m.get("name")
-                                for m in data["models"]
-                                if m.get("id") or m.get("name")
-                            ]
-                        return [str(m) for m in data["models"]]
-                    elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                    return [str(m) for m in data["models"]]
+                if isinstance(data, list):
+                    return [
+                        m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
+                        for m in data
+                    ]
         except Exception as e:
             logger.error(f"Error fetching models from {base_url}: {e}")
 

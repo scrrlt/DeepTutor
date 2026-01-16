@@ -1,9 +1,4 @@
-"""
-Base Indexer
-============
-
-Base class for document indexers.
-"""
+"""Base class for document indexers."""
 
 from typing import List
 

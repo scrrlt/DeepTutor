@@ -1,10 +1,6 @@
-"""
-LLM Service Exceptions
-======================
+"""LLM service exceptions.
 
-Custom exception classes for the LLM service.
-Provides a consistent exception hierarchy for better error handling.
-Maintains parity with upstream dev branch.
+Custom exception hierarchy for the LLM service.
 """
 
 from typing import Any, Dict, Optional
@@ -14,14 +10,19 @@ class LLMError(Exception):
     """Base exception for all LLM-related errors."""
 
     def __init__(
-        self, message: str, details: Optional[Dict[str, Any]] = None, provider: Optional[str] = None
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+        provider: Optional[str] = None,
     ):
+        """Initialize an LLMError with optional details and provider."""
         super().__init__(message)
         self.message = message
         self.details = details or {}
         self.provider = provider
 
     def __str__(self) -> str:
+        """Return a formatted error string with provider and details when set."""
         provider_prefix = f"[{self.provider}] " if self.provider else ""
         if self.details:
             return f"{provider_prefix}{self.message} (details: {self.details})"
@@ -43,6 +44,7 @@ class LLMProviderError(LLMError):
 class LLMAPIError(LLMError):
     """
     Raised when an API call to an LLM provider fails.
+
     Standardizes status_code and provider name.
     """
 
@@ -53,10 +55,12 @@ class LLMAPIError(LLMError):
         provider: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
+        """Initialize API error with status code and provider context."""
         super().__init__(message, details, provider)
         self.status_code = status_code
 
     def __str__(self) -> str:
+        """Return formatted string including provider and status code."""
         parts = []
         if self.provider:
             parts.append(f"[{self.provider}]")
@@ -75,6 +79,7 @@ class LLMTimeoutError(LLMAPIError):
         timeout: Optional[float] = None,
         provider: Optional[str] = None,
     ):
+        """Initialize timeout error with optional timeout value."""
         super().__init__(message, status_code=408, provider=provider)
         self.timeout = timeout
 
@@ -88,6 +93,7 @@ class LLMRateLimitError(LLMAPIError):
         retry_after: Optional[float] = None,
         provider: Optional[str] = None,
     ):
+        """Initialize rate limit error with optional retry_after value."""
         super().__init__(message, status_code=429, provider=provider)
         self.retry_after = retry_after
 
@@ -100,6 +106,7 @@ class LLMAuthenticationError(LLMAPIError):
         message: str = "Authentication failed",
         provider: Optional[str] = None,
     ):
+        """Initialize authentication error."""
         super().__init__(message, status_code=401, provider=provider)
 
 
@@ -112,6 +119,7 @@ class LLMModelNotFoundError(LLMAPIError):
         model: Optional[str] = None,
         provider: Optional[str] = None,
     ):
+        """Initialize model-not-found error with optional model name."""
         super().__init__(message, status_code=404, provider=provider)
         self.model = model
 
@@ -125,16 +133,17 @@ class LLMParseError(LLMError):
         provider: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
+        """Initialize parse error with optional details payload."""
         super().__init__(message, details=details, provider=provider)
 
 
 # Multi-provider specific aliases for mapping rules
 class ProviderQuotaExceededError(LLMRateLimitError):
-    pass
+    """Alias for provider-specific quota exceeded errors."""
 
 
 class ProviderContextWindowError(LLMAPIError):
-    pass
+    """Alias for provider-specific context window errors."""
 
 
 __all__ = [

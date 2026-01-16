@@ -1,6 +1,4 @@
-"""
-Error Mapping - Map provider-specific errors to unified exceptions.
-"""
+"""Map provider-specific errors to unified exceptions."""
 
 from __future__ import annotations
 
@@ -34,6 +32,8 @@ ErrorClassifier = Callable[[Exception], bool]
 
 @dataclass(frozen=True)
 class MappingRule:
+    """Mapping rule pairing classifier and factory."""
+
     classifier: ErrorClassifier
     factory: Callable[[Exception, Optional[str]], LLMError]
 

@@ -1,11 +1,6 @@
-"""
-LLM Client
-==========
+"""LLM client interface.
 
-Unified LLM client for all DeepTutor services.
-
-Note: This is a legacy interface. Prefer using the factory functions directly:
-    from src.services.llm import complete, stream
+Legacy client wrapper around the LLM factory functions.
 """
 
 from typing import Any, Dict, List, Optional
@@ -74,11 +69,7 @@ class LLMClient:
         history: Optional[List[Dict[str, str]]] = None,
         **kwargs: Any,
     ) -> str:
-        """
-        Synchronous wrapper for complete().
-
-        Use this when you need to call from non-async context.
-        """
+        """Run completion synchronously for non-async contexts."""
         import asyncio
 
         try:
@@ -97,60 +88,40 @@ class LLMClient:
         Get a function compatible with LightRAG's llm_model_func parameter.
 
         Returns:
-            Callable that can be used as llm_model_func
+            Async callable that can be used as llm_model_func
         """
         binding = getattr(self.config, "binding", "openai")
 
         # Use capabilities to determine if provider uses OpenAI-style messages
         uses_openai_style = system_in_messages(binding, self.config.model)
 
-        # For non-OpenAI-compatible providers (e.g., Anthropic), use Factory
-        if not uses_openai_style:
-            from . import factory
+        from . import factory
 
-            def llm_model_func_via_factory(
-                prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
-                **kwargs: Any,
-            ):
-                return factory.complete(
-                    prompt=prompt,
-                    system_prompt=system_prompt or "You are a helpful assistant.",
-                    model=self.config.model,
-                    api_key=self.config.api_key,
-                    base_url=self.config.base_url,
-                    binding=binding,
-                    history_messages=history_messages,
-                    **kwargs,
-                )
-
-            return llm_model_func_via_factory
-
-        # OpenAI-compatible bindings use lightrag (has caching)
-        from lightrag.llm.openai import openai_complete_if_cache
-
-        def llm_model_func(
+        async def llm_model_func(
             prompt: str,
             system_prompt: Optional[str] = None,
             history_messages: Optional[List[Dict]] = None,
             **kwargs: Any,
-        ):
-            # Only pass api_version if set (for Azure OpenAI)
-            lightrag_kwargs = {
-                "system_prompt": system_prompt,
-                "history_messages": history_messages or [],
-                "api_key": self.config.api_key,
-                "base_url": self.config.base_url,
+        ) -> str:
+            messages: Optional[List[Dict[str, Any]]] = None
+            if uses_openai_style:
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                if history_messages:
+                    messages.extend(history_messages)
+                messages.append({"role": "user", "content": prompt})
+
+            return await factory.complete(
+                prompt=prompt,
+                system_prompt=system_prompt or "You are a helpful assistant.",
+                model=self.config.model,
+                api_key=self.config.api_key,
+                base_url=self.config.base_url,
+                api_version=getattr(self.config, "api_version", None),
+                binding=binding,
+                messages=messages,
                 **kwargs,
-            }
-            api_version = getattr(self.config, "api_version", None)
-            if api_version:
-                lightrag_kwargs["api_version"] = api_version
-            return openai_complete_if_cache(
-                self.config.model,
-                prompt,
-                **lightrag_kwargs,
             )
 
         return llm_model_func

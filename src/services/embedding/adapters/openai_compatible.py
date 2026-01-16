@@ -18,6 +18,11 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        if not self.api_key:
+            raise ValueError(
+                "API key is required for OpenAI-compatible embedding requests"
+            )
+
         headers = {
             "Content-Type": "application/json",
         }

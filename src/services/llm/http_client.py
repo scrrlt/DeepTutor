@@ -1,18 +1,7 @@
-"""
-Shared HTTP Client for LLM Providers
-====================================
+"""Shared async HTTP client for LLM providers.
 
-Provides a singleton httpx.AsyncClient instance for all LLM providers to
-share, enabling connection pooling, Keep-Alive, and reducing SSL handshake
-overhead.
-
-This addresses the memory and dependency bloat from having multiple HTTP
-clients (requests, aiohttp, httpx) by standardizing on httpx which supports:
-- Async/await natively
-- Full type hints
-- HTTP/2 support
-- Connection pooling
-- Keep-Alive connections
+Provides a singleton httpx.AsyncClient instance for connection pooling and
+Keep-Alive support across providers.
 """
 
 import asyncio

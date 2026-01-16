@@ -1,11 +1,6 @@
-"""
-LLM Utilities
-=============
+"""LLM utilities.
 
-Utility functions for LLM service:
-- URL handling for local and cloud servers
-- Response content extraction
-- Thinking tags cleaning
+URL handling, response extraction, and thinking-tag cleanup helpers.
 """
 
 import re
