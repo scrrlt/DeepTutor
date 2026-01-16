@@ -13,6 +13,10 @@ from lightrag.llm.openai import openai_complete_if_cache
 
 from src.logging import get_logger
 
+# Compatibility exports for tests/legacy imports.
+from .http_client import get_shared_http_client
+from .providers.open_ai import OpenAIProvider
+
 # Get loggers for suppression during fallback scenarios
 # (lightrag logs errors internally before raising exceptions)
 _lightrag_logger = logging.getLogger("lightrag")

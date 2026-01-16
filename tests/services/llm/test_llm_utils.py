@@ -17,14 +17,16 @@ def test_is_local_llm_server():
     assert not utils.is_local_llm_server("https://google.com")
     assert not utils.is_local_llm_server(None)
     assert not utils.is_local_llm_server("")
+    assert not utils.is_local_llm_server("http://192.168.1.1:1234") # is_private should be true
 
 def test_sanitize_url():
     # sanitize_url only strips specific suffixes, not arbitrary paths
-    assert utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api/chat"
+    assert utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api"
     # But it adds http
     assert utils.sanitize_url("localhost:11434/v1") == "http://localhost:11434"
     assert utils.sanitize_url("example.com") == "http://example.com"
     assert utils.sanitize_url(None) == ""
+    assert utils.sanitize_url("http://example.com/v1/chat/completions") == "http://example.com"
 
 def test_clean_thinking_tags():
     content = "Here is <think>some thought</think> the answer."
@@ -33,11 +35,15 @@ def test_clean_thinking_tags():
     content_no_tags = "Just answer."
     assert utils.clean_thinking_tags(content_no_tags) == "Just answer."
     
-    assert utils.clean_thinking_tags(None) is None
+    assert utils.clean_thinking_tags(None) == ""
     
     # Test binding check logic (mocking capabilities would be needed if we passed binding)
     # But clean_thinking_tags imports inside function. 
     # For now test basic tag removal.
+    content_with_binding = "<think>thought</think> answer"
+    assert utils.clean_thinking_tags(content_with_binding, binding="deepseek") == "answer"
+    assert utils.clean_thinking_tags(content_with_binding, binding="openai") == content_with_binding
+
 
 def test_build_chat_url():
     base = "http://localhost:11434"
@@ -50,11 +56,15 @@ def test_build_chat_url():
     
     # Azure
     assert "api-version=2023-05-15" in utils.build_chat_url("https://azure", api_version="2023-05-15")
+    assert utils.build_chat_url(None) is None
+
 
 def test_extract_response_content():
     assert utils.extract_response_content({"content": "hello"}) == "hello"
     assert utils.extract_response_content({"reasoning_content": "thought"}) == "thought"
     assert utils.extract_response_content({"tool_calls": ["call"]}) == "<tool_call>"
+    assert utils.extract_response_content({"reasoning": "reasoning"}) == "reasoning"
+    assert utils.extract_response_content({"thought": "thought"}) == "thought"
     assert utils.extract_response_content({}) == ""
     assert utils.extract_response_content(None) == ""
 

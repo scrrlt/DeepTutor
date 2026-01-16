@@ -21,7 +21,7 @@ from .exceptions import (
     LLMTimeoutError,  # noqa: F401
 )
 from .providers.base_provider import BaseLLMProvider
-from .registry import get_provider_class
+from . import cloud_provider, local_provider, registry
 from .utils import is_local_llm_server
 
 # Initialize logger
@@ -42,7 +42,7 @@ class LLMFactory:
         # Ensure the routing provider is registered without importing heavy SDKs.
         from .providers.routing import RoutingProvider  # noqa: F401
 
-        provider_cls = get_provider_class("routing")
+        provider_cls = registry.get_provider_class("routing")
         return provider_cls(config)
 
 

@@ -11,6 +11,10 @@ import httpx
 
 from src.logging import get_logger
 
+# Compatibility exports for tests/legacy imports.
+from .http_client import get_shared_http_client
+from .providers.local_openai import LocalLLMProvider
+
 logger = get_logger(__name__)
 
 from .exceptions import LLMAPIError, LLMConfigError

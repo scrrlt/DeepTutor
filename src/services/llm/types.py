@@ -9,7 +9,7 @@ class TutorResponse(BaseModel):
     """LLM completion response container."""
 
     content: str
-    raw_response: dict[str, Any]
+    raw_response: dict[str, Any] = Field(default_factory=dict)
     usage: dict[str, int] = Field(
         default_factory=lambda: {
             "prompt_tokens": 0,
@@ -17,8 +17,8 @@ class TutorResponse(BaseModel):
             "total_tokens": 0,
         }
     )
-    provider: str
-    model: str
+    provider: str = ""
+    model: str = ""
     finish_reason: str | None = None
     cost_estimate: float = 0.0
 
@@ -26,12 +26,24 @@ class TutorResponse(BaseModel):
 class TutorStreamChunk(BaseModel):
     """Chunk emitted during streamed LLM responses."""
 
-    content: str
     delta: str
-    provider: str
-    model: str
+    content: str = ""
+    provider: str = ""
+    model: str = ""
     is_complete: bool = False
     usage: dict[str, int] | None = None
 
 
 AsyncStreamGenerator = AsyncGenerator[TutorStreamChunk, None]
+
+# Backwards-compatible type aliases used by some callers/tests.
+LLMResponse = TutorResponse
+StreamChunk = TutorStreamChunk
+
+__all__ = [
+    "AsyncStreamGenerator",
+    "LLMResponse",
+    "StreamChunk",
+    "TutorResponse",
+    "TutorStreamChunk",
+]

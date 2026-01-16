@@ -37,8 +37,22 @@ async def test_rag_search_missing_kb():
 
 @pytest.mark.asyncio
 async def test_rag_search_empty_query():
-    """Test validation for empty queries."""
+    """Empty queries should be rejected deterministically."""
     result = await rag_search("", kb_name="test")
-    # Should probably return error or empty result, depending on implementation
-    # Adjust assertion based on your actual validation logic
-    assert result["status"] == "error" or result["answer"] == ""
+    assert result["status"] == "error"
+    assert result["answer"] == ""
+    assert "Empty query" in result.get("message", "")
+
+
+@pytest.mark.asyncio
+async def test_rag_search_no_results_success():
+    """A valid query with no hits should succeed with empty answer."""
+
+    with patch("src.tools.rag_tool.get_rag_engine") as mock_engine_getter:
+        mock_engine = AsyncMock()
+        mock_engine.query.return_value = ""
+        mock_engine_getter.return_value = mock_engine
+
+        result = await rag_search("No hits", kb_name="test")
+        assert result["status"] == "success"
+        assert result["answer"] == ""

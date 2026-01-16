@@ -26,9 +26,9 @@ if str(_project_root) not in sys.path:
 from src.config.settings import settings
 from src.logging import LLMStats, get_logger
 from src.services.config import get_agent_params
-from src.services.llm import complete as llm_complete
-from src.services.llm import get_llm_config, get_token_limit_kwargs, supports_response_format
-from src.services.llm import stream as llm_stream
+from src.services.llm import get_token_limit_kwargs, supports_response_format
+from src.services.llm.config import LLMConfig, get_llm_config
+from src.services.llm.factory import LLMFactory
 from src.services.prompt import get_prompt_manager
 
 
@@ -60,7 +60,7 @@ class BaseAgent(ABC):
         api_version: str | None = None,
         language: str = "zh",
         binding: str = "openai",
-        config: dict[str, Any] | None = None,
+        config: LLMConfig | dict[str, Any] | None = None,
         token_tracker: Any | None = None,
         log_dir: str | None = None,
     ):
@@ -83,85 +83,68 @@ class BaseAgent(ABC):
         self.module_name = module_name
         self.agent_name = agent_name
         self.language = language
-        # Initialize instance attributes with proper types
-        self.api_key: str | None = None
-        self.base_url: str | None = None
-        self.model: str | None = None
-        self.api_version: str | None = None
-        self.binding: str = "openai"
-        self.llm_config: dict[str, Any] = {}
-        self.agent_config: dict[str, Any] = {}
-        self.enabled: bool = True
-        self.prompts: dict[str, Any] | None = None
-        self.token_tracker: Any | None = None
-        # Ensure config is always a dict (not a dataclass like LLMConfig)
-        if config is None:
-            self.config = {}
-        elif isinstance(config, dict):
-            self.config = config
-        else:
-            # If config is a dataclass (like LLMConfig), convert to empty dict
-            # The actual LLM config should be loaded via get_llm_config()
-            self.config = {}
 
-        # Load agent parameters from unified config (agents.yaml)
+        # Observability
+        logger_name = f"{module_name.capitalize()}.{agent_name}"
+        self.logger = get_logger(logger_name, log_dir=log_dir)
+
+        # Agent params (agents.yaml)
         self._agent_params = get_agent_params(module_name)
         if not isinstance(self._agent_params, dict):
-            # Fallback to default values if get_agent_params fails
             self._agent_params = {"temperature": 0.7, "max_tokens": 2000}
 
-        # Load LLM configuration
-        try:
-            env_llm = get_llm_config()
-            self.api_key = api_key or getattr(env_llm, "get_api_key", lambda: env_llm.api_key)()
-            self.base_url = base_url or env_llm.base_url
-            self.model = model or env_llm.model
-            self.api_version = api_version or getattr(env_llm, "api_version", None)
-            self.binding = binding or getattr(env_llm, "binding", "openai")
-        except ValueError:
-            # Fallback if env config not available
-            self.api_key = api_key or os.getenv("LLM_API_KEY")
-            self.base_url = base_url or os.getenv("LLM_HOST")
-            self.model = model or os.getenv("LLM_MODEL")
-            self.api_version = api_version or os.getenv("LLM_API_VERSION")
-            self.binding = binding
-
-        # Get Agent-specific configuration (if config provided)
+        # Agent config dict (optional legacy config)
+        self.config: dict[str, Any] = config if isinstance(config, dict) else {}
         self.agent_config = self.config.get("agents", {}).get(agent_name, {})
-        llm_cfg = self.config.get("llm", {})
-        # Ensure llm_config is always a dict (handle case where LLMConfig object is passed)
-        if hasattr(llm_cfg, "__dataclass_fields__"):
-            from dataclasses import asdict
-
-            try:
-                self.llm_config = asdict(llm_cfg)
-            except Exception:
-                self.llm_config = {}
-        else:
-            self.llm_config = llm_cfg if isinstance(llm_cfg, dict) else {}
-
-        # Agent status
         self.enabled = self.agent_config.get("enabled", True)
+
+        # Hardened LLM config resolution
+        llm_cfg = config if isinstance(config, LLMConfig) else None
+        llm_cfg = llm_cfg or get_llm_config()
+
+        updates: dict[str, Any] = {}
+        if model is not None:
+            updates["model"] = model
+        if base_url is not None:
+            updates["base_url"] = base_url
+        if api_key is not None:
+            updates["api_key"] = api_key
+        if api_version is not None:
+            updates["api_version"] = api_version
+        if binding is not None:
+            updates["binding"] = binding
+
+        if updates:
+            llm_cfg = llm_cfg.model_copy(update=updates)
+
+        self.llm_config = llm_cfg
+
+        # Provider instantiation via factory
+        self.provider = LLMFactory.get_provider(self.llm_config)
+
+        # Compatibility attributes
+        self.api_key = self.llm_config.get_api_key()
+        self.base_url = self.llm_config.base_url or self.llm_config.effective_url
+        self.model = self.llm_config.model
+        self.api_version = self.llm_config.api_version
+        self.binding = self.llm_config.binding
 
         # Token tracker (external instance, optional)
         self.token_tracker = token_tracker
 
-        # Initialize logger
-        logger_name = f"{module_name.capitalize()}.{agent_name}"
-        self.logger = get_logger(logger_name, log_dir=log_dir)
-
-        # Load prompts using unified PromptManager
+        # Prompts
+        self.prompts: dict[str, Any] | None = None
         try:
             self.prompts = get_prompt_manager().load_prompts(
                 module_name=module_name,
                 agent_name=agent_name,
                 language=language,
             )
-            if self.prompts:
-                self.logger.debug(f"Prompts loaded: {agent_name} ({language})")
-        except Exception as e:
+        except Exception as exc:
             self.prompts = None
-            self.logger.warning(f"Failed to load prompts for {agent_name}: {e}")
+            self.logger.warning(
+                f"Failed to load prompts for {agent_name}: {exc}"
+            )
 
     # -------------------------------------------------------------------------
     # Model and Parameter Getters
@@ -183,13 +166,10 @@ class BaseAgent(ABC):
         if self.agent_config.get("model"):
             return self.agent_config["model"]
 
-        # 2. Try general LLM config
-        if self.llm_config.get("model"):
-            return self.llm_config["model"]
-
-        # 3. Use instance model
-        if self.model:
-            return self.model
+        # 2. Use validated settings/config
+        if getattr(self, "model", None):
+            return str(self.model)
+        return str(self.llm_config.model)
 
         # 4. Fallback to environment variable
         env_model = os.getenv("LLM_MODEL")
@@ -257,6 +237,20 @@ class BaseAgent(ABC):
     # -------------------------------------------------------------------------
     # Token Tracking
     # -------------------------------------------------------------------------
+
+    def _track_usage(self, response: Any, stage: str) -> None:
+        """Record a single usage event.
+
+        Args:
+            response: Response content or object.
+            stage: Logical stage label.
+        """
+        stats = self.get_stats(self.module_name)
+        stats.add_call(
+            model=self.get_model(),
+            response=str(response),
+            stage=stage,
+        )
 
     @classmethod
     def get_stats(cls, module_name: str) -> LLMStats:
@@ -432,21 +426,24 @@ class BaseAgent(ABC):
                 metadata={"model": model, "temperature": temperature, "max_tokens": max_tokens},
             )
 
-        # Call LLM via factory (routes to cloud or local provider)
-        response = None
+        # Call via provider (provider encapsulates routing/retries).
         try:
-            response = await llm_complete(
-                prompt=user_prompt,
+            provider_response = await self.provider.complete(
+                user_prompt,
                 system_prompt=system_prompt,
                 model=model,
-                api_key=self.api_key,
-                base_url=self.base_url,
+                binding=self.binding,
                 api_version=self.api_version,
                 max_retries=max_retries,
                 **kwargs,
             )
-        except Exception as e:
-            self.logger.error(f"LLM call failed: {e}")
+            response = (
+                provider_response.content
+                if hasattr(provider_response, "content")
+                else str(provider_response)
+            )
+        except Exception as exc:
+            self.logger.error(f"LLM call failed: {exc}")
             raise
 
         # Calculate duration
@@ -513,6 +510,9 @@ class BaseAgent(ABC):
             "temperature": temperature,
         }
 
+        if messages:
+            kwargs["messages"] = messages
+
         # Handle token limit for newer OpenAI models
         if max_tokens:
             kwargs.update(get_token_limit_kwargs(model, max_tokens))
@@ -533,19 +533,28 @@ class BaseAgent(ABC):
         full_response = ""
 
         try:
-            # Stream via factory (routes to cloud or local provider)
-            async for chunk in llm_stream(
-                prompt=user_prompt,
+            async for chunk in self.provider.stream(
+                user_prompt,
                 system_prompt=system_prompt,
                 model=model,
-                api_key=self.api_key,
-                base_url=self.base_url,
+                binding=self.binding,
                 api_version=self.api_version,
-                messages=messages,
+                max_retries=self.get_max_retries(),
                 **kwargs,
             ):
-                full_response += chunk
-                yield chunk
+                text: str
+                delta = getattr(chunk, "delta", None)
+                if isinstance(delta, str):
+                    text = delta
+                else:
+                    content = getattr(chunk, "content", None)
+                    if isinstance(content, str):
+                        text = content
+                    else:
+                        text = str(chunk)
+
+                full_response += text
+                yield text
 
             # Track token usage after streaming completes
             self._track_tokens(
@@ -572,8 +581,8 @@ class BaseAgent(ABC):
                     },
                 )
 
-        except Exception as e:
-            self.logger.error(f"LLM streaming failed: {e}")
+        except Exception as exc:
+            self.logger.error(f"LLM streaming failed: {exc}")
             raise
 
     # -------------------------------------------------------------------------
@@ -611,6 +620,16 @@ class BaseAgent(ABC):
                     else None
                 )
             )
+
+        # Dot-notation lookup: get_prompt("section.key", fallback="...")
+        if field_or_fallback is None and "." in section_or_type:
+            section, key = section_or_type.split(".", 1)
+            section_value = self.prompts.get(section)
+            if isinstance(section_value, dict):
+                result = section_value.get(key)
+                if result is not None:
+                    return str(result)
+            return fallback if fallback else None
 
         # Check if this is a nested lookup (section.field pattern)
         # If field_or_fallback is provided and section_or_type points to a dict, use nested lookup

@@ -44,8 +44,13 @@ class LLMConfig(BaseSettings):
         frozen=True,
     )
 
-    # Required Fields
-    model: str = Field(..., description="The model identifier (e.g., gpt-4o)")
+    # Core fields
+    # Default chosen to keep the factory usable out-of-the-box in dev/test
+    # without forcing an environment variable.
+    model: str = Field(
+        "gpt-4o-mini",
+        description="The model identifier (e.g., gpt-4o, gpt-4o-mini)",
+    )
     # Defaults
     binding: str = Field(
         "openai",
@@ -123,7 +128,7 @@ def get_llm_config() -> LLMConfig:
         The valid LLM configuration instance.
 
     Raises:
-        LLMConfigError: If required env vars (LLM_MODEL) are missing.
+        LLMConfigError: If configuration is invalid.
     """
     global _settings
     if _settings is None:

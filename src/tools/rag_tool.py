@@ -6,9 +6,8 @@ This module provides simple function wrappers for RAG operations.
 All logic is delegated to RAGService in src/services/rag/service.py.
 """
 
-import asyncio
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -21,12 +20,47 @@ load_dotenv(project_root / ".env", override=False)
 from src.services.rag.service import RAGService
 
 
+class _RAGEngineAdapter:
+    def __init__(
+        self,
+        service: RAGService,
+        kb_name: str | None,
+        extra_kwargs: dict[str, Any],
+    ) -> None:
+        self._service = service
+        self._kb_name = kb_name
+        self._extra_kwargs = extra_kwargs
+
+    async def query(self, query: str, param_mode: str = "hybrid") -> str:
+        result = await self._service.search(
+            query=query,
+            kb_name=self._kb_name,
+            mode=param_mode,
+            **self._extra_kwargs,
+        )
+        return str(result.get("answer", ""))
+
+
+def get_rag_engine(
+    kb_name: str | None,
+    provider: str | None = None,
+    kb_base_dir: str | None = None,
+    **kwargs: Any,
+) -> _RAGEngineAdapter:
+    """Return an engine-like object with an async `query()` method.
+
+    This exists primarily for testability; unit tests patch this function.
+    """
+    service = RAGService(kb_base_dir=kb_base_dir, provider=provider)
+    return _RAGEngineAdapter(service=service, kb_name=kb_name, extra_kwargs=kwargs)
+
+
 async def rag_search(
     query: str,
-    kb_name: Optional[str] = None,
+    kb_name: str | None = None,
     mode: str = "hybrid",
-    provider: Optional[str] = None,
-    kb_base_dir: Optional[str] = None,
+    provider: str | None = None,
+    kb_base_dir: str | None = None,
     **kwargs,
 ) -> dict:
     """
@@ -61,19 +95,40 @@ async def rag_search(
         # Override provider
         result = await rag_search("What is ML?", kb_name="textbook", provider="lightrag")
     """
-    service = RAGService(kb_base_dir=kb_base_dir, provider=provider)
+    if not query or not query.strip():
+        return {
+            "status": "error",
+            "answer": "",
+            "message": "Empty query",
+        }
 
     try:
-        return await service.search(query=query, kb_name=kb_name, mode=mode, **kwargs)
-    except Exception as e:
-        raise Exception(f"RAG search failed: {e}")
+        engine = get_rag_engine(
+            kb_name=kb_name,
+            provider=provider,
+            kb_base_dir=kb_base_dir,
+            **kwargs,
+        )
+        answer = await engine.query(query, param_mode=mode)
+        return {
+            "status": "success",
+            "query": query,
+            "answer": answer,
+            "mode": mode,
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "answer": "",
+            "message": str(exc),
+        }
 
 
 async def initialize_rag(
     kb_name: str,
-    documents: List[str],
-    provider: Optional[str] = None,
-    kb_base_dir: Optional[str] = None,
+    documents: list[str],
+    provider: str | None = None,
+    kb_base_dir: str | None = None,
     **kwargs,
 ) -> bool:
     """
@@ -99,8 +154,8 @@ async def initialize_rag(
 
 async def delete_rag(
     kb_name: str,
-    provider: Optional[str] = None,
-    kb_base_dir: Optional[str] = None,
+    provider: str | None = None,
+    kb_base_dir: str | None = None,
 ) -> bool:
     """
     Delete a knowledge base.
@@ -120,7 +175,7 @@ async def delete_rag(
     return await service.delete(kb_name=kb_name)
 
 
-def get_available_providers() -> List[Dict]:
+def get_available_providers() -> list[dict[str, Any]]:
     """
     Get list of available RAG pipelines.
 

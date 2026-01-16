@@ -1,103 +1,107 @@
-# tests/agents/chat/test_chat_agent.py
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Tests for the ChatAgent.
+"""
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import patch, MagicMock, AsyncMock
+
 from src.agents.chat.chat_agent import ChatAgent
-from src.config.config import LLMConfig
+
 
 @pytest.fixture
-def mock_config():
-    return LLMConfig(
-        model="gpt-4o",
-        api_key="sk-test",
-        binding="openai"
-    )
+def chat_agent():
+    """
+    Provides a ChatAgent instance with mocked dependencies.
+    """
+    with patch('src.agents.base_agent.get_prompt_manager'), \
+         patch('src.agents.base_agent.get_logger'):
+        agent = ChatAgent()
+        yield agent
 
-@pytest.fixture
-def mock_provider():
-    """Mock the LLMProvider to avoid hitting OpenAI."""
-    provider = AsyncMock()
-    # Mock the response object structure
-    response = MagicMock()
-    response.content = "I am a test bot."
-    provider.complete.return_value = response
-    
-    # Mock streaming response
-    async def mock_stream(*args, **kwargs):
-        yield MagicMock(content="I am ")
-        yield MagicMock(content="streaming.")
-    provider.stream = mock_stream
-    
-    return provider
-
-@pytest.fixture
-def chat_agent(mock_config, mock_provider):
-    with patch("src.agents.base_agent.LLMFactory.get_provider", return_value=mock_provider):
-        agent = ChatAgent(config=mock_config)
-        return agent
 
 @pytest.mark.asyncio
-async def test_agent_initialization(chat_agent):
-    assert chat_agent.agent_name == "chat_agent"
-    assert chat_agent.model == "gpt-4o"
+async def test_chat_agent_process_no_stream(chat_agent: ChatAgent):
+    """
+    Tests that the process method correctly calls the call_llm method when stream is False.
+    """
+    chat_agent.call_llm = AsyncMock(return_value="test_response")
+
+    result = await chat_agent.process("test_message")
+
+    chat_agent.call_llm.assert_called_once()
+    assert result["response"] == "test_response"
+
 
 @pytest.mark.asyncio
-async def test_process_simple_chat(chat_agent):
-    response = await chat_agent.process(
-        message="Hello",
-        history=[],
-        stream=False
-    )
-    
-    # Verify LLM was called
-    chat_agent.provider.complete.assert_called_once()
-    assert response["response"] == "I am a test bot."
-    assert len(response["truncated_history"]) == 0
+async def test_chat_agent_process_with_stream(chat_agent: ChatAgent):
+    """
+    Tests that the process method correctly calls the stream_llm method when stream is True.
+    """
+    async def mock_stream_llm(*args, **kwargs):
+        yield "test"
+        yield " response"
 
-@pytest.mark.asyncio
-async def test_context_truncation(chat_agent):
-    # Create a huge history
-    long_history = [{"role": "user", "content": "test " * 100} for _ in range(50)]
-    
-    response = await chat_agent.process("Hi", history=long_history)
-    
-    # Ensure history passed to LLM is shorter than the input history
-    call_args = chat_agent.provider.complete.call_args
-    passed_messages = call_args.kwargs["messages"]
-    
-    # Count user messages in the final payload
-    history_count = sum(1 for m in passed_messages if m["role"] == "user")
-    # Should be less than 50 + 1 (current message)
-    assert history_count < 51
+    chat_agent.stream_llm = mock_stream_llm
 
-@pytest.mark.asyncio
-async def test_rag_integration(chat_agent):
-    # Mock the injected RAG tool
-    mock_rag = AsyncMock(return_value={"answer": "DeepTutor is an AI tool."})
-    chat_agent._rag_search = mock_rag
-    
-    await chat_agent.process(
-        message="What is DeepTutor?",
-        kb_name="docs",
-        enable_rag=True
-    )
-    
-    # Verify RAG tool was called
-    mock_rag.assert_called_with("What is DeepTutor?", kb_name="docs")
-    
-    # Verify Context was injected into System Prompt
-    call_args = chat_agent.provider.complete.call_args
-    messages = call_args.kwargs["messages"]
-    system_msg = next((m for m in messages if m["role"] == "system" and "Context:" in m["content"]), None)
-    assert system_msg is not None, "Expected system message with Context not found"
-    assert "DeepTutor is an AI tool" in system_msg["content"]
+    generator = await chat_agent.process("test_message", stream=True)
 
-@pytest.mark.asyncio
-async def test_streaming_flow(chat_agent):
     chunks = []
-    generator = await chat_agent.process("Stream me", stream=True)
-    
     async for chunk in generator:
-        if chunk["type"] == "chunk":
-            chunks.append(chunk["content"])
-            
-    assert "".join(chunks) == "I am streaming."
+        chunks.append(chunk)
+    
+    assert len(chunks) == 3 # 2 content chunks, 1 meta chunk
+    assert chunks[0]['content'] == 'test'
+    assert chunks[1]['content'] == ' response'
+    assert chunks[2]['type'] == 'meta'
+
+
+@pytest.mark.asyncio
+async def test_retrieve_context(chat_agent: ChatAgent):
+    """
+    Tests that the _retrieve_context method correctly calls the RAG and web search functions.
+    """
+    chat_agent._rag_search = AsyncMock(return_value={"answer": "rag_answer"})
+    chat_agent._web_search = AsyncMock(return_value={"answer": "web_answer", "citations": []})
+
+    context, sources = await chat_agent._retrieve_context("test_message", "test_kb", True, True)
+
+    chat_agent._rag_search.assert_called_once_with("test_message", kb_name="test_kb")
+    chat_agent._web_search.assert_called_once_with("test_message")
+    assert "rag_answer" in context
+    assert "web_answer" in context
+    assert len(sources["rag"]) > 0
+    assert len(sources["web"]) == 0
+
+@pytest.mark.asyncio
+async def test_retrieve_context_exceptions(chat_agent: ChatAgent):
+    """
+    Tests that the _retrieve_context method correctly handles exceptions.
+    """
+    chat_agent._rag_search = AsyncMock(side_effect=Exception("RAG Error"))
+    chat_agent._web_search = AsyncMock(side_effect=Exception("Web Search Error"))
+
+    context, sources = await chat_agent._retrieve_context("test_message", "test_kb", True, True)
+
+    assert context == ""
+    assert len(sources["rag"]) == 0
+    assert len(sources["web"]) == 0
+    
+
+def test_truncate_history(chat_agent: ChatAgent):
+    """
+    Tests that the _truncate_history method correctly truncates the history.
+    """
+    history = [
+        {"role": "user", "content": "This is a long message that should be truncated."},
+        {"role": "assistant", "content": "This is another long message."},
+        {"role": "user", "content": "This is a short message."},
+    ]
+    chat_agent.max_history_tokens = 20
+
+    truncated_history = chat_agent._truncate_history(history)
+
+    assert len(truncated_history) == 1
+    assert truncated_history[0]["content"] == "This is a short message."

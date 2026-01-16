@@ -220,20 +220,18 @@ class ProviderQuotaExceededError(LLMRateLimitError):
 class ProviderContextWindowError(LLMAPIError):
     """Alias for provider-specific context window errors."""
 
+
+class LLMCircuitBreakerError(LLMError):
+    """Raised when the circuit breaker is open and calls are blocked."""
+
     def __init__(
         self,
-        message: str = "Context window exceeded",
+        message: str = "Circuit breaker open",
         provider: str | None = None,
         details: dict[str, Any] | None = None,
         request_id: str | None = None,
     ):
-        super().__init__(
-            message,
-            status_code=400,
-            provider=provider,
-            details=details,
-            request_id=request_id,
-        )
+        super().__init__(message, details=details, provider=provider, request_id=request_id)
 
     @property
     def is_retryable(self) -> bool:
@@ -253,4 +251,5 @@ __all__ = [
     "LLMParseError",
     "ProviderQuotaExceededError",
     "ProviderContextWindowError",
+    "LLMCircuitBreakerError",
 ]

@@ -17,6 +17,30 @@ import time
 from typing import Any
 import uuid
 
+try:
+    from filelock import FileLock
+except Exception:  # pragma: no cover
+    class FileLock:  # type: ignore[no-redef]
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        def __enter__(self) -> "FileLock":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: Any,
+        ) -> None:
+            return None
+
+
+try:
+    from redis import Redis  # type: ignore
+except Exception:  # pragma: no cover
+    Redis = None  # type: ignore[assignment]
+
 
 class SessionManager:
     """
@@ -66,15 +90,19 @@ class SessionManager:
     def _load_data(self) -> dict[str, Any]:
         """Load sessions data from file."""
         try:
-            with open(self.sessions_file, encoding="utf-8") as f:
-                return json.load(f)
+            lock_path = f"{self.sessions_file}.lock"
+            with FileLock(lock_path):
+                with open(self.sessions_file, encoding="utf-8") as f:
+                    return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return {"version": "1.0", "sessions": []}
 
     def _save_data(self, data: dict[str, Any]):
         """Save sessions data to file."""
-        with open(self.sessions_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        lock_path = f"{self.sessions_file}.lock"
+        with FileLock(lock_path):
+            with open(self.sessions_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _get_sessions(self) -> list[dict[str, Any]]:
         """Get list of all sessions."""
@@ -302,7 +330,8 @@ class RedisSessionManager(SessionManager):
     """Session manager backed by Redis for multi-worker durability."""
 
     def __init__(self, redis_url: str):
-        from redis import Redis
+        if Redis is None:
+            raise ImportError("redis is not installed")
 
         self.redis = Redis.from_url(redis_url, decode_responses=True)
 
@@ -320,8 +349,10 @@ class RedisSessionManager(SessionManager):
 
     def _save_session(self, session: dict[str, Any]) -> None:
         session_id = session["session_id"]
-        self.redis.set(self._session_key(session_id), json.dumps(session))
-        self.redis.zadd(self._index_key(), {session_id: session["updated_at"]})
+        pipe = self.redis.pipeline()
+        pipe.set(self._session_key(session_id), json.dumps(session))
+        pipe.zadd(self._index_key(), {session_id: session["updated_at"]})
+        pipe.execute()
 
     def _delete_session(self, session_id: str) -> bool:
         pipe = self.redis.pipeline()
@@ -334,7 +365,16 @@ class RedisSessionManager(SessionManager):
         return self.redis.zrevrange(self._index_key(), 0, limit - 1)
 
     def _enforce_limit(self, max_sessions: int) -> None:
-        excess = self.redis.zcard(self._index_key()) - max_sessions
+        try:
+            count = int(self.redis.zcard(self._index_key()))
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Failed to enforce session limit: %s", exc
+            )
+            return
+
+        excess = count - max_sessions
         if excess <= 0:
             return
         to_remove = self.redis.zrange(self._index_key(), 0, excess - 1)
@@ -395,9 +435,19 @@ class RedisSessionManager(SessionManager):
         content: str,
         sources: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
+        key = self._session_key(session_id)
+        self.redis.watch(key)
         session = self._load_session(session_id)
         if session is None:
+            try:
+                self.redis.unwatch()
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Failed to unwatch Redis key: %s", exc
+                )
             return None
+
         message = {
             "role": role,
             "content": content,
@@ -405,11 +455,17 @@ class RedisSessionManager(SessionManager):
         }
         if sources:
             message["sources"] = sources
+
         session.setdefault("messages", []).append(message)
         if session.get("title") == "New Chat" and role == "user":
             session["title"] = content[:100]
         session["updated_at"] = time.time()
-        self._save_session(session)
+
+        pipe = self.redis.pipeline()
+        pipe.multi()
+        pipe.set(key, json.dumps(session))
+        pipe.zadd(self._index_key(), {session_id: session["updated_at"]})
+        pipe.execute()
         return session
 
     def list_sessions(

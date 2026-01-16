@@ -18,6 +18,8 @@ from ..config import LLMConfig
 from ..error_mapping import map_error
 from ..exceptions import (
     LLMAPIError,
+    LLMCircuitBreakerError,
+    LLMConfigError,
     LLMError,
     LLMRateLimitError,
     LLMTimeoutError,
@@ -72,8 +74,9 @@ class BaseLLMProvider(ABC):
         """Raise when the circuit breaker is open for this provider."""
         if not is_call_allowed(self.provider_name):
             record_provider_call(self.provider_name, success=False)
-            error = LLMError(
-                f"Circuit breaker open for provider {self.provider_name}"
+            error = LLMCircuitBreakerError(
+                f"Circuit breaker open for provider {self.provider_name}",
+                provider=self.provider_name,
             )
             setattr(error, "is_circuit_breaker", True)
             raise error
