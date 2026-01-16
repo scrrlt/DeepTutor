@@ -3,7 +3,7 @@
 Legacy client wrapper around the LLM factory functions.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable
 
 from src.logging import get_logger
 
@@ -19,38 +19,21 @@ class LLMClient:
     Prefer using factory functions (complete, stream) directly for new code.
     """
 
-    def __init__(self, config: Optional[LLMConfig] = None):
-        """
-        Initialize LLM client.
-
-        Args:
-            config: LLM configuration. If None, loads from environment.
-        """
+    def __init__(self, config: LLMConfig | None = None) -> None:
+        """Initialize LLM client."""
         self.config = config or get_llm_config()
         self.logger = get_logger("LLMClient")
 
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> str:
-        """
-        Call LLM completion via Factory.
-
-        Args:
-            prompt: User prompt
-            system_prompt: Optional system prompt
-            history: Optional conversation history
-            **kwargs: Additional arguments passed to the API
-
-        Returns:
-            LLM response text
-        """
+        """Call LLM completion via Factory."""
         from . import factory
 
-        # Delegate to factory for unified routing and retry handling
         return await factory.complete(
             prompt=prompt,
             system_prompt=system_prompt or "You are a helpful assistant.",
@@ -59,14 +42,15 @@ class LLMClient:
             base_url=self.config.base_url,
             api_version=getattr(self.config, "api_version", None),
             binding=getattr(self.config, "binding", "openai"),
+            history_messages=history,
             **kwargs,
         )
 
     def complete_sync(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> str:
         """Run completion synchronously for non-async contexts."""
@@ -75,35 +59,32 @@ class LLMClient:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            # No running event loop -> safe to run synchronously.
-            return asyncio.run(self.complete(prompt, system_prompt, history, **kwargs))
+            return asyncio.run(
+                self.complete(prompt, system_prompt, history, **kwargs)
+            )
 
         raise RuntimeError(
             "LLMClient.complete_sync() cannot be called from a running event loop. "
             "Use `await llm.complete(...)` instead."
         )
 
-    def get_model_func(self):
+    def get_model_func(self) -> Callable[..., Awaitable[str]]:
         """
         Get a function compatible with LightRAG's llm_model_func parameter.
-
-        Returns:
-            Async callable that can be used as llm_model_func
         """
-        binding = getattr(self.config, "binding", "openai")
 
-        # Use capabilities to determine if provider uses OpenAI-style messages
+        binding = getattr(self.config, "binding", "openai")
         uses_openai_style = system_in_messages(binding, self.config.model)
 
         from . import factory
 
         async def llm_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
+            system_prompt: str | None = None,
+            history_messages: list[dict[str, Any]] | None = None,
             **kwargs: Any,
         ) -> str:
-            messages: Optional[List[Dict[str, Any]]] = None
+            messages: list[dict[str, Any]] | None = None
             if uses_openai_style:
                 messages = []
                 if system_prompt:
@@ -126,31 +107,25 @@ class LLMClient:
 
         return llm_model_func
 
-    def get_vision_model_func(self):
+    def get_vision_model_func(self) -> Callable[..., Any]:
         """
         Get a function compatible with RAG-Anything's vision_model_func parameter.
-
-        Returns:
-            Callable that can be used as vision_model_func
         """
-        binding = getattr(self.config, "binding", "openai")
 
-        # Use capabilities to determine if provider uses OpenAI-style messages
+        binding = getattr(self.config, "binding", "openai")
         uses_openai_style = system_in_messages(binding, self.config.model)
 
-        # For non-OpenAI-compatible providers, use Factory
         if not uses_openai_style:
             from . import factory
 
             def vision_model_func_via_factory(
                 prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
-                image_data: Optional[str] = None,
-                messages: Optional[List[Dict]] = None,
+                system_prompt: str | None = None,
+                history_messages: list[dict[str, Any]] | None = None,
+                image_data: str | None = None,
+                messages: list[dict[str, Any]] | None = None,
                 **kwargs: Any,
-            ):
-                # Use factory for unified handling
+            ) -> Awaitable[str]:
                 return factory.complete(
                     prompt=prompt,
                     system_prompt=system_prompt or "You are a helpful assistant.",
@@ -166,26 +141,29 @@ class LLMClient:
 
             return vision_model_func_via_factory
 
-        # OpenAI-compatible bindings
         from lightrag.llm.openai import openai_complete_if_cache
 
-        # Get api_version once for reuse
         api_version = getattr(self.config, "api_version", None)
 
         def vision_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
-            image_data: Optional[str] = None,
-            messages: Optional[List[Dict]] = None,
+            system_prompt: str | None = None,
+            history_messages: list[dict[str, Any]] | None = None,
+            image_data: str | None = None,
+            messages: list[dict[str, Any]] | None = None,
             **kwargs: Any,
-        ):
-            # Handle multimodal messages
+        ) -> Any:
             if messages:
                 clean_kwargs = {
                     k: v
                     for k, v in kwargs.items()
-                    if k not in ["messages", "prompt", "system_prompt", "history_messages"]
+                    if k
+                    not in [
+                        "messages",
+                        "prompt",
+                        "system_prompt",
+                        "history_messages",
+                    ]
                 }
                 lightrag_kwargs = {
                     "messages": messages,
@@ -201,9 +179,7 @@ class LLMClient:
                     **lightrag_kwargs,
                 )
 
-            # Handle image data
             if image_data:
-                # Build image message
                 image_message = {
                     "role": "user",
                     "content": [
@@ -228,7 +204,6 @@ class LLMClient:
                     **lightrag_kwargs,
                 )
 
-            # Fallback to regular completion
             lightrag_kwargs = {
                 "system_prompt": system_prompt,
                 "history_messages": history_messages or [],
@@ -247,27 +222,20 @@ class LLMClient:
         return vision_model_func
 
 
-# Singleton instance
-_client: Optional[LLMClient] = None
+_client: LLMClient | None = None
 
 
-def get_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
-    """
-    Get or create the singleton LLM client.
+def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
+    """Get or create the singleton LLM client."""
 
-    Args:
-        config: Optional configuration. Only used on first call.
-
-    Returns:
-        LLMClient instance
-    """
     global _client
     if _client is None:
         _client = LLMClient(config)
     return _client
 
 
-def reset_llm_client():
+def reset_llm_client() -> None:
     """Reset the singleton LLM client."""
+
     global _client
     _client = None

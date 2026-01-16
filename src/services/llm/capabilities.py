@@ -1,6 +1,6 @@
 """Provider capability lookups for LLM bindings."""
 
-from typing import Any, Optional
+from typing import Any
 
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
@@ -150,7 +150,7 @@ MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
 def get_capability(
     binding: str,
     capability: str,
-    model: Optional[str] = None,
+    model: str | None = None,
     default: Any = None,
 ) -> Any:
     """
@@ -195,7 +195,7 @@ def get_capability(
     return default
 
 
-def supports_response_format(binding: str, model: Optional[str] = None) -> bool:
+def supports_response_format(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports response_format parameter.
 
@@ -211,7 +211,7 @@ def supports_response_format(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "supports_response_format", model, default=True)
 
 
-def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
+def supports_streaming(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports streaming responses.
 
@@ -225,7 +225,7 @@ def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "supports_streaming", model, default=True)
 
 
-def system_in_messages(binding: str, model: Optional[str] = None) -> bool:
+def system_in_messages(binding: str, model: str | None = None) -> bool:
     """Check if system prompt should be placed in the messages array.
 
     Args:
@@ -238,7 +238,7 @@ def system_in_messages(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "system_in_messages", model, default=True)
 
 
-def has_thinking_tags(binding: str, model: Optional[str] = None) -> bool:
+def has_thinking_tags(binding: str, model: str | None = None) -> bool:
     """
     Check if the model output may contain thinking tags (<think>...</think>).
 
@@ -252,7 +252,7 @@ def has_thinking_tags(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "has_thinking_tags", model, default=False)
 
 
-def supports_tools(binding: str, model: Optional[str] = None) -> bool:
+def supports_tools(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports function calling / tools.
 
@@ -266,7 +266,7 @@ def supports_tools(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "supports_tools", model, default=False)
 
 
-def requires_api_version(binding: str, model: Optional[str] = None) -> bool:
+def requires_api_version(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider requires an API version parameter (e.g., Azure OpenAI).
 

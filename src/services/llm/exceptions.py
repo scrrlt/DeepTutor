@@ -3,7 +3,7 @@
 Custom exception hierarchy for the LLM service.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class LLMError(Exception):
@@ -12,8 +12,8 @@ class LLMError(Exception):
     def __init__(
         self,
         message: str,
-        details: Optional[Dict[str, Any]] = None,
-        provider: Optional[str] = None,
+        details: dict[str, Any] | None = None,
+        provider: str | None = None,
     ):
         """Initialize an LLMError with optional details and provider."""
         super().__init__(message)
@@ -51,9 +51,9 @@ class LLMAPIError(LLMError):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        provider: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        status_code: int | None = None,
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize API error with status code and provider context."""
         super().__init__(message, details, provider)
@@ -76,8 +76,8 @@ class LLMTimeoutError(LLMAPIError):
     def __init__(
         self,
         message: str = "Request timed out",
-        timeout: Optional[float] = None,
-        provider: Optional[str] = None,
+        timeout: float | None = None,
+        provider: str | None = None,
     ):
         """Initialize timeout error with optional timeout value."""
         super().__init__(message, status_code=408, provider=provider)
@@ -90,8 +90,8 @@ class LLMRateLimitError(LLMAPIError):
     def __init__(
         self,
         message: str = "Rate limit exceeded",
-        retry_after: Optional[float] = None,
-        provider: Optional[str] = None,
+        retry_after: float | None = None,
+        provider: str | None = None,
     ):
         """Initialize rate limit error with optional retry_after value."""
         super().__init__(message, status_code=429, provider=provider)
@@ -104,7 +104,7 @@ class LLMAuthenticationError(LLMAPIError):
     def __init__(
         self,
         message: str = "Authentication failed",
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ):
         """Initialize authentication error."""
         super().__init__(message, status_code=401, provider=provider)
@@ -116,8 +116,8 @@ class LLMModelNotFoundError(LLMAPIError):
     def __init__(
         self,
         message: str = "Model not found",
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
+        model: str | None = None,
+        provider: str | None = None,
     ):
         """Initialize model-not-found error with optional model name."""
         super().__init__(message, status_code=404, provider=provider)
@@ -130,8 +130,8 @@ class LLMParseError(LLMError):
     def __init__(
         self,
         message: str = "Failed to parse LLM output",
-        provider: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         """Initialize parse error with optional details payload."""
         super().__init__(message, details=details, provider=provider)

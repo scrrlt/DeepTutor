@@ -5,7 +5,7 @@ Handles local and self-hosted LLM calls with streaming support.
 
 import asyncio
 import json
-from typing import AsyncGenerator, Dict, List
+from typing import Any, AsyncGenerator
 
 import httpx
 
@@ -32,8 +32,8 @@ async def complete(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
-    messages: List[Dict[str, str]] | None = None,
-    **kwargs,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using local LLM server.
@@ -113,8 +113,8 @@ async def stream(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
-    messages: List[Dict[str, str]] | None = None,
-    **kwargs,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.

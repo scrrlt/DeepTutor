@@ -7,7 +7,7 @@ import asyncio
 import json
 import os
 from functools import partial
-from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable
 
 import tenacity
 
@@ -80,7 +80,7 @@ def _should_use_local(base_url: str | None) -> bool:
     return is_local_llm_server(base_url) if base_url else False
 
 
-def _sanitize_cache_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize_cache_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     """Strip non-cacheable keys before hashing using an allowlist."""
     allowlist = {
         "prompt",
@@ -98,7 +98,7 @@ def _sanitize_cache_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
         "stop",
         "timeout",
     }
-    cacheable: Dict[str, Any] = {}
+    cacheable: dict[str, Any] = {}
     for key in allowlist:
         if key in kwargs:
             cacheable[key] = kwargs[key]
@@ -138,7 +138,7 @@ def _build_retrying(
         )
         logger.warning(message)
 
-    retry_kwargs: Dict[str, Any] = {
+    retry_kwargs: dict[str, Any] = {
         "retry": tenacity.retry_if_exception(_should_retry_error),
         "wait": wait_strategy,
         "stop": tenacity.stop_after_attempt(max_retries + 1),
@@ -151,7 +151,7 @@ def _build_retrying(
 
 
 async def _invoke_provider(
-    use_local: bool, call_kwargs: Dict[str, Any]
+    use_local: bool, call_kwargs: dict[str, Any]
 ) -> str:
     if use_local:
         return await local_provider.complete(**call_kwargs)
@@ -178,7 +178,7 @@ async def complete(
     base_url: str | None = None,
     api_version: str | None = None,
     binding: str | None = None,
-    messages: List[Dict[str, str]] | None = None,
+    messages: list[dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
@@ -186,7 +186,7 @@ async def complete(
     use_cache: bool = True,
     cache_ttl_seconds: int | None = None,
     cache_key: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """
     Unified LLM completion function with automatic retry.
@@ -295,11 +295,11 @@ async def stream(
     base_url: str | None = None,
     api_version: str | None = None,
     binding: str | None = None,
-    messages: List[Dict[str, str]] | None = None,
+    messages: list[dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Unified LLM streaming function with automatic retry.
@@ -371,27 +371,37 @@ async def stream(
         return cloud_provider.stream(**call_kwargs)
 
     iterator: AsyncGenerator[str, None] | None = None
+    first_chunk: str | None = None
     async for attempt in retrying:
         with attempt:
             iterator = _get_stream_iterator()
+            try:
+                first_chunk = await iterator.__anext__()
+            except StopAsyncIteration:
+                return
             break
 
     if iterator is None:
         raise RuntimeError("Failed to establish stream iterator")
 
+    if first_chunk is not None:
+        yield first_chunk
+
     try:
         async for chunk in iterator:
             yield chunk
     except Exception as exc:
-        logger.error("Stream interrupted during consumption: %s", exc)
+        logger.error(
+            f"Stream interrupted during consumption: {exc}"
+        )
         raise
 
 
 async def fetch_models(
     binding: str,
     base_url: str,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """
     Fetch available models from the provider.
 
@@ -469,7 +479,7 @@ LOCAL_PROVIDER_PRESETS = {
 }
 
 
-def get_provider_presets() -> Dict[str, Any]:
+def get_provider_presets() -> dict[str, Any]:
     """Get all provider presets for frontend display."""
     return {
         "api": API_PROVIDER_PRESETS,

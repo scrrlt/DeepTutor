@@ -1,11 +1,16 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
 from src.utils.config_manager import ConfigManager
 
 
-def _reset_singleton() -> None:
+@pytest.fixture(autouse=True)
+def reset_config_manager_singleton() -> None:
+    """Ensure ConfigManager singleton is reset for each test."""
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+    yield
     ConfigManager._instance = None  # type: ignore[attr-defined]
 
 
@@ -15,7 +20,6 @@ def write_yaml(path: Path, data: dict) -> None:
 
 
 def test_atomic_save_and_deep_merge(tmp_path: Path):
-    _reset_singleton()
     project = tmp_path
     cfg_path = project / "config" / "main.yaml"
     base_cfg = {
@@ -46,7 +50,6 @@ def test_atomic_save_and_deep_merge(tmp_path: Path):
 
 
 def test_env_layering(tmp_path: Path):
-    _reset_singleton()
     project = tmp_path
     (project / ".env").write_text("LLM_MODEL=Base\n", encoding="utf-8")
     (project / ".env.local").write_text("LLM_MODEL=Override\n", encoding="utf-8")
@@ -69,7 +72,6 @@ def test_env_layering(tmp_path: Path):
 
 
 def test_load_missing_config_returns_empty(tmp_path: Path):
-    _reset_singleton()
     project = tmp_path
 
     cm = ConfigManager(project_root=project)
@@ -77,7 +79,6 @@ def test_load_missing_config_returns_empty(tmp_path: Path):
 
 
 def test_validate_required_env_reports_missing(tmp_path: Path, monkeypatch):
-    _reset_singleton()
     project = tmp_path
 
     (project / ".env").write_text("LLM_MODEL=Value\n", encoding="utf-8")

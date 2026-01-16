@@ -66,7 +66,7 @@ class TestLLMExceptionHandler:
     
     def test_circuit_breaker_returns_503(self, test_app):
         """Circuit breaker errors should return 503 Service Unavailable."""
-        client = TestClient(test_app)
+        client = TestClient(test_app, raise_server_exceptions=False)
         response = client.get("/test/circuit-breaker")
         
         assert response.status_code == 503
@@ -76,7 +76,7 @@ class TestLLMExceptionHandler:
     
     def test_rate_limit_returns_429(self, test_app):
         """Rate limit errors should return 429 Too Many Requests."""
-        client = TestClient(test_app)
+        client = TestClient(test_app, raise_server_exceptions=False)
         response = client.get("/test/rate-limit")
         
         assert response.status_code == 429
@@ -85,7 +85,7 @@ class TestLLMExceptionHandler:
     
     def test_authentication_returns_401(self, test_app):
         """Authentication errors should return 401 Unauthorized."""
-        client = TestClient(test_app)
+        client = TestClient(test_app, raise_server_exceptions=False)
         response = client.get("/test/auth")
         
         assert response.status_code == 401
@@ -94,7 +94,7 @@ class TestLLMExceptionHandler:
     
     def test_timeout_returns_504(self, test_app):
         """Timeout errors should return 504 Gateway Timeout."""
-        client = TestClient(test_app)
+        client = TestClient(test_app, raise_server_exceptions=False)
         response = client.get("/test/timeout")
         
         assert response.status_code == 504
@@ -114,7 +114,7 @@ class TestLLMExceptionHandler:
     
     def test_generic_error_re_raised(self, test_app):
         """Non-LLM errors should be re-raised for default handling."""
-        client = TestClient(test_app)
+        client = TestClient(test_app, raise_server_exceptions=False)
         
         # Generic errors should raise 500 (FastAPI default)
         response = client.get("/test/generic-error")
@@ -127,7 +127,7 @@ class TestCircuitBreakerLogging:
     def test_circuit_breaker_logged_as_warning(self, test_app):
         """Circuit breaker triggers should be logged as warnings."""
         with patch("src.api.main.logger") as mock_logger:
-            client = TestClient(test_app)
+            client = TestClient(test_app, raise_server_exceptions=False)
             client.get("/test/circuit-breaker")
             
             # Verify warning was logged
@@ -138,7 +138,7 @@ class TestCircuitBreakerLogging:
     def test_rate_limit_logged_as_warning(self, test_app):
         """Rate limit errors should be logged as warnings."""
         with patch("src.api.main.logger") as mock_logger:
-            client = TestClient(test_app)
+            client = TestClient(test_app, raise_server_exceptions=False)
             client.get("/test/rate-limit")
             
             mock_logger.warning.assert_called_once()
@@ -148,7 +148,7 @@ class TestCircuitBreakerLogging:
     def test_auth_error_logged_as_error(self, test_app):
         """Authentication errors should be logged as errors."""
         with patch("src.api.main.logger") as mock_logger:
-            client = TestClient(test_app)
+            client = TestClient(test_app, raise_server_exceptions=False)
             client.get("/test/auth")
             
             mock_logger.error.assert_called_once()

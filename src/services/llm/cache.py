@@ -5,7 +5,7 @@ import asyncio
 import hashlib
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from redis.asyncio import Redis
 
@@ -13,8 +13,8 @@ from src.logging import get_logger
 
 logger = get_logger("LLMCache")
 
-_CACHE_CLIENT: Optional[Redis] = None
-_CACHE_LOCK: Optional[asyncio.Lock] = None
+_CACHE_CLIENT: Redis | None = None
+_CACHE_LOCK: asyncio.Lock | None = None
 CACHE_NAMESPACE = os.getenv("LLM_CACHE_NAMESPACE", "llm_cache")
 
 
@@ -32,7 +32,7 @@ def _get_default_cache_ttl() -> int:
 DEFAULT_CACHE_TTL = _get_default_cache_ttl()
 
 
-async def get_cache_client() -> Optional[Redis]:
+async def get_cache_client() -> Redis | None:
     """Get or create a Redis client for caching.
 
     Returns:
@@ -63,7 +63,7 @@ async def get_cache_client() -> Optional[Redis]:
         return _CACHE_CLIENT
 
 
-def _filter_cacheable_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _filter_cacheable_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Remove non-serializable items from kwargs for cache key construction.
 
@@ -73,7 +73,7 @@ def _filter_cacheable_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary containing only serializable, non-sensitive values.
     """
-    safe_keys: Dict[str, Any] = {}
+    safe_keys: dict[str, Any] = {}
     sensitive_keys = {"api_key", "authorization", "Authorization"}
 
     for key, value in kwargs.items():
@@ -94,11 +94,11 @@ def build_completion_cache_key(
     *,
     model: str,
     binding: str,
-    base_url: Optional[str],
+    base_url: str | None,
     system_prompt: str,
     prompt: str,
-    messages: Optional[List[Dict[str, Any]]],
-    kwargs: Dict[str, Any],
+    messages: list[dict[str, Any]] | None,
+    kwargs: dict[str, Any],
 ) -> str:
     """
     Construct a stable cache key for LLM completion calls.
@@ -115,7 +115,7 @@ def build_completion_cache_key(
     Returns:
         Deterministic cache key string.
     """
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "model": model,
         "binding": binding,
         "base_url": base_url or "default",
@@ -145,7 +145,7 @@ def build_completion_cache_key(
     return f"{CACHE_NAMESPACE}:{binding}:{model}:{digest}"
 
 
-async def get_cached_completion(key: str) -> Optional[str]:
+async def get_cached_completion(key: str) -> str | None:
     """
     Fetch a cached completion if available.
 
@@ -167,7 +167,7 @@ async def get_cached_completion(key: str) -> Optional[str]:
 
 
 async def set_cached_completion(
-    key: str, value: str, ttl_seconds: Optional[int] = None
+    key: str, value: str, ttl_seconds: int | None = None
 ) -> None:
     """
     Store a completion response in Redis.

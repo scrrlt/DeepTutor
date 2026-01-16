@@ -9,7 +9,6 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -29,15 +28,15 @@ class LLMConfig:
 
     model: str
     api_key: str
-    base_url: Optional[str] = None
+    base_url: str | None = None
     binding: str = "openai"
-    api_version: Optional[str] = None
+    api_version: str | None = None
     max_tokens: int = 4096
     temperature: float = 0.7
     provider_name: str = "openai"
 
 
-def _strip_value(value: Optional[str]) -> Optional[str]:
+def _strip_value(value: str | None) -> str | None:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
         return None

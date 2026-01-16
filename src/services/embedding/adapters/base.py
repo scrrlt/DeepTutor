@@ -8,7 +8,7 @@ Defines the contract that all embedding providers must implement.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -32,24 +32,24 @@ class EmbeddingRequest:
         late_chunking: Enable late chunking for long context (Jina v3 only)
     """
 
-    texts: List[str]
+    texts: list[str]
     model: str
-    dimensions: Optional[int] = None
-    input_type: Optional[str] = None
-    encoding_format: Optional[str] = "float"
-    truncate: Optional[bool] = True
-    normalized: Optional[bool] = True
-    late_chunking: Optional[bool] = False
+    dimensions: int | None = None
+    input_type: str | None = None
+    encoding_format: str | None = "float"
+    truncate: bool | None = True
+    normalized: bool | None = True
+    late_chunking: bool | None = False
 
 
 @dataclass
 class EmbeddingResponse:
     """Standard embedding response structure."""
 
-    embeddings: List[List[float]]
+    embeddings: list[list[float]]
     model: str
     dimensions: int
-    usage: Dict[str, Any]
+    usage: dict[str, Any]
 
 
 class BaseEmbeddingAdapter(ABC):
@@ -60,7 +60,7 @@ class BaseEmbeddingAdapter(ABC):
     (OpenAI, Cohere, Ollama, etc.) while exposing a unified interface.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize the adapter with configuration.
 
@@ -72,12 +72,12 @@ class BaseEmbeddingAdapter(ABC):
                 - dimensions: Embedding vector dimensions
                 - request_timeout: Request timeout in seconds
         """
-        self.api_key: Optional[str] = config.get("api_key")
-        self.base_url: Optional[str] = config.get("base_url")
-        self.api_version: Optional[str] = config.get("api_version")
+        self.api_key: str | None = config.get("api_key")
+        self.base_url: str | None = config.get("base_url")
+        self.api_version: str | None = config.get("api_version")
         # Model can be omitted here; concrete adapters may provide provider-specific defaults.
-        self.model: Optional[str] = config.get("model")
-        self.dimensions: Optional[int] = config.get("dimensions")
+        self.model: str | None = config.get("model")
+        self.dimensions: int | None = config.get("dimensions")
         self.request_timeout: int = int(config.get("request_timeout", 30))
 
     @abstractmethod
@@ -97,7 +97,7 @@ class BaseEmbeddingAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.
 

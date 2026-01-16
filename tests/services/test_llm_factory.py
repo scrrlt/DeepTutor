@@ -30,7 +30,7 @@ async def test_stream_aborts_on_mid_stream_failure():
     broken_gen = mock_async_gen(["Hello"], error_at_end=ConnectionResetError("Connection lost"))
     
     # CORRECTED PATCH PATH
-    with patch("src.services.llm.factory.cloud_provider.stream", return_value=broken_gen) as mock_stream:
+    with patch("src.services.llm.factory.cloud_provider.stream", return_value=broken_gen):
         # We expect the exception to bubble up, NOT be caught/retried
         with pytest.raises(ConnectionResetError):
             results = []
@@ -116,6 +116,8 @@ def test_cache_key_sanitization():
     (429, True),   # Rate limit -> Retry
     (500, True),   # Server error -> Retry
     (503, True),   # Service unavail -> Retry
+    (502, True),   # Bad Gateway -> Retry
+    (504, True),   # Gateway Timeout -> Retry
     (400, False),  # Bad Request -> Fail
     (401, False),  # Auth -> Fail
     (404, False),  # Not Found -> Fail

@@ -6,8 +6,6 @@ Unified embedding client for all DeepTutor services.
 Now supports multiple providers through adapters.
 """
 
-from typing import List, Optional
-
 from src.logging import get_logger
 
 from .adapters.base import EmbeddingRequest
@@ -23,7 +21,7 @@ class EmbeddingClient:
     Supports: OpenAI, Azure OpenAI, Cohere, Ollama, Jina, HuggingFace, Google.
     """
 
-    def __init__(self, config: Optional[EmbeddingConfig] = None):
+    def __init__(self, config: EmbeddingConfig | None = None):
         """
         Initialize embedding client.
 
@@ -57,7 +55,7 @@ class EmbeddingClient:
             self.logger.error(f"Failed to initialize embedding adapter: {e}")
             raise
 
-    async def embed(self, texts: List[str]) -> List[List[float]]:
+    async def embed(self, texts: list[str]) -> list[list[float]]:
         """
         Get embeddings for texts using the configured adapter.
 
@@ -90,7 +88,7 @@ class EmbeddingClient:
             self.logger.error(f"Embedding request failed: {e}")
             raise
 
-    def embed_sync(self, texts: List[str]) -> List[List[float]]:
+    def embed_sync(self, texts: list[str]) -> list[list[float]]:
         """
         Synchronous wrapper for embed().
 
@@ -111,7 +109,9 @@ class EmbeddingClient:
         except RuntimeError:
             return asyncio.run(self.embed(texts))
 
-    def _validate_embeddings_response(self, embeddings: List[List[float]], texts: List[str]) -> None:
+    def _validate_embeddings_response(
+        self, embeddings: list[list[float]], texts: list[str]
+    ) -> None:
         """
         Validate the embeddings response from the adapter.
 
@@ -146,7 +146,7 @@ class EmbeddingClient:
 
         # Create async wrapper that uses our adapter system
         # LightRAG expects numpy arrays, not Python lists
-        async def embedding_wrapper(texts: List[str]):
+        async def embedding_wrapper(texts: list[str]):
             embeddings = await self.embed(texts)
             # Convert list of lists to numpy array for LightRAG compatibility
             return np.array(embeddings)
@@ -159,10 +159,10 @@ class EmbeddingClient:
 
 
 # Singleton instance
-_client: Optional[EmbeddingClient] = None
+_client: EmbeddingClient | None = None
 
 
-def get_embedding_client(config: Optional[EmbeddingConfig] = None) -> EmbeddingClient:
+def get_embedding_client(config: EmbeddingConfig | None = None) -> EmbeddingClient:
     """
     Get or create the singleton embedding client.
 

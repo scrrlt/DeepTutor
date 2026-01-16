@@ -6,7 +6,7 @@ Handle cloud API calls (OpenAI, DeepSeek, Anthropic, etc.).
 import asyncio
 import logging
 import os
-from typing import AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator
 
 import httpx
 from lightrag.llm.openai import openai_complete_if_cache
@@ -35,10 +35,10 @@ from .utils import (
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     binding: str = "openai",
     **kwargs,
 ) -> str:
@@ -93,13 +93,13 @@ async def complete(
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     binding: str = "openai",
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from cloud API providers.
@@ -155,9 +155,9 @@ async def _openai_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    api_version: Optional[str] = None,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     binding: str = "openai",
     **kwargs,
 ) -> str:
@@ -255,12 +255,12 @@ async def _openai_stream(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    api_version: Optional[str] = None,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     binding: str = "openai",
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """OpenAI-compatible streaming."""
     import json
@@ -365,10 +365,10 @@ async def _anthropic_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    api_key: str | None,
+    base_url: str | None,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> str:
     """Anthropic (Claude) API completion."""
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
@@ -420,10 +420,10 @@ async def _anthropic_stream(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    api_key: str | None,
+    base_url: str | None,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """Anthropic (Claude) API streaming."""
     import json

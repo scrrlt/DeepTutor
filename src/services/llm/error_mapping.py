@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Optional, Type
+from typing import Callable, Type
 
 # Import unified exceptions from exceptions.py
 from .exceptions import (
@@ -35,7 +35,7 @@ class MappingRule:
     """Mapping rule pairing classifier and factory."""
 
     classifier: ErrorClassifier
-    factory: Callable[[Exception, Optional[str]], LLMError]
+    factory: Callable[[Exception, str | None], LLMError]
 
 
 def _instance_of(*types: Type[BaseException]) -> ErrorClassifier:
@@ -50,7 +50,7 @@ def _message_contains(*needles: str) -> ErrorClassifier:
     return _classifier
 
 
-_GLOBAL_RULES: List[MappingRule] = [
+_GLOBAL_RULES: list[MappingRule] = [
     MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
         factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
@@ -87,7 +87,7 @@ except ImportError:
     pass
 
 
-def map_error(exc: Exception, provider: Optional[str] = None) -> LLMError:
+def map_error(exc: Exception, provider: str | None = None) -> LLMError:
     """Map provider-specific errors to unified internal exceptions."""
     # Heuristic check for status codes before rules
     status_code = getattr(exc, "status_code", None)

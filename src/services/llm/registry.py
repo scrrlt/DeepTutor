@@ -3,10 +3,8 @@
 Simple provider registration system for LLM providers.
 """
 
-from typing import Dict, Type
-
 # Global registry for LLM providers
-_provider_registry: Dict[str, Type] = {}
+_provider_registry: dict[str, type] = {}
 
 
 def register_provider(name: str):
@@ -29,7 +27,7 @@ def register_provider(name: str):
     return decorator
 
 
-def get_provider_class(name: str) -> Type:
+def get_provider_class(name: str) -> type:
     """
     Get a registered provider class by name.
 

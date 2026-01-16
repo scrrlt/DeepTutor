@@ -1,6 +1,6 @@
 """Shared LLM response data models."""
 
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import Any, AsyncGenerator
 
 from pydantic import BaseModel, Field
 
@@ -9,8 +9,8 @@ class TutorResponse(BaseModel):
     """LLM completion response container."""
 
     content: str
-    raw_response: Dict[str, Any]
-    usage: Dict[str, int] = Field(
+    raw_response: dict[str, Any]
+    usage: dict[str, int] = Field(
         default_factory=lambda: {
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -19,7 +19,7 @@ class TutorResponse(BaseModel):
     )
     provider: str
     model: str
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
     cost_estimate: float = 0.0
 
 
@@ -31,7 +31,7 @@ class TutorStreamChunk(BaseModel):
     provider: str
     model: str
     is_complete: bool = False
-    usage: Optional[Dict[str, int]] = None
+    usage: dict[str, int] | None = None
 
 
 AsyncStreamGenerator = AsyncGenerator[TutorStreamChunk, None]

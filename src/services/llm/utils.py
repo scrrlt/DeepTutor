@@ -4,7 +4,7 @@ URL handling, response extraction, and thinking-tag cleanup helpers.
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 # Known cloud provider domains (should never be treated as local)
 CLOUD_DOMAINS = [
@@ -169,8 +169,8 @@ def sanitize_url(base_url: str, model: str = "") -> str:
 
 def clean_thinking_tags(
     content: str,
-    binding: Optional[str] = None,
-    model: Optional[str] = None,
+    binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Remove thinking tags from model output.
@@ -206,8 +206,8 @@ def clean_thinking_tags(
 
 def build_chat_url(
     base_url: str,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
+    api_version: str | None = None,
+    binding: str | None = None,
 ) -> str:
     """
     Build the full chat completions endpoint URL.
@@ -280,8 +280,8 @@ def extract_response_content(message: dict[str, Any]) -> str:
 
 
 def build_auth_headers(
-    api_key: Optional[str],
-    binding: Optional[str] = None,
+    api_key: str | None,
+    binding: str | None = None,
 ) -> dict[str, str]:
     """
     Build authentication headers for LLM API requests.
