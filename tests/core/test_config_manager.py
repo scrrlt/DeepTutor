@@ -5,12 +5,17 @@ import yaml
 from src.utils.config_manager import ConfigManager
 
 
+def _reset_singleton() -> None:
+    ConfigManager._instance = None  # type: ignore[attr-defined]
+
+
 def write_yaml(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
 
 def test_atomic_save_and_deep_merge(tmp_path: Path):
+    _reset_singleton()
     project = tmp_path
     cfg_path = project / "config" / "main.yaml"
     base_cfg = {
@@ -41,6 +46,7 @@ def test_atomic_save_and_deep_merge(tmp_path: Path):
 
 
 def test_env_layering(tmp_path: Path):
+    _reset_singleton()
     project = tmp_path
     (project / ".env").write_text("LLM_MODEL=Base\n", encoding="utf-8")
     (project / ".env.local").write_text("LLM_MODEL=Override\n", encoding="utf-8")
@@ -60,3 +66,26 @@ def test_env_layering(tmp_path: Path):
     cm = ConfigManager(project_root=project)
     env = cm.get_env_info()
     assert env["model"] == "Override"
+
+
+def test_load_missing_config_returns_empty(tmp_path: Path):
+    _reset_singleton()
+    project = tmp_path
+
+    cm = ConfigManager(project_root=project)
+    assert cm.load_config(force_reload=True) == {}
+
+
+def test_validate_required_env_reports_missing(tmp_path: Path, monkeypatch):
+    _reset_singleton()
+    project = tmp_path
+
+    (project / ".env").write_text("LLM_MODEL=Value\n", encoding="utf-8")
+    cm = ConfigManager(project_root=project)
+
+    # Ensure environment variable is absent to assert missing detection
+    monkeypatch.delenv("MISSING_KEY", raising=False)
+
+    missing = cm.validate_required_env(["MISSING_KEY", "LLM_MODEL"])
+    assert "missing" in missing
+    assert missing["missing"] == ["MISSING_KEY"]

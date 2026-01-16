@@ -134,7 +134,7 @@ class TexDownloader:
                 tex_content=tex_content,
             )
 
-        except httpx.RequestError as e:
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
             return TexDownloadResult(
                 success=False, error=f"Download failed: {e!s}"
             )

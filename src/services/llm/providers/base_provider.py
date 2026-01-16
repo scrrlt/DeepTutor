@@ -145,6 +145,7 @@ class BaseLLMProvider(ABC):
                     raise mapped_e from e
 
                 delay = (1.5**attempt) + (random.random() * 0.5)  # nosec B311
+                delay = min(delay, MAX_RETRY_DELAY_SECONDS)
                 if isinstance(mapped_e, LLMRateLimitError):
                     retry_after = getattr(mapped_e, "retry_after", None)
                     retry_after_value: float | None = None

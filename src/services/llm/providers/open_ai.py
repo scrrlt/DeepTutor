@@ -1,5 +1,6 @@
 """OpenAI provider implementation using shared HTTP client."""
 
+import asyncio
 from typing import Any, no_type_check
 
 import openai
@@ -26,15 +27,18 @@ class OpenAIProvider(BaseLLMProvider):
         """Initialize OpenAI provider with shared client."""
         super().__init__(config)
         self.client: openai.AsyncOpenAI | None = None
+        self._client_lock = asyncio.Lock()
 
     async def _get_client(self) -> openai.AsyncOpenAI:
         if self.client is None:
-            http_client = await get_shared_http_client()
-            self.client = openai.AsyncOpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url or None,
-                http_client=http_client,
-            )
+            async with self._client_lock:
+                if self.client is None:
+                    http_client = await get_shared_http_client()
+                    self.client = openai.AsyncOpenAI(
+                        api_key=self.api_key,
+                        base_url=self.base_url or None,
+                        http_client=http_client,
+                    )
         return self.client
 
     @track_llm_call("openai")

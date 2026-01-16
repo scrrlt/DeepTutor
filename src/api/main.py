@@ -414,43 +414,8 @@ async def generic_exception_handler(
 
     return JSONResponse(status_code=status_code, content=content)
 
-
-_original_add_exception_handler = FastAPI.add_exception_handler
-
-
-def _add_exception_handler_with_default(
-    self: FastAPI,
-    exc_class_or_status_code: object,
-    handler: object,
-) -> object:
-    """
-    Ensure a default exception handler is always registered.
-
-    Args:
-        exc_class_or_status_code: Exception class or HTTP status code.
-        handler: The handler callable to register.
-
-    Returns:
-        The result from FastAPI.add_exception_handler.
-    """
-    if Exception not in self.exception_handlers:
-        self.exception_handlers[Exception] = generic_exception_handler
-    if ValueError not in self.exception_handlers:
-        self.exception_handlers[ValueError] = generic_exception_handler
-    return _original_add_exception_handler(
-        self,
-        exc_class_or_status_code,
-        handler,
-    )
-
-
-if getattr(
-    FastAPI.add_exception_handler,
-    "_deep_tutor_patched",
-    False,
-) is False:
-    FastAPI.add_exception_handler = _add_exception_handler_with_default
-    FastAPI.add_exception_handler._deep_tutor_patched = True
+# Handlers are already registered via @app.exception_handler decorators above
+# No monkey-patching needed
 
 
 # Configure CORS

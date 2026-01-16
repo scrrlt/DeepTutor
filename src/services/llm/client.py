@@ -113,7 +113,7 @@ class LLMClient:
                 messages.append({"role": "user", "content": prompt})
 
             return await factory.complete(
-                prompt=prompt,
+                prompt="" if messages else prompt,
                 system_prompt=system_prompt or "You are a helpful assistant.",
                 model=self.config.model,
                 api_key=self.config.api_key,

@@ -84,12 +84,15 @@ def parse_pdf_with_mineru(pdf_path: str, output_base_dir: str | None = None):
         output_base_dir_path = project_root / "reference_papers"
     else:
         if isinstance(output_base_dir, str) and "\x00" in output_base_dir:
-            print("✗ Error: Invalid output directory path")
+            print("✗ Error: Output directory path contains invalid characters")
             return False
         try:
             output_base_dir_path = Path(output_base_dir)
+            if output_base_dir_path.is_absolute():
+                print("✗ Error: Output directory must be a relative path")
+                return False
         except (TypeError, ValueError):
-            print("✗ Error: Invalid output directory path")
+            print("✗ Error: Invalid output directory path type")
             return False
 
     output_base_dir_path.mkdir(parents=True, exist_ok=True)
@@ -188,7 +191,7 @@ Examples:
   python pdf_parser.py /path/to/paper.pdf
 
   # Parse PDF and specify output directory
-  python pdf_parser.py /path/to/paper.pdf -o /custom/output/dir
+    python pdf_parser.py /path/to/paper.pdf -o custom/output/dir
         """,
     )
 

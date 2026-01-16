@@ -175,8 +175,9 @@ async def stream(
                 headers=headers,
             ) as response:
                 if response.status_code != 200:
+                    error_body = await response.aread()
                     raise LLMAPIError(
-                        f"Local LLM error: {response.text}",
+                        f"Local LLM error: {error_body.decode('utf-8', errors='replace')}",
                         status_code=response.status_code,
                         provider="local",
                     )
@@ -308,8 +309,8 @@ async def fetch_models(
                     data = resp.json()
                     if "models" in data:
                         return [m["name"] for m in data.get("models", [])]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Ollama model fetch failed, trying /models: %s", exc)
 
         # Try OpenAI-compatible /models
         try:

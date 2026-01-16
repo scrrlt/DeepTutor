@@ -48,10 +48,7 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         if req_model is None:
             raise ValueError("Model must be specified in request or configuration")
 
-        if self.model is None:
-            self.model = req_model
-
-        model_info = self.get_model_info()
+        model_info = self.get_model_info(req_model)
         if (request.dimensions or self.dimensions) and model_info.get(  # type: ignore
             "supports_variable_dimensions", False
         ):
@@ -100,8 +97,8 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             usage=data.get("usage", {}),
         )
 
-    def get_model_info(self) -> Dict[str, Any]:
-        model_name = self.model or ""
+    def get_model_info(self, model: str | None = None) -> Dict[str, Any]:
+        model_name = model or self.model or ""
         model_info = self.MODELS_INFO.get(model_name)
 
         if isinstance(model_info, dict):

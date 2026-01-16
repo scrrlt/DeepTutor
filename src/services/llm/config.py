@@ -70,6 +70,7 @@ def _get_llm_config_from_env() -> LLMConfig:
         api_key=api_key or "",
         base_url=base_url_value,
         api_version=api_version,
+        provider_name=binding,
     )
 
 
@@ -99,6 +100,7 @@ def get_llm_config() -> LLMConfig:
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
                 api_version=config.get("api_version"),
+                provider_name=config.get("provider", "openai"),
             )
     except ImportError:
         # Unified config service not yet available, fall back to env
@@ -132,6 +134,7 @@ async def get_llm_config_async() -> LLMConfig:
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
                 api_version=config.get("api_version"),
+                provider_name=config.get("provider", "openai"),
             )
     except ImportError:
         pass

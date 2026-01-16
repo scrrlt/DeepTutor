@@ -1,5 +1,6 @@
 """Anthropic provider implementation using shared HTTP client."""
 
+import asyncio
 from typing import Any
 
 import anthropic
@@ -25,14 +26,17 @@ class AnthropicProvider(BaseLLMProvider):
         """Initialize Anthropic provider with shared client."""
         super().__init__(config)
         self.client: anthropic.AsyncAnthropic | None = None
+        self._client_lock = asyncio.Lock()
 
     async def _get_client(self) -> anthropic.AsyncAnthropic:
         if self.client is None:
-            http_client = await get_shared_http_client()
-            self.client = anthropic.AsyncAnthropic(
-                api_key=self.api_key,
-                http_client=http_client,
-            )
+            async with self._client_lock:
+                if self.client is None:
+                    http_client = await get_shared_http_client()
+                    self.client = anthropic.AsyncAnthropic(
+                        api_key=self.api_key,
+                        http_client=http_client,
+                    )
         return self.client
 
     @track_llm_call("anthropic")

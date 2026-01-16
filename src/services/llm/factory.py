@@ -4,6 +4,8 @@ Provides unified entry points for cloud and local LLM calls with retry logic.
 """
 
 import asyncio
+import json
+import os
 from functools import partial
 from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, List, Optional
 
@@ -18,7 +20,7 @@ from .cache import (
     get_cached_completion,
     set_cached_completion,
 )
-from .config import get_llm_config
+from .config import LLMConfig, get_llm_config
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -37,43 +39,32 @@ DEFAULT_RETRY_DELAY = 1.0  # seconds
 DEFAULT_EXPONENTIAL_BACKOFF = True
 
 
-def _is_retriable_error(error: Exception) -> bool:
-    """
-    Check if an error is retriable.
-
-    Retriable errors:
-    - Timeout errors
-    - Rate limit errors (429)
-    - Server errors (5xx)
-    - Network/connection errors
-
-    Non-retriable errors:
-    - Authentication errors (401)
-    - Bad request (400)
-    - Not found (404)
-    - Client errors (4xx except 429)
-    """
-    if isinstance(error, asyncio.TimeoutError):
+def _should_retry_error(exc: BaseException) -> bool:
+    """Single source of truth for retry logic."""
+    if isinstance(exc, (ConnectionError, asyncio.TimeoutError, LLMTimeoutError)):
         return True
-    if isinstance(error, LLMTimeoutError):
-        return True
-    if isinstance(error, LLMRateLimitError):
-        return True
-    if isinstance(error, LLMAuthenticationError):
-        return False  # Don't retry auth errors
 
-    if isinstance(error, LLMAPIError):
-        status_code = error.status_code
-        if status_code:
-            # Retry on server errors (5xx) and rate limits (429)
-            if status_code >= 500 or status_code == 429:
-                return True
-            # Don't retry on client errors (4xx except 429)
-            if 400 <= status_code < 500:
-                return False
+    if isinstance(exc, LLMRateLimitError):
+        return True
+
+    if isinstance(exc, LLMAuthenticationError):
         return False
 
+    if isinstance(exc, LLMAPIError):
+        status_code = exc.status_code
+        if status_code is None:
+            return False
+        if status_code == 429 or status_code >= 500:
+            return True
+        if 400 <= status_code < 500:
+            return False
+
     return False
+
+
+def _is_retriable_llm_api_error(error: LLMAPIError) -> bool:
+    """Compatibility helper for tests expecting API retry predicate."""
+    return _should_retry_error(error)
 
 
 def _should_use_local(base_url: str | None) -> bool:
@@ -89,31 +80,28 @@ def _should_use_local(base_url: str | None) -> bool:
     return is_local_llm_server(base_url) if base_url else False
 
 
-def _is_retriable_llm_api_error(exc: BaseException) -> bool:
-    """Return True for retriable LLMAPIError instances."""
-    if not isinstance(exc, LLMAPIError):
-        return False
-
-    status_code = getattr(exc, "status_code", None)
-    if status_code is None:
-        return False
-
-    if status_code == 429:
-        return True
-
-    if 500 <= status_code < 600:
-        return True
-
-    return False
-
-
 def _sanitize_cache_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Strip non-cacheable keys before hashing."""
+    """Strip non-cacheable keys before hashing using an allowlist."""
+    allowlist = {
+        "prompt",
+        "system_prompt",
+        "model",
+        "binding",
+        "base_url",
+        "messages",
+        "temperature",
+        "max_tokens",
+        "max_completion_tokens",
+        "top_p",
+        "presence_penalty",
+        "frequency_penalty",
+        "stop",
+        "timeout",
+    }
     cacheable: Dict[str, Any] = {}
-    for key, value in kwargs.items():
-        if key in {"api_key", "api_version"}:
-            continue
-        cacheable[key] = value
+    for key in allowlist:
+        if key in kwargs:
+            cacheable[key] = kwargs[key]
     return cacheable
 
 
@@ -151,11 +139,7 @@ def _build_retrying(
         logger.warning(message)
 
     retry_kwargs: Dict[str, Any] = {
-        "retry": (
-            tenacity.retry_if_exception_type(LLMRateLimitError)
-            | tenacity.retry_if_exception_type(LLMTimeoutError)
-            | tenacity.retry_if_exception(_is_retriable_llm_api_error)
-        ),
+        "retry": tenacity.retry_if_exception(_should_retry_error),
         "wait": wait_strategy,
         "stop": tenacity.stop_after_attempt(max_retries + 1),
         "before_sleep": _log_retry,
@@ -169,30 +153,9 @@ def _build_retrying(
 async def _invoke_provider(
     use_local: bool, call_kwargs: Dict[str, Any]
 ) -> str:
-    """Dispatch to provider and normalize errors."""
-    try:
-        if use_local:
-            return await local_provider.complete(**call_kwargs)
-        return await cloud_provider.complete(**call_kwargs)
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        # Preserve known LLM errors to avoid altering retry semantics
-        if isinstance(
-            exc,
-            (
-                LLMTimeoutError,
-                LLMRateLimitError,
-                LLMAPIError,
-                LLMAuthenticationError,
-            ),
-        ):
-            raise
-
-        from .error_mapping import map_error
-
-        mapped_error = map_error(exc, provider=call_kwargs.get("binding", "unknown"))
-        raise mapped_error from exc
+    if use_local:
+        return await local_provider.complete(**call_kwargs)
+    return await cloud_provider.complete(**call_kwargs)
 
 
 async def _execute_with_retry(
@@ -209,6 +172,7 @@ async def _execute_with_retry(
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
+    config: LLMConfig | None = None,
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
@@ -252,13 +216,16 @@ async def complete(
         str: The LLM response
     """
     # Get config if parameters not provided
-    if not model or not base_url:
-        config = get_llm_config()
-        model = model or config.model
-        api_key = api_key if api_key is not None else config.api_key
-        base_url = base_url or config.base_url
-        api_version = api_version or config.api_version
-        binding = binding or config.binding or "openai"
+    effective_config = config or None
+    if effective_config is None and (not model or not base_url):
+        effective_config = get_llm_config()
+
+    if effective_config is not None:
+        model = model or effective_config.model
+        api_key = api_key if api_key is not None else effective_config.api_key
+        base_url = base_url or effective_config.base_url
+        api_version = api_version or effective_config.api_version
+        binding = binding or effective_config.binding or "openai"
 
     # Determine which provider to use
     use_local = _should_use_local(base_url)
@@ -322,6 +289,7 @@ async def complete(
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
+    config: LLMConfig | None = None,
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
@@ -360,13 +328,16 @@ async def stream(
         str: Response chunks
     """
     # Get config if parameters not provided
-    if not model or not base_url:
-        config = get_llm_config()
-        model = model or config.model
-        api_key = api_key if api_key is not None else config.api_key
-        base_url = base_url or config.base_url
-        api_version = api_version or config.api_version
-        binding = binding or config.binding or "openai"
+    effective_config = config or None
+    if effective_config is None and (not model or not base_url):
+        effective_config = get_llm_config()
+
+    if effective_config is not None:
+        model = model or effective_config.model
+        api_key = api_key if api_key is not None else effective_config.api_key
+        base_url = base_url or effective_config.base_url
+        api_version = api_version or effective_config.api_version
+        binding = binding or effective_config.binding or "openai"
 
     # Determine which provider to use
     use_local = _should_use_local(base_url)
@@ -387,44 +358,33 @@ async def stream(
         call_kwargs["api_version"] = api_version
         call_kwargs["binding"] = binding or "openai"
 
-    # Retry logic for streaming (retry on connection errors)
-    last_exception = None
-    delay = retry_delay
+    retrying = _build_retrying(
+        max_retries=max_retries,
+        retry_delay=retry_delay,
+        exponential_backoff=exponential_backoff,
+        sleep=None,
+    )
 
-    for attempt in range(max_retries + 1):
-        try:
-            # Route to appropriate provider
-            if use_local:
-                async for chunk in local_provider.stream(**call_kwargs):
-                    yield chunk
-            else:
-                async for chunk in cloud_provider.stream(**call_kwargs):
-                    yield chunk
-            # If we get here, streaming completed successfully
-            return
-        except Exception as e:
-            last_exception = e
+    def _get_stream_iterator() -> AsyncGenerator[str, None]:
+        if use_local:
+            return local_provider.stream(**call_kwargs)
+        return cloud_provider.stream(**call_kwargs)
 
-            # Check if we should retry
-            if attempt >= max_retries or not _is_retriable_error(e):
-                raise
+    iterator: AsyncGenerator[str, None] | None = None
+    async for attempt in retrying:
+        with attempt:
+            iterator = _get_stream_iterator()
+            break
 
-            # Calculate delay for next attempt
-            if exponential_backoff:
-                current_delay = delay * (2**attempt)
-            else:
-                current_delay = delay
+    if iterator is None:
+        raise RuntimeError("Failed to establish stream iterator")
 
-            # Special handling for rate limit errors with retry_after
-            if isinstance(e, LLMRateLimitError) and e.retry_after:
-                current_delay = max(current_delay, e.retry_after)
-
-            # Wait before retrying
-            await asyncio.sleep(current_delay)
-
-    # Should not reach here, but just in case
-    if last_exception:
-        raise last_exception
+    try:
+        async for chunk in iterator:
+            yield chunk
+    except Exception as exc:
+        logger.error("Stream interrupted during consumption: %s", exc)
+        raise
 
 
 async def fetch_models(

@@ -3,8 +3,8 @@
 import getConfig from "next/config";
 
 // Get API base URL from runtime config (set at process start) with env fallback
-const { publicRuntimeConfig } = getConfig();
-const runtimeApiBase: string | undefined = publicRuntimeConfig?.apiBase;
+const config = getConfig();
+const runtimeApiBase: string | undefined = config?.publicRuntimeConfig?.apiBase;
 
 export const API_BASE_URL =
   runtimeApiBase ||

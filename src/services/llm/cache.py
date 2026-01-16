@@ -14,7 +14,7 @@ from src.logging import get_logger
 logger = get_logger("LLMCache")
 
 _CACHE_CLIENT: Optional[Redis] = None
-_CACHE_LOCK = asyncio.Lock()
+_CACHE_LOCK: Optional[asyncio.Lock] = None
 CACHE_NAMESPACE = os.getenv("LLM_CACHE_NAMESPACE", "llm_cache")
 
 
@@ -42,11 +42,16 @@ async def get_cache_client() -> Optional[Redis]:
     if not redis_url:
         return None
 
-    global _CACHE_CLIENT
+    global _CACHE_CLIENT, _CACHE_LOCK
     if _CACHE_CLIENT:
         return _CACHE_CLIENT
 
-    async with _CACHE_LOCK:
+    if _CACHE_LOCK is None:
+        _CACHE_LOCK = asyncio.Lock()
+
+    lock = _CACHE_LOCK
+
+    async with lock:
         if _CACHE_CLIENT:
             return _CACHE_CLIENT
 

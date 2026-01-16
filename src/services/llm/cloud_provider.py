@@ -200,8 +200,8 @@ async def _openai_complete(
             _openai_logger.setLevel(original_openai_level)
     except asyncio.CancelledError:
         raise
-    except Exception:
-        pass  # Fall through to direct call
+    except Exception as exc:
+        logger.warning("openai_complete_if_cache failed, falling back: %s", exc)
 
     # Fallback: Direct httpx call
     if not content and base_url:
@@ -314,8 +314,9 @@ async def _openai_stream(
             json=data,
         ) as resp:
             if resp.status_code != 200:
+                error_body = await resp.aread()
                 raise LLMAPIError(
-                    f"OpenAI stream error: {resp.text}",
+                    f"OpenAI stream error: {error_body.decode('utf-8', errors='replace')}",
                     status_code=resp.status_code,
                     provider=binding or "openai",
                 )
@@ -468,8 +469,9 @@ async def _anthropic_stream(
             json=data,
         ) as response:
             if response.status_code != 200:
+                error_body = await response.aread()
                 raise LLMAPIError(
-                    f"Anthropic stream error: {response.text}",
+                    f"Anthropic stream error: {error_body.decode('utf-8', errors='replace')}",
                     status_code=response.status_code,
                     provider="anthropic",
                 )
