@@ -1,8 +1,12 @@
+"""
+Tests for LLM utility functions.
+"""
 import pytest
 import re
 from src.services.llm import utils
+from typing import Optional, Dict, Any
 
-def test_is_local_llm_server():
+def test_is_local_llm_server() -> None:
     assert utils.is_local_llm_server("http://localhost:11434")
     assert utils.is_local_llm_server("http://127.0.0.1:8000")
     assert utils.is_local_llm_server("http://0.0.0.0:5000")
@@ -19,7 +23,7 @@ def test_is_local_llm_server():
     assert not utils.is_local_llm_server("")
     assert not utils.is_local_llm_server("http://192.168.1.1:1234") # is_private should be true
 
-def test_sanitize_url():
+def test_sanitize_url() -> None:
     # sanitize_url only strips specific suffixes, not arbitrary paths
     assert utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api"
     # But it adds http
@@ -28,7 +32,7 @@ def test_sanitize_url():
     assert utils.sanitize_url(None) == ""
     assert utils.sanitize_url("http://example.com/v1/chat/completions") == "http://example.com"
 
-def test_clean_thinking_tags():
+def test_clean_thinking_tags() -> None:
     content = "Here is <think>some thought</think> the answer."
     assert utils.clean_thinking_tags(content) == "Here is  the answer."
     
@@ -45,7 +49,7 @@ def test_clean_thinking_tags():
     assert utils.clean_thinking_tags(content_with_binding, binding="openai") == content_with_binding
 
 
-def test_build_chat_url():
+def test_build_chat_url() -> None:
     base = "http://localhost:11434"
     assert utils.build_chat_url(base) == "http://localhost:11434/chat/completions"
     
@@ -59,7 +63,7 @@ def test_build_chat_url():
     assert utils.build_chat_url(None) is None
 
 
-def test_extract_response_content():
+def test_extract_response_content() -> None:
     assert utils.extract_response_content({"content": "hello"}) == "hello"
     assert utils.extract_response_content({"reasoning_content": "thought"}) == "thought"
     assert utils.extract_response_content({"tool_calls": ["call"]}) == "<tool_call>"
@@ -68,7 +72,7 @@ def test_extract_response_content():
     assert utils.extract_response_content({}) == ""
     assert utils.extract_response_content(None) == ""
 
-def test_build_auth_headers():
+def test_build_auth_headers() -> None:
     assert utils.build_auth_headers("sk-key")["Authorization"] == "Bearer sk-key"
     
     headers = utils.build_auth_headers("sk-key", binding="anthropic")
