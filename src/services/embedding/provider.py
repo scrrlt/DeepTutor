@@ -63,7 +63,8 @@ class EmbeddingProviderManager:
         if not adapter_class:
             supported = ", ".join(self.ADAPTER_MAPPING.keys())
             raise ValueError(
-                f"Unknown embedding binding: '{binding}'. Supported providers: {supported}"
+                f"Unknown embedding binding: '{binding}'. "
+                f"Supported providers: {supported}"
             )
 
         logger.info(f"Initializing embedding adapter for binding: {binding}")

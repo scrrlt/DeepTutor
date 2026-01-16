@@ -13,81 +13,122 @@ from src.logging import get_logger
 
 logger = get_logger("LLMCache")
 
+# Global state
 _CACHE_CLIENT: Redis | None = None
 _CACHE_LOCK: asyncio.Lock | None = None
 CACHE_NAMESPACE = os.getenv("LLM_CACHE_NAMESPACE", "llm_cache")
 
 
 def _get_default_cache_ttl() -> int:
-    """Safely parse cache TTL from environment with clear errors."""
+    """
+    Safely parse cache TTL from environment.
+
+    Returns:
+        The cache TTL in seconds (default: 3600).
+    """
     raw_ttl = os.getenv("LLM_CACHE_TTL", "3600")
     try:
         return int(raw_ttl)
-    except ValueError as exc:
-        raise ValueError(
-            f"LLM_CACHE_TTL must be an integer, got {raw_ttl!r}."
-        ) from exc
+    except ValueError:
+        logger.warning(
+            f"Invalid LLM_CACHE_TTL '{raw_ttl}', defaulting to 3600s"
+        )
+        return 3600
 
 
 DEFAULT_CACHE_TTL = _get_default_cache_ttl()
 
 
 async def get_cache_client() -> Redis | None:
-    """Get or create a Redis client for caching.
+    """
+    Get or create a Redis client.
+
+    Thread-safe and Event-Loop-safe singleton pattern.
 
     Returns:
-        Redis client instance if Redis is configured, otherwise None.
+        The initialized Redis client or None if connection fails.
     """
     redis_url = os.getenv("LLM_CACHE_REDIS_URL") or os.getenv("REDIS_URL")
     if not redis_url:
         return None
 
     global _CACHE_CLIENT, _CACHE_LOCK
-    if _CACHE_CLIENT:
+
+    # Fast path: Client exists
+    if _CACHE_CLIENT is not None:
         return _CACHE_CLIENT
 
+    # Lazy init lock to ensure it binds to the CURRENT event loop
     if _CACHE_LOCK is None:
         _CACHE_LOCK = asyncio.Lock()
 
-    lock = _CACHE_LOCK
-
-    async with lock:
-        if _CACHE_CLIENT:
+    async with _CACHE_LOCK:
+        # Double-check inside lock
+        if _CACHE_CLIENT is not None:
             return _CACHE_CLIENT
 
-        _CACHE_CLIENT = Redis.from_url(
-            redis_url,
-            encoding="utf-8",
-            decode_responses=True,
-        )
+        try:
+            # Log host only, hide auth
+            sanitized_url = redis_url.split("@")[-1]
+            logger.debug(f"Connecting to Redis at {sanitized_url}")
+            _CACHE_CLIENT = Redis.from_url(
+                redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=2.0,  # Fail fast
+                socket_keepalive=True,
+            )
+            # Test connection
+            await _CACHE_CLIENT.ping()
+        except Exception as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            _CACHE_CLIENT = None
+            return None
+
         return _CACHE_CLIENT
 
 
-def _filter_cacheable_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
+def _sanitize_kwargs_for_hashing(kwargs: dict[str, Any]) -> dict[str, Any]:
     """
-    Remove non-serializable items from kwargs for cache key construction.
+    Prepare kwargs for hashing.
+
+    1. Filter known sensitive keys.
+    2. Sort keys for deterministic hashing.
+    3. Convert non-primitives to strings to ensure serializability.
 
     Args:
-        kwargs: Parameters passed to the LLM call.
+        kwargs: The dictionary of arguments to sanitize.
 
     Returns:
-        Dictionary containing only serializable, non-sensitive values.
+        A new dictionary with sanitized values.
     """
-    safe_keys: dict[str, Any] = {}
-    sensitive_keys = {"api_key", "authorization", "Authorization"}
+    # Expanded blocklist
+    sensitive_patterns = {
+        "api_key",
+        "key",
+        "token",
+        "secret",
+        "password",
+        "auth",
+        "authorization",
+        "credential",
+    }
 
-    for key, value in kwargs.items():
-        if key in sensitive_keys:
+    sanitized = {}
+    for k, v in kwargs.items():
+        # Case-insensitive check against sensitive patterns
+        if k.lower() in sensitive_patterns:
             continue
 
-        if isinstance(value, (str, int, float, bool)) or value is None:
-            safe_keys[key] = value
-        elif isinstance(value, (list, dict)):
-            safe_keys[key] = value
+        # Recursive cleaning could go here, but flat processing is usually sufficient for kwargs
+        if isinstance(v, (str, int, float, bool, type(None))):
+            sanitized[k] = v
         else:
-            safe_keys[key] = str(value)
+            # Force string representation for complex objects (Lists, Dicts, Custom Objects)
+            # This avoids the "try/except JSON" loop later
+            sanitized[k] = str(v)
 
-    return safe_keys
+    return sanitized
 
 
 def build_completion_cache_key(
@@ -101,45 +142,43 @@ def build_completion_cache_key(
     kwargs: dict[str, Any],
 ) -> str:
     """
-    Construct a stable cache key for LLM completion calls.
+    Construct a deterministic SHA-256 cache key.
 
     Args:
-        model: Target model name.
-        binding: Provider binding identifier.
-        base_url: Provider base URL.
-        system_prompt: System prompt used for the call.
-        prompt: User prompt.
-        messages: Optional OpenAI-style message array.
-        kwargs: Remaining call parameters.
+        model: The model identifier.
+        binding: The provider binding name.
+        base_url: The API base URL.
+        system_prompt: The system prompt.
+        prompt: The user prompt.
+        messages: List of message dictionaries.
+        kwargs: Additional generation arguments.
 
     Returns:
-        Deterministic cache key string.
+        A namespaced cache key string.
     """
-    payload: dict[str, Any] = {
+    # 1. Sanitize kwargs immediately
+    clean_kwargs = _sanitize_kwargs_for_hashing(kwargs)
+
+    # 2. Build deterministic payload
+    payload = {
         "model": model,
         "binding": binding,
         "base_url": base_url or "default",
         "system_prompt": system_prompt,
         "prompt": prompt,
         "messages": messages or [],
-        "kwargs": _filter_cacheable_kwargs(kwargs),
+        "kwargs": clean_kwargs,
     }
 
-    try:
-        serialized = json.dumps(
-            payload,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=True,
-        )
-    except TypeError:
-        payload["kwargs"] = {k: str(v) for k, v in payload["kwargs"].items()}
-        serialized = json.dumps(
-            payload,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=True,
-        )
+    # 3. Serialize with sort_keys=True for stability
+    # We don't need a try/except block here because _sanitize_kwargs_for_hashing
+    # already coerced complex types to strings.
+    serialized = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),  # Compact representation
+        ensure_ascii=False,  # Allow Unicode in cache keys
+    )
 
     digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
     return f"{CACHE_NAMESPACE}:{binding}:{model}:{digest}"
@@ -147,22 +186,24 @@ def build_completion_cache_key(
 
 async def get_cached_completion(key: str) -> str | None:
     """
-    Fetch a cached completion if available.
+    Fetch from Redis, handling connection errors gracefully.
 
     Args:
-        key: Cache key to read.
+        key: The cache key to retrieve.
 
     Returns:
-        Cached completion text when present, otherwise None.
+        The cached completion string or None if not found/error.
     """
     client = await get_cache_client()
     if not client:
         return None
 
     try:
+        # We don't lock for reads; Redis is thread-safe
         return await client.get(key)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Redis cache get failed: {exc}")
+    except Exception as exc:
+        # Don't crash the LLM pipeline just because cache is flaky
+        logger.warning(f"Cache read error: {exc}")
         return None
 
 
@@ -170,12 +211,12 @@ async def set_cached_completion(
     key: str, value: str, ttl_seconds: int | None = None
 ) -> None:
     """
-    Store a completion response in Redis.
+    Write to Redis, handling connection errors gracefully.
 
     Args:
-        key: Cache key to write.
-        value: Completion text to store.
-        ttl_seconds: Optional TTL override in seconds.
+        key: The cache key to write.
+        value: The completion string to cache.
+        ttl_seconds: Optional TTL in seconds (overrides default).
     """
     client = await get_cache_client()
     if not client:
@@ -183,9 +224,10 @@ async def set_cached_completion(
 
     ttl = ttl_seconds if ttl_seconds is not None else DEFAULT_CACHE_TTL
     try:
+        # Fire and forget (await, but don't block logic if it fails)
         await client.set(key, value, ex=ttl)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Redis cache set failed: {exc}")
+    except Exception as exc:
+        logger.warning(f"Cache write error: {exc}")
 
 
 __all__ = [

@@ -3,8 +3,10 @@
 URL handling, response extraction, and thinking-tag cleanup helpers.
 """
 
+import ipaddress
 import re
 from typing import Any
+from urllib.parse import urlparse
 
 # Known cloud provider domains (should never be treated as local)
 CLOUD_DOMAINS = [
@@ -54,11 +56,7 @@ V1_SUFFIX_PORTS = {
 def is_local_llm_server(base_url: str) -> bool:
     """
     Check if the given URL points to a local LLM server.
-
-    Detects local servers by:
-    1. Checking for local hostnames (localhost, 127.0.0.1, 0.0.0.0)
-    2. Checking for common local LLM server ports
-    3. Excluding known cloud provider domains
+    Uses robust URL parsing and IP address checking.
 
     Args:
         base_url: The base URL to check
@@ -69,72 +67,47 @@ def is_local_llm_server(base_url: str) -> bool:
     if not base_url:
         return False
 
-    base_url_lower = base_url.lower()
-
-    # First, exclude known cloud providers
-    for domain in CLOUD_DOMAINS:
-        if domain in base_url_lower:
+    try:
+        parsed = urlparse(base_url)
+        hostname = parsed.hostname
+        if not hostname:
             return False
 
-    # Check for local hostname indicators
-    for host in LOCAL_HOSTS:
-        if host in base_url_lower:
+        # 1. Check strict string matches
+        if hostname in ("localhost", "0.0.0.0", "::1"):
             return True
 
-    # Check for common local server ports
-    for port in LOCAL_PORTS:
-        if port in base_url_lower:
-            return True
+        # 2. Check IP address ranges (127.0.0.0/8, etc)
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return ip.is_loopback or ip.is_private
+        except ValueError:
+            # It's a domain name (e.g. google.com)
+            pass
 
-    return False
+        # 3. Fallback to check if it's NOT a known cloud domain
+        # (Original logic relied on this, keeping it for hybrid safety)
+        base_url_lower = base_url.lower()
+        for domain in CLOUD_DOMAINS:
+            if domain in base_url_lower:
+                return False
+        
+        # If it's not a known cloud domain, and not an IP... 
+        # relying on port might be useful still
+        for port in LOCAL_PORTS:
+            if port in base_url_lower:
+                return True
 
-
-def _needs_v1_suffix(url: str) -> bool:
-    """
-    Check if the URL needs /v1 suffix for OpenAI compatibility.
-
-    Most local LLM servers (Ollama, LM Studio, vLLM, llama.cpp) expose
-    OpenAI-compatible endpoints at /v1.
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        True if /v1 should be appended
-    """
-    if not url:
         return False
 
-    url_lower = url.lower()
-
-    # Skip if already has /v1
-    if url_lower.endswith("/v1"):
+    except Exception:
         return False
-
-    # Only add /v1 for local servers with known ports that need it
-    if not is_local_llm_server(url):
-        return False
-
-    # Check if URL contains any port that needs /v1 suffix
-    # Also check for "ollama" in URL (but not ollama.com cloud service)
-    is_ollama = "ollama" in url_lower and "ollama.com" not in url_lower
-    if is_ollama:
-        return True
-
-    return any(port in url_lower for port in V1_SUFFIX_PORTS)
 
 
 def sanitize_url(base_url: str, model: str = "") -> str:
     """
-    Sanitize base URL for OpenAI-compatible APIs, with special handling for local LLM servers.
-
-    Handles:
-    - Ollama (port 11434)
-    - LM Studio (port 1234)
-    - vLLM (port 8000)
-    - llama.cpp (port 8080)
-    - Other localhost OpenAI-compatible servers
-
+    Normalize URL without guessing based on ports.
+    
     Args:
         base_url: The base URL to sanitize
         model: Optional model name (unused, kept for API compatibility)
@@ -143,26 +116,27 @@ def sanitize_url(base_url: str, model: str = "") -> str:
         Sanitized URL string
     """
     if not base_url:
-        return base_url
+        return ""
+
+    # Force protocol
+    if not re.match(r"^[a-zA-Z]+://", base_url):
+        base_url = f"http://{base_url}"
 
     url = base_url.rstrip("/")
 
-    # Ensure URL has a protocol (default to http for local servers)
-    if url and not url.startswith(("http://", "https://")):
-        url = "http://" + url
-
-    # Standard OpenAI client library is strict about URLs:
-    # - No trailing slashes
-    # - No /chat/completions or /completions/messages/embeddings suffixes
-    #   (it adds these automatically)
-    for suffix in ["/chat/completions", "/completions", "/messages", "/embeddings"]:
+    # Strip known endpoints to get back to base
+    # e.g. http://localhost:11434/api/chat -> http://localhost:11434/api
+    suffixes = [
+        "/chat/completions",
+        "/messages",
+        "/v1",
+        "/completions",
+        "/embeddings",
+    ]
+    for suffix in suffixes:
         if url.endswith(suffix):
             url = url[: -len(suffix)]
             url = url.rstrip("/")
-
-    # For local LLM servers, ensure /v1 is present for OpenAI compatibility
-    if _needs_v1_suffix(url):
-        url = url.rstrip("/") + "/v1"
 
     return url
 
@@ -198,6 +172,8 @@ def clean_thinking_tags(
             return content
 
     # Remove <think>...</think> blocks
+    # Note: This regex is simple and doesn't handle streaming well.
+    # Future improvements should use a streaming-aware parser.
     if "<think>" in content:
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
 
@@ -265,18 +241,22 @@ def extract_response_content(message: dict[str, Any]) -> str:
     if not message:
         return ""
 
-    content = message.get("content", "")
+    # 1. Standard Content
+    if content := message.get("content"):
+        return content
 
-    # Handle reasoning models that return content in different fields
-    if not content:
-        content = (
-            message.get("reasoning_content")
-            or message.get("reasoning")
-            or message.get("thought")
-            or ""
-        )
+    # 2. DeepSeek/Reasoning variants (often in 'reasoning_content')
+    # If the user *wants* the reasoning, this logic hides it.
+    # Ensure this aligns with your design goal (hiding vs showing thought).
+    for key in ["reasoning_content", "thought", "reasoning"]:
+        if val := message.get(key):
+            return val
 
-    return content
+    # 3. Tool Calls (Don't return empty string if it's a tool call)
+    if message.get("tool_calls"):
+        return "<tool_call>"
+
+    return ""
 
 
 def build_auth_headers(

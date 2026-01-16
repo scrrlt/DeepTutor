@@ -62,6 +62,11 @@ def _should_retry_error(exc: BaseException) -> bool:
     return False
 
 
+def _is_retriable_error(exc: BaseException) -> bool:
+    """Backward-compatible retry predicate used by legacy tests."""
+    return _should_retry_error(exc)
+
+
 def _is_retriable_llm_api_error(error: LLMAPIError) -> bool:
     """Compatibility helper for tests expecting API retry predicate."""
     return _should_retry_error(error)
@@ -488,6 +493,8 @@ def get_provider_presets() -> dict[str, Any]:
 
 
 __all__ = [
+    "_is_retriable_error",
+    "_is_retriable_llm_api_error",
     "complete",
     "stream",
     "fetch_models",

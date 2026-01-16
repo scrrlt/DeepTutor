@@ -44,14 +44,31 @@ class EmbeddingConfig:
 
 
 def _strip_value(value: Optional[str]) -> Optional[str]:
-    """Remove leading/trailing whitespace and quotes from string."""
+    """
+    Remove leading/trailing whitespace and quotes from string.
+
+    Args:
+        value: The string to strip.
+
+    Returns:
+        The stripped string or None if input is None.
+    """
     if value is None:
         return None
     return value.strip().strip("\"'")
 
 
 def _to_int(value: Optional[str], default: int) -> int:
-    """Convert environment variable to int, fallback to default value on failure."""
+    """
+    Convert environment variable to int, fallback to default value on failure.
+
+    Args:
+        value: The string value to convert.
+        default: The default value to return if conversion fails.
+
+    Returns:
+        The integer value.
+    """
     try:
         return int(value) if value is not None else default
     except (TypeError, ValueError):
@@ -59,7 +76,16 @@ def _to_int(value: Optional[str], default: int) -> int:
 
 
 def _to_bool(value: Optional[str], default: bool) -> bool:
-    """Convert environment variable to bool."""
+    """
+    Convert environment variable to bool.
+
+    Args:
+        value: The string value to convert.
+        default: The default value to return if input is None.
+
+    Returns:
+        True if value is "true", "1", "yes", or "on" (case-insensitive).
+    """
     if value is None:
         return default
     return value.lower() in ("true", "1", "yes", "on")

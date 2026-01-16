@@ -11,6 +11,18 @@ from src.services.llm.factory import (
     _is_retriable_llm_api_error
 )
 
+@pytest.fixture(autouse=True)
+def mock_llm_config():
+    """Automatically mock LLM configuration for all tests in this file."""
+    with patch("src.services.llm.factory.get_llm_config") as mock_get:
+        mock_config = MagicMock()
+        mock_config.binding = "openai"
+        mock_config.model = "gpt-4"
+        mock_config.api_key = "sk-test-key"
+        mock_config.provider_name = "openai" # For compatibility shim
+        mock_get.return_value = mock_config
+        yield mock_get
+
 # Helper to create async generators for mocking
 async def mock_async_gen(items, error_at_end=None):
     for item in items:

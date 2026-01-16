@@ -93,6 +93,12 @@ class EmbeddingClient:
         Synchronous wrapper for embed().
 
         Use this when you need to call from non-async context.
+
+        Args:
+            texts: List of texts to embed.
+
+        Returns:
+            List of embedding vectors.
         """
         import asyncio
 
@@ -129,9 +135,14 @@ class EmbeddingClient:
             or len(embeddings) != len(texts)
             or any(not isinstance(emb, list) or len(emb) == 0 for emb in embeddings)
         ):
+            emb_len = (
+                len(embeddings) if isinstance(embeddings, list) else "N/A"
+            )
+            emb_type = type(embeddings)
             raise ValueError(
-                f"Invalid embeddings response: expected {len(texts)} non-empty lists of floats, "
-                f"got {type(embeddings)} with {len(embeddings) if isinstance(embeddings, list) else 'N/A'} items"
+                f"Invalid embeddings response: expected {len(texts)} "
+                f"non-empty lists of floats, got {emb_type} "
+                f"with {emb_len} items"
             )
 
     def get_embedding_func(self):

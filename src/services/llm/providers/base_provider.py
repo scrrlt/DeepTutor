@@ -1,7 +1,7 @@
 """Base LLM provider with unified configuration and retries."""
 
-from abc import ABC
 import logging
+from abc import ABC
 from typing import Any, Awaitable, Callable
 
 import tenacity
@@ -62,7 +62,7 @@ class BaseLLMProvider(ABC):
     def _map_exception(self, e: Exception) -> LLMError:
         return map_error(e, provider=self.provider_name)
 
-    def calculate_cost(self, usage: Dict[str, Any]) -> float:
+    def calculate_cost(self, usage: dict[str, Any]) -> float:
         """Calculate cost estimate for a provider call."""
         return 0.0
 

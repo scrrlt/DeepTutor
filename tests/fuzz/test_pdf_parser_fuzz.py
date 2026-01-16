@@ -35,7 +35,7 @@ def test_parse_pdf_handles_random_paths(text: str, tmp_path: Path) -> None:
     with (
         pytest.MonkeyPatch.context() as mp,
     ):
-        mp.setattr(pdf_parser, "check_mineru_installed", lambda: "mineru")
+        mp.setattr(pdf_parser.shutil, "which", lambda cmd: "/usr/bin/mineru")
         mp.setattr(pdf_parser.subprocess, "run", _fake_run)
         result = pdf_parser.parse_pdf_with_mineru(str(fake_pdf), text or None)
         assert isinstance(result, bool)
@@ -53,7 +53,7 @@ def test_parse_pdf_rejects_non_pdf_paths(text: str, tmp_path: Path) -> None:
     fake_file.write_text("not a pdf")
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(pdf_parser, "check_mineru_installed", lambda: "mineru")
+        mp.setattr(pdf_parser.shutil, "which", lambda cmd: "/usr/bin/mineru")
         mp.setattr(pdf_parser.subprocess, "run", _fake_run)
         result = pdf_parser.parse_pdf_with_mineru(str(fake_file), text or None)
         assert result is False
