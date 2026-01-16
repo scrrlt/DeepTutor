@@ -25,6 +25,17 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        if not self.api_key:
+            raise ValueError("API key is required for Jina embeddings")
+        if not self.base_url:
+            raise ValueError("Base URL is required for Jina embeddings")
+
+        base_url = self.base_url
+
+        model_name = request.model or self.model
+        if model_name is None:
+            raise ValueError("Model must be specified for Jina embeddings")
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -32,7 +43,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         payload: Dict[str, Any] = {
             "input": request.texts,
-            "model": request.model or self.model,
+            "model": model_name,
         }
 
         if request.dimensions:
@@ -51,7 +62,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         if request.late_chunking:
             payload["late_chunking"] = True
 
-        url = f"{self.base_url}/embeddings"
+        url = f"{base_url}/embeddings"
 
         logger.debug(f"Sending embedding request to {url} with {len(request.texts)} texts")
 
@@ -80,20 +91,24 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> Dict[str, Any]:
-        model_info = self.MODELS_INFO.get(self.model, self.dimensions)
+        model_name = self.model or ""
+        model_info = self.MODELS_INFO.get(model_name)
 
         if isinstance(model_info, dict):
+            supported_dims = model_info.get("dimensions", [])
+            default_dims = model_info.get("default", self.dimensions) or 0
             return {
-                "model": self.model,
-                "dimensions": model_info.get("default", self.dimensions),
-                "supported_dimensions": model_info.get("dimensions", []),
+                "model": model_name,
+                "dimensions": default_dims,
+                "supported_dimensions": supported_dims,
                 "supports_variable_dimensions": True,
                 "provider": "jina",
             }
-        else:
-            return {
-                "model": self.model,
-                "dimensions": model_info or self.dimensions,
-                "supports_variable_dimensions": False,
-                "provider": "jina",
-            }
+
+        dimensions_value = model_info if isinstance(model_info, int) else self.dimensions
+        return {
+            "model": model_name,
+            "dimensions": dimensions_value or 0,
+            "supports_variable_dimensions": False,
+            "provider": "jina",
+        }

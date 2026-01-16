@@ -12,6 +12,7 @@ from src.utils.network.circuit_breaker import (
     record_call_failure,
     record_call_success,
 )
+from ..traffic_control import TrafficController
 from ..config import LLMConfig
 from ..error_mapping import map_error
 from ..exceptions import (
@@ -39,11 +40,14 @@ class BaseLLMProvider(ABC):
         self.base_url = getattr(config, "base_url", "")
 
         # Isolation: Each provider gets its own traffic controller instance
-        self.traffic_controller = getattr(config, "traffic_controller", None)
-        if self.traffic_controller is None:
-            from ..traffic_control import TrafficController
-
-            self.traffic_controller = TrafficController(provider_name=self.provider_name)
+        self.traffic_controller: TrafficController
+        traffic_controller = getattr(config, "traffic_controller", None)
+        if isinstance(traffic_controller, TrafficController):
+            self.traffic_controller = traffic_controller
+        else:
+            self.traffic_controller = TrafficController(
+                provider_name=self.provider_name
+            )
 
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
         """Run a completion call for the provider."""
@@ -140,13 +144,15 @@ class BaseLLMProvider(ABC):
                         record_call_failure(self.provider_name)
                     raise mapped_e from e
 
-                delay = (1.5**attempt) + (random.random() * 0.5)
+                delay = (1.5**attempt) + (random.random() * 0.5)  # nosec B311
                 if isinstance(mapped_e, LLMRateLimitError):
                     retry_after = getattr(mapped_e, "retry_after", None)
-                    try:
-                        retry_after_value = float(retry_after)
-                    except (TypeError, ValueError):
-                        retry_after_value = None
+                    retry_after_value: float | None = None
+                    if retry_after is not None:
+                        try:
+                            retry_after_value = float(retry_after)
+                        except (TypeError, ValueError):
+                            retry_after_value = None
                     if retry_after_value is not None:
                         delay = max(
                             0.0,

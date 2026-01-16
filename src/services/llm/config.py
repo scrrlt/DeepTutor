@@ -46,7 +46,7 @@ def _strip_value(value: Optional[str]) -> Optional[str]:
 
 def _get_llm_config_from_env() -> LLMConfig:
     """Get LLM configuration from environment variables."""
-    binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
+    binding = _strip_value(os.getenv("LLM_BINDING", "openai")) or "openai"
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
     base_url = _strip_value(os.getenv("LLM_HOST"))
@@ -57,16 +57,18 @@ def _get_llm_config_from_env() -> LLMConfig:
         raise LLMConfigError(
             "LLM_MODEL not set, please configure it in .env file or add a configuration in Settings"
         )
+    model_value = model
     if not base_url:
         raise LLMConfigError(
             "LLM_HOST not set, please configure it in .env file or add a configuration in Settings"
         )
+    base_url_value = base_url
 
     return LLMConfig(
         binding=binding,
-        model=model,
+        model=model_value,
         api_key=api_key or "",
-        base_url=base_url,
+        base_url=base_url_value,
         api_version=api_version,
     )
 

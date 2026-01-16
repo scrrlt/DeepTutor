@@ -319,24 +319,40 @@ async def fetch_models(
                 data = resp.json()
                 # Handle different response formats
                 if "data" in data and isinstance(data["data"], list):
-                    return [
-                        m.get("id") or m.get("name")
-                        for m in data["data"]
-                        if m.get("id") or m.get("name")
-                    ]
+                    models: list[str] = []
+                    for model_entry in data["data"]:
+                        if not isinstance(model_entry, dict):
+                            continue
+                        model_id = model_entry.get("id") or model_entry.get("name")
+                        if model_id:
+                            models.append(str(model_id))
+                    return models
+
                 if "models" in data and isinstance(data["models"], list):
+                    models_list: list[str] = []
                     if data["models"] and isinstance(data["models"][0], dict):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["models"]
-                            if m.get("id") or m.get("name")
+                        for model_entry in data["models"]:
+                            if not isinstance(model_entry, dict):
+                                continue
+                            model_id = model_entry.get("id") or model_entry.get("name")
+                            if model_id:
+                                models_list.append(str(model_id))
+                    else:
+                        models_list = [
+                            str(model_entry) for model_entry in data["models"]
                         ]
-                    return [str(m) for m in data["models"]]
+                    return models_list
+
                 if isinstance(data, list):
-                    return [
-                        m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                        for m in data
-                    ]
+                    models_from_list: list[str] = []
+                    for model_entry in data:
+                        if isinstance(model_entry, dict):
+                            model_id = model_entry.get("id") or model_entry.get("name")
+                            if model_id:
+                                models_from_list.append(str(model_id))
+                        else:
+                            models_from_list.append(str(model_entry))
+                    return models_from_list
         except Exception as e:
             logger.error(f"Error fetching models from {base_url}: {e}")
 

@@ -60,6 +60,11 @@ async def complete(
     Returns:
         str: The LLM response
     """
+    if model is None:
+        raise LLMConfigError("Model is required for cloud providers")
+    if base_url is None:
+        raise LLMConfigError("Base URL is required for cloud providers")
+
     binding_lower = (binding or "openai").lower()
 
     if binding_lower in ["anthropic", "claude"]:
@@ -113,6 +118,11 @@ async def stream(
     Yields:
         str: Response chunks
     """
+    if model is None:
+        raise LLMConfigError("Model is required for cloud providers")
+    if base_url is None:
+        raise LLMConfigError("Base URL is required for cloud providers")
+
     binding_lower = (binding or "openai").lower()
 
     if binding_lower in ["anthropic", "claude"]:
@@ -517,18 +527,24 @@ async def fetch_models(
             if resp.status_code == 200:
                 data = resp.json()
                 if "data" in data and isinstance(data["data"], list):
-                    return [
-                        m.get("id") or m.get("name")
-                        for m in data["data"]
-                        if m.get("id") or m.get("name")
-                    ]
+                    models: list[str] = []
+                    for model_entry in data["data"]:
+                        if not isinstance(model_entry, dict):
+                            continue
+                        model_id = model_entry.get("id") or model_entry.get("name")
+                        if model_id:
+                            models.append(str(model_id))
+                    return models
                 if isinstance(data, list):
-                    return [
-                        m.get("id") or m.get("name")
-                        if isinstance(m, dict)
-                        else str(m)
-                        for m in data
-                    ]
+                    models_from_list: list[str] = []
+                    for model_entry in data:
+                        if isinstance(model_entry, dict):
+                            model_id = model_entry.get("id") or model_entry.get("name")
+                            if model_id:
+                                models_from_list.append(str(model_id))
+                        else:
+                            models_from_list.append(str(model_entry))
+                    return models_from_list
             return []
         except Exception as e:
             logger.error(f"Error fetching models from {base_url}: {e}")

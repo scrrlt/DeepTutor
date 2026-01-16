@@ -22,14 +22,21 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             raise ValueError(
                 "API key is required for OpenAI-compatible embedding requests"
             )
+        if not self.base_url:
+            raise ValueError(
+                "Base URL is required for OpenAI-compatible embedding requests"
+            )
+
+        api_key = self.api_key
+        base_url = self.base_url.rstrip("/")
 
         headers = {
             "Content-Type": "application/json",
         }
         if self.api_version:
-            headers["api-key"] = self.api_key  # type: ignore
+            headers["api-key"] = api_key
         else:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = f"Bearer {api_key}"
 
         payload: Dict[str, Any] = {
             "input": request.texts,
@@ -41,13 +48,16 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         if req_model is None:
             raise ValueError("Model must be specified in request or configuration")
 
+        if self.model is None:
+            self.model = req_model
+
         model_info = self.get_model_info()
         if (request.dimensions or self.dimensions) and model_info.get(  # type: ignore
             "supports_variable_dimensions", False
         ):
             payload["dimensions"] = request.dimensions or self.dimensions
 
-        url = f"{(self.base_url or '').rstrip('/')}/embeddings"
+        url = f"{base_url}/embeddings"
         if self.api_version:
             if "?" not in url:
                 url += f"?api-version={self.api_version}"
@@ -91,20 +101,24 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> Dict[str, Any]:
-        model_info = self.MODELS_INFO.get(self.model, self.dimensions)
+        model_name = self.model or ""
+        model_info = self.MODELS_INFO.get(model_name)
 
         if isinstance(model_info, dict):
+            supported_dims = model_info.get("dimensions", [])
+            default_dims = model_info.get("default", self.dimensions) or 0
             return {
-                "model": self.model,
-                "dimensions": model_info.get("default", self.dimensions),
-                "supported_dimensions": model_info.get("dimensions", []),
-                "supports_variable_dimensions": len(model_info.get("dimensions", [])) > 1,
+                "model": model_name,
+                "dimensions": default_dims,
+                "supported_dimensions": supported_dims,
+                "supports_variable_dimensions": len(supported_dims) > 1,
                 "provider": "openai_compatible",
             }
-        else:
-            return {
-                "model": self.model,
-                "dimensions": model_info or self.dimensions,
-                "supports_variable_dimensions": False,
-                "provider": "openai_compatible",
-            }
+
+        dimensions_value = model_info if isinstance(model_info, int) else self.dimensions
+        return {
+            "model": model_name,
+            "dimensions": dimensions_value or 0,
+            "supports_variable_dimensions": False,
+            "provider": "openai_compatible",
+        }

@@ -100,7 +100,7 @@ def get_embedding_config() -> EmbeddingConfig:
         logger.warning(f"Failed to load from unified config: {e}")
 
     # 2. Fallback to environment variables
-    binding = _strip_value(os.getenv("EMBEDDING_BINDING", "openai"))
+    binding = _strip_value(os.getenv("EMBEDDING_BINDING", "openai")) or "openai"
     model = _strip_value(os.getenv("EMBEDDING_MODEL"))
     api_key = _strip_value(os.getenv("EMBEDDING_API_KEY"))
     base_url = _strip_value(os.getenv("EMBEDDING_HOST"))
@@ -112,6 +112,7 @@ def get_embedding_config() -> EmbeddingConfig:
         raise ValueError(
             "EMBEDDING_MODEL not set. Please configure it in .env file or add a configuration in Settings"
         )
+    model_value = model
 
     # Check if API key is required
     # Local providers (Ollama, LM Studio) don't need API keys
@@ -126,6 +127,7 @@ def get_embedding_config() -> EmbeddingConfig:
         raise ValueError(
             "EMBEDDING_HOST not set. Please configure it in .env file or add a configuration in Settings"
         )
+    base_url_value = base_url
 
     # Get optional configuration
     dim = _to_int(dim_str, 3072)
@@ -141,9 +143,9 @@ def get_embedding_config() -> EmbeddingConfig:
 
     return EmbeddingConfig(
         binding=binding,
-        model=model,
+        model=model_value,
         api_key=api_key or "",
-        base_url=base_url,
+        base_url=base_url_value,
         api_version=api_version,
         dim=dim,
         max_tokens=max_tokens,

@@ -1,6 +1,6 @@
 """OpenAI provider implementation using shared HTTP client."""
 
-from typing import Any
+from typing import Any, no_type_check
 
 import openai
 
@@ -68,6 +68,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         return await self.execute(_call_api)
 
+    @no_type_check
     async def stream(
         self,
         prompt: str,

@@ -68,7 +68,7 @@ def _filter_cacheable_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary containing only serializable, non-sensitive values.
     """
-    safe_keys = {}
+    safe_keys: Dict[str, Any] = {}
     sensitive_keys = {"api_key", "authorization", "Authorization"}
 
     for key, value in kwargs.items():
@@ -110,7 +110,7 @@ def build_completion_cache_key(
     Returns:
         Deterministic cache key string.
     """
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "binding": binding,
         "base_url": base_url or "default",
@@ -157,7 +157,7 @@ async def get_cached_completion(key: str) -> Optional[str]:
     try:
         return await client.get(key)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Redis cache get failed: %s", exc)
+        logger.warning(f"Redis cache get failed: {exc}")
         return None
 
 
@@ -180,7 +180,7 @@ async def set_cached_completion(
     try:
         await client.set(key, value, ex=ttl)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Redis cache set failed: %s", exc)
+        logger.warning(f"Redis cache set failed: {exc}")
 
 
 __all__ = [

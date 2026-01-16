@@ -42,20 +42,30 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        if not self.api_key:
+            raise ValueError("API key is required for Cohere embeddings")
+        if not self.base_url:
+            raise ValueError("Base URL is required for Cohere embeddings")
+
+        base_url = self.base_url.rstrip("/")
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
         model_name = request.model or self.model
+        if model_name is None:
+            raise ValueError("Model must be specified for Cohere embeddings")
         model_info = self.MODELS_INFO.get(model_name, {})
         api_version = model_info.get("api_version", "v2")
         dimension = request.dimensions or self.dimensions
 
         input_type = request.input_type or "search_document"
 
+        payload: Dict[str, Any]
         if api_version == "v1":
-            payload: Dict[str, Any] = {
+            payload = {
                 "texts": request.texts,
                 "model": model_name,
                 "input_type": input_type,
@@ -64,7 +74,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             if not request.truncate:
                 payload["truncate"] = "NONE"
         else:
-            payload: Dict[str, Any] = {
+            payload = {
                 "texts": request.texts,
                 "model": model_name,
                 "embedding_types": ["float"],
@@ -78,7 +88,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             if not request.truncate:
                 payload["truncate"] = "NONE"
 
-        url = f"{self.base_url}/{api_version}/embed"
+        url = f"{base_url}/{api_version}/embed"
 
         logger.debug(f"Sending embedding request to {url} with {len(request.texts)} texts")
 
@@ -115,11 +125,12 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> Dict[str, Any]:
-        model_info = self.MODELS_INFO.get(self.model, {})
+        model_name = self.model or ""
+        model_info = self.MODELS_INFO.get(model_name, {})
         dimensions_list = model_info.get("dimensions", [])
         return {
-            "model": self.model,
-            "dimensions": model_info.get("default", self.dimensions),
+            "model": model_name,
+            "dimensions": model_info.get("default", self.dimensions) or 0,
             "supports_variable_dimensions": len(dimensions_list) > 1
             if isinstance(dimensions_list, list)
             else False,

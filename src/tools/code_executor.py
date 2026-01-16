@@ -37,17 +37,23 @@ def _load_config() -> dict[str, Any]:
             config = load_config_with_main("solve_config.yaml", PROJECT_ROOT)
             run_code_config = config.get("tools", {}).get("run_code", {})
             if run_code_config:
-                logger.debug("Loaded run_code config from solve_config.yaml (with main.yaml)")
+                logger.debug(
+                    "Loaded run_code config from solve_config.yaml (with main.yaml)"
+                )
                 return run_code_config
         except Exception as e:
             logger.debug(f"Failed to load from solve_config: {e}")
 
         # Fallback to question_config
         try:
-            config = load_config_with_main("question_config.yaml", PROJECT_ROOT)
+            config = load_config_with_main(
+                "question_config.yaml", PROJECT_ROOT
+            )
             run_code_config = config.get("tools", {}).get("run_code", {})
             if run_code_config:
-                logger.debug("Loaded run_code config from question_config.yaml (with main.yaml)")
+                logger.debug(
+                    "Loaded run_code config from question_config.yaml (with main.yaml)"
+                )
                 return run_code_config
         except Exception as e:
             logger.debug(f"Failed to load from question_config: {e}")
@@ -105,7 +111,9 @@ class OperationLogger:
         self._history.append(entry)
         if len(self._history) > self._max_entries:
             self._history.pop(0)
-        logger.debug(f"Operation logged: {action} | details={details.get('status')}")
+        logger.debug(
+            f"Operation logged: {action} | details={details.get('status')}"
+        )
 
     @property
     def history(self) -> list[OperationEntry]:
@@ -134,7 +142,9 @@ class WorkspaceManager:
                     self.base_dir = (PROJECT_ROOT / workspace_path).resolve()
             else:
                 # Default workspace is set under user directory
-                self.base_dir = (PROJECT_ROOT / "data" / "user" / DEFAULT_WORKSPACE_NAME).resolve()
+                self.base_dir = (
+                    PROJECT_ROOT / "data" / "user" / DEFAULT_WORKSPACE_NAME
+                ).resolve()
 
         # Determine allowed root paths list
         # Default includes project root and user directory
@@ -204,7 +214,9 @@ class WorkspaceManager:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    def collect_artifacts(self, assets_dir: Path | None) -> tuple[list[str], list[str]]:
+    def collect_artifacts(
+        self, assets_dir: Path | None
+    ) -> tuple[list[str], list[str]]:
         artifacts: list[str] = []
         artifact_paths: list[str] = []
         if not assets_dir or not assets_dir.exists():
@@ -228,7 +240,9 @@ class WorkspaceManager:
                 else:
                     # Python < 3.9 use path comparison after resolve()
                     # Convert to lowercase and normalize path separators for comparison (Windows compatible)
-                    resolved_str = str(resolved_path).lower().replace("\\", "/")
+                    resolved_str = (
+                        str(resolved_path).lower().replace("\\", "/")
+                    )
                     root_str = str(root.resolve()).lower().replace("\\", "/")
                     if resolved_str.startswith(root_str):
                         return
@@ -267,7 +281,9 @@ class ImportGuard:
                 if node.module:
                     imported.append(node.module.split(".")[0])
 
-        unauthorized = sorted({name for name in imported if name not in allowed})
+        unauthorized = sorted(
+            {name for name in imported if name not in allowed}
+        )
         if unauthorized:
             raise CodeExecutionError(
                 f"The following modules are not in the allowed list: {', '.join(unauthorized)}"
@@ -328,7 +344,9 @@ async def run_code(
     Execute code in isolated environment, return result structure consistent with previous version.
     """
     if language.lower() != "python":
-        raise ValueError(f"Unsupported language: {language}, currently only Python is supported")
+        raise ValueError(
+            f"Unsupported language: {language}, currently only Python is supported"
+        )
 
     WORKSPACE_MANAGER.ensure_initialized()
     ImportGuard.validate(code, allowed_imports)
@@ -340,8 +358,12 @@ async def run_code(
         return EXECUTION_ENV.run_python(code, timeout, assets_path)
 
     try:
-        stdout, stderr, exit_code, elapsed_ms = await loop.run_in_executor(None, _execute)
-        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(assets_path)
+        stdout, stderr, exit_code, elapsed_ms = await loop.run_in_executor(
+            None, _execute
+        )
+        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(
+            assets_path
+        )
 
         result = {
             "stdout": stdout,
@@ -369,11 +391,15 @@ async def run_code(
 
     except subprocess.TimeoutExpired as timeout_exc:
         # Code execution timeout
-        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(assets_path)
+        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(
+            assets_path
+        )
         elapsed_ms = timeout * 1000
         message = f"Code execution timeout ({timeout} seconds)"
 
-        logger.warning(f"Code execution timeout after {timeout}s: {timeout_exc}")
+        logger.warning(
+            f"Code execution timeout after {timeout}s: {timeout_exc}"
+        )
 
         OPERATION_LOGGER.log(
             "execute_python",
@@ -396,7 +422,9 @@ async def run_code(
 
     except Exception as exc:  # pylint: disable=broad-except
         # Catch all other exceptions to ensure main flow is not interrupted
-        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(assets_path)
+        artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(
+            assets_path
+        )
         elapsed_ms = 0.0
 
         if isinstance(exc, CodeExecutionError):

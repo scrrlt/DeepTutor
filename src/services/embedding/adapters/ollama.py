@@ -20,8 +20,16 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        base_url = self.base_url
+        if not base_url:
+            raise ValueError("Base URL is required for Ollama embeddings")
+
+        model_name = request.model or self.model
+        if model_name is None:
+            raise ValueError("Model must be specified for Ollama embeddings")
+
         payload: Dict[str, Any] = {
-            "model": request.model or self.model,
+            "model": model_name,
             "input": request.texts,
         }
 
@@ -33,7 +41,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         payload["keep_alive"] = "5m"
 
-        url = f"{self.base_url}/api/embed"
+        url = f"{base_url}/api/embed"
 
         logger.debug(f"Sending embedding request to {url} with {len(request.texts)} texts")
 
@@ -107,9 +115,12 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> Dict[str, Any]:
+        model_name = self.model or ""
+        dimensions_value = self.MODELS_INFO.get(model_name, self.dimensions) or 0
+
         return {
-            "model": self.model,
-            "dimensions": self.MODELS_INFO.get(self.model, self.dimensions),
+            "model": model_name,
+            "dimensions": dimensions_value,
             "local": True,
             "supports_variable_dimensions": False,
             "provider": "ollama",

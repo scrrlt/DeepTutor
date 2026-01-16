@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TeX Downloader - LaTeX source code download tool
 
@@ -12,6 +11,7 @@ Version: v1.0
 Based on: TODO.md specification
 """
 
+from collections.abc import Generator
 import logging
 import os
 from pathlib import Path
@@ -20,7 +20,6 @@ import shutil
 import tarfile
 from tarfile import TarInfo
 import tempfile
-from typing import Generator
 import zipfile
 
 import httpx
@@ -75,7 +74,9 @@ class TexDownloader:
             arxiv_id = self._extract_arxiv_id(arxiv_url)
 
         if not arxiv_id:
-            return TexDownloadResult(success=False, error="Unable to extract ArXiv ID")
+            return TexDownloadResult(
+                success=False, error="Unable to extract ArXiv ID"
+            )
 
         try:
             # Build source download URL
@@ -110,7 +111,9 @@ class TexDownloader:
             main_tex = self._find_main_tex(extract_dir)
 
             if not main_tex:
-                return TexDownloadResult(success=False, error="Main tex file not found")
+                return TexDownloadResult(
+                    success=False, error="Main tex file not found"
+                )
 
             # Read tex content
             tex_content = self._read_tex_file(main_tex)
@@ -126,13 +129,19 @@ class TexDownloader:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
             return TexDownloadResult(
-                success=True, tex_path=str(final_tex_path), tex_content=tex_content
+                success=True,
+                tex_path=str(final_tex_path),
+                tex_content=tex_content,
             )
 
         except httpx.RequestError as e:
-            return TexDownloadResult(success=False, error=f"Download failed: {e!s}")
+            return TexDownloadResult(
+                success=False, error=f"Download failed: {e!s}"
+            )
         except Exception as e:
-            return TexDownloadResult(success=False, error=f"Processing failed: {e!s}")
+            return TexDownloadResult(
+                success=False, error=f"Processing failed: {e!s}"
+            )
 
     def _extract_arxiv_id(self, url: str) -> str | None:
         """Extract ArXiv ID from URL"""
@@ -170,11 +179,15 @@ class TexDownloader:
                 except ValueError:
                     return False
 
-            def safe_members(members: list[TarInfo]) -> Generator[TarInfo, None, None]:
+            def safe_members(
+                members: list[TarInfo],
+            ) -> Generator[TarInfo, None, None]:
                 for member in members:
                     member_path = os.path.join(extract_dir, member.name)
                     if not is_within_directory(str(extract_dir), member_path):
-                        logger.warning(f"Suspicious file path in tar: {member.name}. Skipping.")
+                        logger.warning(
+                            f"Suspicious file path in tar: {member.name}. Skipping."
+                        )
                         continue
                     yield member
 
@@ -195,8 +208,12 @@ class TexDownloader:
         with zipfile.ZipFile(zip_path, "r") as zip_file:
             for member in zip_file.namelist():
                 member_path = os.path.join(extract_dir, member)
-                if not self._is_within_directory(str(extract_dir), member_path):
-                    logger.warning(f"Suspicious file path in zip: {member}. Skipping.")
+                if not self._is_within_directory(
+                    str(extract_dir), member_path
+                ):
+                    logger.warning(
+                        f"Suspicious file path in zip: {member}. Skipping."
+                    )
                     continue
                 zip_file.extract(member, extract_dir)
 
@@ -272,7 +289,9 @@ if __name__ == "__main__":
         logger.info("✓ Download successful!")
         logger.info(f"  File path: {result.tex_path}")
         if result.tex_content:
-            logger.info(f"  Content length: {len(result.tex_content)} characters")
+            logger.info(
+                f"  Content length: {len(result.tex_content)} characters"
+            )
             logger.info(f"  Content preview: {result.tex_content[:500]}...")
         else:
             logger.info("  No content available")

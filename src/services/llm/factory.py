@@ -124,6 +124,7 @@ def _build_retrying(
     exponential_backoff: bool,
     sleep: Callable[[float], Awaitable[None] | None] | None,
 ) -> tenacity.AsyncRetrying:
+    wait_strategy: Any
     if exponential_backoff:
         wait_strategy = tenacity.wait_exponential(
             multiplier=retry_delay,
@@ -134,13 +135,17 @@ def _build_retrying(
         wait_strategy = tenacity.wait_fixed(retry_delay)
 
     def _log_retry(retry_state: tenacity.RetryCallState) -> None:
+        outcome_exception = None
+        if retry_state.outcome is not None:
+            outcome_exception = retry_state.outcome.exception()
+
         message = (
             "LLM call failed (attempt %d/%d), retrying in %.1fs... Error: %s"
             % (
                 retry_state.attempt_number,
                 max_retries + 1,
                 retry_state.upcoming_sleep,
-                retry_state.outcome.exception(),
+                outcome_exception,
             )
         )
         logger.warning(message)
@@ -197,6 +202,8 @@ async def _execute_with_retry(
     async for attempt in retrying:
         with attempt:
             return await call()
+
+    raise RuntimeError("Retrying produced no attempts")
 
 
 async def complete(
