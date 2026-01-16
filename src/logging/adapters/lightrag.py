@@ -7,7 +7,7 @@ Forwards LightRAG and RAG-Anything logs to DeepTutor's unified logging system.
 """
 
 from contextlib import contextmanager
-from .._ stdlib_logging import stdlib_logging
+from .._stdlib_logging import stdlib_logging
 from pathlib import Path
 from typing import Optional
 
