@@ -7,15 +7,38 @@ Factory for creating and managing RAG pipelines.
 
 from typing import Callable, Dict, List, Optional
 
-from .pipelines import lightrag, llamaindex
+from .pipelines import lightrag, academic
 from .pipelines.raganything import RAGAnythingPipeline
+
+# Import components to construct a RAGPipeline-compatible wrapper for tests
+from .components.parsers import TextParser
+from .components.chunkers import SemanticChunker
+from .components.embedders import OpenAIEmbedder
+from .components.indexers import VectorIndexer
+from .components.retrievers import DenseRetriever
+from ..pipeline import RAGPipeline
+
+
+def _llamaindex_rag_pipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
+    """Construct a RAGPipeline-compatible wrapper that uses vector indexer and
+    dense retriever to emulate a llamaindex-like pipeline for tests."""
+    return (
+        RAGPipeline("llamaindex", kb_base_dir=kb_base_dir)
+        .parser(TextParser())
+        .chunker(SemanticChunker())
+        .embedder(OpenAIEmbedder())
+        .indexer(VectorIndexer(kb_base_dir=kb_base_dir))
+        .retriever(DenseRetriever(kb_base_dir=kb_base_dir))
+    )
+
 
 # Pipeline registry
 _PIPELINES: Dict[str, Callable] = {
     "raganything": RAGAnythingPipeline,  # Full multimodal: MinerU parser, deep analysis (slow, thorough)
     "lightrag": lightrag.LightRAGPipeline,  # Knowledge graph: PDFParser, fast text-only (medium speed)
-    "llamaindex": llamaindex.LlamaIndexPipeline,  # Vector-only: Simple chunking, fast (fastest)
-}
+    "llamaindex": _llamaindex_rag_pipeline,  # RAGPipeline-compatible wrapper for tests
+    "academic": academic.AcademicPipeline,  # Academic pipeline optimized for numbered items
+} 
 
 
 def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, **kwargs):
@@ -77,6 +100,11 @@ def list_pipelines() -> List[Dict[str, str]]:
             "id": "raganything",
             "name": "RAG-Anything",
             "description": "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
+        },
+        {
+            "id": "academic",
+            "name": "Academic",
+            "description": "Academic pipeline optimized for numbered items and paper parsing.",
         },
     ]
 

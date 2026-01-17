@@ -2,7 +2,7 @@ import os
 from unittest.mock import patch
 
 import pytest
-from src.services.llm.config import get_llm_config
+from src.services.llm.config import get_llm_config, LLMConfig, reload_config
 
 
 class TestLLMConfig:
@@ -11,15 +11,17 @@ class TestLLMConfig:
     def test_get_llm_config_defaults(self) -> None:
         """Test retrieving LLM config returns expected structure."""
         config = get_llm_config()
-        assert isinstance(config, dict)
+        assert isinstance(config, LLMConfig)
         # Check for keys we mocked in conftest.py
-        assert config.get("model") == "gpt-4o"
-        assert config.get("binding") == "openai"
+        assert config.model == "gpt-4o"
+        assert config.binding == "openai"
 
     def test_get_llm_config_override(self) -> None:
         """Test that environment variables override defaults."""
         with patch.dict(os.environ, {"LLM_MODEL": "claude-3-opus"}):
-            # We might need to reload the module or call the function again
-            # depending on if it caches. Assuming it reads env on call.
+            # Force reload so the env override is picked up
+            reload_config()
             config = get_llm_config()
-            assert config.get("model") == "claude-3-opus"
+            assert config.model == "claude-3-opus"
+            # Reset cache to avoid leaking to other tests
+            reload_config()

@@ -63,7 +63,8 @@ def test_tool_calls(solve_memory: SolveMemory):
     record = solve_memory.append_tool_call("step1", "test_tool", "test_query")
     assert len(solve_memory.solve_chains[0].tool_calls) == 1
 
-    solve_memory.update_tool_call_result(record.step_id, record.call_id, "raw", "summary")
+    # Use explicit step id since ToolCallRecord does not include step_id
+    solve_memory.update_tool_call_result("step1", record.call_id, "raw", "summary")
     assert solve_memory.solve_chains[0].tool_calls[0].status == "success"
 
 

@@ -382,9 +382,12 @@ class DynamicTopicQueue:
         return [b for b in self.blocks if b.status == TopicStatus.PENDING]
 
     def is_all_completed(self) -> bool:
-        """Check if all topic blocks are completed"""
+        """Check if all topic blocks are completed
+
+        Return True when there are no blocks (trivially complete).
+        """
         if not self.blocks:
-            return False
+            return True
         return all(b.status == TopicStatus.COMPLETED for b in self.blocks)
 
     def get_statistics(self) -> dict[str, Any]:

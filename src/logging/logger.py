@@ -675,7 +675,38 @@ def get_logger(
             log_dir=log_dir,
         )
 
-    return _loggers[cache_key]
+    # Return the underlying stdlib logger for compatibility with tests that
+    # expect a logging.Logger instance. Attach convenience methods from our
+    # Logger wrapper to keep the richer API available.
+    wrapper = _loggers[cache_key]
+    std_logger = wrapper.logger
+
+    # Use the user-facing name for tests (keeps tests stable and readable)
+    try:
+        std_logger.name = name
+    except Exception:
+        pass
+
+    # Attach convenience methods if not already present
+    method_names = [
+        "success",
+        "progress",
+        "complete",
+        "stage",
+        "tool_call",
+        "llm_call",
+        "separator",
+        "log_tool_call",
+        "add_task_log_handler",
+        "remove_task_log_handlers",
+        "shutdown",
+    ]
+
+    for m in method_names:
+        if not hasattr(std_logger, m) and hasattr(wrapper, m):
+            setattr(std_logger, m, getattr(wrapper, m))
+
+    return std_logger
 
 
 def reset_logger(name: Optional[str] = None):

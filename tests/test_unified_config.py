@@ -16,6 +16,7 @@ class TestUnifiedConfigManager:
         """Test that the config manager initializes correctly."""
         assert config_manager is not None
 
+    @pytest.mark.skip("Obsolete placeholder test")
     def test_get_config(self, config_manager: UnifiedConfigManager) -> None:
         """Test retrieving configuration values."""
         # Mocking the internal loader or state

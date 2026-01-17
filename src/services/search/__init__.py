@@ -172,6 +172,10 @@ def web_search(
         provider_kwargs.setdefault("enable_deep_search", baidu_enable_deep_search)
         provider_kwargs.setdefault("search_recency_filter", baidu_search_recency_filter)
 
+    # Serper expects a 'num' parameter by default
+    if provider_name == "serper":
+        provider_kwargs.setdefault("num", 10)
+
     # Get provider instance
     search_provider = get_provider(provider_name)
 
