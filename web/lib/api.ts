@@ -1,14 +1,11 @@
 // API configuration and utility functions
 
-import getConfig from "next/config";
-
-// Get API base URL from runtime config (set at process start) with env fallback
-const config = getConfig();
-const runtimeApiBase: string | undefined = config?.publicRuntimeConfig?.apiBase;
+// In Next.js App Router, use environment variables for runtime configuration.
+// NEXT_PUBLIC_API_BASE is injected at build time and available on client/server.
+const runtimeApiBase: string | undefined = process.env.NEXT_PUBLIC_API_BASE;
 
 export const API_BASE_URL =
   runtimeApiBase ||
-  process.env.NEXT_PUBLIC_API_BASE ||
   (() => {
     if (typeof window !== "undefined") {
       console.error("NEXT_PUBLIC_API_BASE is not set.");
