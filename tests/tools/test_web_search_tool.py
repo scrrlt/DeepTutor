@@ -1,51 +1,50 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.tools.web_search_tool import WebSearchTool
+from src.services.search import web_search
 
 class TestWebSearchTool:
-    
-    @pytest.fixture
-    def tool(self):
-        return WebSearchTool(
-            search_api_client=MagicMock(),
-            config={"max_results": 5, "safe_search": True}
-        )
-    
-    def test_initialization(self, tool):
-        assert tool is not None
-        assert hasattr(tool, 'search_api_client')
-        assert tool.config["max_results"] == 5
-        assert tool.config["safe_search"] is True
-        
-    @patch('src.tools.web_search_tool.WebSearchTool._execute_search')
-    def test_search(self, mock_search, tool):
-        query = "artificial intelligence trends"
-        mock_search.return_value = ["Result 1", "Result 2"]
-        
-        result = tool.search(query)
-        
-        assert len(result) == 2
-        assert "Result 1" in result
-        mock_search.assert_called_once_with(query)
-        
-    @patch('src.tools.web_search_tool.WebSearchTool._format_results')
-    def test_format_results(self, mock_format, tool):
-        raw_results = [{"title": "Title 1", "snippet": "Snippet 1", "link": "http://example.com"}]
-        mock_format.return_value = ["Formatted result 1"]
-        
-        result = tool._format_results(raw_results)
-        
-        assert len(result) == 1
-        assert "Formatted result 1" in result
-        mock_format.assert_called_once_with(raw_results)
-        
-    @patch('src.tools.web_search_tool.WebSearchTool._filter_results')
-    def test_filter_results(self, mock_filter, tool):
-        results = ["Result 1", "Result 2", "Result 3"]
-        mock_filter.return_value = ["Result 1", "Result 3"]
-        
-        result = tool.filter_results(results, "filter criteria")
-        
-        assert len(result) == 2
-        assert "Result 2" not in result
-        mock_filter.assert_called_once_with(results, "filter criteria")
+
+    @patch("src.services.search.get_provider")
+    def test_search_calls_provider_and_returns_result(self, mock_get_provider):
+        # Mock provider object with a .search method that returns a response object
+        provider_mock = MagicMock()
+        response_mock = MagicMock()
+        # Emulate to_dict() behavior used by web_search
+        response_mock.to_dict.return_value = {
+            "timestamp": "2026-01-01T00:00:00",
+            "query": "ai trends",
+            "answer": "AI is advancing",
+            "citations": [],
+            "search_results": [],
+            "provider": "mock",
+        }
+        provider_mock.search.return_value = response_mock
+        provider_mock.supports_answer = True
+        provider_mock.name = "mock"
+        mock_get_provider.return_value = provider_mock
+
+        result = web_search("ai trends")
+
+        assert isinstance(result, dict)
+        assert result["answer"] == "AI is advancing"
+        mock_get_provider.assert_called_once()
+
+    @patch("src.services.search.get_provider")
+    @patch("src.services.search.AnswerConsolidator.consolidate")
+    def test_consolidation_called_for_serp(self, mock_consolidate, mock_get_provider):
+        # Provider that does not support answer triggers consolidation
+        provider_mock = MagicMock()
+        response_mock = MagicMock()
+        response_mock.to_dict.return_value = {"search_results": [], "provider": "serper", "query": "q"}
+        provider_mock.search.return_value = response_mock
+        provider_mock.supports_answer = False
+        provider_mock.name = "serper"
+        mock_get_provider.return_value = provider_mock
+
+        mock_consolidate.return_value = response_mock
+
+        result = web_search("example", consolidation="template")
+
+        # Consolidator should have been invoked
+        mock_consolidate.assert_called_once()
+        assert isinstance(result, dict)

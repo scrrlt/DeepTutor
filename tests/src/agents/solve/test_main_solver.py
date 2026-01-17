@@ -8,40 +8,42 @@ import pytest
 from src.agents.solve.main_solver import MainSolver
 
 
-@pytest.mark.asyncio
-async def test_main_solver_default_initialization():
-    """Test that the MainSolver can be initialized with default parameters."""
-    with patch(
+@pytest.fixture
+def default_config(monkeypatch, AsyncMock):
+    """Fixture to provide default config for MainSolver tests."""
+    async_mock = AsyncMock()
+    async_mock.return_value = {
+        "solve": {"agents": {}},
+        "paths": {},
+        "logging": {},
+        "tools": {},
+        "system": {"language": "en"},
+    }
+    monkeypatch.setattr(
         "src.agents.solve.main_solver.load_config_with_main_async",
-        new_callable=AsyncMock,
-    ) as mock_load_config:
-        mock_load_config.return_value = {
-            "solve": {
-                "agents": {},
-            },
-            "paths": {},
-            "logging": {},
-            "tools": {},
-            "system": {"language": "en"},
-        }
+        async_mock,
+    )
+    llm_async = AsyncMock()
+    llm_async.return_value = MagicMock(api_key="test_api_key", base_url="http://localhost:1234")
+    monkeypatch.setattr(
+        "src.services.llm.config.get_llm_config_async",
+        llm_async,
+    )
+    return async_mock
 
-        with patch(
-            "src.services.llm.config.get_llm_config_async",
-            new_callable=AsyncMock,
-        ) as mock_get_llm_config:
-            mock_get_llm_config.return_value = MagicMock(
-                api_key="test_api_key", base_url="http://localhost:1234"
-            )
 
-            solver = MainSolver()
-            await solver.ainit()
+@pytest.mark.asyncio
+async def test_main_solver_default_initialization(default_config):
+    """Test that the MainSolver can be initialized with default parameters."""
+    solver = MainSolver()
+    await solver.ainit()
 
-            assert solver.config is not None
-            assert solver.api_key == "test_api_key"
-            assert solver.base_url == "http://localhost:1234"
-            assert solver.logger is not None
-            assert solver.monitor is not None
-            assert solver.token_tracker is not None
+    assert solver.config is not None
+    assert solver.api_key == "test_api_key"
+    assert solver.base_url == "http://localhost:1234"
+    assert solver.logger is not None
+    assert solver.monitor is not None
+    assert solver.token_tracker is not None
 
 
 @pytest.mark.asyncio

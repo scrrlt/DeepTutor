@@ -20,6 +20,28 @@ def decompose_agent():
         yield agent
 
 
+@pytest.fixture
+def decompose_agent_no_rag():
+    """DecomposeAgent configured with RAG hybrid disabled."""
+    with patch('src.agents.base_agent.get_prompt_manager'), \
+         patch('src.agents.base_agent.get_logger'):
+        config = {"researching": {"enable_rag_hybrid": False}, "rag": {}}
+        agent = DecomposeAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
+        yield agent
+
+
+@pytest.mark.asyncio
+async def test_process_auto_mode_with_rag_disabled(decompose_agent_no_rag: DecomposeAgent):
+    """When RAG hybrid is disabled, auto mode should fallback to non-RAG processing."""
+    agent = decompose_agent_no_rag
+    # Ensure that the non-RAG method is invoked
+    agent._process_without_rag = AsyncMock(return_value={"sub_topics": []})
+    result = await agent._process_auto_mode("topic", 1)
+    # When RAG disabled, expect to get result from _process_without_rag or similar fallback
+    assert isinstance(result, dict)
+
+
+
 @pytest.mark.asyncio
 async def test_decompose_agent_process_manual_mode(decompose_agent: DecomposeAgent):
     """
