@@ -190,6 +190,8 @@ environment=PYTHONPATH="/app",PYTHONUNBUFFERED="1"
 [program:frontend]
 command=/bin/bash /app/start-frontend.sh
 directory=/app/web
+; Frontend is configured to start automatically with supervisord.
+; Changing autostart affects whether the UI is brought up by default.
 autostart=true
 autorestart=false
 startsecs=5
@@ -320,7 +322,5 @@ EOF
 
 RUN sed -i 's/\r$//' /etc/supervisor/conf.d/deeptutor.conf
 
-# Start the application
 CMD ["bash", "./start.sh"]
-CMD ["bash", "./start.sh"]
->>>>>>> 9dfce02 (fix(cloud): normalize start.sh line endings + run via bash for Cloud Run)
+
