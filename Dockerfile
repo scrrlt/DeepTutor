@@ -209,7 +209,7 @@ set -e
 
 BACKEND_PORT=${PORT:-${BACKEND_PORT:-8001}}
 
-echo "[Backend]  🚀 Starting FastAPI backend on port ${BACKEND_PORT}..."
+# Run uvicorn in a bash subshell (/bin/bash -c) to ensure consistent environment across platforms
 
 # Run uvicorn via bash wrapper to ensure consistent environment across platforms
 exec /bin/bash -c "python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${BACKEND_PORT}"
@@ -320,9 +320,7 @@ EOF
 
 RUN sed -i 's/\r$//' /etc/supervisor/conf.d/deeptutor.conf
 
-# Development ports
-EXPOSE 8001 3782
-=======
 # Start the application
+CMD ["bash", "./start.sh"]
 CMD ["bash", "./start.sh"]
 >>>>>>> 9dfce02 (fix(cloud): normalize start.sh line endings + run via bash for Cloud Run)
