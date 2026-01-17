@@ -3,6 +3,11 @@ import json
 from pathlib import Path
 import time
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 class ActivityType(str, Enum):
     SOLVE = "solve"

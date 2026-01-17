@@ -143,7 +143,7 @@ class NoteAgent(BaseAgent):
                     citation_memory.save()
                 except ValueError:
                     if verbose:
-                        logger.warning(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
+                        logger.info(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
 
             processed_details.append(
                 {

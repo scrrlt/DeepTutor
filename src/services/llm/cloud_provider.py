@@ -22,6 +22,9 @@ from .providers.open_ai import OpenAIProvider
 _lightrag_logger = logging.getLogger("lightrag")
 _openai_logger = logging.getLogger("openai")
 
+from src.logging import get_logger
+
+
 logger = get_logger(__name__)
 
 from .capabilities import supports_response_format

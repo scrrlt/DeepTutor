@@ -18,8 +18,9 @@ from .base_provider import BaseLLMProvider
 
 from src.logging import get_logger
 
-logger = get_logger(__name__)
 
+
+logger = get_logger(__name__)
 
 @register_provider("openai")
 class OpenAIProvider(BaseLLMProvider):

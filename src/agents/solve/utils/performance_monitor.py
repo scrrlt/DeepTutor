@@ -16,6 +16,7 @@ from typing import Any
 
 from src.logging import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -267,15 +268,13 @@ class PerformanceMonitor:
         logger.info(f"Total Tokens: {self.total_tokens}")
         logger.info(f"Total API Calls: {self.total_api_calls}")
         logger.error(f"Total Errors: {self.total_errors}")
-        logger.info("")
+        logger.info()
         logger.info("Agent Details:")
         logger.info("-" * 60)
 
         for agent_name, metrics in self.metrics.items():
             logger.info(f"\n{agent_name}:")
-            logger.info(
-                f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A"
-            )
+            logger.info(f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A")
             logger.info(f"  Tokens: {metrics.total_tokens}")
             logger.info(f"  API Calls: {metrics.api_calls}")
             logger.error(f"  Errors: {metrics.errors}")
@@ -374,7 +373,7 @@ def init_monitor_from_config(config: dict) -> PerformanceMonitor:
 
 if __name__ == "__main__":
     # Test performance monitoring
-    logger.info("Performance Monitoring Test")
+    print("Performance Monitoring Test")
     logger.info("=" * 60)
 
     # Create monitor

@@ -17,7 +17,12 @@ from .providers.local_openai import LocalLLMProvider
 
 logger = get_logger(__name__)
 
+from src.logging import get_logger
+
 from .exceptions import LLMAPIError, LLMConfigError
+
+
+logger = get_logger(__name__)
 from .utils import (
     build_auth_headers,
     build_chat_url,

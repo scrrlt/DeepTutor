@@ -10,7 +10,11 @@ from typing import Any
 import yaml
 
 from src.logging import get_logger
+
 from src.services.config import PROJECT_ROOT, parse_language
+
+logger = get_logger(__name__)
+
 
 logger = get_logger(__name__)
 

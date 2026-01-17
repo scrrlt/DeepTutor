@@ -12,6 +12,7 @@ import yaml
 
 from src.logging import get_logger
 
+
 logger = get_logger(__name__)
 
 
@@ -285,26 +286,26 @@ def print_validation_result(is_valid: bool, errors: list[str], warnings: list[st
     else:
         logger.error("✗ Configuration validation failed")
 
-    logger.info("")
+    logger.info()
 
     if errors:
         logger.error(f"Errors ({len(errors)}):")
         for i, error in enumerate(errors, 1):
             logger.error(f"  {i}. {error}")
-        logger.info("")
+        logger.info()
 
     if warnings:
         logger.warning(f"Warnings ({len(warnings)}):")
         for i, warning in enumerate(warnings, 1):
             logger.warning(f"  {i}. {warning}")
-        logger.info("")
+        logger.info()
 
     logger.info("=" * 60)
 
 
 if __name__ == "__main__":
     # Test configuration validation
-    logger.info("Configuration Validation Test")
+    print("Configuration Validation Test")
     logger.info("=" * 60)
 
     # Validate config.yaml in current directory

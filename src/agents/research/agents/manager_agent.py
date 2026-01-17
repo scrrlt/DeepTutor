@@ -66,8 +66,8 @@ class ManagerAgent(BaseAgent):
         if block:
             # Mark as researching
             self.queue.mark_researching(block.block_id)
-            logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
-            logger.info(f"   Topic: {block.sub_topic}")
+            self.logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
+            self.logger.info(f"   Topic: {block.sub_topic}")
 
         return block
 
@@ -86,7 +86,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_completed(block_id)
         if success:
-            logger.info(f"✓ ManagerAgent: Task {block_id} completed")
+            self.logger.info(f"✓ ManagerAgent: Task {block_id} completed")
 
         return success
 
@@ -157,9 +157,9 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_failed(block_id)
         if success:
-            logger.error(f"✗ ManagerAgent: Task {block_id} failed")
+            self.logger.error(f"✗ ManagerAgent: Task {block_id} failed")
             if reason:
-                logger.info(f"   Reason: {reason}")
+                self.logger.info(f"   Reason: {reason}")
 
         return success
 
@@ -181,14 +181,12 @@ class ManagerAgent(BaseAgent):
         if not normalized:
             raise ValueError("New topic title cannot be empty")
         if self.queue.has_topic(normalized):
-            logger.warning(
-                f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition"
-            )
+            self.logger.info(f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition")
             return None
 
         block = self.queue.add_block(normalized, overview)
-        logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
-        logger.info(f"   Topic: {sub_topic}")
+        self.logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
+        self.logger.info(f"   Topic: {sub_topic}")
 
         return block
 
@@ -215,13 +213,13 @@ class ManagerAgent(BaseAgent):
             return {}
 
         stats = self.queue.get_statistics()
-        logger.info("\n📊 Queue Status:")
-        logger.info(f"   Total Topics: {stats['total_blocks']}")
-        logger.info(f"   Pending: {stats['pending']}")
-        logger.info(f"   Researching: {stats['researching']}")
-        logger.info(f"   Completed: {stats['completed']}")
-        logger.error(f"   Failed: {stats['failed']}")
-        logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
+        self.logger.info("\n📊 Queue Status:")
+        self.logger.info(f"   Total Topics: {stats['total_blocks']}")
+        self.logger.info(f"   Pending: {stats['pending']}")
+        self.logger.info(f"   Researching: {stats['researching']}")
+        self.logger.info(f"   Completed: {stats['completed']}")
+        self.logger.error(f"   Failed: {stats['failed']}")
+        self.logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
 
         return stats
 

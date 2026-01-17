@@ -4,6 +4,11 @@ from typing import Any, AsyncGenerator
 
 from pydantic import BaseModel, Field
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 class TutorResponse(BaseModel):
     """LLM completion response container."""

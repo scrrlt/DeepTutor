@@ -70,20 +70,20 @@ class NoteAgent(BaseAgent):
             citation_id must be obtained from CitationManager before calling this method.
             Use CitationManager.get_next_citation_id() or its async variant.
         """
-        logger.info(f"\n{'=' * 70}")
-        logger.info("📝 NoteAgent - Information Recording and Summary")
-        logger.info(f"{'=' * 70}")
-        logger.info(f"Tool: {tool_type}")
-        logger.info(f"Query: {query}")
-        logger.info(f"Citation ID: {citation_id}")
-        logger.info(f"Raw Answer Length: {len(raw_answer)} characters\n")
+        self.logger.info(f"\n{'=' * 70}")
+        self.logger.info("📝 NoteAgent - Information Recording and Summary")
+        self.logger.info(f"{'=' * 70}")
+        self.logger.info(f"Tool: {tool_type}")
+        self.logger.info(f"Query: {query}")
+        self.logger.info(f"Citation ID: {citation_id}")
+        self.logger.info(f"Raw Answer Length: {len(raw_answer)} characters\n")
 
         # Generate summary
         summary = await self._generate_summary(
             tool_type=tool_type, query=query, raw_answer=raw_answer, topic=topic, context=context
         )
 
-        logger.info(f"✓ Summary generation completed ({len(summary)} characters)")
+        self.logger.info(f"✓ Summary generation completed ({len(summary)} characters)")
 
         # Create ToolTrace with the provided citation ID
         tool_id = self._generate_tool_id()

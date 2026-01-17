@@ -20,6 +20,11 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 class DisplayManager:
     """

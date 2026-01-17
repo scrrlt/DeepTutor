@@ -2,6 +2,11 @@ from typing import Any, Dict
 
 from pydantic import BaseModel, field_validator, ConfigDict
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 class LLMConfig(BaseModel):
     model: str

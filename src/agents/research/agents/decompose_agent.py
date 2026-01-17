@@ -89,20 +89,20 @@ class DecomposeAgent(BaseAgent):
                 "mode": str
             }
         """
-        logger.info(f"\n{'=' * 70}")
-        logger.info("🔀 DecomposeAgent - Topic Decomposition")
-        logger.info(f"{'=' * 70}")
-        logger.info(f"Main Topic: {topic}")
-        logger.info(f"Mode: {mode}")
-        logger.info(f"RAG Enabled: {self.enable_rag}")
+        self.logger.info(f"\n{'=' * 70}")
+        self.logger.info("🔀 DecomposeAgent - Topic Decomposition")
+        self.logger.info(f"{'=' * 70}")
+        self.logger.info(f"Main Topic: {topic}")
+        self.logger.info(f"Mode: {mode}")
+        self.logger.info(f"RAG Enabled: {self.enable_rag}")
         if mode == "auto":
-            logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
+            self.logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
         else:
-            logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
+            self.logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
 
         # If RAG is disabled, use direct LLM generation without RAG context
         if not self.enable_rag:
-            logger.warning("⚠️ RAG is disabled, generating subtopics directly from LLM...")
+            self.logger.info("⚠️ RAG is disabled, generating subtopics directly from LLM...")
             return await self._process_without_rag(topic, num_subtopics, mode)
 
         if mode == "auto":
@@ -126,7 +126,7 @@ class DecomposeAgent(BaseAgent):
         Returns:
             Dictionary containing decomposition results
         """
-        logger.info("\n🎯 Generating subtopics directly (no RAG)...")
+        self.logger.info("\n🎯 Generating subtopics directly (no RAG)...")
 
         system_prompt = self.get_prompt(
             "system",
@@ -186,7 +186,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         except Exception:
             sub_topics = []
 
-        logger.info(f"✓ Generated {len(sub_topics)} subtopics (without RAG)")
+        self.logger.info(f"✓ Generated {len(sub_topics)} subtopics (without RAG)")
 
         return {
             "main_topic": topic,
@@ -203,7 +203,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         # Step 1: Generate sub-queries
         logger.info("\n🔍 Step 1: Generating sub-queries...")
         sub_queries = await self._generate_sub_queries(topic, num_subtopics)
-        logger.info(f"✓ Generated {len(sub_queries)} sub-queries")
+        self.logger.info(f"✓ Generated {len(sub_queries)} sub-queries")
 
         # Step 2: Execute RAG retrieval to get background knowledge
         logger.info("\n🔍 Step 2: Executing RAG retrieval...")
@@ -213,7 +213,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                 result = await rag_search(query=query, kb_name=self.kb_name, mode=self.rag_mode)
                 rag_answer = result.get("answer", "")
                 rag_contexts[query] = rag_answer
-                logger.info(f"  ✓ Query {i}/{len(sub_queries)}: {query[:50]}...")
+                self.logger.info(f"  ✓ Query {i}/{len(sub_queries)}: {query[:50]}...")
 
                 # Record citation (if citation manager is enabled)
                 if self.citation_manager:
@@ -245,7 +245,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                         raw_answer=raw_answer_json,
                     )
             except Exception as e:
-                logger.error(f"  ✗ Query {i} failed: {e!s}")
+                self.logger.error(f"  ✗ Query {i} failed: {e!s}")
                 rag_contexts[query] = ""
 
         # Merge all RAG contexts
@@ -259,7 +259,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             topic=topic, rag_context=combined_rag_context, num_subtopics=num_subtopics
         )
 
-        logger.info(f"✓ Generated {len(sub_topics)} subtopics")
+        self.logger.info(f"✓ Generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,
@@ -279,7 +279,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             # Use topic itself as query to get related background
             result = await rag_search(query=topic, kb_name=self.kb_name, mode=self.rag_mode)
             rag_context = result.get("answer", "")
-            logger.info(f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)")
+            self.logger.info(f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)")
 
             # Record citation (if citation manager is enabled)
             if self.citation_manager:
@@ -311,7 +311,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                     raw_answer=raw_answer_json,
                 )
         except Exception as e:
-            logger.error(f"  ✗ RAG retrieval failed: {e!s}")
+            self.logger.error(f"  ✗ RAG retrieval failed: {e!s}")
             rag_context = ""
 
         # Step 2: Autonomously generate subtopics based on topic and RAG context
@@ -320,7 +320,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             topic=topic, rag_context=rag_context, max_subtopics=max_subtopics
         )
 
-        logger.info(f"✓ Autonomously generated {len(sub_topics)} subtopics")
+        self.logger.info(f"✓ Autonomously generated {len(sub_topics)} subtopics")
 
         return {
             "main_topic": topic,
