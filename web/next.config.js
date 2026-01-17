@@ -6,8 +6,11 @@ const apiBase =
   `http://localhost:${process.env.BACKEND_PORT || 8001}`;
 
 const nextConfig = {
-  publicRuntimeConfig: {
-    apiBase,
+  // NOTE: publicRuntimeConfig is unsupported in the new App Router / Next.js 14+.
+  // Use environment variables (NEXT_PUBLIC_*) which are available at runtime
+  // on both server and client instead.
+  env: {
+    NEXT_PUBLIC_API_BASE: apiBase,
   },
   // Move dev indicator to bottom-right corner
   devIndicators: {

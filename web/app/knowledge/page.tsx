@@ -27,11 +27,11 @@ interface FileSystemDirectoryReader {
   ): void;
 }
 
-declare global {
-  interface DataTransferItem {
-    webkitGetAsEntry?(): FileSystemEntry | null;
-  }
-}
+// Note: File system entry typing may be provided by browser libs in some
+// environments. We avoid augmenting the global DataTransferItem here to
+// prevent TypeScript overload conflicts with lib.dom. Use a local cast when
+// accessing vendor-prefixed APIs (e.g. webkitGetAsEntry).
+
 import {
   BookOpen,
   Database,
@@ -222,7 +222,7 @@ export default function KnowledgePage() {
     const allFiles: File[] = [];
 
     const processItem = async (item: DataTransferItem): Promise<File[]> => {
-      const entry = item.webkitGetAsEntry?.();
+      const entry = (item as any).webkitGetAsEntry?.();
       if (!entry) {
         // Fallback: try to get as file
         const file = item.getAsFile();
