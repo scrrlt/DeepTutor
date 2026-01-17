@@ -4,10 +4,10 @@ import {
   ResearchEvent,
   TaskState,
   ThoughtEntry,
-  LogEntry,
   TopicBlock,
   ReportOutline,
 } from "../types/research";
+import { LogEntry } from "../types/common";
 
 export const initialResearchState: ResearchState = {
   global: {
