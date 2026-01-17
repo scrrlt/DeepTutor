@@ -30,7 +30,7 @@ class RephraseAgent(BaseAgent):
         base_url: str | None = None,
         api_version: str | None = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="rephrase_agent",

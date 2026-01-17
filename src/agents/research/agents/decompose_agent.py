@@ -35,7 +35,7 @@ class DecomposeAgent(BaseAgent):
         api_version: str | None = None,
         kb_name: str = "ai_textbook",
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="decompose_agent",

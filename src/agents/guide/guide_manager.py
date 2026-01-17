@@ -95,7 +95,7 @@ class GuideManager:
 
         if language is None:
             # Get language config (unified in config/main.yaml system.language)
-            lang_config = config.get("system", {}).get("language", "zh")
+            lang_config = config.get("system", {}).get("language", "en")
             self.language = parse_language(lang_config)
             self.logger.info(f"Language setting loaded from config: {self.language}")
         else:

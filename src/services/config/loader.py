@@ -186,10 +186,10 @@ def parse_language(language: Any) -> str:
         language: Language configuration value (can be "zh"/"en"/"Chinese"/"English" etc.)
 
     Returns:
-        Standardized language code: 'zh' or 'en', defaults to 'zh'
+        Standardized language code: 'zh' or 'en', defaults to 'en'
     """
     if not language:
-        return "zh"
+        return "en"
 
     if isinstance(language, str):
         lang_lower = language.lower()
@@ -198,7 +198,7 @@ def parse_language(language: Any) -> str:
         if lang_lower in ["zh", "chinese"]:
             return "zh"
 
-    return "zh"  # Default Chinese
+    return "en"  # Default English
 
 
 def get_agent_params(module_name: str) -> dict:

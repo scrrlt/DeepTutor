@@ -754,7 +754,7 @@ class MainSolver:
         final_answer = "\n\n".join(step_responses)
 
         # Get language setting from config (unified in config/main.yaml system.language)
-        language = self.config.get("system", {}).get("language", "zh")
+        language = self.config.get("system", {}).get("language", "en")
         lang_code = parse_language(language)
 
         # Check if citations are enabled

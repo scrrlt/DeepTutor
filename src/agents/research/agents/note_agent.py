@@ -32,7 +32,7 @@ class NoteAgent(BaseAgent):
         base_url: Optional[str] = None,
         api_version: Optional[str] = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="note_agent",
