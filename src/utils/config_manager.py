@@ -54,9 +54,20 @@ class ConfigManager:
         self._initialized = True
 
         # Layered env loading
+        # By default we load .env and .env.local into process-wide os.environ.
+        # Tests (or other callers) that require deterministic environment
+        # variables can disable this behavior by setting the environment
+        # variable CONFIG_MANAGER_SKIP_DOTENV to a truthy value (e.g. "1",
+        # "true", or "yes"). For cases where specific env values are needed
+        # without mutating os.environ, use _load_env_file instead.
+        skip_dotenv = os.getenv("CONFIG_MANAGER_SKIP_DOTENV", "").lower()
+        if skip_dotenv not in {"1", "true", "yes"}:
+            self._initialize_env()
+
+    def _initialize_env(self) -> None:
+        """Initialize process environment from layered .env files."""
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
-
     def _load_env_file(self, path: Path) -> Dict[str, str]:
         """Load a .env file and return non-None values as strings."""
         if not path.exists():
@@ -99,13 +110,13 @@ class ConfigManager:
                 self._last_mtime = 0
                 return {}
 
-            current_mtime = self.config_path.stat().st_mtime
-            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
+            if not self._config_cache or force_reload:
                 try:
                     raw = self._read_yaml()
                     validated = self._validate_and_migrate(raw)
                     self._config_cache = validated
-                    self._last_mtime = current_mtime
+                    # Update mtime for bookkeeping (do not trigger auto reload based on mtime)
+                    self._last_mtime = self.config_path.stat().st_mtime
                 except ConfigError as ce:
                     logger.error("%s", ce, extra={"context": getattr(ce, "context", {})})
                     return {}

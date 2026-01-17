@@ -81,7 +81,9 @@ def is_local_llm_server(base_url: str) -> bool:
         # 2. Check IP address ranges (loopback, private, etc.)
         try:
             ip = ipaddress.ip_address(hostname)
-            return ip.is_loopback or ip.is_private
+            # Treat only loopback addresses as local. Private LAN IPs (e.g., 192.168.x.x)
+            # are considered remote for the purposes of detecting a "local LLM server".
+            return ip.is_loopback
         except ValueError:
             # It's a domain name (e.g. google.com)
             pass
@@ -124,20 +126,32 @@ def sanitize_url(base_url: str, model: str = "") -> str:
 
     url = base_url.rstrip("/")
 
-    # Strip known endpoints to get back to base
-    # e.g. http://localhost:11434/api/chat -> http://localhost:11434/api
+    # Iteratively strip known endpoint suffixes.
+    # Prefer removing only the last endpoint segment (e.g. '/chat' from '/api/chat')
+    # and handle multi-level suffixes (e.g., '/v1/chat/completions' -> remove
+    # '/chat/completions' then '/v1').
     suffixes = [
-        "/api/chat",
         "/chat/completions",
+        "/chat",
         "/messages",
         "/v1",
         "/completions",
         "/embeddings",
     ]
-    for suffix in suffixes:
-        if url.endswith(suffix):
-            url = url[: -len(suffix)]
-            url = url.rstrip("/")
+    # Limit iterations defensively to avoid any potential infinite loop
+    # if this logic is modified in the future. Each successful match
+    # shortens the URL, so len(url) is a safe upper bound.
+    max_iterations = len(url)
+    for _ in range(max_iterations):
+        matched = False
+        for suffix in suffixes:
+            if url.endswith(suffix):
+                url = url[: -len(suffix)]
+                url = url.rstrip("/")
+                matched = True
+                break
+        if not matched:
+            break
 
     return url
 

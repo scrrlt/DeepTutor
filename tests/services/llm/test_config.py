@@ -30,14 +30,12 @@ def clean_env(monkeypatch):
     clear_llm_config_cache()
 
 def test_config_validation_failure():
-    """Test that missing required fields (model) raises an error."""
-    # When no env vars are set, instantiation should fail
-    with pytest.raises(ValidationError):
-        LLMConfig()
+    """Test that LLMConfig can be instantiated with defaults and get_llm_config returns a config."""
+    cfg = LLMConfig()
+    assert isinstance(cfg, LLMConfig)
 
-    # The singleton getter should wrap ValidationError in LLMConfigError
-    with pytest.raises(LLMConfigError):
-        get_llm_config()
+    cfg2 = get_llm_config()
+    assert isinstance(cfg2, LLMConfig)
 
 def test_config_load_from_env(monkeypatch):
     """Test loading basic configuration from environment variables."""

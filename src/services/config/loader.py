@@ -62,9 +62,11 @@ async def _load_yaml_file_async(file_path: Path) -> dict[str, Any]:
     return await asyncio.to_thread(_load_yaml_file, file_path)
 
 
-def load_config_with_main(config_file: str, project_root: Path | None = None) -> dict[str, Any]:
+def load_config_with_main(config_file: str = "main.yaml", project_root: Path | None = None) -> dict[str, Any]:
     """
     Load configuration file, automatically merge with main.yaml common configuration
+
+    If config_file is omitted, defaults to "main.yaml" for convenience.
 
     Args:
         config_file: Sub-module configuration file name (e.g., "solve_config.yaml")
@@ -103,10 +105,12 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
 
 
 async def load_config_with_main_async(
-    config_file: str, project_root: Path | None = None
+    config_file: str = "main.yaml", project_root: Path | None = None
 ) -> dict[str, Any]:
     """
     Async version of load_config_with_main for non-blocking file operations.
+
+    If config_file is omitted, defaults to "main.yaml".
 
     Load configuration file, automatically merge with main.yaml common configuration
 
@@ -186,7 +190,7 @@ def parse_language(language: Any) -> str:
         language: Language configuration value (can be "zh"/"en"/"Chinese"/"English" etc.)
 
     Returns:
-        Standardized language code: 'zh' or 'en', defaults to 'en'
+        Standardized language code: 'zh' or 'en', defaults to 'zh'
     """
     if not language:
         return "en"
@@ -198,7 +202,7 @@ def parse_language(language: Any) -> str:
         if lang_lower in ["zh", "chinese"]:
             return "zh"
 
-    return "en"  # Default English
+    return "zh"  # Default to Chinese
 
 
 def get_agent_params(module_name: str) -> dict:

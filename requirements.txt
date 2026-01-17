@@ -81,6 +81,7 @@ pdfplumber>=0.7.6
 # Development and testing tools
 # ============================================
 pytest>=7.0.0              # Testing framework
+pytest-asyncio>=0.22.0     # Async test support for pytest
 hypothesis>=6.90.0
 pre-commit>=3.0.0
 safety<3.0.0               # Pin to stable 2.x version, 3.0.0 is broken

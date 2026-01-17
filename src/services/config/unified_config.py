@@ -570,16 +570,14 @@ class UnifiedConfigManager:
         return resolved
 
 
-# Global instance
-_config_manager: Optional[UnifiedConfigManager] = None
-
-
 def get_config_manager() -> UnifiedConfigManager:
-    """Get the global config manager instance."""
-    global _config_manager
-    if _config_manager is None:
-        _config_manager = UnifiedConfigManager()
-    return _config_manager
+    """Get the global config manager instance.
+
+    Always return the current UnifiedConfigManager singleton. Avoid caching a
+    module-level variable that can get out-of-sync with the class-level
+    singleton (e.g., when tests reset UnifiedConfigManager._instance).
+    """
+    return UnifiedConfigManager()
 
 
 # Convenience functions for services

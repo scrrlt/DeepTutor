@@ -43,15 +43,21 @@ class TestLogger:
 
         with patch.object(logger.logger, "log") as mock_log:
             logger.info("Info message")
-            mock_log.assert_called_with(logging.INFO, "Info message")
+            called_args, called_kwargs = mock_log.call_args
+            assert called_args[0] == logging.INFO
+            assert called_args[1] == "Info message"
 
             logger.error("Error message")
-            mock_log.assert_called_with(logging.ERROR, "Error message")
+            called_args, called_kwargs = mock_log.call_args
+            assert called_args[0] == logging.ERROR
+            assert called_args[1] == "Error message"
 
             logger.success("Success message")
-            mock_log.assert_called_with(
-                logging.INFO, "Success message", extra={"display_level": "SUCCESS"}
-            )
+            called_args, called_kwargs = mock_log.call_args
+            assert called_args[0] == logging.INFO
+            assert called_args[1] == "Success message"
+            # Ensure display_level SUCCESS is present in extra kwargs
+            assert "extra" in called_kwargs and called_kwargs["extra"].get("display_level") == "SUCCESS"
 
     def test_task_handlers(self, tmp_path: Path):
         """Test adding and removing task-specific log handlers.

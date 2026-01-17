@@ -50,7 +50,11 @@ def test_build_system_prompt_citations_disabled(response_agent: ResponseAgent):
     Tests that the _build_system_prompt method correctly handles disabled citations.
     """
     response_agent.enable_citations = False
-    response_agent.get_prompt = MagicMock(return_value="prompt")
+    # Only the 'system' prompt should be present; the citation instruction
+    # should fall back to the default text when the specific prompt is missing.
+    def fake_get_prompt(key):
+        return "prompt" if key == "system" else None
+    response_agent.get_prompt = MagicMock(side_effect=fake_get_prompt)
     
     prompt = response_agent._build_system_prompt([])
     

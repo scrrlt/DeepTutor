@@ -116,6 +116,9 @@ async def rag_search(
             "answer": answer,
             "mode": mode,
         }
+    except ValueError:
+        # Let callers (tests, consumers) handle invalid pipeline errors directly
+        raise
     except Exception as exc:
         return {
             "status": "error",

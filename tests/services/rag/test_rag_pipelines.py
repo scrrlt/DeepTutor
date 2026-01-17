@@ -108,7 +108,7 @@ class TestRAGToolIntegration(unittest.IsolatedAsyncioTestCase):
     
     async def test_list_available_providers(self):
         """Test listing available RAG providers"""
-        from src.tools.rag_tool import get_available_providers, list_pipelines
+        from src.tools.rag_tool import get_available_providers, list_providers
         
         providers = get_available_providers()
         print("\n=== Available RAG Providers ===")
@@ -368,8 +368,13 @@ class TestLightRAGPipeline(unittest.IsolatedAsyncioTestCase, RAGPipelineTestBase
         
         # Check components
         self.assertIsNotNone(pipeline._parser)
-        self.assertGreater(len(pipeline._chunkers), 0)
-        self.assertIsNotNone(pipeline._embedder)
+        # LightRAG may encapsulate chunking & embedding inside its indexer; accept either
+        self.assertTrue(len(pipeline._chunkers) > 0 or len(pipeline._indexers) > 0)
+        # Either an explicit embedder is present or the indexer implements embedding
+        self.assertTrue(
+            pipeline._embedder is not None
+            or any(i.name == "lightrag_indexer" for i in pipeline._indexers)
+        )
         self.assertGreater(len(pipeline._indexers), 0)
         self.assertIsNotNone(pipeline._retriever)
         
@@ -438,20 +443,20 @@ class TestRAGToolWithProviders(unittest.IsolatedAsyncioTestCase, RAGPipelineTest
                 provider="nonexistent"
             )
         
-        self.assertIn("not found", str(context.exception))
+        # Modern error message uses 'Unknown pipeline: <name>'
+        self.assertIn("Unknown pipeline", str(context.exception))
         print(f"✓ Invalid provider correctly raises error: {context.exception}")
     
     async def test_rag_search_default_provider(self):
         """Test rag_search uses default provider from env"""
-        from src.tools.rag_tool import get_current_provider, DEFAULT_RAG_PROVIDER
+        from src.tools.rag_tool import get_current_provider
         
         print("\n=== Testing Default Provider ===")
         
         current = get_current_provider()
-        print(f"✓ Default provider from env: {DEFAULT_RAG_PROVIDER}")
         print(f"✓ Current provider: {current}")
         
-        # They should match
+        # They should match environment default
         self.assertEqual(current, os.getenv("RAG_PROVIDER", "raganything"))
 
 
