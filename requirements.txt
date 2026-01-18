@@ -10,16 +10,15 @@
 python-dotenv>=1.0.0
 PyYAML>=6.0
 tiktoken>=0.5.0
-jinja2>=3.1.0              # Template engine for search consolidation
 
 # ============================================
 # HTTP and API clients
 # ============================================
+requests>=2.32.2
 openai>=1.30.0
-anthropic>=0.30.0          # Anthropic Claude API
 perplexityai>=0.1.0
 dashscope>=1.14.0
-redis>=5.0.0
+aiohttp>=3.9.4
 httpx>=0.27.0
 urllib3>=2.2.1
 
@@ -27,7 +26,6 @@ urllib3>=2.2.1
 # Async support
 # ============================================
 nest_asyncio>=1.5.8
-tenacity>=8.0.0
 
 # ============================================
 # Web framework and server
@@ -45,45 +43,12 @@ lightrag-hku>=1.0.0
 raganything>=0.1.0
 
 # ============================================
-# LlamaIndex
-# ============================================
-llama-index>=0.14.12
-
-# RAG runtime dependencies (enabled for Cloud Run)
-lightrag-hku>=1.0.0
-filelock>=3.13.0
-
-# ============================================
 # Academic and research tools
 # ============================================
 arxiv>=2.0.0
 
 # ============================================
-# PDF parsing, monitoring and repro harness
+# PDF parsing and monitoring (runtime)
 # ============================================
 psutil>=5.9.5
 pdfplumber>=0.7.6
-
-# ============================================
-# Synthetic PDF generation (CI)
-# ============================================
-reportlab>=3.6
-Pillow>=9.0
-
-# ============================================
-# Synthetic PDF generation (CI)
-# ============================================
-reportlab>=3.6
-Pillow>=9.0
-
-# ============================================
-# Development and testing tools
-# ============================================
-pytest>=7.0.0              # Testing framework
-pytest-asyncio>=0.22.0     # Async test support for pytest
-hypothesis>=6.90.0
-pre-commit>=3.0.0
-safety<3.0.0               # Pin to stable 2.x version, 3.0.0 is broken
-bandit>=1.8.0
-
-# Note: heavy LlamaIndex/RAG stacks are optional and available in `requirements.rag.txt`
