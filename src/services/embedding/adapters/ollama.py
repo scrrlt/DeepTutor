@@ -2,7 +2,7 @@
 """Ollama Embedding Adapter for local embeddings."""
 
 import logging
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 import httpx
 
@@ -49,20 +49,18 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         url = f"{self.base_url.rstrip('/')}/api/embed"
 
         logger.debug(
-            f"Sending embedding request to {url} with {len(request.texts)} texts"
+            "Sending embedding request to %s with %d texts",
+            url,
+            len(request.texts),
         )
 
         try:
-            async with httpx.AsyncClient(
-                timeout=self.request_timeout
-            ) as client:
+            async with httpx.AsyncClient(timeout=self.request_timeout) as client:
                 response = await client.post(url, json=payload)
 
                 if response.status_code == 404:
                     try:
-                        health_check = await client.get(
-                            f"{self.base_url.rstrip('/')}/api/tags"
-                        )
+                        health_check = await client.get(f"{self.base_url.rstrip('/')}/api/tags")
                         if health_check.status_code == 200:
                             available_models = [
                                 cast(str, m.get("name", ""))
@@ -100,7 +98,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
             ) from e
 
         except httpx.HTTPError as e:
-            logger.error(f"Ollama API error: {e}")
+            logger.error("Ollama API error: %s", e)
             raise
 
         embeddings = data["embeddings"]
@@ -129,7 +127,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
             },
         )
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.
 
@@ -139,9 +137,8 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         model_name = self.model or ""
         return {
             "model": model_name,
-            "dimensions": self.MODELS_INFO.get(
-                model_name, self.dimensions or 0
-            ),
+            "dimensions": self.MODELS_INFO.get(model_name, self.dimensions or 0),
+            "supported_dimensions": [],
             "local": True,
             "supports_variable_dimensions": False,
             "provider": "ollama",

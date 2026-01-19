@@ -98,7 +98,7 @@ def get_embedding_config() -> EmbeddingConfig:
         # Unified config service not yet available, fall back to env
         pass
     except Exception as e:
-        logger.warning(f"Failed to load from unified config: {e}")
+        logger.warning("Failed to load from unified config: %s", e)
 
     # 2. Fallback to environment variables
     binding = _strip_value(os.getenv("EMBEDDING_BINDING", "openai"))

@@ -33,13 +33,21 @@ Retry Mechanism:
 
 import asyncio
 from collections.abc import Mapping
-from typing import AsyncGenerator, Dict, List, Optional, TypeAlias, TypedDict
+from typing import (
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    TypeAlias,
+    TypedDict,
+)
 
 import tenacity
 
 from src.logging.logger import Logger, get_logger
 
-from . import cloud_provider, local_provider
+from . import local_provider
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
@@ -57,7 +65,7 @@ DEFAULT_MAX_RETRIES = 5  # Increased for complex agents like Research
 DEFAULT_RETRY_DELAY = 2.0  # seconds
 DEFAULT_EXPONENTIAL_BACKOFF = True
 
-CallKwargs: TypeAlias = dict[str, object]
+CallKwargs: TypeAlias = dict[str, Any]
 
 
 def _is_retriable_error(error: Exception) -> bool:
@@ -180,18 +188,29 @@ async def complete(
         outcome = retry_state.outcome
         if outcome is None:
             return
-        exception = outcome.exception() if outcome else None
-        error_message = str(exception) if exception else "unknown error"
-        message = (
-            "LLM call failed (attempt "
-            f"{retry_state.attempt_number}/{max_retries + 1}), "
-            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: "
-            f"{error_message}"
+
+        error_message = "unknown error"
+        try:
+            exception = outcome.exception()
+            if exception is not None:
+                error_message = str(exception)
+        except Exception:
+            pass
+
+        logger.warning(
+            "LLM call failed (attempt %d/%d), retrying in %.1fs... Error: %s",
+            retry_state.attempt_number,
+            max_retries + 1,
+            retry_state.upcoming_sleep or 0,
+            error_message,
         )
-        logger.warning(message)
 
     if exponential_backoff:
-        wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=120)
+        wait_strategy = tenacity.wait_exponential(
+            multiplier=retry_delay,
+            min=retry_delay,
+            max=120,
+        )
     else:
         wait_strategy = tenacity.wait_fixed(retry_delay)
 
@@ -207,6 +226,8 @@ async def complete(
             if use_local:
                 return await local_provider.complete(**call_kwargs)
             else:
+                from . import cloud_provider
+
                 return await cloud_provider.complete(**call_kwargs)
         except Exception as e:
             # Map raw SDK exceptions to unified exceptions for retry logic
@@ -386,6 +407,8 @@ async def fetch_models(
     if is_local_llm_server(base_url):
         return await local_provider.fetch_models(base_url, api_key)
     else:
+        from . import cloud_provider
+
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
 

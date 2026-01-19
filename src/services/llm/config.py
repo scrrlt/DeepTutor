@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 _ENV_INITIALIZED = False
 
-
 def _setup_openai_env_vars_early() -> None:
     """
     Set OPENAI_API_KEY environment variable early for LightRAG compatibility.
@@ -68,8 +67,6 @@ def initialize_environment() -> None:
     load_dotenv(PROJECT_ROOT / ".env.local", override=False)
     _setup_openai_env_vars_early()
     _ENV_INITIALIZED = True
-
-
 @dataclass
 class LLMConfig:
     """LLM configuration dataclass."""
@@ -81,8 +78,6 @@ class LLMConfig:
     api_version: Optional[str] = None
     max_tokens: int = 4096
     temperature: float = 0.7
-
-
 def _strip_value(value: Optional[str]) -> Optional[str]:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
@@ -150,7 +145,7 @@ def get_llm_config() -> LLMConfig:
         # Unified config service not yet available, fall back to env
         pass
     except Exception as e:
-        logger.warning(f"Failed to load from unified config: {e}")
+        logger.warning("Failed to load from unified config: %s", e)
 
     # 2. Fallback to environment variables
     return _get_llm_config_from_env()
@@ -158,35 +153,14 @@ def get_llm_config() -> LLMConfig:
 
 async def get_llm_config_async() -> LLMConfig:
     """
-    Async version of get_llm_config for non-blocking configuration loading.
+    Async wrapper for get_llm_config.
+
+    Useful for consistency in async contexts, though the underlying load is synchronous.
 
     Returns:
         LLMConfig: Configuration dataclass
-
-    Raises:
-        LLMConfigError: If required configuration is missing
     """
-    initialize_environment()
-    # 1. Try to get active config from unified config service
-    try:
-        from src.services.config import get_active_llm_config
-
-        config = get_active_llm_config()
-        if config:
-            return LLMConfig(
-                binding=config.get("provider") or "openai",
-                model=config["model"],
-                api_key=config.get("api_key", ""),
-                base_url=config.get("base_url"),
-                api_version=config.get("api_version"),
-            )
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning(f"Failed to load from unified config: {e}")
-
-    # 2. Fallback to environment variables
-    return _get_llm_config_from_env()
+    return get_llm_config()
 
 
 def uses_max_completion_tokens(model: str) -> bool:

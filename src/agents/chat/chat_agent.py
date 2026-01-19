@@ -11,6 +11,8 @@ This agent provides:
 Uses the unified LLM factory from BaseAgent for both cloud and local LLM support.
 """
 
+import asyncio
+from functools import partial
 from pathlib import Path
 import sys
 from typing import Any, AsyncGenerator
@@ -197,9 +199,9 @@ class ChatAgent(BaseAgent):
                     sources["rag"].append(
                         {
                             "kb_name": kb_name,
-                            "content": rag_answer[:500] + "..."
-                            if len(rag_answer) > 500
-                            else rag_answer,
+                            "content": (
+                                rag_answer[:500] + "..." if len(rag_answer) > 500 else rag_answer
+                            ),
                         }
                     )
                     self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
@@ -210,7 +212,11 @@ class ChatAgent(BaseAgent):
         if enable_web_search:
             try:
                 self.logger.info(f"Web search: {message[:50]}...")
-                web_result = web_search(query=message, verbose=False)
+                loop = asyncio.get_running_loop()
+                web_result = await loop.run_in_executor(
+                    None,
+                    partial(web_search, query=message, verbose=False),
+                )
                 web_answer = web_result.get("answer", "")
                 web_citations = web_result.get("citations", [])
 

@@ -7,10 +7,10 @@ Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
 Provides both complete() and stream() methods.
 """
 
+from collections.abc import Mapping
 import logging
 import os
-from collections.abc import Mapping
-from typing import AsyncGenerator, Dict, List, Optional, Protocol, cast
+from typing import Any, AsyncGenerator, Dict, List, Optional, Protocol, cast
 
 import aiohttp
 
@@ -18,6 +18,7 @@ import aiohttp
 # (lightrag logs errors internally before raising exceptions)
 _lightrag_logger = logging.getLogger("lightrag")
 _openai_logger = logging.getLogger("openai")
+logger = logging.getLogger(__name__)
 
 
 class OpenAICompleteIfCache(Protocol):
@@ -50,7 +51,6 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
             openai_complete_if_cache,
         )
 
-        # Cast here is fine because the imported object is likely 'Any'
         _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
 
     return _openai_complete_if_cache
@@ -134,7 +134,7 @@ async def complete(
     base_url: Optional[str] = None,
     api_version: Optional[str] = None,
     binding: str = "openai",
-    **kwargs: object,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using cloud API providers.
@@ -193,7 +193,7 @@ async def stream(
     api_version: Optional[str] = None,
     binding: str = "openai",
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs: object,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from cloud API providers.
@@ -286,28 +286,19 @@ async def _openai_complete(
         _openai_logger.setLevel(logging.CRITICAL)
         try:
             # model and prompt must be positional arguments
-            openai_complete_if_cache = _get_openai_complete_if_cache()
             if api_version:
-                content = await openai_complete_if_cache(
-                    model,
-                    prompt,
-                    system_prompt=system_prompt,
-                    history_messages=history_messages,
-                    api_key=api_key,
-                    base_url=base_url,
-                    api_version=api_version,
-                    **lightrag_kwargs,
-                )
-            else:
-                content = await openai_complete_if_cache(
-                    model,
-                    prompt,
-                    system_prompt=system_prompt,
-                    history_messages=history_messages,
-                    api_key=api_key,
-                    base_url=base_url,
-                    **lightrag_kwargs,
-                )
+                lightrag_kwargs["api_version"] = api_version
+
+            openai_complete_if_cache = _get_openai_complete_if_cache()
+            content = await openai_complete_if_cache(
+                model,
+                prompt,
+                system_prompt=system_prompt,
+                history_messages=history_messages,
+                api_key=api_key,
+                base_url=base_url,
+                **lightrag_kwargs,
+            )
         finally:
             _lightrag_logger.setLevel(original_lightrag_level)
             _openai_logger.setLevel(original_openai_level)
@@ -696,7 +687,7 @@ async def fetch_models(
                         return collect_model_names(cast(list[object], payload))
             return []
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
             return []
 
 

@@ -13,7 +13,8 @@ Key features:
 """
 
 import json
-from typing import AsyncGenerator, Dict, List, Optional
+import logging
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
@@ -27,6 +28,8 @@ from .utils import (
     sanitize_url,
 )
 
+logger = logging.getLogger(__name__)
+
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
 
@@ -38,7 +41,7 @@ async def complete(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using local LLM server.
@@ -88,9 +91,7 @@ async def complete(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(
-        total=kwargs.get("timeout", DEFAULT_TIMEOUT)
-    )
+    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
 
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.post(url, json=data, headers=headers) as response:
@@ -122,7 +123,7 @@ async def stream(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.
@@ -172,15 +173,11 @@ async def stream(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(
-        total=kwargs.get("timeout", DEFAULT_TIMEOUT)
-    )
+    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
 
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                url, json=data, headers=headers
-            ) as response:
+            async with session.post(url, json=data, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     raise LLMAPIError(
@@ -209,13 +206,8 @@ async def stream(
 
                         try:
                             chunk_data = json.loads(data_str)
-                            if (
-                                "choices" in chunk_data
-                                and chunk_data["choices"]
-                            ):
-                                delta = chunk_data["choices"][0].get(
-                                    "delta", {}
-                                )
+                            if "choices" in chunk_data and chunk_data["choices"]:
+                                delta = chunk_data["choices"][0].get("delta", {})
                                 content = delta.get("content")
 
                                 if content:
@@ -228,9 +220,7 @@ async def stream(
                                         thinking_buffer += content
                                         if "</think>" in thinking_buffer:
                                             # End of thinking block, clean and yield
-                                            cleaned = clean_thinking_tags(
-                                                thinking_buffer
-                                            )
+                                            cleaned = clean_thinking_tags(thinking_buffer)
                                             if cleaned:
                                                 yield cleaned
                                             in_thinking_block = False
@@ -248,15 +238,11 @@ async def stream(
                     elif line_str.startswith("{"):
                         try:
                             chunk_data = json.loads(line_str)
-                            if (
-                                "choices" in chunk_data
-                                and chunk_data["choices"]
-                            ):
-                                delta = chunk_data["choices"][0].get(
-                                    "delta", {}
-                                )
+                            if "choices" in chunk_data and chunk_data["choices"]:
+                                delta = chunk_data["choices"][0].get("delta", {})
                                 content = delta.get("content")
                                 if content:
+                                    # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     yield content
                         except json.JSONDecodeError:
                             pass
@@ -265,7 +251,7 @@ async def stream(
         raise  # Re-raise LLM errors as-is
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        print(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
             content = await complete(
@@ -323,7 +309,7 @@ async def fetch_models(
                     if resp.status == 200:
                         data = await resp.json()
                         if "models" in data:
-                            return [m["name"] for m in data.get("models", [])]
+                            return _collect_model_names(data["models"])
             except Exception:
                 pass
 
@@ -342,7 +328,7 @@ async def fetch_models(
                     elif isinstance(data, list):
                         return collect_model_names(data)
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []
 
