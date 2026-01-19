@@ -2,7 +2,7 @@
 """OpenAI-compatible embedding adapter for OpenAI, Azure, HuggingFace, LM Studio, etc."""
 
 import logging
-from typing import Any, Dict, cast
+from typing import Any, cast
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
@@ -24,18 +24,14 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         if not self.base_url:
-            raise ValueError(
-                "Base URL is required for OpenAI-compatible embedding"
-            )
+            raise ValueError("Base URL is required for OpenAI-compatible embedding")
 
         headers = {
             "Content-Type": "application/json",
         }
         if self.api_version:
             if not self.api_key:
-                raise ValueError(
-                    "API key is required for Azure/OpenAI with api_version"
-                )
+                raise ValueError("API key is required for Azure/OpenAI with api_version")
             headers["api-key"] = self.api_key
         elif self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -72,7 +68,9 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
         logger.debug(
-            f"Sending embedding request to {url} with {len(request.texts)} texts"
+            "Sending embedding request to %s with %d texts",
+            url,
+            len(request.texts),
         )
 
         async with httpx.AsyncClient(timeout=self.request_timeout) as client:
@@ -80,16 +78,16 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
 
             if response.status_code >= 400:
                 logger.error(
-                    f"HTTP {response.status_code} response body: {response.text}"
+                    "HTTP %d response body: %s",
+                    response.status_code,
+                    response.text,
                 )
 
             response.raise_for_status()
             data = response.json()
 
         if "data" not in data or not data["data"]:
-            raise ValueError(
-                "Invalid API response: missing or empty 'data' field"
-            )
+            raise ValueError("Invalid API response: missing or empty 'data' field")
 
         embeddings = [item["embedding"] for item in data["data"]]
 
@@ -114,9 +112,24 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             usage=data.get("usage", {}),
         )
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
+        """
+        Return information about the configured model.
+
+        Returns:
+            Dictionary with model metadata (name, dimensions, etc.)
+        """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, self.dimensions)
+
+        if model_info is None and not model_name:
+            return {
+                "model": "unknown",
+                "dimensions": None,
+                "supported_dimensions": [],
+                "supports_variable_dimensions": False,
+                "provider": "openai_compatible",
+            }
 
         if isinstance(model_info, dict):
             info_dict = cast(dict[str, Any], model_info)
@@ -134,6 +147,7 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             return {
                 "model": model_name,
                 "dimensions": model_info or self.dimensions,
+                "supported_dimensions": [],
                 "supports_variable_dimensions": False,
                 "provider": "openai_compatible",
             }

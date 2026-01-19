@@ -20,6 +20,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     @track_llm_call("anthropic")
     async def complete(self, prompt: str, **kwargs) -> TutorResponse:
+        self._check_deprecated_kwargs(kwargs)
         model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
         kwargs.pop("stream", None)
 
@@ -47,10 +48,11 @@ class AnthropicProvider(BaseLLMProvider):
                 cost_estimate=self.calculate_cost(usage),
             )
 
-        return await self.execute_with_retry(_call_api)
+        return await self.execute_guarded(_call_api)
 
     @track_llm_call("anthropic")
     async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
+        self._check_deprecated_kwargs(kwargs)
         model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
         max_tokens = kwargs.pop("max_tokens", 1024)
 
@@ -63,7 +65,7 @@ class AnthropicProvider(BaseLLMProvider):
                 **kwargs,
             )
 
-        stream = await self.execute_with_retry(_create_stream)
+        stream = await self.execute_guarded(_create_stream)
         accumulated_content = ""
         usage = None
 

@@ -2,7 +2,7 @@
 """Jina AI embedding adapter with task-aware embeddings and late chunking."""
 
 import logging
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 import httpx
 
@@ -62,11 +62,9 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             payload["dimensions"] = self.dimensions
 
         if request.input_type:
-            task = self.INPUT_TYPE_TO_TASK.get(
-                request.input_type, request.input_type
-            )
+            task = self.INPUT_TYPE_TO_TASK.get(request.input_type, request.input_type)
             payload["task"] = task
-            logger.debug(f"Using Jina task: {task}")
+            logger.debug("Using Jina task: %s", task)
 
         if request.normalized is not None:
             payload["normalized"] = request.normalized
@@ -77,7 +75,9 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         url = f"{self.base_url}/embeddings"
 
         logger.debug(
-            f"Sending embedding request to {url} with {len(request.texts)} texts"
+            "Sending embedding request to %s with %d texts",
+            url,
+            len(request.texts),
         )
 
         async with httpx.AsyncClient(timeout=self.request_timeout) as client:
@@ -85,23 +85,25 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
 
             if response.status_code >= 400:
                 logger.error(
-                    f"HTTP {response.status_code} response body: {response.text}"
+                    "HTTP %d response body: %s",
+                    response.status_code,
+                    response.text,
                 )
 
             response.raise_for_status()
             data = response.json()
 
         if "data" not in data or not data["data"]:
-            raise ValueError(
-                "Invalid API response: missing or empty 'data' field"
-            )
+            raise ValueError("Invalid API response: missing or empty 'data' field")
 
         embeddings = [item["embedding"] for item in data["data"]]
         actual_dims = len(embeddings[0]) if embeddings else 0
 
         logger.info(
-            f"Successfully generated {len(embeddings)} embeddings "
-            f"(model: {data['model']}, dimensions: {actual_dims})"
+            "Successfully generated %d embeddings (model: %s, dimensions: %d)",
+            len(embeddings),
+            data["model"],
+            actual_dims,
         )
 
         return EmbeddingResponse(
@@ -111,7 +113,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             usage=data.get("usage", {}),
         )
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.
 
@@ -120,6 +122,15 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, self.dimensions)
+
+        if model_info is None and not model_name:
+            return {
+                "model": "unknown",
+                "dimensions": None,
+                "supported_dimensions": [],
+                "supports_variable_dimensions": False,
+                "provider": "jina",
+            }
 
         if isinstance(model_info, dict):
             info_dict = cast(dict[str, Any], model_info)
@@ -134,6 +145,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             return {
                 "model": model_name,
                 "dimensions": model_info or self.dimensions,
+                "supported_dimensions": [],
                 "supports_variable_dimensions": False,
                 "provider": "jina",
             }

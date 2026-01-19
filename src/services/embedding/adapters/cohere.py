@@ -2,7 +2,7 @@
 """Cohere Embedding Adapter for v1 and v2 API."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 
@@ -91,9 +91,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
             supported_dims = model_info.get("dimensions", [])
             if isinstance(supported_dims, list) and len(supported_dims) > 1:
-                payload["output_dimension"] = dimension or model_info.get(
-                    "default"
-                )
+                payload["output_dimension"] = dimension or model_info.get("default")
 
             if not request.truncate:
                 payload["truncate"] = "NONE"
@@ -101,7 +99,9 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
         url = f"{self.base_url.rstrip('/')}/{api_version}/embed"
 
         logger.debug(
-            f"Sending embedding request to {url} with {len(request.texts)} texts"
+            "Sending embedding request to %s with %d texts",
+            url,
+            len(request.texts),
         )
 
         async with httpx.AsyncClient(timeout=self.request_timeout) as client:
@@ -109,16 +109,16 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
             if response.status_code >= 400:
                 logger.error(
-                    f"HTTP {response.status_code} response body: {response.text}"
+                    "HTTP %d response body: %s",
+                    response.status_code,
+                    response.text,
                 )
 
             response.raise_for_status()
             data = response.json()
 
         if "embeddings" not in data or not data["embeddings"]:
-            raise ValueError(
-                "Invalid API response: missing or empty 'embeddings' field"
-            )
+            raise ValueError("Invalid API response: missing or empty 'embeddings' field")
 
         if api_version == "v1":
             embeddings = data["embeddings"]
@@ -130,13 +130,17 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
         if expected_dims and actual_dims != expected_dims:
             logger.warning(
-                f"Dimension mismatch: expected {expected_dims}, got {actual_dims}"
+                "Dimension mismatch: expected %d, got %d",
+                expected_dims,
+                actual_dims,
             )
 
         model_from_data = data.get("model") or self.model or "unknown"
         logger.info(
-            f"Successfully generated {len(embeddings)} embeddings "
-            f"(model: {model_from_data}, dimensions: {actual_dims})"
+            "Successfully generated %d embeddings (model: %s, dimensions: %d)",
+            len(embeddings),
+            model_from_data,
+            actual_dims,
         )
 
         return EmbeddingResponse(
@@ -146,7 +150,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             usage=data.get("meta", {}).get("billed_units", {}),
         )
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.
 
@@ -155,14 +159,23 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
         """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, {})
+
+        if not model_info and not model_name and not self.dimensions:
+            return {
+                "model": "unknown",
+                "dimensions": None,
+                "supported_dimensions": [],
+                "supports_variable_dimensions": False,
+                "provider": "cohere",
+            }
+
         dimensions_list = model_info.get("dimensions", [])
         return {
             "model": model_name,
             "dimensions": model_info.get("default", self.dimensions),
+            "supported_dimensions": dimensions_list,
             "supports_variable_dimensions": (
-                len(dimensions_list) > 1
-                if isinstance(dimensions_list, list)
-                else False
+                len(dimensions_list) > 1 if isinstance(dimensions_list, list) else False
             ),
             "provider": "cohere",
         }

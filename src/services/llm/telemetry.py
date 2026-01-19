@@ -34,15 +34,15 @@ def track_llm_call(
     ) -> Callable[P, Awaitable[T]]:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> T:
-            logger.debug(f"LLM call to {provider_name}: {func.__name__}")
+            logger.debug("LLM call to %s: %s", provider_name, func.__name__)
             try:
                 result = await func(*args, **kwargs)
                 logger.debug(
-                    f"LLM call to {provider_name} completed successfully"
+                    "LLM call to %s completed successfully", provider_name
                 )
                 return result
             except Exception as e:
-                logger.warning(f"LLM call to {provider_name} failed: {e}")
+                logger.warning("LLM call to %s failed: %s", provider_name, e)
                 raise
 
         return wrapper

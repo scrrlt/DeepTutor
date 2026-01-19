@@ -7,10 +7,10 @@ Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
 Provides both complete() and stream() methods.
 """
 
+from collections.abc import Mapping
 import logging
 import os
-from collections.abc import Mapping
-from typing import AsyncGenerator, Dict, List, Optional, Protocol, cast
+from typing import Any, AsyncGenerator, Dict, List, Optional, Protocol, cast
 
 import aiohttp
 
@@ -50,9 +50,7 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
             openai_complete_if_cache,
         )
 
-        _openai_complete_if_cache = cast(
-            OpenAICompleteIfCache, openai_complete_if_cache
-        )
+        _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
     return cast(OpenAICompleteIfCache, _openai_complete_if_cache)
 
 
@@ -134,7 +132,7 @@ async def complete(
     base_url: Optional[str] = None,
     api_version: Optional[str] = None,
     binding: str = "openai",
-    **kwargs: object,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using cloud API providers.
@@ -193,7 +191,7 @@ async def stream(
     api_version: Optional[str] = None,
     binding: str = "openai",
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs: object,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from cloud API providers.
@@ -286,28 +284,19 @@ async def _openai_complete(
         _openai_logger.setLevel(logging.CRITICAL)
         try:
             # model and prompt must be positional arguments
-            openai_complete_if_cache = _get_openai_complete_if_cache()
             if api_version:
-                content = await openai_complete_if_cache(
-                    model,
-                    prompt,
-                    system_prompt=system_prompt,
-                    history_messages=history_messages,
-                    api_key=api_key,
-                    base_url=base_url,
-                    api_version=api_version,
-                    **lightrag_kwargs,
-                )
-            else:
-                content = await openai_complete_if_cache(
-                    model,
-                    prompt,
-                    system_prompt=system_prompt,
-                    history_messages=history_messages,
-                    api_key=api_key,
-                    base_url=base_url,
-                    **lightrag_kwargs,
-                )
+                lightrag_kwargs["api_version"] = api_version
+
+            openai_complete_if_cache = _get_openai_complete_if_cache()
+            content = await openai_complete_if_cache(
+                model,
+                prompt,
+                system_prompt=system_prompt,
+                history_messages=history_messages,
+                api_key=api_key,
+                base_url=base_url,
+                **lightrag_kwargs,
+            )
         finally:
             _lightrag_logger.setLevel(original_lightrag_level)
             _openai_logger.setLevel(original_openai_level)
@@ -334,9 +323,7 @@ async def _openai_complete(
 
         # Handle max_tokens / max_completion_tokens based on model
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-        max_completion_value = _coerce_int(
-            kwargs.get("max_completion_tokens"), None
-        )
+        max_completion_value = _coerce_int(kwargs.get("max_completion_tokens"), None)
         if max_tokens_value is None:
             max_tokens_value = max_completion_value
         if max_tokens_value is None:
@@ -350,9 +337,7 @@ async def _openai_complete(
 
         timeout = aiohttp.ClientTimeout(total=120)
         connector = _get_aiohttp_connector()
-        async with aiohttp.ClientSession(
-            timeout=timeout, connector=connector
-        ) as session:
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             async with session.post(url, headers=headers, json=data) as resp:
                 if resp.status == 200:
                     result = cast(dict[str, object], await resp.json())
@@ -361,16 +346,12 @@ async def _openai_complete(
                         choices_list = cast(list[object], choices)
                         first_choice = choices_list[0]
                         if isinstance(first_choice, Mapping):
-                            message = cast(
-                                Mapping[str, object], first_choice
-                            ).get("message")
+                            message = cast(Mapping[str, object], first_choice).get("message")
                         else:
                             message = None
                         if isinstance(message, Mapping):
                             # Use unified response extraction
-                            content = extract_response_content(
-                                cast(dict[str, object], message)
-                            )
+                            content = extract_response_content(cast(dict[str, object], message))
                 else:
                     error_text = await resp.text()
                     raise LLMAPIError(
@@ -435,9 +416,7 @@ async def _openai_stream(
     # Handle max_tokens / max_completion_tokens based on model
     max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
     if max_tokens_value is None:
-        max_tokens_value = _coerce_int(
-            kwargs.get("max_completion_tokens"), None
-        )
+        max_tokens_value = _coerce_int(kwargs.get("max_completion_tokens"), None)
     if max_tokens_value is not None:
         data.update(get_token_limit_kwargs(model, max_tokens_value))
 
@@ -448,9 +427,7 @@ async def _openai_stream(
 
     timeout = aiohttp.ClientTimeout(total=300)
     connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(
-        timeout=timeout, connector=connector
-    ) as session:
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as resp:
             if resp.status != 200:
                 error_text = await resp.text()
@@ -480,15 +457,11 @@ async def _openai_stream(
                         choices_list = cast(list[object], choices)
                         first_choice = choices_list[0]
                         if isinstance(first_choice, Mapping):
-                            delta = cast(
-                                Mapping[str, object], first_choice
-                            ).get("delta")
+                            delta = cast(Mapping[str, object], first_choice).get("delta")
                         else:
                             delta = None
                         if isinstance(delta, Mapping):
-                            content = cast(Mapping[str, object], delta).get(
-                                "content"
-                            )
+                            content = cast(Mapping[str, object], delta).get("content")
                         else:
                             content = None
                         if isinstance(content, str) and content:
@@ -501,9 +474,7 @@ async def _openai_stream(
                                 thinking_buffer += content
                                 if "</think>" in thinking_buffer:
                                     # End of thinking block, clean and yield
-                                    cleaned = clean_thinking_tags(
-                                        thinking_buffer, binding, model
-                                    )
+                                    cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
                                         yield cleaned
                                     in_thinking_block = False
@@ -528,9 +499,7 @@ async def _anthropic_complete(
     """Anthropic (Claude) API completion."""
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError(
-            "Anthropic API key is missing.", provider="anthropic"
-        )
+        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
 
     # Build URL using unified utility
     effective_base = base_url or "https://api.anthropic.com/v1"
@@ -563,9 +532,7 @@ async def _anthropic_complete(
 
     timeout = aiohttp.ClientTimeout(total=120)
     connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(
-        timeout=timeout, connector=connector
-    ) as session:
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as response:
             if response.status != 200:
                 error_text = await response.text()
@@ -606,9 +573,7 @@ async def _anthropic_stream(
 
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError(
-            "Anthropic API key is missing.", provider="anthropic"
-        )
+        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
 
     # Build URL using unified utility
     effective_base = base_url or "https://api.anthropic.com/v1"
@@ -642,9 +607,7 @@ async def _anthropic_stream(
 
     timeout = aiohttp.ClientTimeout(total=300)
     connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(
-        timeout=timeout, connector=connector
-    ) as session:
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as response:
             if response.status != 200:
                 error_text = await response.text()
@@ -669,9 +632,7 @@ async def _anthropic_stream(
                     if event_type == "content_block_delta":
                         delta = chunk_data.get("delta")
                         if isinstance(delta, Mapping):
-                            text = cast(Mapping[str, object], delta).get(
-                                "text"
-                            )
+                            text = cast(Mapping[str, object], delta).get("text")
                         else:
                             text = None
                         if isinstance(text, str) and text:
@@ -706,9 +667,7 @@ async def fetch_models(
 
     timeout = aiohttp.ClientTimeout(total=30)
     connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(
-        timeout=timeout, connector=connector
-    ) as session:
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         try:
             url = f"{base_url}/models"
             async with session.get(url, headers=headers) as resp:
@@ -718,16 +677,12 @@ async def fetch_models(
                         mapping = cast(Mapping[str, object], payload)
                         items = mapping.get("data")
                         if isinstance(items, list):
-                            return _collect_model_names(
-                                cast(list[object], items)
-                            )
+                            return _collect_model_names(cast(list[object], items))
                     elif isinstance(payload, list):
-                        return _collect_model_names(
-                            cast(list[object], payload)
-                        )
+                        return _collect_model_names(cast(list[object], payload))
             return []
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
             return []
 
 

@@ -117,6 +117,24 @@ async def websocket_chat(websocket: WebSocket):
     language = config.get("system", {}).get("language", "en")
 
     try:
+        llm_config = get_llm_config()
+        api_key = llm_config.api_key
+        base_url = llm_config.base_url
+        api_version = getattr(llm_config, "api_version", None)
+    except Exception:
+        api_key = None
+        base_url = None
+        api_version = None
+
+    agent = ChatAgent(
+        language=language,
+        config=config,
+        api_key=api_key,
+        base_url=base_url,
+        api_version=api_version,
+    )
+
+    try:
         while True:
             # Receive message
             data = await websocket.receive_json()
@@ -135,6 +153,8 @@ async def websocket_chat(websocket: WebSocket):
                 f"Chat request: session={session_id}, "
                 f"message={message[:50]}..., rag={enable_rag}, web={enable_web_search}"
             )
+
+            agent.refresh_config()
 
             try:
                 # Get or create session
@@ -186,25 +206,6 @@ async def websocket_chat(websocket: WebSocket):
                     session_id=session_id,
                     role="user",
                     content=message,
-                )
-
-                # Initialize ChatAgent
-                try:
-                    llm_config = get_llm_config()
-                    api_key = llm_config.api_key
-                    base_url = llm_config.base_url
-                    api_version = getattr(llm_config, "api_version", None)
-                except Exception:
-                    api_key = None
-                    base_url = None
-                    api_version = None
-
-                agent = ChatAgent(
-                    language=language,
-                    config=config,
-                    api_key=api_key,
-                    base_url=base_url,
-                    api_version=api_version,
                 )
 
                 # Send status updates

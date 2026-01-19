@@ -9,8 +9,8 @@ Utility functions for LLM service:
 - Thinking tags cleaning
 """
 
-import re
 from collections.abc import Mapping, Sequence
+import re
 from typing import Any, Optional
 
 # Known cloud provider domains (should never be treated as local)
@@ -260,22 +260,29 @@ def build_chat_url(
     return url
 
 
-def extract_response_content(message: dict[str, Any]) -> str:
+def extract_response_content(message: Any) -> str:
     """
     Extract content from LLM response message.
 
     Handles different response formats from various models:
     - Standard content field
     - Reasoning models that use reasoning_content, reasoning, or thought fields
+    - Direct strings or None values
 
     Args:
-        message: Message dict from LLM response (e.g., choices[0].message)
+        message: Message object/dict from LLM response or direct string
 
     Returns:
         Extracted content string
     """
-    if not message:
+    if message is None:
         return ""
+
+    if isinstance(message, str):
+        return message
+
+    if not isinstance(message, (dict, Mapping)):
+        return str(message)
 
     content = message.get("content", "")
 
@@ -288,7 +295,7 @@ def extract_response_content(message: dict[str, Any]) -> str:
             or ""
         )
 
-    return content
+    return str(content)
 
 
 def _normalize_model_name(entry: object) -> Optional[str]:

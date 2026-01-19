@@ -10,12 +10,12 @@ Provides centralized configuration and adapter selection.
 import logging
 from typing import Any, Dict, Optional, Type
 
+from .adapters.azure import AzureEmbeddingAdapter
 from .adapters.base import BaseEmbeddingAdapter
 from .adapters.cohere import CohereEmbeddingAdapter
 from .adapters.jina import JinaEmbeddingAdapter
 from .adapters.ollama import OllamaEmbeddingAdapter
 from .adapters.openai_compatible import OpenAICompatibleEmbeddingAdapter
-from .adapters.azure import AzureEmbeddingAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class EmbeddingProviderManager:
                 f"Unknown embedding binding: '{binding}'. Supported providers: {supported}"
             )
 
-        logger.info(f"Initializing embedding adapter for binding: {binding}")
+        logger.info("Initializing embedding adapter for binding: %s", binding)
         return adapter_class(config)
 
     def set_adapter(self, adapter: BaseEmbeddingAdapter) -> None:
@@ -82,7 +82,7 @@ class EmbeddingProviderManager:
         """
         self.adapter = adapter
         logger.debug(
-            f"Active embedding adapter set to: {adapter.__class__.__name__}"
+            "Active embedding adapter set to: %s", adapter.__class__.__name__
         )
 
     def get_active_adapter(self) -> BaseEmbeddingAdapter:
