@@ -10,6 +10,7 @@ Utility functions for LLM service:
 """
 
 import re
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
 # Known cloud provider domains (should never be treated as local)
@@ -161,7 +162,12 @@ def sanitize_url(base_url: str, model: str = "") -> str:
     # - No trailing slashes
     # - No /chat/completions or /completions/messages/embeddings suffixes
     #   (it adds these automatically)
-    for suffix in ["/chat/completions", "/completions", "/messages", "/embeddings"]:
+    for suffix in [
+        "/chat/completions",
+        "/completions",
+        "/messages",
+        "/embeddings",
+    ]:
         if url.endswith(suffix):
             url = url[: -len(suffix)]
             url = url.rstrip("/")
@@ -283,6 +289,53 @@ def extract_response_content(message: dict[str, Any]) -> str:
         )
 
     return content
+
+
+def _normalize_model_name(entry: object) -> Optional[str]:
+    """
+    Normalize a model name from a provider payload entry.
+
+    Args:
+        entry: The raw model entry returned by a provider.
+
+    Returns:
+        The normalized model name, or None if one cannot be derived.
+    """
+    if entry is None:
+        return None
+
+    if isinstance(entry, str):
+        return entry if entry else None
+
+    if isinstance(entry, Mapping):
+        mapping = entry
+        name = mapping.get("id")
+        if name is None:
+            name = mapping.get("name")
+        if name is None:
+            return None
+        text = str(name)
+        return text if text else None
+
+    return str(entry)
+
+
+def _collect_model_names(entries: Sequence[object]) -> list[str]:
+    """
+    Collect normalized model names from a sequence of entries.
+
+    Args:
+        entries: Sequence of model entries from provider payloads.
+
+    Returns:
+        List of normalized model names.
+    """
+    names: list[str] = []
+    for entry in entries:
+        name = _normalize_model_name(entry)
+        if name is not None:
+            names.append(name)
+    return names
 
 
 def build_auth_headers(

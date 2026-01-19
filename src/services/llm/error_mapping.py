@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Optional, Type
+from types import ModuleType
+from typing import Callable, List, Optional, Type, cast
 
 # Import unified exceptions from exceptions.py
 from .exceptions import (
@@ -24,7 +25,7 @@ try:
     _HAS_OPENAI = True
 except ImportError:  # pragma: no cover
     openai = None  # type: ignore
-    _HAS_OPENAI = False
+    _has_openai = False
 
 
 logger = logging.getLogger(__name__)
@@ -54,23 +55,32 @@ def _message_contains(*needles: str) -> ErrorClassifier:
 _GLOBAL_RULES: List[MappingRule] = [
     MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
-        factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
+        factory=lambda exc, provider: LLMRateLimitError(
+            str(exc), provider=provider
+        ),
     ),
     MappingRule(
         classifier=_message_contains("context length", "maximum context"),
-        factory=lambda exc, provider: ProviderContextWindowError(str(exc), provider=provider),
+        factory=lambda exc, provider: ProviderContextWindowError(
+            str(exc), provider=provider
+        ),
     ),
 ]
 
-if _HAS_OPENAI:
+if _has_openai and openai is not None:
+    openai_module = cast(ModuleType, openai)
     _GLOBAL_RULES[:0] = [
         MappingRule(
-            classifier=_instance_of(openai.AuthenticationError),
-            factory=lambda exc, provider: LLMAuthenticationError(str(exc), provider=provider),
+            classifier=_instance_of(openai_module.AuthenticationError),
+            factory=lambda exc, provider: LLMAuthenticationError(
+                str(exc), provider=provider
+            ),
         ),
         MappingRule(
-            classifier=_instance_of(openai.RateLimitError),
-            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
+            classifier=_instance_of(openai_module.RateLimitError),
+            factory=lambda exc, provider: LLMRateLimitError(
+                str(exc), provider=provider
+            ),
         ),
     ]
 
@@ -81,7 +91,9 @@ try:
     _GLOBAL_RULES.append(
         MappingRule(
             classifier=_instance_of(anthropic.RateLimitError),
-            factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
+            factory=lambda exc, provider: LLMRateLimitError(
+                str(exc), provider=provider
+            ),
         )
     )
 except ImportError:

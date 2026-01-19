@@ -19,6 +19,7 @@ import aiohttp
 
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
+    _collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
@@ -87,7 +88,9 @@ async def complete(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
+    timeout = aiohttp.ClientTimeout(
+        total=kwargs.get("timeout", DEFAULT_TIMEOUT)
+    )
 
     async with aiohttp.ClientSession(timeout=timeout) as session:
         async with session.post(url, json=data, headers=headers) as response:
@@ -169,11 +172,15 @@ async def stream(
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
 
-    timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
+    timeout = aiohttp.ClientTimeout(
+        total=kwargs.get("timeout", DEFAULT_TIMEOUT)
+    )
 
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, json=data, headers=headers) as response:
+            async with session.post(
+                url, json=data, headers=headers
+            ) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     raise LLMAPIError(
@@ -202,8 +209,13 @@ async def stream(
 
                         try:
                             chunk_data = json.loads(data_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
+                            if (
+                                "choices" in chunk_data
+                                and chunk_data["choices"]
+                            ):
+                                delta = chunk_data["choices"][0].get(
+                                    "delta", {}
+                                )
                                 content = delta.get("content")
 
                                 if content:
@@ -216,7 +228,9 @@ async def stream(
                                         thinking_buffer += content
                                         if "</think>" in thinking_buffer:
                                             # End of thinking block, clean and yield
-                                            cleaned = clean_thinking_tags(thinking_buffer)
+                                            cleaned = clean_thinking_tags(
+                                                thinking_buffer
+                                            )
                                             if cleaned:
                                                 yield cleaned
                                             in_thinking_block = False
@@ -234,8 +248,13 @@ async def stream(
                     elif line_str.startswith("{"):
                         try:
                             chunk_data = json.loads(line_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
+                            if (
+                                "choices" in chunk_data
+                                and chunk_data["choices"]
+                            ):
+                                delta = chunk_data["choices"][0].get(
+                                    "delta", {}
+                                )
                                 content = delta.get("content")
                                 if content:
                                     yield content
@@ -317,24 +336,11 @@ async def fetch_models(
 
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
+                        return _collect_model_names(data["data"])
                     elif "models" in data and isinstance(data["models"], list):
-                        if data["models"] and isinstance(data["models"][0], dict):
-                            return [
-                                m.get("id") or m.get("name")
-                                for m in data["models"]
-                                if m.get("id") or m.get("name")
-                            ]
-                        return [str(m) for m in data["models"]]
+                        return _collect_model_names(data["models"])
                     elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                        return _collect_model_names(data)
         except Exception as e:
             print(f"Error fetching models from {base_url}: {e}")
 

@@ -15,6 +15,7 @@ from .adapters.cohere import CohereEmbeddingAdapter
 from .adapters.jina import JinaEmbeddingAdapter
 from .adapters.ollama import OllamaEmbeddingAdapter
 from .adapters.openai_compatible import OpenAICompatibleEmbeddingAdapter
+from .adapters.azure import AzureEmbeddingAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class EmbeddingProviderManager:
     # Mapping of binding names to adapter classes
     ADAPTER_MAPPING: Dict[str, Type[BaseEmbeddingAdapter]] = {
         "openai": OpenAICompatibleEmbeddingAdapter,
-        "azure_openai": OpenAICompatibleEmbeddingAdapter,
+        "azure_openai": AzureEmbeddingAdapter,
         "jina": JinaEmbeddingAdapter,
         "huggingface": OpenAICompatibleEmbeddingAdapter,
         "google": OpenAICompatibleEmbeddingAdapter,
@@ -45,7 +46,9 @@ class EmbeddingProviderManager:
         """Initialize the provider manager."""
         self.adapter: Optional[BaseEmbeddingAdapter] = None
 
-    def get_adapter(self, binding: str, config: Dict[str, Any]) -> BaseEmbeddingAdapter:
+    def get_adapter(
+        self, binding: str, config: Dict[str, Any]
+    ) -> BaseEmbeddingAdapter:
         """
         Get and instantiate an adapter for the specified binding.
 
@@ -78,7 +81,9 @@ class EmbeddingProviderManager:
             adapter: Adapter instance to set as active
         """
         self.adapter = adapter
-        logger.debug(f"Active embedding adapter set to: {adapter.__class__.__name__}")
+        logger.debug(
+            f"Active embedding adapter set to: {adapter.__class__.__name__}"
+        )
 
     def get_active_adapter(self) -> BaseEmbeddingAdapter:
         """

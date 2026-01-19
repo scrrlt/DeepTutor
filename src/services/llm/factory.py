@@ -32,11 +32,12 @@ Retry Mechanism:
 """
 
 import asyncio
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import Mapping
+from typing import AsyncGenerator, Dict, List, Optional, TypeAlias, TypedDict
 
 import tenacity
 
-from src.logging.logger import get_logger
+from src.logging.logger import Logger, get_logger
 
 from . import cloud_provider, local_provider
 from .config import get_llm_config
@@ -49,12 +50,14 @@ from .exceptions import (
 from .utils import is_local_llm_server
 
 # Initialize logger
-logger = get_logger("LLMFactory")
+logger: Logger = get_logger("LLMFactory")
 
 # Default retry configuration
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 1.0  # seconds
 DEFAULT_EXPONENTIAL_BACKOFF = True
+
+CallKwargs: TypeAlias = dict[str, object]
 
 
 def _is_retriable_error(error: Exception) -> bool:
@@ -74,9 +77,8 @@ def _is_retriable_error(error: Exception) -> bool:
     - Client errors (4xx except 429)
     """
     from aiohttp import ClientError
-    from requests.exceptions import RequestException
 
-    if isinstance(error, (asyncio.TimeoutError, ClientError, RequestException)):
+    if isinstance(error, (asyncio.TimeoutError, ClientError)):
         return True
     if isinstance(error, LLMTimeoutError):
         return True
@@ -125,7 +127,7 @@ async def complete(
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
+    **kwargs: object,
 ) -> str:
     """
     Unified LLM completion function with automatic retry.
@@ -190,6 +192,33 @@ async def complete(
 
         return False
 
+    def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
+        """
+        Log retry warnings with safe handling for missing exceptions.
+
+        Args:
+            retry_state: Tenacity retry state for the current attempt.
+        """
+        outcome = retry_state.outcome
+        if outcome is None:
+            return
+        exception = outcome.exception() if outcome else None
+        error_message = str(exception) if exception else "unknown error"
+        message = (
+            "LLM call failed (attempt "
+            f"{retry_state.attempt_number}/{max_retries + 1}), "
+            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: "
+            f"{error_message}"
+        )
+        logger.warning(message)
+
+    if exponential_backoff:
+        wait_strategy = tenacity.wait_exponential(
+            multiplier=retry_delay, min=retry_delay, max=60
+        )
+    else:
+        wait_strategy = tenacity.wait_fixed(retry_delay)
+
     # Define the actual completion function with tenacity retry
     @tenacity.retry(
         retry=(
@@ -197,14 +226,11 @@ async def complete(
             | tenacity.retry_if_exception_type(LLMTimeoutError)
             | tenacity.retry_if_exception(_is_retriable_llm_api_error)
         ),
-        wait=tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60),
+        wait=wait_strategy,
         stop=tenacity.stop_after_attempt(max_retries + 1),
-        before_sleep=lambda retry_state: logger.warning(
-            f"LLM call failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
-            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
-        ),
+        before_sleep=_log_retry_warning,
     )
-    async def _do_complete(**call_kwargs):
+    async def _do_complete(call_kwargs: CallKwargs) -> str:
         try:
             if use_local:
                 return await local_provider.complete(**call_kwargs)
@@ -214,11 +240,17 @@ async def complete(
             # Map raw SDK exceptions to unified exceptions for retry logic
             from .error_mapping import map_error
 
-            mapped_error = map_error(e, provider=call_kwargs.get("binding", "unknown"))
+            provider_value = call_kwargs.get("binding")
+            provider_name = (
+                provider_value
+                if isinstance(provider_value, str)
+                else "unknown"
+            )
+            mapped_error = map_error(e, provider=provider_name)
             raise mapped_error from e
 
     # Build call kwargs
-    call_kwargs = {
+    call_kwargs: CallKwargs = {
         "prompt": prompt,
         "system_prompt": system_prompt,
         "model": model,
@@ -234,7 +266,7 @@ async def complete(
         call_kwargs["binding"] = binding or "openai"
 
     # Execute with retry (handled by tenacity decorator)
-    return await _do_complete(**call_kwargs)
+    return await _do_complete(call_kwargs)
 
 
 async def stream(
@@ -249,7 +281,7 @@ async def stream(
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
+    **kwargs: object,
 ) -> AsyncGenerator[str, None]:
     """
     Unified LLM streaming function with automatic retry.
@@ -290,7 +322,7 @@ async def stream(
     use_local = _should_use_local(base_url)
 
     # Build call kwargs
-    call_kwargs = {
+    call_kwargs: CallKwargs = {
         "prompt": prompt,
         "system_prompt": system_prompt,
         "model": model,
@@ -369,8 +401,32 @@ async def fetch_models(
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
 
+class ApiProviderPreset(TypedDict, total=False):
+    """Typed representation of API provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    models: list[str]
+    binding: str
+
+
+class LocalProviderPreset(TypedDict, total=False):
+    """Typed representation of local provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    default_key: str
+
+
+ProviderPreset: TypeAlias = ApiProviderPreset | LocalProviderPreset
+ProviderPresetMap: TypeAlias = Mapping[str, ProviderPreset]
+ProviderPresetBundle: TypeAlias = Mapping[str, ProviderPresetMap]
+
+
 # API Provider Presets
-API_PROVIDER_PRESETS = {
+API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
     "openai": {
         "name": "OpenAI",
         "base_url": "https://api.openai.com/v1",
@@ -399,7 +455,7 @@ API_PROVIDER_PRESETS = {
 }
 
 # Local Provider Presets
-LOCAL_PROVIDER_PRESETS = {
+LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
     "ollama": {
         "name": "Ollama",
         "base_url": "http://localhost:11434/v1",
@@ -427,7 +483,7 @@ LOCAL_PROVIDER_PRESETS = {
 }
 
 
-def get_provider_presets() -> Dict[str, Any]:
+def get_provider_presets() -> ProviderPresetBundle:
     """
     Get all provider presets for frontend display.
     """

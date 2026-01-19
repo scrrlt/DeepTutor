@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
 load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_dotenv(PROJECT_ROOT / ".env.local", override=False)
 
 
 def _setup_openai_env_vars_early():
@@ -46,11 +47,15 @@ def _setup_openai_env_vars_early():
     if binding in ("openai", "azure_openai", "gemini"):
         if api_key and not os.getenv("OPENAI_API_KEY"):
             os.environ["OPENAI_API_KEY"] = api_key
-            logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility (early init)")
+            logger.debug(
+                "Set OPENAI_API_KEY env var for LightRAG compatibility (early init)"
+            )
 
         if base_url and not os.getenv("OPENAI_BASE_URL"):
             os.environ["OPENAI_BASE_URL"] = base_url
-            logger.debug(f"Set OPENAI_BASE_URL env var to {base_url} (early init)")
+            logger.debug(
+                f"Set OPENAI_BASE_URL env var to {base_url} (early init)"
+            )
 
 
 # Execute early setup at module import time
@@ -79,7 +84,7 @@ def _strip_value(value: Optional[str]) -> Optional[str]:
 
 def _get_llm_config_from_env() -> LLMConfig:
     """Get LLM configuration from environment variables."""
-    binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
+    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
     base_url = _strip_value(os.getenv("LLM_HOST"))
@@ -125,7 +130,7 @@ def get_llm_config() -> LLMConfig:
         config = get_active_llm_config()
         if config:
             return LLMConfig(
-                binding=config.get("provider", "openai"),
+                binding=config.get("provider") or "openai",
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
@@ -158,7 +163,7 @@ async def get_llm_config_async() -> LLMConfig:
         config = get_active_llm_config()
         if config:
             return LLMConfig(
-                binding=config.get("provider", "openai"),
+                binding=config.get("provider") or "openai",
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
@@ -206,7 +211,7 @@ def uses_max_completion_tokens(model: str) -> bool:
     return False
 
 
-def get_token_limit_kwargs(model: str, max_tokens: int) -> dict:
+def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
     """
     Get the appropriate token limit parameter for the model.
 
