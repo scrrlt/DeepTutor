@@ -13,9 +13,11 @@ from typing import Any, Dict, List, Optional
 from src.logging import get_logger
 from src.logging.adapters import LightRAGLogContext
 
-# Load LLM config early to ensure OPENAI_API_KEY env var is set before LightRAG imports
+# Load LLM environment early to ensure OPENAI_API_KEY is set before LightRAG imports
 # This is critical because LightRAG reads os.environ["OPENAI_API_KEY"] directly
-from src.services.llm.config import get_llm_config as _early_config_load  # noqa: F401
+from src.services.llm.config import initialize_environment
+
+initialize_environment()
 
 
 class RAGAnythingPipeline:

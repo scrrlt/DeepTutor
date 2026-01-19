@@ -9,7 +9,7 @@ Defines the contract that all embedding providers must implement.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -33,24 +33,24 @@ class EmbeddingRequest:
         late_chunking: Enable late chunking for long context (Jina v3 only)
     """
 
-    texts: List[str]
+    texts: list[str]
     model: str
-    dimensions: Optional[int] = None
-    input_type: Optional[str] = None
-    encoding_format: Optional[str] = "float"
-    truncate: Optional[bool] = True
-    normalized: Optional[bool] = True
-    late_chunking: Optional[bool] = False
+    dimensions: int | None = None
+    input_type: str | None = None
+    encoding_format: str | None = "float"
+    truncate: bool | None = True
+    normalized: bool | None = True
+    late_chunking: bool | None = False
 
 
 @dataclass
 class EmbeddingResponse:
     """Standard embedding response structure."""
 
-    embeddings: List[List[float]]
+    embeddings: list[list[float]]
     model: str
     dimensions: int
-    usage: Dict[str, Any]
+    usage: dict[str, Any]
 
 
 class BaseEmbeddingAdapter(ABC):
@@ -61,7 +61,7 @@ class BaseEmbeddingAdapter(ABC):
     (OpenAI, Cohere, Ollama, etc.) while exposing a unified interface.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize the adapter with configuration.
 
@@ -69,16 +69,17 @@ class BaseEmbeddingAdapter(ABC):
             config: Dictionary containing:
                 - api_key: API authentication key (optional for local)
                 - base_url: API endpoint URL
+                - api_version: API version (optional, provider-specific)
                 - model: Model name to use
                 - dimensions: Embedding vector dimensions
                 - request_timeout: Request timeout in seconds
         """
-        self.api_key = config.get("api_key")
-        self.base_url = config.get("base_url")
-        self.api_version = config.get("api_version")
-        self.model = config.get("model")
-        self.dimensions = config.get("dimensions")
-        self.request_timeout = config.get("request_timeout", 30)
+        self.api_key: str | None = config.get("api_key")
+        self.base_url: str | None = config.get("base_url")
+        self.api_version: str | None = config.get("api_version")
+        self.model: str | None = config.get("model")
+        self.dimensions: int | None = config.get("dimensions")
+        self.request_timeout: int = config.get("request_timeout", 30)
 
     @abstractmethod
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
@@ -97,7 +98,7 @@ class BaseEmbeddingAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.
 

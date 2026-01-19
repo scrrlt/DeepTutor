@@ -22,11 +22,23 @@ class OpenAIProvider(BaseLLMProvider):
         if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
             http_client = httpx.AsyncClient(verify=False)
 
-        self.client = openai.AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url or None,
-            http_client=http_client,
-        )
+        binding = getattr(self.config, "binding", "openai")
+        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
+        api_version = getattr(self.config, "api_version", None)
+
+        if binding_lower in ("azure", "azure_openai") or api_version:
+            self.client = openai.AsyncAzureOpenAI(
+                api_key=self.api_key,
+                azure_endpoint=self.base_url or None,
+                api_version=api_version,
+                http_client=http_client,
+            )
+        else:
+            self.client = openai.AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url or None,
+                http_client=http_client,
+            )
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs) -> TutorResponse:
@@ -60,7 +72,10 @@ class OpenAIProvider(BaseLLMProvider):
 
         async def _create_stream():
             return await self.client.chat.completions.create(
-                model=model, messages=[{"role": "user", "content": prompt}], stream=True, **kwargs
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                **kwargs,
             )
 
         stream = await self.execute_with_retry(_create_stream)
@@ -80,5 +95,9 @@ class OpenAIProvider(BaseLLMProvider):
                 )
 
         yield TutorStreamChunk(
-            content=accumulated_content, delta="", provider="openai", model=model, is_complete=True
+            content=accumulated_content,
+            delta="",
+            provider="openai",
+            model=model,
+            is_complete=True,
         )

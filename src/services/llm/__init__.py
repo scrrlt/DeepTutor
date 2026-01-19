@@ -50,6 +50,8 @@ Usage:
 
 # Note: cloud_provider and local_provider are lazy-loaded via __getattr__
 # to avoid importing lightrag at module load time
+from typing import TYPE_CHECKING
+
 from .capabilities import (
     DEFAULT_CAPABILITIES,
     MODEL_OVERRIDES,
@@ -98,6 +100,10 @@ from .utils import (
     is_local_llm_server,
     sanitize_url,
 )
+
+if TYPE_CHECKING:
+    from . import cloud_provider
+    from . import local_provider
 
 __all__ = [
     # Client (legacy, prefer factory functions)

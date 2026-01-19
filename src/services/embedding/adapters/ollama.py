@@ -2,7 +2,7 @@
 """Ollama Embedding Adapter for local embeddings."""
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import httpx
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
-    MODELS_INFO = {
+    MODELS_INFO: dict[str, int] = {
         "all-minilm": 384,
         "all-mpnet-base-v2": 768,
         "nomic-embed-text": 768,
@@ -21,7 +21,19 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        payload = {
+        """
+        Generate embeddings using Ollama local API.
+
+        Args:
+            request: EmbeddingRequest containing texts and parameters
+
+        Returns:
+            EmbeddingResponse with embeddings and metadata
+        """
+        if not self.base_url:
+            raise ValueError("Base URL is required for Ollama embedding")
+
+        payload: dict[str, Any] = {
             "model": request.model or self.model,
             "input": request.texts,
         }
@@ -34,20 +46,30 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         payload["keep_alive"] = "5m"
 
-        url = f"{self.base_url}/api/embed"
+        url = f"{self.base_url.rstrip('/')}/api/embed"
 
-        logger.debug(f"Sending embedding request to {url} with {len(request.texts)} texts")
+        logger.debug(
+            f"Sending embedding request to {url} with {len(request.texts)} texts"
+        )
 
         try:
-            async with httpx.AsyncClient(timeout=self.request_timeout) as client:
+            async with httpx.AsyncClient(
+                timeout=self.request_timeout
+            ) as client:
                 response = await client.post(url, json=payload)
 
                 if response.status_code == 404:
                     try:
-                        health_check = await client.get(f"{self.base_url}/api/tags")
+                        health_check = await client.get(
+                            f"{self.base_url.rstrip('/')}/api/tags"
+                        )
                         if health_check.status_code == 200:
                             available_models = [
-                                m.get("name", "") for m in health_check.json().get("models", [])
+                                cast(str, m.get("name", ""))
+                                for m in cast(
+                                    list[dict[str, Any]],
+                                    health_check.json().get("models", []),
+                                )
                             ]
                             raise ValueError(
                                 f"Model '{payload['model']}' not found in Ollama. "
@@ -99,7 +121,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         return EmbeddingResponse(
             embeddings=embeddings,
-            model=data.get("model", self.model),
+            model=data.get("model", self.model or "unknown"),
             dimensions=actual_dims,
             usage={
                 "prompt_eval_count": data.get("prompt_eval_count", 0),
@@ -108,9 +130,18 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> Dict[str, Any]:
+        """
+        Return information about the configured model.
+
+        Returns:
+            Dictionary with model metadata (name, dimensions, etc.)
+        """
+        model_name = self.model or ""
         return {
-            "model": self.model,
-            "dimensions": self.MODELS_INFO.get(self.model, self.dimensions),
+            "model": model_name,
+            "dimensions": self.MODELS_INFO.get(
+                model_name, self.dimensions or 0
+            ),
             "local": True,
             "supports_variable_dimensions": False,
             "provider": "ollama",
