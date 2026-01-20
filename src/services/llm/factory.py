@@ -205,7 +205,7 @@ async def complete(
         logger.warning(message)
 
     if exponential_backoff:
-        wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60)
+        wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60)  # type: ignore[assignment]
     else:
         wait_strategy = tenacity.wait_fixed(retry_delay)  # type: ignore[assignment]
 
