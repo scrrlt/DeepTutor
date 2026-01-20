@@ -519,7 +519,7 @@ async def _openai_stream(
                             # Handle thinking tags in streaming for different marker styles
                             open_markers = ("<think>", "◣", "꽁")
                             close_markers = ("</think>", "◢", "꽁")
-                            
+
                             # Check for start tag (handle split tags)
                             if any(open_m in content for open_m in open_markers):
                                 in_thinking_block = True
@@ -527,14 +527,14 @@ async def _openai_stream(
                                 for open_m in open_markers:
                                     if open_m in content:
                                         parts = content.split(open_m, 1)
-                                        if parts[0]: 
+                                        if parts[0]:
                                             yield parts[0]
                                         thinking_buffer = open_m + parts[1]
-                                        
+
                                         # Check if closed immediately in same chunk
                                         if any(close_m in thinking_buffer for close_m in close_markers):
                                             cleaned = clean_thinking_tags(thinking_buffer, binding, model)
-                                            if cleaned: 
+                                            if cleaned:
                                                 yield cleaned
                                             thinking_buffer = ""
                                             in_thinking_block = False

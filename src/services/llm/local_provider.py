@@ -218,14 +218,14 @@ async def stream(
                                         in_thinking_block = True
                                         # Handle case where content has text BEFORE <think>
                                         parts = content.split("<think>", 1)
-                                        if parts[0]: 
+                                        if parts[0]:
                                             yield parts[0]
                                         thinking_buffer = "<think>" + parts[1]
-                                        
+
                                         # Check if closed immediately in same chunk
                                         if "</think>" in thinking_buffer:
                                             cleaned = clean_thinking_tags(thinking_buffer)
-                                            if cleaned: 
+                                            if cleaned:
                                                 yield cleaned
                                             thinking_buffer = ""
                                             in_thinking_block = False
