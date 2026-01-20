@@ -105,7 +105,7 @@ def _is_retriable_error(error: BaseException) -> bool:
             # Don't retry on client errors (4xx except 429)
             if 400 <= status_code < 500:
                 return False
-        
+
         # FIX: If status_code is None (e.g. connection drop), RETRY.
         # This aligns with the catch-all "return True" at the end.
         return True
