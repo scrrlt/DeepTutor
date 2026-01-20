@@ -108,8 +108,14 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
         A TCPConnector with SSL verification disabled when DISABLE_SSL_VERIFY
         is truthy; otherwise None to use aiohttp defaults.
     """
-    if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
-        return aiohttp.TCPConnector(ssl=False)
+    if not hasattr(cls, "_ssl_warning_logged"):
+        if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
+            logger.warning(
+                "SSL verification is disabled via DISABLE_SSL_VERIFY. This is unsafe and must "
+                "not be used in production environments."
+            )
+            setattr(cls, "_ssl_warning_logged", True)
+            return aiohttp.TCPConnector(ssl=False)
     return None
 
 
@@ -315,9 +321,9 @@ async def _openai_complete(
         finally:
             _lightrag_logger.setLevel(original_lightrag_level)
             _openai_logger.setLevel(original_openai_level)
-    except Exception:
+    except Exception as exc:
         # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
-        pass  # nosec B110
+        logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
     # Fallback: Direct aiohttp call
     if not content and base_url:
         # Build URL using unified utility (use binding for Azure detection)

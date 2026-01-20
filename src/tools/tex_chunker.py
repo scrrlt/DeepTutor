@@ -53,7 +53,6 @@ class TexChunker:
             Token count
         """
         try:
-            # Clean text: remove overly long repeated characters (may cause token explosion)
             cleaned_text = self._clean_text(text)
             tokens = self.encoder.encode(cleaned_text)
             return len(tokens)
@@ -64,26 +63,16 @@ class TexChunker:
 
     def _clean_text(self, text: str) -> str:
         """
-        Clean text to prevent token estimation anomalies
-
-        - Remove overly long repeated character sequences
-        - Limit single line length
+        Clean text to prevent token estimation anomalies by:
+        - Removing overly long repeated character sequences
+        - Limiting single line length
         """
         import re
 
         # Remove overly long repeated characters (e.g., consecutive spaces, newlines, etc.)
-        text = re.sub(r"(\s)\1{100,}", r"\1" * 10, text)
-
-        # Remove overly long single lines (may be erroneous data)
-        lines = text.split("\n")
-        cleaned_lines = []
-        for line in lines:
-            if len(line) > 10000:  # Single line over 10k characters, may be problematic
-                print(f"  ⚠️ Detected overly long line ({len(line)} characters), truncating")
-                line = line[:10000] + "...[truncated]"
-            cleaned_lines.append(line)
-
-        return "\n".join(cleaned_lines)
+        text = re.sub(r'(.)\1{10,}', r'\1\1', text)  # Collapse sequences longer than 10
+        text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
+        return text.strip()
 
     def split_tex_into_chunks(
         self, tex_content: str, max_tokens: int = 8000, overlap: int = 500

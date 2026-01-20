@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from dotenv import dotenv_values, load_dotenv
 from pydantic import ValidationError
@@ -32,7 +32,8 @@ class ConfigManager:
     - Layered env: .env, then .env.local (override), then process env.
     """
 
-    _instance: Optional["ConfigManager"] = None
+    _instance: ConfigManager | None = None
+    _config_cache: dict[str, Any] = {}
     _lock = Lock()
 
     def __new__(cls, project_root: Optional[Path] = None):
@@ -49,7 +50,7 @@ class ConfigManager:
 
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.config_path = self.project_root / "config" / "main.yaml"
-        self._config_cache: Dict[str, Any] = {}
+        self._config_cache: dict[str, Any] = {}
         self._last_mtime: float = 0.0
         self._initialized = True
 
@@ -57,28 +58,28 @@ class ConfigManager:
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
 
-    def _load_env_file(self, path: Path) -> Dict[str, str]:
+    def _load_env_file(self, path: Path) -> dict[str, str]:
         """Load a .env file and return non-None values as strings."""
         if not path.exists():
             return {}
         return {k: str(v) for k, v in dotenv_values(path).items() if v is not None}
 
-    def _read_yaml(self) -> Dict[str, Any]:
+    def _read_yaml(self) -> dict[str, Any]:
         """Read the main YAML configuration file safely."""
         if not self.config_path.exists():
             return {}
         with open(self.config_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
-    def _deep_update(self, target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
         for key, value in source.items():
             if isinstance(value, dict) and isinstance(target.get(key), dict):
                 self._deep_update(target[key], value)
             else:
                 target[key] = value
 
-    def _validate_and_migrate(self, raw: Dict[str, Any]) -> Dict[str, Any]:
-        merged: Dict[str, Any] = {}
+    def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
         self._deep_update(merged, DEFAULTS)
         self._deep_update(merged, raw)
         migrated = migrate_config(merged)
@@ -87,7 +88,7 @@ class ConfigManager:
         except ValidationError as e:
             raise ConfigError("Config validation failed", details={"errors": e.errors()})
 
-    def load_config(self, force_reload: bool = False) -> Dict[str, Any]:
+    def load_config(self, force_reload: bool = False) -> dict[str, Any]:
         """
         Load configuration from main.yaml.
         Uses caching based on file modification time and validates against schema.
@@ -116,7 +117,7 @@ class ConfigManager:
             # deep copy via dump/load for immutability
             return yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False)) or {}
 
-    def save_config(self, config: Dict[str, Any]) -> bool:
+    def save_config(self, config: dict[str, Any]) -> bool:
         """
         Save configuration to main.yaml.
         Deep-merges provided config with existing one; writes atomically.
@@ -172,7 +173,7 @@ class ConfigManager:
             logger.exception("Error saving config: %s", e)
             return False
 
-    def get_env_info(self) -> Dict[str, str]:
+    def get_env_info(self) -> dict[str, str]:
         """
         Read relevant environment variables using layered .env files and process env.
         Returns only non-sensitive metadata.
@@ -189,7 +190,7 @@ class ConfigManager:
             "model": _get("LLM_MODEL", DEFAULTS.get("llm", {}).get("model", "Pro/Flash")),
         }
 
-    def validate_required_env(self, keys: List[str]) -> Dict[str, List[str]]:
+    def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
         parsed_env = self._load_env_file(env_path)

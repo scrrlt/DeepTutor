@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Avoid repeated dotenv reads by gating initialization.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_env_initialized = False
+_ENV_INITIALIZED = False
 ENV_INIT_LOCK = threading.Lock()
 
 
@@ -100,17 +100,17 @@ def initialize_environment() -> None:
     Raises:
         None.
     """
-    global _env_initialized
+    global _ENV_INITIALIZED
 
     with ENV_INIT_LOCK:
-        if _env_initialized:
+        if _ENV_INITIALIZED:
             return
 
         load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
         load_dotenv(PROJECT_ROOT / ".env", override=False)
         load_dotenv(PROJECT_ROOT / ".env.local", override=False)
         _setup_openai_env_vars_early()
-        _env_initialized = True
+        _ENV_INITIALIZED = True
 
 
 @dataclass

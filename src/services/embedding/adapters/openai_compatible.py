@@ -157,17 +157,19 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         response_model = model
 
         # Check if SSL verification should be disabled for testing
-        disable_ssl = os.getenv("DISABLE_SSL_VERIFY", "").lower()
-        disable_ssl_verify = disable_ssl in ("true", "1", "yes")
-        if disable_ssl_verify:
-            logger.warning(
-                "SSL verification has been disabled via the DISABLE_SSL_VERIFY "
-                "environment variable. This should only be used in testing and "
-                "never in production."
-            )
+        if not hasattr(self, "_ssl_warning_logged"):
+            disable_ssl = os.getenv("DISABLE_SSL_VERIFY", "").lower()
+            self._disable_ssl_verify = disable_ssl in ("true", "1", "yes")
+            if self._disable_ssl_verify:
+                logger.warning(
+                    "SSL verification has been disabled via the DISABLE_SSL_VERIFY "
+                    "environment variable. This should only be used in testing and "
+                    "never in production."
+                )
+                self._ssl_warning_logged = True  # Ensure warning is logged only once
 
         async with httpx.AsyncClient(
-            timeout=self.request_timeout, verify=not disable_ssl_verify
+            timeout=self.request_timeout, verify=not self._disable_ssl_verify
         ) as client:
             for batch in _chunk_texts(request.texts, self.batch_size):
                 payload["input"] = batch

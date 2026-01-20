@@ -44,14 +44,17 @@ class OpenAIProvider(BaseLLMProvider):
         # Allow disabling SSL verification for development/testing environments
         # This is controlled by environment variable for explicit opt-in
         disable_ssl = os.getenv("DISABLE_SSL_VERIFY", "").lower()
-        if disable_ssl in ("true", "1", "yes"):
-            logger.warning(
-                "SSL verification is DISABLED for OpenAIProvider HTTP client. "
-                "This is insecure and must never be used in production environments. "
-                "Unset the DISABLE_SSL_VERIFY environment variable to re-enable SSL verification."
-            )
-            http_client = httpx.AsyncClient(verify=False)  # nosec B501
-        self._http_client = http_client
+        if not hasattr(self, "_ssl_warning_logged"):
+            self._disable_ssl_verify = disable_ssl in ("true", "1", "yes")
+            if self._disable_ssl_verify:
+                logger.warning(
+                    "SSL verification is DISABLED for OpenAIProvider HTTP client. "
+                    "This is insecure and must never be used in production environments. "
+                    "Unset the DISABLE_SSL_VERIFY environment variable to re-enable SSL verification."
+                )
+                self._ssl_warning_logged = True  # Ensure warning is logged only once
+
+        self._http_client = httpx.AsyncClient(verify=not self._disable_ssl_verify)
 
         binding = getattr(self.config, "binding", "")
         binding_lower = binding.lower() if isinstance(binding, str) else ""
