@@ -39,19 +39,20 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
         "newer_models_use_max_completion_tokens": True,
         "requires_api_version": True,
     },
-    # Anthropic
+    "azure": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+        "newer_models_use_max_completion_tokens": True,
+        "requires_api_version": True,
+    },
+    # Anthropic (supports 'claude' as legacy alias)
     "anthropic": {
         "supports_response_format": False,  # Anthropic uses different format
         "supports_streaming": True,
         "supports_tools": True,
         "system_in_messages": False,  # System is a separate parameter
-        "has_thinking_tags": False,
-    },
-    "claude": {  # Alias for anthropic
-        "supports_response_format": False,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": False,
         "has_thinking_tags": False,
     },
     # DeepSeek
@@ -130,6 +131,7 @@ DEFAULT_CAPABILITIES: dict[str, Any] = {
     "supports_tools": False,
     "system_in_messages": True,
     "has_thinking_tags": False,
+    "forced_temperature": None,  # None means no forced value, use requested temperature
 }
 
 # Model-specific overrides
@@ -161,6 +163,17 @@ MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
     "anthropic/": {
         "supports_response_format": False,
         "system_in_messages": False,
+    },
+    # Reasoning models - only support temperature=1.0
+    # See: https://github.com/HKUDS/DeepTutor/issues/141
+    "gpt-5": {
+        "forced_temperature": 1.0,
+    },
+    "o1": {
+        "forced_temperature": 1.0,
+    },
+    "o3": {
+        "forced_temperature": 1.0,
     },
 }
 
@@ -300,6 +313,31 @@ def requires_api_version(binding: str, model: Optional[str] = None) -> bool:
     return get_capability(binding, "requires_api_version", model, default=False)
 
 
+def get_effective_temperature(
+    binding: str,
+    model: Optional[str] = None,
+    requested_temp: float = 0.7,
+) -> float:
+    """
+    Get the effective temperature value for a model.
+
+    Some models (e.g., o1, o3, gpt-5) only support a fixed temperature value (1.0).
+    This function returns the forced temperature if defined, otherwise the requested value.
+
+    Args:
+        binding: Provider binding name
+        model: Optional model name for model-specific overrides
+        requested_temp: The temperature value requested by the caller (default: 0.7)
+
+    Returns:
+        The effective temperature to use for the API call
+    """
+    forced_temp = get_capability(binding, "forced_temperature", model)
+    if forced_temp is not None:
+        return forced_temp
+    return requested_temp
+
+
 __all__ = [
     "PROVIDER_CAPABILITIES",
     "MODEL_OVERRIDES",
@@ -311,4 +349,5 @@ __all__ = [
     "has_thinking_tags",
     "supports_tools",
     "requires_api_version",
+    "get_effective_temperature",
 ]

@@ -24,6 +24,12 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
+from typing import Optional, TYPE_CHECKING
+
+import pytest
+
+if TYPE_CHECKING:
+    from src.services.rag import RAGService
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -83,11 +89,13 @@ class PipelineIntegrationTest:
     """
 
     def __init__(self, pipeline_name: str, test_file: Path = TEST_FILE):
-        self.pipeline_name = pipeline_name
-        self.test_file = test_file
-        self.temp_dir = None
-        self.kb_name = f"test_kb_{pipeline_name}"
-        self.service = None
+        self.pipeline_name: str = pipeline_name
+        self.test_file: Path = test_file
+        self.temp_dir: str | None = None
+        self.kb_name: str = f"test_kb_{pipeline_name}"
+
+        # FIX: Use string forward reference or Optional to avoid circular/runtime import issues
+        self.service: Optional["RAGService"] = None
 
     async def setup(self):
         """Setup test environment"""
@@ -400,12 +408,6 @@ async def main():
     # Print summary
     success = print_summary(results)
     sys.exit(0 if success else 1)
-
-
-# Pytest support
-def pytest_addoption(parser):
-    """Add pytest command line options"""
-    parser.addoption("--pipeline", action="store", default="llamaindex", help="Pipeline to test")
 
 
 class TestPipelineIntegration:

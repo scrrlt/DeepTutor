@@ -8,6 +8,7 @@ REST endpoints for session operations.
 
 from pathlib import Path
 import sys
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -117,6 +118,27 @@ async def websocket_chat(websocket: WebSocket):
     language = config.get("system", {}).get("language", "en")
 
     try:
+        llm_config = get_llm_config()
+        api_key = llm_config.api_key
+        base_url = llm_config.base_url
+        api_version = getattr(llm_config, "api_version", None)
+    except Exception as e:
+        # Log configuration loading failure - system will continue with None values
+        # but ChatAgent must handle missing credentials gracefully
+        logger.warning("Failed to load LLM config: %s", e)
+        api_key = None
+        base_url = None
+        api_version = None
+
+    agent = ChatAgent(
+        language=language,
+        config=config,
+        api_key=api_key,
+        base_url=base_url,
+        api_version=api_version,
+    )
+
+    try:
         while True:
             # Receive message
             data = await websocket.receive_json()
@@ -136,8 +158,22 @@ async def websocket_chat(websocket: WebSocket):
                 f"message={message[:50]}..., rag={enable_rag}, web={enable_web_search}"
             )
 
-            try:
-                # Get or create session
+            agent.refresh_config()
+
+            def _get_or_create_session(session_id: str | None, message: str, kb_name: str, enable_rag: bool, enable_web_search: bool):
+                """
+                Get an existing session or create a new one if it doesn't exist.
+
+                Args:
+                    session_id: Existing session ID or None.
+                    message: User message to generate session title.
+                    kb_name: Knowledge base name.
+                    enable_rag: Enable RAG retrieval.
+                    enable_web_search: Enable web search.
+
+                Returns:
+                    Tuple of session and session ID.
+                """
                 if session_id:
                     session = session_manager.get_session(session_id)
                     if not session:
@@ -163,90 +199,77 @@ async def websocket_chat(websocket: WebSocket):
                     )
                     session_id = session["session_id"]
 
-                # Send session ID to frontend
-                await websocket.send_json(
-                    {
-                        "type": "session",
-                        "session_id": session_id,
-                    }
-                )
+                return session, session_id
 
-                # Build history from session or explicit override
-                if explicit_history is not None:
-                    history = explicit_history
-                else:
-                    # Get history from session messages
-                    history = [
-                        {"role": msg["role"], "content": msg["content"]}
-                        for msg in session.get("messages", [])
-                    ]
+            session, session_id = _get_or_create_session(session_id, message, kb_name, enable_rag, enable_web_search)
 
-                # Add user message to session
-                session_manager.add_message(
-                    session_id=session_id,
-                    role="user",
-                    content=message,
-                )
+            # Send session ID to frontend
+            await websocket.send_json(
+                {
+                    "type": "session",
+                    "session_id": session_id,
+                }
+            )
 
-                # Initialize ChatAgent
-                try:
-                    llm_config = get_llm_config()
-                    api_key = llm_config.api_key
-                    base_url = llm_config.base_url
-                    api_version = getattr(llm_config, "api_version", None)
-                except Exception:
-                    api_key = None
-                    base_url = None
-                    api_version = None
+            # Build history from session or explicit override
+            if explicit_history is not None:
+                history = explicit_history
+            else:
+                # Get history from session messages
+                history = [
+                    {"role": msg["role"], "content": msg["content"]}
+                    for msg in session.get("messages", [])
+                ]
 
-                agent = ChatAgent(
-                    language=language,
-                    config=config,
-                    api_key=api_key,
-                    base_url=base_url,
-                    api_version=api_version,
-                )
+            # Add user message to session
+            session_manager.add_message(
+                session_id=session_id,
+                role="user",
+                content=message,
+            )
 
-                # Send status updates
-                if enable_rag and kb_name:
-                    await websocket.send_json(
-                        {
-                            "type": "status",
-                            "stage": "rag",
-                            "message": f"Searching knowledge base: {kb_name}...",
-                        }
-                    )
-
-                if enable_web_search:
-                    await websocket.send_json(
-                        {
-                            "type": "status",
-                            "stage": "web",
-                            "message": "Searching the web...",
-                        }
-                    )
-
+            # Send status updates
+            if enable_rag and kb_name:
                 await websocket.send_json(
                     {
                         "type": "status",
-                        "stage": "generating",
-                        "message": "Generating response...",
+                        "stage": "rag",
+                        "message": f"Searching knowledge base: {kb_name}...",
                     }
                 )
 
-                # Process with streaming
-                full_response = ""
-                sources = {"rag": [], "web": []}
-
-                stream_generator = await agent.process(
-                    message=message,
-                    history=history,
-                    kb_name=kb_name,
-                    enable_rag=enable_rag,
-                    enable_web_search=enable_web_search,
-                    stream=True,
+            if enable_web_search:
+                await websocket.send_json(
+                    {
+                        "type": "status",
+                        "stage": "web",
+                        "message": "Searching the web...",
+                    }
                 )
 
+            await websocket.send_json(
+                {
+                    "type": "status",
+                    "stage": "generating",
+                    "message": "Generating response...",
+                }
+            )
+
+            # Process with streaming
+            full_response = ""
+            sources: dict[str, list[Any]] = {"rag": [], "web": []}
+
+            stream_generator = await agent.process(
+                message=message,
+                history=history,
+                kb_name=kb_name,
+                enable_rag=enable_rag,
+                enable_web_search=enable_web_search,
+                stream=True,
+            )
+
+            # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
+            if hasattr(stream_generator, "__aiter__"):
                 async for chunk_data in stream_generator:
                     if chunk_data["type"] == "chunk":
                         await websocket.send_json(
@@ -260,31 +283,30 @@ async def websocket_chat(websocket: WebSocket):
                         full_response = chunk_data["response"]
                         sources = chunk_data.get("sources", {"rag": [], "web": []})
 
-                # Send sources if any
-                if sources.get("rag") or sources.get("web"):
-                    await websocket.send_json({"type": "sources", **sources})
+            # Send sources if any
+            if sources.get("rag") or sources.get("web"):
+                await websocket.send_json({"type": "sources", **sources})
 
-                # Send final result
-                await websocket.send_json(
-                    {
-                        "type": "result",
-                        "content": full_response,
-                    }
-                )
+            # Send final result
+            await websocket.send_json(
+                {
+                    "type": "result",
+                    "content": full_response,
+                }
+            )
 
-                # Save assistant message to session
-                session_manager.add_message(
-                    session_id=session_id,
-                    role="assistant",
-                    content=full_response,
-                    sources=sources if (sources.get("rag") or sources.get("web")) else None,
-                )
+            # Save assistant message to session
+            session_manager.add_message(
+                session_id=session_id,
+                role="assistant",
+                content=full_response,
+                sources=sources if (sources.get("rag") or sources.get("web")) else None,
+            )
 
-                logger.info(f"Chat completed: session={session_id}, {len(full_response)} chars")
+            logger.info(f"Chat completed: session={session_id}, {len(full_response)} chars")
 
-            except Exception as e:
-                logger.error(f"Chat processing error: {e}")
-                await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception as exc:
+            logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
 
     except WebSocketDisconnect:
         logger.debug("Client disconnected from chat")

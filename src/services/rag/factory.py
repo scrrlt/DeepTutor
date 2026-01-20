@@ -51,8 +51,11 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
         Pipeline instance
 
     Raises:
-        ValueError: If pipeline name is not found
+        ValueError: If pipeline name is not found or is None
     """
+    if not name:
+        raise ValueError("Pipeline name must be specified.")
+
     _init_pipelines()
     if name not in _PIPELINES:
         available = list(_PIPELINES.keys())

@@ -52,14 +52,21 @@ class TextParser(BaseComponent):
             try:
                 with open(file_path, "r", encoding=encoding) as f:
                     content = f.read()
-                break
             except UnicodeDecodeError:
+                logger.warning(f"Unicode decode error for file {file_path}, trying next encoding.")
                 continue
+            except OSError as e:
+                logger.error(f"Failed to read file {file_path}: {e}")
+                raise
 
         if content is None:
             # Last resort: read as binary and decode with error handling
-            with open(file_path, "rb") as f:
-                content = f.read().decode("utf-8", errors="replace")
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read().decode("utf-8", errors="replace")
+            except OSError as e:
+                logger.error(f"Failed to read file {file_path} as binary: {e}")
+                raise
 
         return Document(
             content=content,

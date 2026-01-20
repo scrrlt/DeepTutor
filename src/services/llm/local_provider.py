@@ -13,21 +13,236 @@ Key features:
 """
 
 import json
-from typing import AsyncGenerator, Dict, List, Optional
+import logging
+import os
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
+from .chat_templates import ChatTemplateInfo, render_chat_template, resolve_chat_template
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
+    _collect_model_names,
     build_auth_headers,
     build_chat_url,
+    build_completion_url,
     clean_thinking_tags,
+    collect_model_names,
     extract_response_content,
     sanitize_url,
 )
 
+logger = logging.getLogger(__name__)
+
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
+TEMPLATE_MODE_ENV = "LOCAL_LLM_TEMPLATE_MODE"
+TEMPLATE_MODE_COMPLETIONS = "completions"
+TEMPLATE_MODE_CHAT = "chat"
+
+
+def _process_thinking_content(
+    content: str,
+    in_thinking_block: bool,
+    thinking_buffer: str,
+) -> tuple[bool, str, str | None]:
+    """
+    Strip <think> blocks from streaming content while preserving user output.
+
+    Args:
+        content: Incoming content chunk.
+        in_thinking_block: Whether we're currently inside a <think> block.
+        thinking_buffer: Buffer for accumulating <think> content.
+
+    Returns:
+        Tuple of updated (in_thinking_block, thinking_buffer, output_chunk).
+
+    Raises:
+        None.
+    """
+    if "<think>" in content:
+        idx = content.index("<think>")
+        prefix = content[:idx]
+        in_thinking_block = True
+        thinking_buffer += content[idx:]
+        if prefix:
+            return in_thinking_block, thinking_buffer, prefix
+    elif in_thinking_block:
+        thinking_buffer += content
+    else:
+        return in_thinking_block, thinking_buffer, content
+
+    if "</think>" in thinking_buffer:
+        cleaned = clean_thinking_tags(thinking_buffer)
+        in_thinking_block = False
+        thinking_buffer = ""
+        return in_thinking_block, thinking_buffer, cleaned or None
+
+    return in_thinking_block, thinking_buffer, None
+
+
+def _process_stream_chunk(
+    chunk_data: dict[str, Any],
+    template_mode: str | None,
+    apply_template: bool,
+    in_thinking_block: bool,
+    thinking_buffer: str,
+) -> tuple[bool, str, str | None]:
+    """
+    Process a stream chunk and return updated state plus output.
+
+    Args:
+        chunk_data: Parsed JSON chunk data.
+        template_mode: Template mode override when templates are used.
+        apply_template: Whether a template is applied for completions.
+        in_thinking_block: Whether the stream is inside a <think> block.
+        thinking_buffer: Accumulated <think> content buffer.
+
+    Returns:
+        Updated (in_thinking_block, thinking_buffer, output_chunk).
+
+    Raises:
+        None.
+    """
+    mode = template_mode if apply_template and template_mode else TEMPLATE_MODE_CHAT
+    content = _extract_stream_delta(chunk_data, mode)
+    if content:
+        return _process_thinking_content(content, in_thinking_block, thinking_buffer)
+    return in_thinking_block, thinking_buffer, None
+
+
+def _resolve_template_info(
+    model: str | None,
+    kwargs: dict[str, Any],
+) -> tuple[ChatTemplateInfo | None, str | None, bool]:
+    """
+    Resolve chat template configuration and mode.
+
+    Args:
+        model: Model name.
+        kwargs: Mutable keyword arguments from the caller.
+
+    Returns:
+        Tuple of (template_info, template_mode, apply_template).
+
+    Raises:
+        None.
+    """
+    template = kwargs.pop("chat_template", None)
+    template_path = kwargs.pop("chat_template_path", None)
+    tokenizer_dir = kwargs.pop("tokenizer_dir", None)
+    model_dir = kwargs.pop("model_dir", None)
+    template_dir = kwargs.pop("template_dir", None)
+    apply_template = kwargs.pop("apply_chat_template", None)
+
+    if apply_template is None:
+        apply_template = any(
+            (
+                template,
+                template_path,
+                tokenizer_dir,
+                model_dir,
+                os.getenv("LOCAL_LLM_CHAT_TEMPLATE"),
+                os.getenv("LOCAL_LLM_CHAT_TEMPLATE_PATH"),
+                os.getenv("LOCAL_LLM_TOKENIZER_DIR"),
+                os.getenv("LOCAL_LLM_MODEL_DIR"),
+            )
+        )
+
+    if not apply_template:
+        return None, None, False
+
+    template_info = resolve_chat_template(
+        model=model,
+        template=template,
+        template_path=template_path,
+        tokenizer_dir=tokenizer_dir,
+        model_dir=model_dir,
+        template_dir=template_dir,
+    )
+
+    if not template_info:
+        return None, None, False
+
+    template_mode = kwargs.pop("chat_template_mode", None) or os.getenv(
+        TEMPLATE_MODE_ENV, TEMPLATE_MODE_COMPLETIONS
+    )
+    template_mode = template_mode.lower()
+
+    return template_info, template_mode, True
+
+
+def _extract_completion_text(payload: dict[str, Any]) -> str:
+    """
+    Extract text from a completion response payload.
+
+    Args:
+        payload: Raw response payload.
+
+    Returns:
+        Extracted completion text.
+
+    Raises:
+        None.
+    """
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+
+    first_choice = choices[0]
+    if isinstance(first_choice, dict):
+        text = first_choice.get("text")
+        if isinstance(text, str):
+            return text
+        message = first_choice.get("message", {})
+        return extract_response_content(message)
+
+    return ""
+
+
+def _extract_stream_delta(
+    payload: dict[str, Any],
+    template_mode: str,
+) -> str | None:
+    """
+    Extract streaming delta content based on the API mode.
+
+    Args:
+        payload: Parsed SSE chunk payload.
+        template_mode: Template mode (chat or completions).
+
+    Returns:
+        Extracted delta text, if any.
+
+    Raises:
+        None.
+    """
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+
+    choice = choices[0]
+    if not isinstance(choice, dict):
+        return None
+
+    if template_mode == TEMPLATE_MODE_COMPLETIONS:
+        text = choice.get("text")
+        if isinstance(text, str) and text:
+            return text
+        delta = choice.get("delta", {})
+        if isinstance(delta, dict):
+            text = delta.get("text")
+            if isinstance(text, str) and text:
+                return text
+        return None
+
+    delta = choice.get("delta", {})
+    if isinstance(delta, dict):
+        text = delta.get("content")
+        if isinstance(text, str) and text:
+            return text
+
+    return None
 
 
 async def complete(
@@ -37,7 +252,7 @@ async def complete(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using local LLM server.
@@ -59,9 +274,8 @@ async def complete(
     if not base_url:
         raise LLMConfigError("base_url is required for local LLM provider")
 
-    # Sanitize URL and build chat endpoint
+    # Sanitize URL and build endpoint
     base_url = sanitize_url(base_url, model or "")
-    url = build_chat_url(base_url)
 
     # Build headers using unified utility
     headers = build_auth_headers(api_key)
@@ -75,13 +289,35 @@ async def complete(
             {"role": "user", "content": prompt},
         ]
 
-    # Build request data
-    data = {
-        "model": model or "default",
-        "messages": msg_list,
-        "temperature": kwargs.get("temperature", 0.7),
-        "stream": False,
-    }
+    template_info, template_mode, apply_template = _resolve_template_info(
+        model,
+        kwargs,
+    )
+
+    if apply_template and template_info and template_mode:
+        rendered_prompt = render_chat_template(
+            msg_list,
+            template_info,
+            add_generation_prompt=kwargs.pop(
+                "add_generation_prompt",
+                True,
+            ),
+        )
+        url = build_completion_url(base_url)
+        data = {
+            "model": model or "default",
+            "prompt": rendered_prompt,
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": False,
+        }
+    else:
+        url = build_chat_url(base_url)
+        data = {
+            "model": model or "default",
+            "messages": msg_list,
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": False,
+        }
 
     # Add optional parameters
     if kwargs.get("max_tokens"):
@@ -102,10 +338,11 @@ async def complete(
             result = await response.json()
 
             if "choices" in result and result["choices"]:
-                msg = result["choices"][0].get("message", {})
-                # Use unified response extraction
-                content = extract_response_content(msg)
-                # Clean thinking tags using unified utility
+                if apply_template and template_mode == TEMPLATE_MODE_COMPLETIONS:
+                    content = _extract_completion_text(result)
+                else:
+                    msg = result["choices"][0].get("message", {})
+                    content = extract_response_content(msg)
                 content = clean_thinking_tags(content)
                 return content
 
@@ -119,7 +356,7 @@ async def stream(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.
@@ -142,9 +379,8 @@ async def stream(
     if not base_url:
         raise LLMConfigError("base_url is required for local LLM provider")
 
-    # Sanitize URL and build chat endpoint
+    # Sanitize URL and build endpoint
     base_url = sanitize_url(base_url, model or "")
-    url = build_chat_url(base_url)
 
     # Build headers using unified utility
     headers = build_auth_headers(api_key)
@@ -158,13 +394,35 @@ async def stream(
             {"role": "user", "content": prompt},
         ]
 
-    # Build request data
-    data = {
-        "model": model or "default",
-        "messages": msg_list,
-        "temperature": kwargs.get("temperature", 0.7),
-        "stream": True,
-    }
+    template_info, template_mode, apply_template = _resolve_template_info(
+        model,
+        kwargs,
+    )
+
+    if apply_template and template_info and template_mode:
+        rendered_prompt = render_chat_template(
+            msg_list,
+            template_info,
+            add_generation_prompt=kwargs.pop(
+                "add_generation_prompt",
+                True,
+            ),
+        )
+        url = build_completion_url(base_url)
+        data = {
+            "model": model or "default",
+            "prompt": rendered_prompt,
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": True,
+        }
+    else:
+        url = build_chat_url(base_url)
+        data = {
+            "model": model or "default",
+            "messages": msg_list,
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": True,
+        }
 
     if kwargs.get("max_tokens"):
         data["max_tokens"] = kwargs["max_tokens"]
@@ -202,28 +460,19 @@ async def stream(
 
                         try:
                             chunk_data = json.loads(data_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
-
-                                if content:
-                                    # Handle thinking tags in streaming
-                                    if "<think>" in content:
-                                        in_thinking_block = True
-                                        thinking_buffer = content
-                                        continue
-                                    elif in_thinking_block:
-                                        thinking_buffer += content
-                                        if "</think>" in thinking_buffer:
-                                            # End of thinking block, clean and yield
-                                            cleaned = clean_thinking_tags(thinking_buffer)
-                                            if cleaned:
-                                                yield cleaned
-                                            in_thinking_block = False
-                                            thinking_buffer = ""
-                                        continue
-                                    else:
-                                        yield content
+                            (
+                                in_thinking_block,
+                                thinking_buffer,
+                                output_chunk,
+                            ) = _process_stream_chunk(
+                                chunk_data,
+                                template_mode,
+                                apply_template,
+                                in_thinking_block,
+                                thinking_buffer,
+                            )
+                            if output_chunk:
+                                yield output_chunk
 
                         except json.JSONDecodeError:
                             # Non-JSON response, might be raw text
@@ -234,19 +483,33 @@ async def stream(
                     elif line_str.startswith("{"):
                         try:
                             chunk_data = json.loads(line_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
-                                if content:
-                                    yield content
+                            (
+                                in_thinking_block,
+                                thinking_buffer,
+                                output_chunk,
+                            ) = _process_stream_chunk(
+                                chunk_data,
+                                template_mode,
+                                apply_template,
+                                in_thinking_block,
+                                thinking_buffer,
+                            )
+                            if output_chunk:
+                                yield output_chunk
                         except json.JSONDecodeError:
                             pass
+                    # Handle any remaining raw text chunks from non-SSE/non-JSON responses
+                    elif line_str:
+                        # Always clean raw text chunks to strip any thinking tags if present
+                        cleaned_text = clean_thinking_tags(line_str)
+                        if cleaned_text:
+                            yield cleaned_text
 
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        print(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
             content = await complete(
@@ -304,9 +567,11 @@ async def fetch_models(
                     if resp.status == 200:
                         data = await resp.json()
                         if "models" in data:
-                            return [m["name"] for m in data.get("models", [])]
+                            return collect_model_names(data["models"])
             except Exception:
-                pass
+                # Fail silently if model fetching fails for this endpoint
+                # We continue trying other endpoints or return empty list
+                pass  # nosec B110
 
         # Try OpenAI-compatible /models
         try:
@@ -317,26 +582,13 @@ async def fetch_models(
 
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
+                        return collect_model_names(data["data"])
                     elif "models" in data and isinstance(data["models"], list):
-                        if data["models"] and isinstance(data["models"][0], dict):
-                            return [
-                                m.get("id") or m.get("name")
-                                for m in data["models"]
-                                if m.get("id") or m.get("name")
-                            ]
-                        return [str(m) for m in data["models"]]
+                        return collect_model_names(data["models"])
                     elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                        return collect_model_names(data)
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []
 

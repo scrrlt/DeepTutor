@@ -53,6 +53,8 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { processLatexContent } from "@/lib/latex";
+import { loadFromStorage, saveToStorage, STORAGE_KEYS } from "@/lib/persistence";
+import { debounce } from "@/lib/debounce";
 
 interface CoWriterEditorProps {
   initialValue?: string;
@@ -63,13 +65,54 @@ const AI_MARK_REGEX = /<span\s+data-rough-notation="[^"]+">([^<]*)<\/span>/g;
 const AI_MARK_OPEN_TAG = /<span\s+data-rough-notation="[^"]+">/g;
 const AI_MARK_CLOSE_TAG = /<\/span>/g;
 
+// Default content for new documents
+const DEFAULT_COWRITER_CONTENT =
+  "# Welcome to Co-Writer\n\nSelect text to see the magic happen.\n\n## Features\n\n- **Bold** text with Ctrl+B\n- *Italic* text with Ctrl+I\n- <u>Underline</u> with Ctrl+U\n- <mark>Highlight</mark> with Ctrl+H\n- AI-powered editing and auto-marking\n";
+
 export default function CoWriterEditor({
   initialValue = "",
 }: CoWriterEditorProps) {
-  const [content, setContent] = useState(
-    initialValue ||
-      "# Welcome to Co-Writer\n\nSelect text to see the magic happen.\n\n## Features\n\n- **Bold** text with Ctrl+B\n- *Italic* text with Ctrl+I\n- <u>Underline</u> with Ctrl+U\n- <mark>Highlight</mark> with Ctrl+H\n- AI-powered editing and auto-marking\n",
+  // Track hydration to avoid SSR mismatch
+  const isHydrated = useRef(false);
+
+  // Initialize with default content (same on server and client)
+  const [content, setContent] = useState(initialValue || DEFAULT_COWRITER_CONTENT);
+
+  // Debounced save for content
+  const saveContent = useCallback(
+    debounce((text: string) => {
+      if (!isHydrated.current) return;
+      saveToStorage(STORAGE_KEYS.COWRITER_CONTENT, text);
+    }, 1000), // 1 second debounce for content to avoid too frequent saves while typing
+    []
   );
+
+  // Restore persisted content after hydration
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // If initialValue was provided, don't load from storage
+    if (initialValue) {
+      isHydrated.current = true;
+      return;
+    }
+    
+    const persistedContent = loadFromStorage<string>(
+      STORAGE_KEYS.COWRITER_CONTENT,
+      DEFAULT_COWRITER_CONTENT
+    );
+    if (persistedContent !== DEFAULT_COWRITER_CONTENT) {
+      setContent(persistedContent);
+    }
+    isHydrated.current = true;
+  }, [initialValue]);
+
+  // Auto-save content on change (only after hydration)
+  useEffect(() => {
+    if (isHydrated.current) {
+      saveContent(content);
+    }
+  }, [content, saveContent]);
+
   const [selection, setSelection] = useState<{
     start: number;
     end: number;

@@ -6,14 +6,61 @@ Knowledge Base Manager
 Manages multiple knowledge bases and provides utilities for accessing them.
 """
 
+from contextlib import contextmanager
 from datetime import datetime
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
+import sys
 
 from src.services.rag.components.routing import FileTypeRouter
+
+
+# Cross-platform file locking
+@contextmanager
+def file_lock_shared(file_handle):
+    """Acquire a shared (read) lock on a file - cross-platform."""
+    if sys.platform == "win32":
+        import msvcrt
+
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+        try:
+            yield
+        finally:
+            file_handle.seek(0)
+            msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_SH)
+        try:
+            yield
+        finally:
+            fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def file_lock_exclusive(file_handle):
+    """Acquire an exclusive (write) lock on a file - cross-platform."""
+    if sys.platform == "win32":
+        import msvcrt
+
+        msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+        try:
+            yield
+        finally:
+            file_handle.seek(0)
+            msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
 
 
 class KnowledgeBaseManager:
@@ -29,20 +76,15 @@ class KnowledgeBaseManager:
 
     def _load_config(self) -> dict:
         """Load knowledge base configuration (kb_config.json only stores KB list)"""
-        import fcntl
-
         if self.config_file.exists():
             try:
                 with open(self.config_file, encoding="utf-8") as f:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
-                    try:
+                    with file_lock_shared(f):
                         content = f.read()
                         if not content.strip():
                             # Empty file, return default
                             return {"knowledge_bases": {}}
                         config = json.loads(content)
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
                 # Ensure knowledge_bases key exists
                 if "knowledge_bases" not in config:
@@ -62,17 +104,12 @@ class KnowledgeBaseManager:
 
     def _save_config(self):
         """Save knowledge base configuration (thread-safe with file locking)"""
-        import fcntl
-
         # Use exclusive lock for writing
         with open(self.config_file, "w", encoding="utf-8") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
+            with file_lock_exclusive(f):
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
                 f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     def update_kb_status(
         self,

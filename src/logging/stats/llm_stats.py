@@ -22,6 +22,7 @@ Usage:
     stats.log_summary()  # Uses logging system
 """
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -197,3 +198,61 @@ class LLMStats:
         self.total_completion_tokens = 0
         self.total_cost = 0.0
         self.model_used = None
+
+
+@dataclass
+class ProviderUsageStats:
+    """Aggregate usage stats for a single provider."""
+
+    calls: int = 0
+    tokens: int = 0
+    cost: float = 0.0
+    model_tokens: dict[str, int] = field(default_factory=dict)
+    model_costs: dict[str, float] = field(default_factory=dict)
+
+
+class LLMTelemetryStats:
+    """
+    Lightweight in-memory telemetry recorder for LLM calls.
+
+    This tracker is intended for decorator-driven metrics such as latency,
+    time-to-first-token (TTFT), usage, and error counts.
+    """
+
+    def __init__(self) -> None:
+        self.latencies: dict[str, list[float]] = defaultdict(list)
+        self.ttft: dict[str, list[float]] = defaultdict(list)
+        self.errors: dict[str, dict[str, int]] = defaultdict(dict)
+        self.usage: dict[str, ProviderUsageStats] = defaultdict(ProviderUsageStats)
+
+    def record_latency(self, provider: str, duration: float) -> None:
+        """Record total request latency for a provider."""
+        self.latencies[provider].append(duration)
+
+    def record_ttft(self, provider: str, duration: float) -> None:
+        """Record time-to-first-token for a provider."""
+        self.ttft[provider].append(duration)
+
+    def record_usage(
+        self,
+        provider: str,
+        model: str,
+        tokens: int,
+        cost: float,
+    ) -> None:
+        """Record token usage and cost for a provider/model."""
+        usage = self.usage[provider]
+        usage.calls += 1
+        usage.tokens += tokens
+        usage.cost += cost
+        usage.model_tokens[model] = usage.model_tokens.get(model, 0) + tokens
+        usage.model_costs[model] = usage.model_costs.get(model, 0.0) + cost
+
+    def record_error(self, provider: str, error_type: str) -> None:
+        """Record an error occurrence for a provider."""
+        errors = self.errors.setdefault(provider, {})
+        errors[error_type] = errors.get(error_type, 0) + 1
+
+
+llm_stats = LLMTelemetryStats()
+# Global telemetry recorder for LLM decorators.

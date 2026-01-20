@@ -53,16 +53,17 @@ class LLMClient:
         import os
 
         binding = getattr(self.config, "binding", "openai")
+        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
 
         # Only set env vars for OpenAI-compatible bindings
-        if binding in ("openai", "azure_openai", "gemini"):
+        if binding_lower in ("openai", "azure", "azure_openai", "gemini"):
             if self.config.api_key:
                 os.environ["OPENAI_API_KEY"] = self.config.api_key
                 self.logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility")
 
             if self.config.base_url:
                 os.environ["OPENAI_BASE_URL"] = self.config.base_url
-                self.logger.debug(f"Set OPENAI_BASE_URL env var to {self.config.base_url}")
+                self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
 
     async def complete(
         self,

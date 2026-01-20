@@ -29,6 +29,11 @@ if __name__ == "__main__":
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
+    # Initialize environment variables for LightRAG/OpenAI compatibility
+    from src.services.llm.config import initialize_environment
+
+    initialize_environment()
+
     # Get port from configuration
     from src.services.setup import get_backend_port
 
