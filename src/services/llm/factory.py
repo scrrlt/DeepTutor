@@ -241,9 +241,12 @@ async def complete(
         "model": model,
         "api_key": api_key,
         "base_url": base_url,
-        "messages": messages,
         **kwargs,
     }
+
+    # Only include messages if it's not None
+    if messages is not None:
+        call_kwargs["messages"] = messages
 
     # Add cloud-specific kwargs if not local
     if not use_local:
@@ -313,9 +316,12 @@ async def stream(
         "model": model,
         "api_key": api_key,
         "base_url": base_url,
-        "messages": messages,
         **kwargs,
     }
+
+    # Only include messages if it's not None
+    if messages is not None:
+        call_kwargs["messages"] = messages
 
     # Add cloud-specific kwargs if not local
     if not use_local:
