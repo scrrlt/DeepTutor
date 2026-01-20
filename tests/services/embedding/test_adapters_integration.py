@@ -6,8 +6,15 @@ from src.services.embedding.adapters.openai_compatible import (
 )
 from src.services.embedding.adapters.jina import JinaEmbeddingAdapter
 from src.services.embedding.adapters.cohere import CohereEmbeddingAdapter
-from src.services.embedding.adapters.azure import AzureEmbeddingAdapter
 from src.services.embedding.adapters.base import EmbeddingRequest
+
+
+RUN_NETWORK_TESTS = os.getenv("RUN_LLM_NETWORK_TESTS") == "1"
+
+pytestmark = pytest.mark.skipif(
+    not RUN_NETWORK_TESTS,
+    reason="Set RUN_LLM_NETWORK_TESTS=1 to enable real embedding calls.",
+)
 
 
 @pytest.mark.asyncio

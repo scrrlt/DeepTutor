@@ -117,10 +117,10 @@ from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
 from .utils import (
-    collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
+    collect_model_names,
     extract_response_content,
     sanitize_url,
 )
@@ -162,6 +162,19 @@ async def complete(
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
         temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
         return await _anthropic_complete(
+            model=model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            api_key=api_key,
+            base_url=base_url,
+            max_tokens=max_tokens_value,
+            temperature=temperature_value,
+        )
+
+    if binding_lower == "cohere":
+        max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
+        temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
+        return await _cohere_complete(
             model=model,
             prompt=prompt,
             system_prompt=system_prompt,
@@ -303,8 +316,8 @@ async def _openai_complete(
             _lightrag_logger.setLevel(original_lightrag_level)
             _openai_logger.setLevel(original_openai_level)
     except Exception:
-        pass  # Fall through to direct call
-
+        # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
+        pass  # nosec B110
     # Fallback: Direct aiohttp call
     if not content and base_url:
         # Build URL using unified utility (use binding for Azure detection)
@@ -320,7 +333,7 @@ async def _openai_complete(
                 {"role": "user", "content": prompt},
             ],
             "temperature": get_effective_temperature(
-                binding, model, kwargs.get("temperature", 0.7)
+                binding, model, _coerce_float(kwargs.get("temperature"), 0.7)
             ),
         }
 
@@ -417,7 +430,6 @@ async def _openai_stream(
         "stream": True,
     }
 
-
     # Handle max_tokens / max_completion_tokens based on model
     max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
     if max_tokens_value is None:
@@ -471,13 +483,13 @@ async def _openai_stream(
                             content = None
                         if isinstance(content, str) and content:
                             # Handle thinking tags in streaming
-                            if "<think>" in content:
+                            if "꽁" in content:
                                 in_thinking_block = True
                                 thinking_buffer = content
                                 continue
                             elif in_thinking_block:
                                 thinking_buffer += content
-                                if "</think>" in thinking_buffer:
+                                if "꽁" in thinking_buffer:
                                     # End of thinking block, clean and yield
                                     cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
@@ -644,6 +656,59 @@ async def _anthropic_stream(
                             yield text
                 except json.JSONDecodeError:
                     continue
+
+
+async def _cohere_complete(
+    model: str,
+    prompt: str,
+    system_prompt: str,
+    api_key: Optional[str],
+    base_url: Optional[str],
+    max_tokens: int | None = None,
+    temperature: float | None = None,
+) -> str:
+    """Cohere API completion."""
+    api_key = api_key or os.getenv("COHERE_API_KEY")
+    if not api_key:
+        raise LLMAuthenticationError("Cohere API key is missing.", provider="cohere")
+
+    # Build URL using unified utility
+    effective_base = base_url or "https://api.cohere.ai/v1"
+    url = f"{effective_base}/chat"
+
+    # Build headers using unified utility
+    headers = build_auth_headers(api_key, binding="cohere")
+
+    max_tokens_value = max_tokens if max_tokens is not None else 4096
+    temperature_value = temperature if temperature is not None else 0.7
+    data: dict[str, object] = {
+        "model": model,
+        "message": f"{system_prompt}\n\n{prompt}",
+        "max_tokens": max_tokens_value,
+        "temperature": temperature_value,
+    }
+
+    timeout = aiohttp.ClientTimeout(total=120)
+    connector = _get_aiohttp_connector()
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise LLMAPIError(
+                    f"Cohere API error: {error_text}",
+                    status_code=response.status,
+                    provider="cohere",
+                )
+
+            result = cast(dict[str, object], await response.json())
+            text = result.get("text")
+            if isinstance(text, str):
+                return text
+            raise LLMAPIError(
+                "Cohere API error: unexpected response payload",
+                status_code=response.status,
+                provider="cohere",
+            )
 
 
 async def fetch_models(

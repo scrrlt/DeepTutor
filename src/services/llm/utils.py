@@ -11,7 +11,7 @@ Utility functions for LLM service:
 
 from collections.abc import Mapping, Sequence
 import re
-from typing import Any, Optional
+from typing import Any, cast
 
 # Known cloud provider domains (should never be treated as local)
 CLOUD_DOMAINS = [
@@ -45,7 +45,7 @@ LOCAL_PORTS = [
 LOCAL_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "0.0.0.0",
+    "0.0.0.0",  # Used by some local LLM servers for all-interface binding  # nosec B104
 ]
 
 # Ports that need /v1 suffix for OpenAI compatibility
@@ -181,8 +181,8 @@ def sanitize_url(base_url: str, model: str = "") -> str:
 
 def clean_thinking_tags(
     content: str,
-    binding: Optional[str] = None,
-    model: Optional[str] = None,
+    binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Remove thinking tags from model output.
@@ -218,8 +218,8 @@ def clean_thinking_tags(
 
 def build_chat_url(
     base_url: str,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
+    api_version: str | None = None,
+    binding: str | None = None,
 ) -> str:
     """
     Build the full chat completions endpoint URL.
@@ -236,6 +236,9 @@ def build_chat_url(
 
     Returns:
         Full endpoint URL
+
+    Raises:
+        ValueError: If an unsupported binding is provided.
     """
     if not base_url:
         return base_url
@@ -253,6 +256,49 @@ def build_chat_url(
             url += "/chat/completions"
 
     # Add api-version for Azure OpenAI
+    if api_version:
+        separator = "&" if "?" in url else "?"
+        url += f"{separator}api-version={api_version}"
+
+    return url
+
+
+def build_completion_url(
+    base_url: str,
+    api_version: str | None = None,
+    binding: str | None = None,
+) -> str:
+    """
+    Build the full completions endpoint URL.
+
+    Handles:
+    - Adding /completions suffix for OpenAI-compatible endpoints
+    - Adding api-version query parameter for Azure OpenAI
+
+    Args:
+        base_url: Base URL (should be sanitized first)
+        api_version: API version for Azure OpenAI (optional)
+        binding: Provider binding name (optional, for compatibility)
+
+    Returns:
+        Full endpoint URL
+
+    Raises:
+        ValueError: If binding is 'anthropic' or 'claude' (Anthropic does not
+            support the legacy completions endpoint).
+    """
+    if not base_url:
+        return base_url
+
+    url = base_url.rstrip("/")
+
+    binding_lower = (binding or "").lower()
+    if binding_lower in ["anthropic", "claude"]:
+        raise ValueError("Anthropic does not support /completions endpoint")
+
+    if not url.endswith("/completions"):
+        url += "/completions"
+
     if api_version:
         separator = "&" if "?" in url else "?"
         url += f"{separator}api-version={api_version}"
@@ -298,7 +344,7 @@ def extract_response_content(message: Any) -> str:
     return str(content)
 
 
-def _normalize_model_name(entry: object) -> Optional[str]:
+def _normalize_model_name(entry: object) -> str | None:
     """
     Normalize a model name from a provider payload entry.
 
@@ -307,6 +353,9 @@ def _normalize_model_name(entry: object) -> Optional[str]:
 
     Returns:
         The normalized model name, or None if one cannot be derived.
+
+    Raises:
+        None.
     """
     if entry is None:
         return None
@@ -315,16 +364,19 @@ def _normalize_model_name(entry: object) -> Optional[str]:
         return entry if entry else None
 
     if isinstance(entry, Mapping):
-        mapping = entry
-        name = mapping.get("id")
+        # Use cast to ensure type safety - Mapping interface doesn't guarantee get() method
+        # but we know this will be a dict-like object in practice from model APIs
+        entry_dict = cast(dict[str, Any], entry)
+        name = entry_dict.get("id")
         if name is None:
-            name = mapping.get("name")
+            name = entry_dict.get("name")
         if name is None:
             return None
         text = str(name)
         return text if text else None
 
-    return str(entry)
+    text = str(entry)
+    return text if text else None
 
 
 def collect_model_names(entries: Sequence[object]) -> list[str]:
@@ -336,6 +388,9 @@ def collect_model_names(entries: Sequence[object]) -> list[str]:
 
     Returns:
         List of normalized model names.
+
+    Raises:
+        None.
     """
     names: list[str] = []
     for entry in entries:
@@ -346,8 +401,8 @@ def collect_model_names(entries: Sequence[object]) -> list[str]:
 
 
 def build_auth_headers(
-    api_key: Optional[str],
-    binding: Optional[str] = None,
+    api_key: str | None,
+    binding: str | None = None,
 ) -> dict[str, str]:
     """
     Build authentication headers for LLM API requests.
@@ -358,6 +413,9 @@ def build_auth_headers(
 
     Returns:
         Headers dict
+
+    Raises:
+        None.
     """
     headers = {"Content-Type": "application/json"}
 
@@ -382,6 +440,7 @@ __all__ = [
     "sanitize_url",
     "is_local_llm_server",
     "build_chat_url",
+    "build_completion_url",
     "build_auth_headers",
     "collect_model_names",
     # Content utilities

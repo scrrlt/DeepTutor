@@ -5,8 +5,10 @@ Base LLM Provider - Unified interface and configuration.
 
 from abc import ABC, abstractmethod
 import logging
+from typing import Any, Callable, Coroutine, Dict, TypeVar
 import warnings
-from typing import Any, Callable, Dict
+
+T = TypeVar("T")
 
 from ....utils.error_rate_tracker import record_provider_call
 from ....utils.network.circuit_breaker import (
@@ -65,10 +67,26 @@ class BaseLLMProvider(ABC):
         """Placeholder for cost calculation logic."""
         return 0.0
 
-    async def execute_guarded(self, func: Callable, *args, **kwargs):
+    async def execute_guarded(
+        self,
+        func: Callable[..., Coroutine[Any, Any, T]],
+        *args,
+        **kwargs,
+    ) -> T:
         """
         Execute provider call with circuit breaker and traffic control.
         Renamed from 'execute_with_retry' since retry logic is external.
+
+        Args:
+            func: Coroutine function to execute.
+            *args: Positional arguments for func.
+            **kwargs: Keyword arguments for func.
+
+        Returns:
+            Result of the wrapped call.
+
+        Raises:
+            LLMError: If the circuit breaker is open or the call fails.
         """
         self._check_deprecated_kwargs(kwargs)
         # 1. Circuit Breaker Check

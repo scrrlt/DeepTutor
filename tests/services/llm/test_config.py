@@ -10,7 +10,11 @@ from src.services.llm.config import (
 def test_uses_max_completion_tokens_for_supported_models() -> None:
     """Ensure supported models use max_completion_tokens."""
     assert uses_max_completion_tokens("o1-mini")
+    assert uses_max_completion_tokens("o1")
+    assert uses_max_completion_tokens("o3-mini")
     assert uses_max_completion_tokens("gpt-4o-mini")
+    assert uses_max_completion_tokens("gpt-4o")
+    assert uses_max_completion_tokens("gpt-5")
 
 
 def test_uses_max_completion_tokens_false_for_legacy_models() -> None:

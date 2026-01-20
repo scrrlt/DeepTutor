@@ -26,6 +26,8 @@ import sys
 import tempfile
 from typing import Optional, TYPE_CHECKING
 
+import pytest
+
 if TYPE_CHECKING:
     from src.services.rag import RAGService
 
@@ -406,12 +408,6 @@ async def main():
     # Print summary
     success = print_summary(results)
     sys.exit(0 if success else 1)
-
-
-# Pytest support
-def pytest_addoption(parser):
-    """Add pytest command line options"""
-    parser.addoption("--pipeline", action="store", default="llamaindex", help="Pipeline to test")
 
 
 class TestPipelineIntegration:

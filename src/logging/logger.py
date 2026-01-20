@@ -263,6 +263,9 @@ class Logger:
             "module_name": self.name,
             "display_level": display_level or logging.getLevelName(level),
         }
+        caller_extra = kwargs.get("extra")
+        if isinstance(caller_extra, dict):
+            extra = {**caller_extra, **extra}
         # Extract standard logging parameters from kwargs
         log_kwargs = {
             "extra": extra,

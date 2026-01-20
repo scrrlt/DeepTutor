@@ -149,7 +149,7 @@ def get_embedding_config() -> EmbeddingConfig:
     )
 
     return EmbeddingConfig(
-        binding=binding,
+        binding=binding or "openai",
         model=model,
         api_key=api_key or "",
         base_url=base_url,

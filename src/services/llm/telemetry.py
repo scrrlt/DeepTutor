@@ -6,23 +6,22 @@ LLM Telemetry
 Basic telemetry tracking for LLM calls.
 """
 
+from collections.abc import AsyncGenerator, Callable
 import functools
 import inspect
 import logging
 import time
-from typing import AsyncGenerator, Awaitable, Callable, ParamSpec, TypeVar
+from typing import Any, TypeVar
 
 from src.logging.stats import llm_stats
 
 logger = logging.getLogger(__name__)
 
-P = ParamSpec("P")
-T = TypeVar("T")
+# TypeVar for preserving decorated function type information
+F = TypeVar("F", bound=Callable[..., Any])
 
 
-def track_llm_call(
-    provider_name: str,
-) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+def track_llm_call(provider_name: str) -> Callable[[F], F]:
     """
     Decorator to track LLM calls for telemetry.
 
@@ -31,13 +30,28 @@ def track_llm_call(
 
     Returns:
         Decorator function
+
+    Raises:
+        None.
     """
 
-    def decorator(
-        func: Callable[P, Awaitable[T]],
-    ) -> Callable[P, Awaitable[T]]:
+    def decorator(func: Any) -> Any:
+        if inspect.isasyncgenfunction(func):
+
+            @functools.wraps(func)
+            async def generator_wrapper(*args, **kwargs):
+                start_time = time.perf_counter()
+                logger.debug("LLM call to %s: %s", provider_name, func.__name__)
+                # Instantiation errors are rare; iteration errors are handled in _wrap_stream.
+                stream = func(*args, **kwargs)
+
+                async for chunk in _wrap_stream(provider_name, stream, start_time):
+                    yield chunk
+
+            return generator_wrapper
+
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args, **kwargs):
             start_time = time.perf_counter()
             logger.debug("LLM call to %s: %s", provider_name, func.__name__)
             try:
@@ -48,9 +62,6 @@ def track_llm_call(
                 llm_stats.record_error(provider_name, type(e).__name__)
                 logger.warning("LLM call to %s failed: %s", provider_name, e)
                 raise
-
-            if inspect.isasyncgen(result):
-                return _wrap_stream(provider_name, result, start_time)
 
             duration = time.perf_counter() - start_time
             llm_stats.record_latency(provider_name, duration)
@@ -79,9 +90,9 @@ def track_llm_call(
 
 async def _wrap_stream(
     provider_name: str,
-    stream: AsyncGenerator[T, None],
+    stream: AsyncGenerator[Any, None],
     start_time: float,
-) -> AsyncGenerator[T, None]:
+) -> AsyncGenerator[Any, None]:
     """
     Wrap an async generator to record streaming telemetry metrics.
 
@@ -92,8 +103,12 @@ async def _wrap_stream(
 
     Yields:
         Streamed chunks from the provider.
+
+    Raises:
+        Exception: Propagates stream iteration errors.
     """
     first_chunk_time: float | None = None
+    completed = False
     try:
         async for chunk in stream:
             if first_chunk_time is None and _has_stream_payload(chunk):
@@ -102,12 +117,15 @@ async def _wrap_stream(
                     provider_name, first_chunk_time - start_time
                 )
             yield chunk
+        completed = True
     except Exception as exc:
         llm_stats.record_error(provider_name, type(exc).__name__)
         raise
     finally:
         duration = time.perf_counter() - start_time
         llm_stats.record_latency(provider_name, duration)
+        if completed:
+            logger.debug("LLM stream to %s completed successfully", provider_name)
 
 
 def _has_stream_payload(chunk: object) -> bool:
@@ -119,6 +137,9 @@ def _has_stream_payload(chunk: object) -> bool:
 
     Returns:
         True when the chunk includes meaningful text content.
+
+    Raises:
+        None.
     """
     if isinstance(chunk, str):
         return bool(chunk)

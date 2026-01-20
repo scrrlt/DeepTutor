@@ -61,6 +61,19 @@ class BaseEmbeddingAdapter(ABC):
     (OpenAI, Cohere, Ollama, etc.) while exposing a unified interface.
     """
 
+    def _validate_texts(self, texts: list[str]) -> None:
+        """
+        Validate that texts list is not empty.
+
+        Args:
+            texts: List of texts to validate
+
+        Raises:
+            ValueError: If texts list is empty
+        """
+        if not texts:
+            raise ValueError("Embedding request requires at least one text")
+
     def __init__(self, config: dict[str, Any]):
         """
         Initialize the adapter with configuration.

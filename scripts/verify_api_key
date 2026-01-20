@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import os
+import sys
+import requests
+
+
+def verify_openai_key(api_key: str) -> bool:
+    url = "https://api.openai.com/v1/models"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        # If you have a custom CA bundle, set verify="path/to/ca-bundle.crt"
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            return True
+        elif response.status_code == 401:
+            return False
+        else:
+            print(f"⚠ Unexpected status: {response.status_code} - {response.text}")
+            sys.exit(2)
+    except requests.exceptions.SSLError as e:
+        print(f"❌ SSL error: {e}")
+        print("Tip: Try adding verify='/mingw64/ssl/certs/ca-bundle.crt' in requests.get()")
+        sys.exit(3)
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection error: {e}")
+        print("Tip: Check your internet, VPN, or firewall settings.")
+        sys.exit(4)
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        sys.exit(5)
+
+
+def main():
+    # Note: Passing API key as argument exposes it in process listings.
+    # Prefer using the OPENAI_API_KEY environment variable for security.
+    if len(sys.argv) > 1:
+        api_key = sys.argv[1]
+    else:
+        api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        print("❌ No API key provided. Pass it as an argument or set OPENAI_API_KEY.")
+        sys.exit(1)
+    print("🔍 Verifying API key...")
+    if verify_openai_key(api_key):
+        print("✅ API key is valid.")
+        sys.exit(0)
+    else:
+        print("❌ API key is invalid.")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -61,18 +61,73 @@ While local pre-commit hooks are configured to be lenient and may only show warn
 - **Pathing**: Use `pathlib.Path` for all operations to ensure cross-platform (Windows/Linux/macOS) compatibility.
 - **Line Endings**: LF (Unix) line endings are enforced for critical scripts via `.gitattributes`.
 
-## 💻 Coding Standards
-To keep the codebase maintainable, please follow these guidelines:
-### Python Guidelines
-- Use Type Hints for all function signatures.
-- Prefer f-strings for string formatting.
-- Follow PEP 8 (mostly enforced by Ruff/Black).
-- Keep functions small and focused on a single responsibility.
+## 🧪 Testing & Coverage Requirements
 
-### Documentation
-- Every new module, class, and public function should have a docstring.
-- Use the Google Python Style Guide for docstring formatting.
-- Update `README.md` if your change introduces new features or configuration variables.
+### Coverage Goals
+- **Docstring Coverage**: 100% for all exported symbols (functions, classes, modules)
+- **Pytest Coverage**: 80-90% overall, with 100% branch coverage for critical business logic (LLM, embedding, RAG pipelines)
+
+### Testing Frameworks
+- **Unit Tests**: pytest with asyncio support
+- **Integration Tests**: For LLM/embedding providers (requires API keys)
+- **Type Checking**: mypy with strict mode
+- **Linting**: ruff (replaces flake8, isort, pylint)
+
+### Running Tests
+
+#### Basic Test Suite
+```bash
+# Run all unit tests (no network calls)
+pytest
+
+# Run with coverage report
+pytest --cov=src --cov-report=html
+```
+
+#### LLM & Embedding Tests (Required for Related Changes)
+> [!WARNING]
+> If you're working on LLM, embedding, or RAG features, you **MUST** run network tests to ensure providers work correctly.
+
+**Prerequisites**: Populate `.env` with API keys for providers you want to test.
+
+
+# SSL inspection must be disabled to avoid SSL/TLS errors during tests.
+DISABLE_SSL_VERIFY=true  # Set to 'true' to disable SSL verification for LLM network tests.
+                        # It is recommended to set this to 'true' only for testing purposes.
+
+# [Optional] For VS Code users: To enable the Python extension to load environment
+# variables from this .env file, set `python.terminal.useEnvFile` to 'True' in your
+# VS Code settings (settings.json). This ensures the environment is correctly
+# configured for network tests. Note that this setting is for the VS Code terminal,
+# not for the Python interpreter itself. It is recommended to add this setting to
+# your workspace settings (`.vscode/settings.json`) or user settings.
+
+# If unable to set via IDE, you can manually load the .env file in your test setup
+# code as follows (PowerShell example):
+#
+# $envContent = Get-Content .env -Raw
+# foreach ($line in ($envContent -split "`n")) {
+#     if ($line -match '^([^=]+)=(.*)$') {
+#         $key = $Matches[1].Trim()
+#         $value = $Matches[2].Trim()
+#         [Environment]::SetEnvironmentVariable($key, $value, "Process")
+#     }
+# }
+
+# If you need to test specific providers, use LLM_BINDING=<provider> with the integration tests.
+```
+
+#### Coverage Commands
+```bash
+# Check docstring coverage
+interrogate -v src/
+
+# Check pytest coverage
+pytest --cov=src --cov-report=term-missing
+
+# Combined quality check
+pre-commit run --all-files
+```
 
 ## ⚙️ Development Setup
 <details>

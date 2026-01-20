@@ -2,6 +2,7 @@
 """Ollama Embedding Adapter for local embeddings."""
 
 import logging
+import math
 from typing import Any, cast
 
 import httpx
@@ -11,7 +12,45 @@ from .base import BaseEmbeddingAdapter, EmbeddingRequest, EmbeddingResponse
 logger = logging.getLogger(__name__)
 
 
+def _normalize_vector(vector: list[float]) -> list[float]:
+    """
+    Normalize a vector to unit length.
+
+    Args:
+        vector: Embedding vector.
+
+    Returns:
+        Normalized vector (or original if norm is zero).
+    """
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm == 0:
+        return vector
+    return [value / norm for value in vector]
+
+
+def _normalize_embeddings(
+    embeddings: list[list[float]],
+    normalize: bool | None,
+) -> list[list[float]]:
+    """
+    Normalize embeddings when requested.
+
+    Args:
+        embeddings: Raw embedding vectors.
+        normalize: Whether to normalize embeddings.
+
+    Returns:
+        Normalized embeddings when enabled.
+    """
+    if normalize is True:
+        return [_normalize_vector(vector) for vector in embeddings]
+
+    return embeddings
+
+
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
+    """Adapter for the Ollama embedding API."""
+
     MODELS_INFO: dict[str, int] = {
         "all-minilm": 384,
         "all-mpnet-base-v2": 768,
@@ -29,6 +68,10 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         Returns:
             EmbeddingResponse with embeddings and metadata
+
+        Raises:
+            ValueError: If required configuration or response data is missing.
+            httpx.HTTPError: If the Ollama API request fails.
         """
         if not self.base_url:
             raise ValueError("Base URL is required for Ollama embedding")
@@ -101,7 +144,10 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
             logger.error("Ollama API error: %s", e)
             raise
 
-        embeddings = data["embeddings"]
+        embeddings = _normalize_embeddings(
+            data["embeddings"],
+            request.normalized,
+        )
 
         actual_dims = len(embeddings[0]) if embeddings else 0
         expected_dims = request.dimensions or self.dimensions

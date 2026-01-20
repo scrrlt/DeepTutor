@@ -8,6 +8,7 @@ REST endpoints for session operations.
 
 from pathlib import Path
 import sys
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -121,7 +122,10 @@ async def websocket_chat(websocket: WebSocket):
         api_key = llm_config.api_key
         base_url = llm_config.base_url
         api_version = getattr(llm_config, "api_version", None)
-    except Exception:
+    except Exception as e:
+        # Log configuration loading failure - system will continue with None values
+        # but ChatAgent must handle missing credentials gracefully
+        logger.warning("Failed to load LLM config: %s", e)
         api_key = None
         base_url = None
         api_version = None
@@ -237,7 +241,7 @@ async def websocket_chat(websocket: WebSocket):
 
                 # Process with streaming
                 full_response = ""
-                sources = {"rag": [], "web": []}
+                sources: dict[str, list[Any]] = {"rag": [], "web": []}
 
                 stream_generator = await agent.process(
                     message=message,
@@ -248,18 +252,20 @@ async def websocket_chat(websocket: WebSocket):
                     stream=True,
                 )
 
-                async for chunk_data in stream_generator:
-                    if chunk_data["type"] == "chunk":
-                        await websocket.send_json(
-                            {
-                                "type": "stream",
-                                "content": chunk_data["content"],
-                            }
-                        )
-                        full_response += chunk_data["content"]
-                    elif chunk_data["type"] == "complete":
-                        full_response = chunk_data["response"]
-                        sources = chunk_data.get("sources", {"rag": [], "web": []})
+                # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
+                if hasattr(stream_generator, "__aiter__"):
+                    async for chunk_data in stream_generator:
+                        if chunk_data["type"] == "chunk":
+                            await websocket.send_json(
+                                {
+                                    "type": "stream",
+                                    "content": chunk_data["content"],
+                                }
+                            )
+                            full_response += chunk_data["content"]
+                        elif chunk_data["type"] == "complete":
+                            full_response = chunk_data["response"]
+                            sources = chunk_data.get("sources", {"rag": [], "web": []})
 
                 # Send sources if any
                 if sources.get("rag") or sources.get("web"):

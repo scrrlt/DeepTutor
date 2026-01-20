@@ -18,7 +18,11 @@ async def test_cohere_embedding_adapter_embed() -> None:
         "model": "embed-v4.0",
     }
     adapter = CohereEmbeddingAdapter(config)
-    request = EmbeddingRequest(texts=["hello"], model="embed-v4.0")
+    request = EmbeddingRequest(
+        texts=["hello"],
+        model="embed-v4.0",
+        normalized=False,
+    )
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -29,9 +33,12 @@ async def test_cohere_embedding_adapter_embed() -> None:
     }
     mock_response.raise_for_status = MagicMock()
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_response
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.post = AsyncMock(return_value=mock_response)
+
         response = await adapter.embed(request)
+
         assert response.embeddings == [[0.1, 0.2]]
         assert response.dimensions == 2
 
@@ -56,8 +63,10 @@ async def test_cohere_embedding_adapter_http_error(
         "Err", request=MagicMock(), response=mock_response
     )
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = mock_response
+    with patch("httpx.AsyncClient", autospec=True) as mock_client_class:
+        mock_client = mock_client_class.return_value.__aenter__.return_value
+        mock_client.post = AsyncMock(return_value=mock_response)
+
         with pytest.raises(httpx.HTTPStatusError):
             await adapter.embed(request)
     assert "HTTP 400 response body: Bad Request" in caplog.text

@@ -47,7 +47,7 @@ import tenacity
 
 from src.logging.logger import Logger, get_logger
 
-from . import local_provider
+from . import cloud_provider, local_provider
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
@@ -195,7 +195,9 @@ async def complete(
             if exception is not None:
                 error_message = str(exception)
         except Exception:
-            pass
+            # Fail silently if we can't extract error message from exception
+            # The error will still be raised, we just won't have a custom message
+            pass  # nosec B110
 
         logger.warning(
             "LLM call failed (attempt %d/%d), retrying in %.1fs... Error: %s",
@@ -206,7 +208,8 @@ async def complete(
         )
 
     if exponential_backoff:
-        wait_strategy = tenacity.wait_exponential(
+        # Use Any type annotation to avoid mypy issues with wait_exponential/wait_fixed union
+        wait_strategy: Any = tenacity.wait_exponential(
             multiplier=retry_delay,
             min=retry_delay,
             max=120,
@@ -216,7 +219,11 @@ async def complete(
 
     # Define the actual completion function with tenacity retry
     @tenacity.retry(
-        retry=tenacity.retry_if_exception(_is_retriable_error),
+        # Use lambda wrapper to ensure exception type checking before calling _is_retriable_error
+        # This prevents TypeError when non-Exception objects are passed to the retry logic
+        retry=tenacity.retry_if_exception(
+            lambda e: _is_retriable_error(e) if isinstance(e, Exception) else False
+        ),
         wait=wait_strategy,
         stop=tenacity.stop_after_attempt(max_retries + 1),
         before_sleep=_log_retry_warning,
@@ -226,7 +233,6 @@ async def complete(
             if use_local:
                 return await local_provider.complete(**call_kwargs)
             else:
-                from . import cloud_provider
 
                 return await cloud_provider.complete(**call_kwargs)
         except Exception as e:
@@ -374,8 +380,11 @@ async def stream(
 
             # Log retry attempt (consistent with complete() function)
             logger.warning(
-                f"LLM streaming failed (attempt {attempt + 1}/{total_attempts}), "
-                f"retrying in {current_delay:.1f}s... Error: {str(e)}"
+                "LLM streaming failed (attempt %d/%d), retrying in %.1fs... Error: %s",
+                attempt + 1,
+                total_attempts,
+                current_delay,
+                str(e),
             )
 
             # Wait before retrying
@@ -407,7 +416,6 @@ async def fetch_models(
     if is_local_llm_server(base_url):
         return await local_provider.fetch_models(base_url, api_key)
     else:
-        from . import cloud_provider
 
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
@@ -444,7 +452,7 @@ API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
         "requires_key": True,
         "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
     },
-    "anthropic": {
+    "anthropic": {  # Prefer ANTHROPIC_API_KEY; CLAUDE_API_KEY is legacy alias
         "name": "Anthropic",
         "base_url": "https://api.anthropic.com/v1",
         "requires_key": True,

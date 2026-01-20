@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """Tests for LLM utility helpers."""
 
+import pytest
+
 from src.services.llm.utils import (
     build_auth_headers,
     build_chat_url,
+    build_completion_url,
     clean_thinking_tags,
     extract_response_content,
     is_local_llm_server,
@@ -18,6 +21,10 @@ def test_is_local_llm_server() -> None:
 
 def test_sanitize_url_adds_protocol_and_v1() -> None:
     assert sanitize_url("localhost:1234") == "http://localhost:1234/v1"
+
+
+def test_sanitize_url_trailing_slash() -> None:
+    assert sanitize_url("https://api.openai.com/v1/") == "https://api.openai.com/v1"
 
 
 def test_sanitize_url_strips_chat_suffix() -> None:
@@ -37,6 +44,16 @@ def test_build_chat_url_azure_api_version() -> None:
     assert url.endswith("/chat/completions?api-version=2024-02-01")
 
 
+def test_build_completion_url_openai() -> None:
+    url = build_completion_url("https://api.openai.com/v1")
+    assert url.endswith("/completions")
+
+
+def test_build_completion_url_rejects_anthropic() -> None:
+    with pytest.raises(ValueError, match="Anthropic"):
+        build_completion_url("https://api.anthropic.com/v1", binding="anthropic")
+
+
 def test_build_auth_headers_accepts_azure_alias() -> None:
     headers = build_auth_headers("test-key", binding="azure")
     assert headers["api-key"] == "test-key"
@@ -46,6 +63,11 @@ def test_build_chat_url_openai_default() -> None:
     url = build_chat_url("https://api.openai.com/v1", binding="openai")
     assert url.endswith("/chat/completions")
     assert "?" not in url
+
+
+def test_build_chat_url_openai_with_trailing_slash() -> None:
+    url = build_chat_url("https://api.openai.com/v1/", binding="openai")
+    assert url.endswith("/chat/completions")
 
 
 def test_clean_thinking_tags() -> None:

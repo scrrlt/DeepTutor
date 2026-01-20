@@ -2,7 +2,8 @@
 """Cohere Embedding Adapter for v1 and v2 API."""
 
 import logging
-from typing import Any
+import math
+from typing import Any, cast
 
 import httpx
 
@@ -11,8 +12,51 @@ from .base import BaseEmbeddingAdapter, EmbeddingRequest, EmbeddingResponse
 logger = logging.getLogger(__name__)
 
 
+def _normalize_vector(vector: list[float]) -> list[float]:
+    """
+    Normalize a vector to unit length.
+
+    Args:
+        vector: Embedding vector.
+
+    Returns:
+        Normalized vector (or original if norm is zero).
+    """
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm == 0:
+        return vector
+    return [value / norm for value in vector]
+
+
+def _normalize_embeddings(
+    embeddings: list[list[float]],
+    normalize: bool | None,
+) -> list[list[float]]:
+    """
+    Normalize embeddings when requested.
+
+    Args:
+        embeddings: Raw embedding vectors.
+        normalize: Whether to normalize embeddings.
+
+    Returns:
+        Normalized embeddings when enabled.
+    """
+    if normalize is False:
+        return embeddings
+    return [_normalize_vector(vector) for vector in embeddings]
+
+
 class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
-    """Adapter for Cohere Embed API (v1 and v2)."""
+    """
+    Adapter for Cohere Embed API (v1 and v2).
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
 
     MODELS_INFO: dict[str, dict[str, Any]] = {
         "embed-v4.0": {
@@ -51,6 +95,10 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
         Returns:
             EmbeddingResponse with embeddings and metadata
+
+        Raises:
+            ValueError: If required configuration or response data is missing.
+            httpx.HTTPError: If the Cohere API request fails.
         """
         if not self.api_key:
             raise ValueError("API key is required for Cohere embedding")
@@ -121,9 +169,11 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             raise ValueError("Invalid API response: missing or empty 'embeddings' field")
 
         if api_version == "v1":
-            embeddings = data["embeddings"]
+            embeddings = cast(list[list[float]], data["embeddings"])
         else:
-            embeddings = data["embeddings"]["float"]
+            embeddings = cast(list[list[float]], data["embeddings"]["float"])
+
+        embeddings = _normalize_embeddings(embeddings, request.normalized)
 
         actual_dims = len(embeddings[0]) if embeddings else 0
         expected_dims = request.dimensions or self.dimensions

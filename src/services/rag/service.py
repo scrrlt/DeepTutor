@@ -196,8 +196,13 @@ class RAGService:
                 metadata = json.loads(content)
                 provider = metadata.get("rag_provider")
                 if provider:
-                    self.logger.info(f"Using provider '{provider}' from KB metadata")
-                    return provider
+                    if has_pipeline(provider):
+                        self.logger.info("Using provider '%s' from KB metadata", provider)
+                        return provider
+                    self.logger.warning(
+                        "Unknown provider '%s' in KB metadata; falling back to instance provider",
+                        provider,
+                    )
 
             # Fallback to instance provider
             self.logger.info(

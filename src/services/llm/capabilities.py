@@ -47,19 +47,12 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
         "newer_models_use_max_completion_tokens": True,
         "requires_api_version": True,
     },
-    # Anthropic
+    # Anthropic (supports 'claude' as legacy alias)
     "anthropic": {
         "supports_response_format": False,  # Anthropic uses different format
         "supports_streaming": True,
         "supports_tools": True,
         "system_in_messages": False,  # System is a separate parameter
-        "has_thinking_tags": False,
-    },
-    "claude": {  # Alias for anthropic
-        "supports_response_format": False,
-        "supports_streaming": True,
-        "supports_tools": True,
-        "system_in_messages": False,
         "has_thinking_tags": False,
     },
     # DeepSeek

@@ -7,8 +7,10 @@ import os
 import re
 from typing import Iterable, Mapping
 
+import pytest
 
 KEY_PATTERNS: Mapping[str, str] = {
+    "ANTHROPIC_API_KEY": r"^sk-ant-[A-Za-z0-9_-]{10,}$",
     "AZURE_API_KEY": r"^[A-Za-z0-9_-]{20,}$",
     "GEMINI_API_KEY": r"^AIza[0-9A-Za-z_-]{10,}$",
     "VERTEX_API_KEY": r"^AQ\.[A-Za-z0-9_-]{10,}$",
@@ -19,6 +21,23 @@ KEY_PATTERNS: Mapping[str, str] = {
     "COHERE_API_KEY": r"^AQ[A-Za-z0-9_-]{10,}$",
     "JINA_API_KEY": r"^jina_[A-Za-z0-9_-]{10,}$",
     "OLLAMA_API_KEY": r"^[A-Za-z0-9.-]{10,}$",
+}
+
+PROVIDER_KEY_MAP: Mapping[str, list[str]] = {
+    "openai": ["OPENAI_API_KEY"],
+    "azure": ["AZURE_API_KEY"],
+    "azure_openai": ["AZURE_API_KEY"],
+    "anthropic": [
+        "ANTHROPIC_API_KEY",
+        "CLAUDE_API_KEY",  # Legacy alias for backward compatibility
+    ],
+    "gemini": ["GEMINI_API_KEY"],
+    "vertex": ["VERTEX_API_KEY"],
+    "cohere": ["COHERE_API_KEY"],
+    "jina": ["JINA_API_KEY"],
+    "ollama": ["OLLAMA_API_KEY"],
+    "together": ["TOGETHER_API_KEY"],
+    "serper": ["SERPER_API_KEY"],
 }
 
 
@@ -61,8 +80,33 @@ def _invalid_key_formats(keys: Mapping[str, str]) -> list[str]:
     return invalid
 
 
+def _get_keys_for_binding(binding: str) -> list[str]:
+    """
+    Select the environment keys required for a provider binding.
+
+    Args:
+        binding: Provider binding name.
+
+    Returns:
+        List of environment variable names to validate.
+
+    Raises:
+        ValueError: If the binding name is empty or not recognized.
+    """
+    normalized = binding.strip().lower()
+    if not normalized or normalized not in PROVIDER_KEY_MAP:
+        valid = ", ".join(sorted(PROVIDER_KEY_MAP.keys()))
+        raise ValueError(f"Unknown LLM provider binding {binding!r}. Expected one of: {valid}.")
+    return PROVIDER_KEY_MAP[normalized]
+
+
 def test_required_llm_api_keys_present() -> None:
-    missing = _missing_keys(KEY_PATTERNS.keys())
+    if os.getenv("ENFORCE_LLM_KEYS") != "1":
+        pytest.skip("ENFORCE_LLM_KEYS is not set")
+
+    binding = os.getenv("LLM_BINDING", "openai")
+    keys_to_check = _get_keys_for_binding(binding)
+    missing = _missing_keys(keys_to_check)
 
     assert not missing, (
         "Missing required API keys in environment: " f"{', '.join(missing)}."
@@ -70,7 +114,13 @@ def test_required_llm_api_keys_present() -> None:
 
 
 def test_llm_api_keys_have_expected_format() -> None:
-    invalid = _invalid_key_formats(KEY_PATTERNS)
+    if os.getenv("ENFORCE_LLM_KEYS") != "1":
+        pytest.skip("ENFORCE_LLM_KEYS is not set")
+
+    binding = os.getenv("LLM_BINDING", "openai")
+    keys_to_check = _get_keys_for_binding(binding)
+    patterns = {key: KEY_PATTERNS[key] for key in keys_to_check if key in KEY_PATTERNS}
+    invalid = _invalid_key_formats(patterns)
 
     assert not invalid, (
         "API keys did not match expected formats: " f"{', '.join(invalid)}."

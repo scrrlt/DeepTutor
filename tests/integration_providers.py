@@ -18,6 +18,14 @@ from src.services.llm import complete as llm_complete
 from src.services.embedding import get_embedding_client
 
 
+RUN_NETWORK_TESTS = os.getenv("RUN_LLM_NETWORK_TESTS") == "1"
+
+pytestmark = pytest.mark.skipif(
+    not RUN_NETWORK_TESTS,
+    reason="Set RUN_LLM_NETWORK_TESTS=1 to enable integration provider calls.",
+)
+
+
 @pytest.mark.asyncio
 async def test_llm_provider_integration():
     """Verify the active LLM provider works as intended."""
