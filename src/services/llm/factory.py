@@ -47,7 +47,7 @@ import tenacity
 
 from src.logging.logger import Logger, get_logger
 
-from . import cloud_provider, local_provider
+from . import local_provider
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
@@ -214,6 +214,38 @@ async def complete(
             min=retry_delay,
             max=120,
         )
+    else:
+        wait_strategy = tenacity.wait_fixed(retry_delay)
+
+    def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
+        """
+        Log retry warnings with safe handling for missing exceptions.
+
+        Args:
+            retry_state: Tenacity retry state for the current attempt.
+        """
+        outcome = retry_state.outcome
+        if outcome is None:
+            return
+
+        error_message = "unknown error"
+        try:
+            exception = outcome.exception()
+            if exception is not None:
+                error_message = str(exception)
+        except Exception:
+            pass
+
+        logger.warning(
+            "LLM call failed (attempt %d/%d), retrying in %.1fs... Error: %s",
+            retry_state.attempt_number,
+            max_retries + 1,
+            retry_state.upcoming_sleep or 0,
+            error_message,
+        )
+
+    if exponential_backoff:
+        wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60)
     else:
         wait_strategy = tenacity.wait_fixed(retry_delay)
 

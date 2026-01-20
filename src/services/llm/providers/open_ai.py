@@ -58,9 +58,8 @@ class OpenAIProvider(BaseLLMProvider):
 
         binding = getattr(self.config, "binding", "")
         binding_lower = binding.lower() if isinstance(binding, str) else ""
-        is_azure = (
-            binding_lower in ("azure", "azure_openai")
-            or "openai.azure.com" in (self.base_url or "")
+        is_azure = binding_lower in ("azure", "azure_openai") or "openai.azure.com" in (
+            self.base_url or ""
         )
         api_version = getattr(self.config, "api_version", None)
 
@@ -136,6 +135,25 @@ class OpenAIProvider(BaseLLMProvider):
             None.
         """
         await self.close()
+
+        if is_azure:
+            api_version = getattr(self.config, "api_version", None)
+            # FIX: validation for required Azure parameter
+            if not api_version:
+                raise ValueError("api_version is required for Azure OpenAI")
+
+            self.client = openai.AsyncAzureOpenAI(
+                api_key=self.api_key,
+                azure_endpoint=self.base_url,
+                api_version=api_version,
+                http_client=http_client,
+            )
+        else:
+            self.client = openai.AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url or None,
+                http_client=http_client,
+            )
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:

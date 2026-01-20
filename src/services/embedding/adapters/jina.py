@@ -22,6 +22,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         None.
 
     """
+
     MODELS_INFO: dict[str, dict[str, Any]] = {
         "jina-embeddings-v3": {
             "default": 1024,

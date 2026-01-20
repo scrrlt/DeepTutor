@@ -70,9 +70,7 @@ def track_llm_call(provider_name: str) -> Callable[[F], F]:
             if isinstance(usage, dict) and usage:
                 total_tokens = usage.get("total_tokens")
                 if total_tokens is None:
-                    total_tokens = usage.get("prompt_tokens", 0) + usage.get(
-                        "completion_tokens", 0
-                    )
+                    total_tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
                 llm_stats.record_usage(
                     provider=provider_name,
                     model=getattr(result, "model", "unknown"),
@@ -113,9 +111,7 @@ async def _wrap_stream(
         async for chunk in stream:
             if first_chunk_time is None and _has_stream_payload(chunk):
                 first_chunk_time = time.perf_counter()
-                llm_stats.record_ttft(
-                    provider_name, first_chunk_time - start_time
-                )
+                llm_stats.record_ttft(provider_name, first_chunk_time - start_time)
             yield chunk
         completed = True
     except Exception as exc:

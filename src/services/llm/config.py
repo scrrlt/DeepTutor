@@ -297,6 +297,7 @@ __all__ = [
     "initialize_environment",
     "get_llm_config",
     "get_llm_config_async",
+    "initialize_environment",
     "uses_max_completion_tokens",
     "get_token_limit_kwargs",
 ]

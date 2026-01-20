@@ -38,6 +38,23 @@ class OpenAICompleteIfCache(Protocol):
         """Return cached completion content when available."""
 
 
+class OpenAICompleteIfCache(Protocol):
+    """Protocol for the lightrag OpenAI completion helper."""
+
+    async def __call__(
+        self,
+        model: str,
+        prompt: str,
+        *,
+        system_prompt: str,
+        history_messages: list[dict[str, str]],
+        api_key: str | None,
+        base_url: str | None,
+        **kwargs: object,
+    ) -> str | None:
+        """Return cached completion content when available."""
+
+
 # Lazy import for lightrag to avoid import errors when not installed
 _openai_complete_if_cache: OpenAICompleteIfCache | None = None
 
@@ -123,6 +140,7 @@ from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
 from .utils import (
+    _collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,

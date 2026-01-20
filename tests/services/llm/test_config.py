@@ -23,7 +23,5 @@ def test_uses_max_completion_tokens_false_for_legacy_models() -> None:
 
 
 def test_get_token_limit_kwargs_switches() -> None:
-    assert get_token_limit_kwargs("gpt-4o-mini", 123) == {
-        "max_completion_tokens": 123
-    }
+    assert get_token_limit_kwargs("gpt-4o-mini", 123) == {"max_completion_tokens": 123}
     assert get_token_limit_kwargs("gpt-3.5-turbo", 321) == {"max_tokens": 321}

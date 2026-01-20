@@ -22,6 +22,7 @@ import aiohttp
 from .chat_templates import ChatTemplateInfo, render_chat_template, resolve_chat_template
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
+    _collect_model_names,
     build_auth_headers,
     build_chat_url,
     build_completion_url,

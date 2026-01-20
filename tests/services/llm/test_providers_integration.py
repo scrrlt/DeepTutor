@@ -37,13 +37,11 @@ async def test_gemini_llm_real():
     base_url = os.getenv("GEMINI_BASE_URL")
     if not base_url:
         pytest.skip(
-            "Gemini integration requires an OpenAI-compatible base URL via "
-            "GEMINI_BASE_URL."
+            "Gemini integration requires an OpenAI-compatible base URL via " "GEMINI_BASE_URL."
         )
     if "generativelanguage.googleapis.com" in base_url:
         pytest.skip(
-            "Gemini requires an OpenAI-compatible gateway; "
-            "set GEMINI_BASE_URL accordingly."
+            "Gemini requires an OpenAI-compatible gateway; " "set GEMINI_BASE_URL accordingly."
         )
 
     response = await factory.complete(
