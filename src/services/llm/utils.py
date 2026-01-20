@@ -63,9 +63,10 @@ def is_local_llm_server(base_url: str) -> bool:
     Check if the given URL points to a local LLM server.
 
     Detects local servers by:
-    1. Checking for local hostnames (localhost, 127.0.0.1, 0.0.0.0)
-    2. Checking for common local LLM server ports
-    3. Excluding known cloud provider domains
+    1. Checking for local/private hostnames and IPs
+    2. Checking for private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
+    3. Checking for common local LLM server ports (as fallback)
+    4. Excluding known cloud provider domains
 
     Args:
         base_url: The base URL to check
@@ -83,12 +84,38 @@ def is_local_llm_server(base_url: str) -> bool:
         if domain in base_url_lower:
             return False
 
-    # Check for local hostname indicators
-    for host in LOCAL_HOSTS:
-        if host in base_url_lower:
-            return True
+    # Extract hostname/IP from URL
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(base_url)
+        hostname = parsed.hostname or parsed.netloc
+        if not hostname:
+            return False
+        hostname_lower = hostname.lower()
+    except Exception:
+        # Fallback to simple string checks if URL parsing fails
+        hostname_lower = base_url_lower
 
-    # Check for common local server ports
+    # Check for local hostname indicators (regardless of port)
+    if any(host in hostname_lower for host in LOCAL_HOSTS):
+        return True
+
+    # Check for private IP ranges
+    import ipaddress
+    try:
+        # Try to parse as IP address
+        ip = ipaddress.ip_address(hostname)
+        # Check if it's a private IP
+        if ip.is_private:
+            return True
+        # Also allow loopback IPs
+        if ip.is_loopback:
+            return True
+    except ValueError:
+        # Not a valid IP, continue with hostname checks
+        pass
+
+    # Check for common local server ports (as fallback for edge cases)
     for port in LOCAL_PORTS:
         if port in base_url_lower:
             return True
