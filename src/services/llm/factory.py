@@ -45,10 +45,10 @@ from typing import (
 
 import tenacity
 
+from src.config.settings import settings
 from src.logging.logger import Logger, get_logger
 
 from . import local_provider
-from . import cloud_provider
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
@@ -61,10 +61,10 @@ from .utils import is_local_llm_server
 # Initialize logger
 logger: Logger = get_logger("LLMFactory")
 
-# Default retry configuration
-DEFAULT_MAX_RETRIES = 3
-DEFAULT_RETRY_DELAY = 1.0  # seconds
-DEFAULT_EXPONENTIAL_BACKOFF = True
+# Default retry configuration (bound to settings)
+DEFAULT_MAX_RETRIES = settings.retry.max_retries
+DEFAULT_RETRY_DELAY = settings.retry.base_delay
+DEFAULT_EXPONENTIAL_BACKOFF = settings.retry.exponential_backoff
 
 CallKwargs: TypeAlias = dict[str, Any]
 
@@ -105,8 +105,10 @@ def _is_retriable_error(error: Exception) -> bool:
             # Don't retry on client errors (4xx except 429)
             if 400 <= status_code < 500:
                 return False
-        # For unknown or missing status codes, do not retry to align with _is_retriable_llm_api_error
-        return False
+        
+        # FIX: If status_code is None (e.g. connection drop), RETRY.
+        # This aligns with the catch-all "return True" at the end.
+        return True
 
     # For other exceptions (network errors, etc.), retry
     return True
@@ -175,7 +177,7 @@ async def complete(
     use_local = _should_use_local(base_url)
 
     # Define helper to determine if a generic LLMAPIError is retriable
-    def _is_retriable_llm_api_error(exc: BaseException) -> bool:
+    def _is_retriable_llm_api_error(exc: Exception) -> bool:
         """
         Thin wrapper around the module-level _is_retriable_error helper.
 

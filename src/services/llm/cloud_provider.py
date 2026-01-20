@@ -10,10 +10,10 @@ Provides both complete() and stream() methods.
 from collections.abc import AsyncGenerator, Mapping
 import logging
 import os
+import threading
 from typing import Any, Protocol, cast
 
 import aiohttp
-import threading
 
 # Get loggers for suppression during fallback scenarios
 # (lightrag logs errors internally before raising exceptions)
@@ -517,17 +517,33 @@ async def _openai_stream(
                             content = None
                         if isinstance(content, str) and content:
                             # Handle thinking tags in streaming for different marker styles
-                            if any(open_m in content for open_m in ("<think>", "◣", "꽁")):
+                            open_markers = ("<think>", "◣", "꽁")
+                            close_markers = ("</think>", "◢", "꽁")
+                            
+                            # Check for start tag (handle split tags)
+                            if any(open_m in content for open_m in open_markers):
                                 in_thinking_block = True
-                                thinking_buffer += content
+                                # Handle case where content has text BEFORE <think>
+                                for open_m in open_markers:
+                                    if open_m in content:
+                                        parts = content.split(open_m, 1)
+                                        if parts[0]: 
+                                            yield parts[0]
+                                        thinking_buffer = open_m + parts[1]
+                                        
+                                        # Check if closed immediately in same chunk
+                                        if any(close_m in thinking_buffer for close_m in close_markers):
+                                            cleaned = clean_thinking_tags(thinking_buffer, binding, model)
+                                            if cleaned: 
+                                                yield cleaned
+                                            thinking_buffer = ""
+                                            in_thinking_block = False
+                                        break
                                 continue
                             elif in_thinking_block:
                                 thinking_buffer += content
-                                if any(
-                                    close_m in thinking_buffer
-                                    for close_m in ("</think>", "◢", "꽁")
-                                ):
-                                    # End of thinking block, clean and yield
+                                if any(close_m in thinking_buffer for close_m in close_markers):
+                                    # Block finished
                                     cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
                                         yield cleaned
