@@ -48,6 +48,7 @@ import tenacity
 from src.logging.logger import Logger, get_logger
 
 from . import local_provider
+from . import cloud_provider
 from .config import get_llm_config
 from .exceptions import (
     LLMAPIError,
