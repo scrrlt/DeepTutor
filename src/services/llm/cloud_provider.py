@@ -32,7 +32,7 @@ def _get_openai_complete_if_cache():
     return _openai_complete_if_cache
 
 
-from .capabilities import supports_response_format
+from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
 from .utils import (
@@ -218,7 +218,9 @@ async def _openai_complete(
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": kwargs.get("temperature", 0.7),
+            "temperature": get_effective_temperature(
+                binding, model, kwargs.get("temperature", 0.7)
+            ),
         }
 
         # Handle max_tokens / max_completion_tokens based on model
@@ -294,7 +296,9 @@ async def _openai_stream(
     data = {
         "model": model,
         "messages": msg_list,
-        "temperature": kwargs.get("temperature", 0.7),
+        "temperature": get_effective_temperature(
+            binding, model, kwargs.get("temperature", 0.7)
+        ),
         "stream": True,
     }
 

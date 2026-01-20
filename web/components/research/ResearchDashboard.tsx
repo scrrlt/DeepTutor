@@ -70,6 +70,9 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
   // Track previous stage to detect changes and reset user selection
   const [prevStage, setPrevStage] = useState(global.stage);
   
+  // Ref to track previous stage for useEffect (needed because state updates synchronously)
+  const prevStageRef = useRef(global.stage);
+  
   // User can override the auto-selected tab
   const [userSelectedTab, setUserSelectedTab] = useState<ProcessTab | null>(null);
   
@@ -133,6 +136,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         setActiveView("process");
       });
     }
+    prevStageRef.current = global.stage;
   }, [global.stage]);
 
   // Clickable Step Tabs - rendered as JSX variable instead of component function
