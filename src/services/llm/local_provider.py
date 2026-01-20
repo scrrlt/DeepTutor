@@ -111,9 +111,10 @@ async def complete(
                 content = extract_response_content(msg)
                 # Clean thinking tags using unified utility
                 content = clean_thinking_tags(content)
-                return content
+                if content:
+                    return content
 
-                logger.warning("Local LLM returned no choices: %s", result)
+            logger.warning("Local LLM returned no choices: %s", result)
             return ""
 
 
