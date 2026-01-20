@@ -8,6 +8,8 @@ import logging
 from typing import Any, Callable, Coroutine, Dict, TypeVar
 import warnings
 
+from ..traffic_control import TrafficController
+
 T = TypeVar("T")
 
 from ....utils.error_rate_tracker import record_provider_call
@@ -37,8 +39,6 @@ class BaseLLMProvider(ABC):
         # Isolation: Each provider gets its own traffic controller instance
         self.traffic_controller = getattr(config, "traffic_controller", None)
         if self.traffic_controller is None:
-            from ..traffic_control import TrafficController
-
             self.traffic_controller = TrafficController(provider_name=self.provider_name)
 
     def _check_deprecated_kwargs(self, kwargs: dict[str, Any]) -> None:

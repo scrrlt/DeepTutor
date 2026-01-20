@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Test Google Cloud TTS integration."""
 import os
-import pytest
 import tempfile
+
+import pytest
 
 try:
     from google.cloud import texttospeech

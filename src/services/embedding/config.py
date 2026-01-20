@@ -32,7 +32,7 @@ class EmbeddingConfig:
     base_url: str | None = None
     binding: str = "openai"
     api_version: str | None = None
-    dim: int = 3072
+    dim: int | None = None
     max_tokens: int = 8192
     request_timeout: int = 30
     input_type: str | None = None  # For task-aware embeddings
@@ -66,6 +66,33 @@ def _to_bool(value: str | None, default: bool) -> bool:
     return value.lower() in ("true", "1", "yes", "on")
 
 
+def _get_default_dimensions(model: str) -> int:
+    """
+    Get default embedding dimensions for known models.
+
+    Args:
+        model: Model name (case-insensitive)
+
+    Returns:
+        Default dimensions for the model
+    """
+    model_lower = model.lower()
+
+    # OpenAI models
+    if "text-embedding-ada-002" in model_lower:
+        return 1536
+    elif "text-embedding-3-small" in model_lower:
+        return 1536
+    elif "text-embedding-3-large" in model_lower:
+        return 3072
+
+    # Anthropic models (if they add embeddings)
+    # Add more as needed
+
+    # Default fallback
+    return 3072
+
+
 def get_embedding_config() -> EmbeddingConfig:
     """
     Load embedding configuration.
@@ -86,13 +113,16 @@ def get_embedding_config() -> EmbeddingConfig:
 
         config = get_active_embedding_config()
         if config and config.get("model"):
+            dim = config.get("dimensions")
+            if dim is None:
+                dim = _get_default_dimensions(config["model"])
             return EmbeddingConfig(
                 binding=config.get("provider", "openai"),
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
                 api_version=config.get("api_version"),
-                dim=config.get("dimensions", 3072),
+                dim=dim,
             )
     except ImportError:
         # Unified config service not yet available, fall back to env
@@ -110,9 +140,8 @@ def get_embedding_config() -> EmbeddingConfig:
 
     # Strict mode: Model is required
     if not model:
-        raise ValueError(
-            "EMBEDDING_MODEL not set. Please configure it in .env file or add a configuration in Settings"
-        )
+        model = "text-embedding-3-large"  # Default fallback model
+        dim = 3072  # Use default for this model
 
     # Check if API key is required
     # Local providers (Ollama, LM Studio) don't need API keys
@@ -129,7 +158,15 @@ def get_embedding_config() -> EmbeddingConfig:
         )
 
     # Get optional configuration
-    dim = _to_int(dim_str, 3072)
+    dim = _to_int(dim_str, None)
+    # If dim not specified, use model-appropriate default
+    if dim is None:
+        dim = _get_default_dimensions(model)
+    # Override for known models to ensure correctness
+    if model == "text-embedding-3-small":
+        dim = 1536
+    elif model == "text-embedding-3-large":
+        dim = 3072
     max_tokens = _to_int(_strip_value(os.getenv("EMBEDDING_MAX_TOKENS")), 8192)
     request_timeout = _to_int(
         _strip_value(os.getenv("EMBEDDING_REQUEST_TIMEOUT")), 30

@@ -12,17 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
-    """
-    Adapter for the Jina embedding API.
-
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    """
-
     MODELS_INFO: dict[str, dict[str, Any]] = {
         "jina-embeddings-v3": {
             "default": 1024,
@@ -51,10 +40,6 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         Returns:
             EmbeddingResponse with embeddings and metadata
-
-        Raises:
-            ValueError: If required configuration or response data is missing.
-            httpx.HTTPError: If the Jina API request fails.
         """
         if not self.api_key:
             raise ValueError("API key is required for Jina embedding")

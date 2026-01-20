@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
+
 import pytest
+
 from src.services.search.providers.serper import SerperProvider
 from src.services.search.types import WebSearchResponse
 

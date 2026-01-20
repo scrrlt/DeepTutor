@@ -55,7 +55,7 @@ class BaseSearchProvider(ABC):
         return key
 
     @abstractmethod
-    def search(self, query: str, **kwargs: Any) -> WebSearchResponse:
+    async def search(self, query: str, **kwargs: Any) -> WebSearchResponse:
         """
         Execute search and return standardized response.
 

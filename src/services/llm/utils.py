@@ -213,6 +213,16 @@ def clean_thinking_tags(
     if "<think>" in content:
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
 
+    # Remove unicode thinking delimiters often used by local/reasoning models
+    # e.g., ◣ ... ◢  (U+25E3 / U+25E2) or repeated marker like 꽁...꽁
+    # Use non-greedy matching and DOTALL to span multiple lines
+    if "◣" in content and "◢" in content:
+        content = re.sub(r"\u25E3.*?\u25E2", "", content, flags=re.DOTALL)
+
+    if "꽁" in content:
+        # 꽁 is sometimes used as both open+close marker, remove paired blocks
+        content = re.sub(r"꽁.*?꽁", "", content, flags=re.DOTALL)
+
     return content.strip()
 
 

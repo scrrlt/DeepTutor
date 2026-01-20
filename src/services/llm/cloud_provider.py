@@ -7,12 +7,13 @@ Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
 Provides both complete() and stream() methods.
 """
 
-from collections.abc import Mapping
+from collections.abc import AsyncGenerator, Mapping
 import logging
 import os
-from typing import Any, AsyncGenerator, Dict, List, Optional, Protocol, cast
+from typing import Any, Protocol, cast
 
 import aiohttp
+import threading
 
 # Get loggers for suppression during fallback scenarios
 # (lightrag logs errors internally before raising exceptions)
@@ -20,23 +21,8 @@ _lightrag_logger = logging.getLogger("lightrag")
 _openai_logger = logging.getLogger("openai")
 logger = logging.getLogger(__name__)
 
-
-class OpenAICompleteIfCache(Protocol):
-    """Protocol for the lightrag OpenAI completion helper."""
-
-    async def __call__(
-        self,
-        model: str,
-        prompt: str,
-        *,
-        system_prompt: str,
-        history_messages: list[dict[str, str]],
-        api_key: str | None,
-        base_url: str | None,
-        **kwargs: object,
-    ) -> str | None:
-        """Return cached completion content when available."""
-
+# Thread-safe lock for SSL-warning state
+_ssl_warning_lock = threading.Lock()
 
 class OpenAICompleteIfCache(Protocol):
     """Protocol for the lightrag OpenAI completion helper."""
@@ -69,7 +55,6 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
         )
 
         _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
-
     return _openai_complete_if_cache
 
 
@@ -117,6 +102,10 @@ def _coerce_int(value: object, default: int | None) -> int | None:
     return default
 
 
+# Use lowercase to avoid constant redefinition warning
+_ssl_warning_logged = False
+
+
 def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
     """
     Build an optional aiohttp connector with SSL verification disabled.
@@ -125,22 +114,26 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
         A TCPConnector with SSL verification disabled when DISABLE_SSL_VERIFY
         is truthy; otherwise None to use aiohttp defaults.
     """
-    if not hasattr(cls, "_ssl_warning_logged"):
-        if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
+    # Thread-safe check and one-time warning emission
+    disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
+    if not disable_flag:
+        return None
+
+    # Emit warning once across threads
+    with _ssl_warning_lock:
+        if not globals().get("_ssl_warning_logged", False):
             logger.warning(
                 "SSL verification is disabled via DISABLE_SSL_VERIFY. This is unsafe and must "
                 "not be used in production environments."
             )
-            setattr(cls, "_ssl_warning_logged", True)
-            return aiohttp.TCPConnector(ssl=False)
-    return None
+            globals()["_ssl_warning_logged"] = True
+    return aiohttp.TCPConnector(ssl=False)
 
 
 from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
 from .utils import (
-    _collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
@@ -153,10 +146,10 @@ from .utils import (
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     binding: str = "openai",
     **kwargs: Any,
 ) -> str:
@@ -224,12 +217,12 @@ async def complete(
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     binding: str = "openai",
-    messages: Optional[List[Dict[str, str]]] = None,
+    messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
@@ -286,9 +279,9 @@ async def _openai_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    api_version: Optional[str] = None,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     binding: str = "openai",
     **kwargs: object,
 ) -> str:
@@ -378,27 +371,44 @@ async def _openai_complete(
         timeout = aiohttp.ClientTimeout(total=120)
         connector = _get_aiohttp_connector()
         async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-            async with session.post(url, headers=headers, json=data) as resp:
-                if resp.status == 200:
-                    result = cast(dict[str, object], await resp.json())
-                    choices = result.get("choices")
-                    if isinstance(choices, list) and choices:
-                        choices_list = cast(list[object], choices)
-                        first_choice = choices_list[0]
-                        if isinstance(first_choice, Mapping):
-                            message = cast(Mapping[str, object], first_choice).get("message")
-                        else:
-                            message = None
-                        if isinstance(message, Mapping):
-                            # Use unified response extraction
-                            content = extract_response_content(cast(dict[str, object], message))
-                else:
-                    error_text = await resp.text()
+            try:
+                async with session.post(url, headers=headers, json=data) as resp:
+                    if resp.status == 200:
+                        result = cast(dict[str, object], await resp.json())
+                        choices = result.get("choices")
+                        if isinstance(choices, list) and choices:
+                            choices_list = cast(list[object], choices)
+                            first_choice = choices_list[0]
+                            if isinstance(first_choice, Mapping):
+                                message = cast(Mapping[str, object], first_choice).get("message")
+                            else:
+                                message = None
+                            if isinstance(message, Mapping):
+                                # Use unified response extraction
+                                content = extract_response_content(cast(dict[str, object], message))
+                    else:
+                        error_text = await resp.text()
+                        raise LLMAPIError(
+                            f"OpenAI API error: {error_text}",
+                            status_code=resp.status,
+                            provider=binding or "openai",
+                        )
+            except aiohttp.ClientError as e:
+                # Handle connection errors with more specific messages
+                if "forcibly closed" in str(e).lower() or "10054" in str(e):
                     raise LLMAPIError(
-                        f"OpenAI API error: {error_text}",
-                        status_code=resp.status,
+                        f"Connection to {binding} API was forcibly closed. "
+                        "This may indicate network issues or server-side problems. "
+                        "Please check your internet connection and try again.",
+                        status_code=0,
                         provider=binding or "openai",
-                    )
+                    ) from e
+                else:
+                    raise LLMAPIError(
+                        f"Network error connecting to {binding} API: {e}",
+                        status_code=0,
+                        provider=binding or "openai",
+                    ) from e
 
     if content is not None:
         # Clean thinking tags from response using unified utility
@@ -411,11 +421,11 @@ async def _openai_stream(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    api_version: Optional[str] = None,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     binding: str = "openai",
-    messages: Optional[List[Dict[str, str]]] = None,
+    messages: list[dict[str, str]] | None = None,
     **kwargs: object,
 ) -> AsyncGenerator[str, None]:
     """OpenAI-compatible streaming."""
@@ -506,14 +516,17 @@ async def _openai_stream(
                         else:
                             content = None
                         if isinstance(content, str) and content:
-                            # Handle thinking tags in streaming
-                            if "꽁" in content:
+                            # Handle thinking tags in streaming for different marker styles
+                            if any(open_m in content for open_m in ("<think>", "◣", "꽁")):
                                 in_thinking_block = True
-                                thinking_buffer = content
+                                thinking_buffer += content
                                 continue
                             elif in_thinking_block:
                                 thinking_buffer += content
-                                if "꽁" in thinking_buffer:
+                                if any(
+                                    close_m in thinking_buffer
+                                    for close_m in ("</think>", "◢", "꽁")
+                                ):
                                     # End of thinking block, clean and yield
                                     cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
@@ -531,9 +544,9 @@ async def _anthropic_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    messages: Optional[List[Dict[str, str]]] = None,
+    api_key: str | None,
+    base_url: str | None,
+    messages: list[dict[str, str]] | None = None,
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
@@ -603,9 +616,9 @@ async def _anthropic_stream(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
-    messages: Optional[List[Dict[str, str]]] = None,
+    api_key: str | None,
+    base_url: str | None,
+    messages: list[dict[str, str]] | None = None,
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> AsyncGenerator[str, None]:
@@ -686,8 +699,8 @@ async def _cohere_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: Optional[str],
-    base_url: Optional[str],
+    api_key: str | None,
+    base_url: str | None,
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
@@ -737,9 +750,9 @@ async def _cohere_complete(
 
 async def fetch_models(
     base_url: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     binding: str = "openai",
-) -> List[str]:
+) -> list[str]:
     """
     Fetch available models from cloud provider.
 

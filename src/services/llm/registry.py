@@ -82,9 +82,8 @@ def get_provider(name: str) -> Any:
     provider_cls = get_provider_class(provider_key)
 
     # Lazy load config to avoid import cycles
-    import copy
-
     from .config import get_llm_config
+    import copy
 
     config = copy.copy(get_llm_config())
     # Ensure provider name matches what the class expects if it's an alias

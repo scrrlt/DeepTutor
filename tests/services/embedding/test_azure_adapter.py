@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import logging
-import pytest
 from _pytest.logging import LogCaptureFixture
 import openai
+import pytest
 
 from src.services.embedding.adapters.azure import AzureEmbeddingAdapter
 from src.services.embedding.adapters.base import EmbeddingRequest

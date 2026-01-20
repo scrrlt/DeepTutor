@@ -8,6 +8,7 @@ Now supports multiple providers through adapters.
 """
 
 import asyncio
+from typing import List, Optional
 
 from src.logging import get_logger
 
@@ -24,7 +25,7 @@ class EmbeddingClient:
     Supports: OpenAI, Azure OpenAI, Cohere, Ollama, Jina, HuggingFace, Google.
     """
 
-    def __init__(self, config: EmbeddingConfig | None = None):
+    def __init__(self, config: Optional[EmbeddingConfig] = None):
         """
         Initialize embedding client.
 
@@ -37,10 +38,8 @@ class EmbeddingClient:
 
         # Capture the loop where the client/adapters were created for thread-safe sync wrapper
         try:
-            # Type annotation allows None assignment for cases where no event loop is running
-            self._init_loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+            self._init_loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running event loop; let embed_sync create/manage one when needed
             self._init_loop = None
 
         # Initialize adapter based on binding configuration
@@ -63,10 +62,10 @@ class EmbeddingClient:
                 f"(model: {self.config.model}, dimensions: {self.config.dim})"
             )
         except Exception as e:
-            self.logger.error("Failed to initialize embedding adapter: %s", e)
+            self.logger.error(f"Failed to initialize embedding adapter: {e}")
             raise
 
-    async def embed(self, texts: list[str]) -> list[list[float]]:
+    async def embed(self, texts: List[str]) -> List[List[float]]:
         """
         Get embeddings for texts using the configured adapter.
 
@@ -75,9 +74,6 @@ class EmbeddingClient:
 
         Returns:
             List of embedding vectors
-
-        Raises:
-            Exception: Propagates adapter errors during embedding.
         """
         adapter = self.manager.get_active_adapter()
 
@@ -97,71 +93,64 @@ class EmbeddingClient:
 
             return response.embeddings
         except Exception as e:
-            self.logger.error("Embedding request failed: %s", e)
+            self.logger.error(f"Embedding request failed: {e}")
             raise
 
-    def embed_sync(self, texts: list[str]) -> list[list[float]]:
+    def embed_sync(self, texts: List[str]) -> List[List[float]]:
         """
         Thread-safe synchronous wrapper for embed().
 
         Executes the async embed call on the loop where the client was initialized
         to avoid event loop affinity issues.
+        """
 
-        Args:
-            texts: Texts to embed.
+    def embed_sync(self, texts: List[str]) -> List[List[float]]:
+        """
+        Thread-safe synchronous wrapper for embed().
 
-        Returns:
-            Embeddings for each input text.
-
-        Raises:
-            RuntimeError: If called from a running event loop.
+        Executes the async embed call on the loop where the client was initialized
+        to avoid event loop affinity issues.
         """
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
             current_loop = None
 
-        if self._init_loop and self._init_loop.is_running():
-            if current_loop != self._init_loop:
-                # In a different loop (e.g., worker thread), dispatch to init loop
-                future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
-                # Timeout prevents indefinite blocking if the async call stalls.
-                timeout = float(self.config.request_timeout or 30)
-                return future.result(timeout=timeout)
-            # Already in the init loop but called sync - this is blocking and dangerous
+        if current_loop is None:
+            # No running loop, safe to create a new one
+            return asyncio.run(self.embed(texts))
+
+        if current_loop == self._init_loop:
+            # Called sync from within the init loop - this would block
             raise RuntimeError(
                 "embed_sync() cannot be called from within the same running event loop. "
                 "Use 'await embed()' instead."
             )
 
-        if current_loop is not None:
-            raise RuntimeError(
-                "embed_sync() cannot be called from within a running event loop. "
-                "Use 'await embed()' instead."
-            )
+        if self._init_loop and self._init_loop.is_running():
+            # Different loop context, dispatch to init loop for adapter affinity
+            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
+            return future.result(timeout=self.config.request_timeout or 30)
 
-        # No running initialization loop (e.g. pure sync script), safe to run a new one
-        return asyncio.run(self.embed(texts))
+        # Init loop is dead but we're in a different running loop - can't safely proceed
+        raise RuntimeError(
+            "embed_sync() called from a running event loop, but the initialization loop "
+            "is no longer running. Re-initialize the client in the current async context."
+        )
 
     def get_embedding_func(self):
         """
         Get an EmbeddingFunc compatible with LightRAG.
 
-        Args:
-            None.
-
         Returns:
             EmbeddingFunc instance
-
-        Raises:
-            None.
         """
         from lightrag.utils import EmbeddingFunc
         import numpy as np
 
         # Create async wrapper that uses our adapter system
         # LightRAG expects numpy arrays, not Python lists
-        async def embedding_wrapper(texts: list[str]):
+        async def embedding_wrapper(texts: List[str]):
             embeddings = await self.embed(texts)
             # Convert list of lists to numpy array for LightRAG compatibility
             return np.array(embeddings)
@@ -174,10 +163,10 @@ class EmbeddingClient:
 
 
 # Singleton instance
-_client: EmbeddingClient | None = None
+_client: Optional[EmbeddingClient] = None
 
 
-def get_embedding_client(config: EmbeddingConfig | None = None) -> EmbeddingClient:
+def get_embedding_client(config: Optional[EmbeddingConfig] = None) -> EmbeddingClient:
     """
     Get or create the singleton embedding client.
 
@@ -186,9 +175,6 @@ def get_embedding_client(config: EmbeddingConfig | None = None) -> EmbeddingClie
 
     Returns:
         EmbeddingClient instance
-
-    Raises:
-        Exception: Propagates adapter initialization failures.
     """
     global _client
     if _client is None:
@@ -197,17 +183,6 @@ def get_embedding_client(config: EmbeddingConfig | None = None) -> EmbeddingClie
 
 
 def reset_embedding_client():
-    """
-    Reset the singleton embedding client.
-
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
+    """Reset the singleton embedding client."""
     global _client
     _client = None

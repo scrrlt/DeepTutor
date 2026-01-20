@@ -12,7 +12,7 @@ import logging
 import os
 from pathlib import Path
 import re
-import threading
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -20,139 +20,60 @@ from .exceptions import LLMConfigError
 
 logger = logging.getLogger(__name__)
 
-# Avoid repeated dotenv reads by gating initialization.
+# Load environment variables
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_ENV_INITIALIZED = False
-ENV_INIT_LOCK = threading.Lock()
+load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_dotenv(PROJECT_ROOT / ".env.local", override=False)
 
 
-def _strip_value(value: str | None) -> str | None:
+@dataclass
+class LLMConfig:
+    """LLM configuration dataclass."""
+
+    model: str
+    api_key: str
+    base_url: Optional[str] = None
+    binding: str = "openai"
+    api_version: Optional[str] = None
+    max_tokens: int = 4096
+    temperature: float = 0.7
+
+
+def initialize_environment():
     """
-    Remove leading/trailing whitespace and quotes from string.
+    Explicitly initialize environment variables for compatibility.
 
-    Args:
-        value: Raw string value to normalize.
+    LightRAG's internal functions (e.g., create_openai_async_client) read directly
+    from os.environ["OPENAI_API_KEY"] instead of using the api_key parameter.
+    This function ensures the environment variable is set.
 
-    Returns:
-        Normalized string value.
-
-    Raises:
-        None.
+    Should be called during application startup (main.py/run_server.py).
     """
+    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
+    api_key = _strip_value(os.getenv("LLM_API_KEY"))
+    base_url = _strip_value(os.getenv("LLM_HOST"))
+
+    # Only set env vars for OpenAI-compatible bindings
+    if binding in ("openai", "azure_openai", "gemini"):
+        if api_key and not os.getenv("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = api_key
+            logger.debug("Set OPENAI_API_KEY env var (LightRAG compatibility)")
+
+        if base_url and not os.getenv("OPENAI_BASE_URL"):
+            os.environ["OPENAI_BASE_URL"] = base_url
+            logger.debug(f"Set OPENAI_BASE_URL env var to {base_url}")
+
+
+def _strip_value(value: Optional[str]) -> Optional[str]:
+    """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
         return None
     return value.strip().strip("\"'")
 
 
-def _setup_openai_env_vars_early() -> None:
-    """
-    Set OPENAI_API_KEY environment variable early for LightRAG compatibility.
-
-    LightRAG's internal functions (e.g., create_openai_async_client) read directly
-    from os.environ["OPENAI_API_KEY"] instead of using the api_key parameter.
-    This function ensures the environment variable is set before any LightRAG
-    operations can occur. Callers should invoke initialize_environment() early
-    when LightRAG will be imported in the same process.
-
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
-    # Normalize binding with explicit empty string check to avoid falsy evaluation issues
-    # _strip_value may return empty string for whitespace-only input, so we check explicitly
-    binding_value = _strip_value(os.getenv("LLM_BINDING"))
-    binding = binding_value.lower() if binding_value else "openai"
-    api_key = os.getenv("LLM_API_KEY")
-    base_url = os.getenv("LLM_HOST")
-
-    # Only set env vars for OpenAI-compatible bindings
-    if binding in ("openai", "azure", "azure_openai", "gemini"):
-        if api_key and not os.getenv("OPENAI_API_KEY"):
-            os.environ["OPENAI_API_KEY"] = api_key
-            logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility (early init)")
-
-        if base_url and not os.getenv("OPENAI_BASE_URL"):
-            os.environ["OPENAI_BASE_URL"] = base_url
-            logger.debug(
-                "Set OPENAI_BASE_URL env var to %s (early init)",
-                base_url,
-            )
-
-
-def initialize_environment() -> None:
-    """
-    Load environment variables and set OpenAI compatibility env vars.
-
-    This function defers .env file I/O until configuration is needed, while
-    ensuring LightRAG sees required OpenAI environment variables.
-
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
-    global _ENV_INITIALIZED
-
-    with ENV_INIT_LOCK:
-        if _ENV_INITIALIZED:
-            return
-
-        load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
-        load_dotenv(PROJECT_ROOT / ".env", override=False)
-        load_dotenv(PROJECT_ROOT / ".env.local", override=False)
-        _setup_openai_env_vars_early()
-        _ENV_INITIALIZED = True
-
-
-@dataclass
-class LLMConfig:
-    """
-    Configuration options for an LLM provider.
-
-    Attributes:
-        model: Model name.
-        api_key: API key for the provider.
-        base_url: Base URL for the provider.
-        binding: Provider binding name.
-        provider_name: Optional human-readable provider name.
-        api_version: Optional API version string.
-        max_tokens: Maximum number of tokens for generated output.
-        temperature: Sampling temperature for generation.
-    """
-
-    model: str
-    api_key: str
-    base_url: str | None = None
-    binding: str = "openai"
-    provider_name: str | None = None
-    api_version: str | None = None
-    max_tokens: int = 4096
-    temperature: float = 0.7
-
-
 def _get_llm_config_from_env() -> LLMConfig:
-    """
-    Get LLM configuration from environment variables.
-
-    Args:
-        None.
-
-    Returns:
-        LLMConfig: Configuration built from environment variables.
-
-    Raises:
-        LLMConfigError: If required environment variables are missing.
-    """
-    initialize_environment()
+    """Get LLM configuration from environment variables."""
     binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
@@ -186,16 +107,12 @@ def get_llm_config() -> LLMConfig:
     1. Active configuration from unified config service
     2. Environment variables (.env)
 
-    Args:
-        None.
-
     Returns:
-        LLMConfig: Configuration dataclass.
+        LLMConfig: Configuration dataclass
 
     Raises:
-        LLMConfigError: If required configuration is missing.
+        LLMConfigError: If required configuration is missing
     """
-    initialize_environment()
     # 1. Try to get active config from unified config service
     try:
         from src.services.config import get_active_llm_config
@@ -213,7 +130,7 @@ def get_llm_config() -> LLMConfig:
         # Unified config service not yet available, fall back to env
         pass
     except Exception as e:
-        logger.warning("Failed to load from unified config: %s", e)
+        logger.warning(f"Failed to load from unified config: {e}")
 
     # 2. Fallback to environment variables
     return _get_llm_config_from_env()
@@ -225,14 +142,8 @@ async def get_llm_config_async() -> LLMConfig:
 
     Useful for consistency in async contexts, though the underlying load is synchronous.
 
-    Args:
-        None.
-
     Returns:
-        LLMConfig: Configuration dataclass.
-
-    Raises:
-        LLMConfigError: If required configuration is missing.
+        LLMConfig: Configuration dataclass
     """
     return get_llm_config()
 
@@ -248,10 +159,7 @@ def uses_max_completion_tokens(model: str) -> bool:
         model: The model name
 
     Returns:
-        True if the model requires max_completion_tokens, False otherwise.
-
-    Raises:
-        None.
+        True if the model requires max_completion_tokens, False otherwise
     """
     model_lower = model.lower()
 
@@ -282,10 +190,7 @@ def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
         max_tokens: The desired token limit
 
     Returns:
-        Dictionary with either {"max_tokens": value} or {"max_completion_tokens": value}.
-
-    Raises:
-        None.
+        Dictionary with either {"max_tokens": value} or {"max_completion_tokens": value}
     """
     if uses_max_completion_tokens(model):
         return {"max_completion_tokens": max_tokens}
@@ -294,10 +199,8 @@ def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
 
 __all__ = [
     "LLMConfig",
-    "initialize_environment",
     "get_llm_config",
     "get_llm_config_async",
-    "initialize_environment",
     "uses_max_completion_tokens",
     "get_token_limit_kwargs",
 ]

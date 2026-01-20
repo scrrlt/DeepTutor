@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
-import logging
-import pytest
 from _pytest.logging import LogCaptureFixture
+import httpx
+import pytest
 
-from src.services.embedding.adapters.jina import JinaEmbeddingAdapter
 from src.services.embedding.adapters.base import EmbeddingRequest
+from src.services.embedding.adapters.jina import JinaEmbeddingAdapter
 
 
 @pytest.mark.asyncio

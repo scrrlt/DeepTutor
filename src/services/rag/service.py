@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 import aiofiles
 
@@ -33,10 +33,10 @@ class RAGPipelineProtocol(Protocol):
     typed access to initialize/search/delete calls.
     """
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """Initialize a knowledge base with documents."""
 
-    async def search(self, query: str, kb_name: str, **kwargs) -> Dict[str, Any]:
+    async def search(self, query: str, kb_name: str, **kwargs: Any) -> dict[str, Any]:
         """Search a knowledge base for relevant context."""
 
     async def delete(self, kb_name: str) -> bool:
@@ -65,8 +65,8 @@ class RAGService:
 
     def __init__(
         self,
-        kb_base_dir: Optional[str] = None,
-        provider: Optional[str] = None,
+        kb_base_dir: str | None = None,
+        provider: str | None = None,
     ):
         """
         Initialize RAG service.
@@ -104,7 +104,7 @@ class RAGService:
         """Get or create the default pipeline instance."""
         return self._get_cached_pipeline(self.provider)
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """
         Initialize a knowledge base with documents.
 
@@ -125,8 +125,8 @@ class RAGService:
         return await pipeline.initialize(kb_name=kb_name, file_paths=file_paths, **kwargs)
 
     async def search(
-        self, query: str, kb_name: str, mode: str = "hybrid", **kwargs
-    ) -> Dict[str, Any]:
+        self, query: str, kb_name: str, mode: str = "hybrid", **kwargs: Any
+    ) -> dict[str, Any]:
         """
         Search a knowledge base.
 
@@ -189,7 +189,7 @@ class RAGService:
         try:
             metadata_file = Path(self.kb_base_dir) / kb_name / "metadata.json"
 
-            metadata_exists = await asyncio.to_thread(metadata_file.exists)
+            metadata_exists = metadata_file.exists()
             if metadata_exists:
                 async with aiofiles.open(metadata_file, encoding="utf-8") as file_handle:
                     content = await file_handle.read()
@@ -197,11 +197,10 @@ class RAGService:
                 provider = metadata.get("rag_provider")
                 if provider:
                     if has_pipeline(provider):
-                        self.logger.info("Using provider '%s' from KB metadata", provider)
+                        self.logger.info(f"Using provider '{provider}' from KB metadata")
                         return provider
                     self.logger.warning(
-                        "Unknown provider '%s' in KB metadata; falling back to instance provider",
-                        provider,
+                        f"Unknown provider '{provider}' in KB metadata; falling back to instance provider",
                     )
 
             # Fallback to instance provider
@@ -239,14 +238,15 @@ class RAGService:
 
         # Fallback: delete directory manually
         kb_dir = Path(self.kb_base_dir) / kb_name
-        if kb_dir.exists():
-            shutil.rmtree(kb_dir)
+        kb_exists = kb_dir.exists()
+        if kb_exists:
+            await asyncio.to_thread(shutil.rmtree, kb_dir)
             self.logger.info(f"Deleted KB directory: {kb_dir}")
             return True
         return False
 
     @staticmethod
-    def list_providers() -> List[Dict[str, str]]:
+    def list_providers() -> list[dict[str, str]]:
         """
         List available RAG pipeline providers.
 

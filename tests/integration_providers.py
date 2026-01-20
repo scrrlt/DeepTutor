@@ -5,6 +5,10 @@ import asyncio
 import os
 from pathlib import Path
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 import pytest
 from dotenv import load_dotenv
 
@@ -39,19 +43,4 @@ async def test_llm_provider_integration():
         timeout=30.0,
     )
     assert "DeepTutor" in response
-    print(f"\u2713 LLM provider verified: {os.getenv('LLM_BINDING', 'openai')}")
-
-
-@pytest.mark.asyncio
-async def test_embedding_provider_integration():
-    """Verify the active Embedding provider works as intended."""
-    api_key = os.getenv("EMBEDDING_API_KEY")
-    if not api_key and "localhost" not in os.getenv("EMBEDDING_HOST", ""):
-        pytest.skip("EMBEDDING_API_KEY not set and not using local host, skipping integration test")
-
-    # Bare call letting pytest report failures naturally
-    client = get_embedding_client()
-    embeddings = await client.embed(["DeepTutor is awesome"])
-    assert len(embeddings) == 1
-    assert len(embeddings[0]) > 0
-    print(f"\u2713 Embedding provider verified: {os.getenv('EMBEDDING_BINDING', 'openai')}")
+    logger.info(f"✓ LLM provider verified: {os.getenv('LLM_BINDING', 'openai')}")

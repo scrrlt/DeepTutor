@@ -2,8 +2,9 @@
 """Shared fixtures for service tests."""
 
 from pathlib import Path
-import pytest
+
 from dotenv import load_dotenv
+import pytest
 
 
 def _load_env_file(path: Path) -> None:

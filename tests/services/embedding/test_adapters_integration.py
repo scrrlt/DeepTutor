@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
+
 import pytest
+
+from src.services.embedding.adapters.base import EmbeddingRequest
+from src.services.embedding.adapters.cohere import CohereEmbeddingAdapter
+from src.services.embedding.adapters.jina import JinaEmbeddingAdapter
 from src.services.embedding.adapters.openai_compatible import (
     OpenAICompatibleEmbeddingAdapter,
 )
-from src.services.embedding.adapters.jina import JinaEmbeddingAdapter
-from src.services.embedding.adapters.cohere import CohereEmbeddingAdapter
-from src.services.embedding.adapters.base import EmbeddingRequest
-
 
 RUN_NETWORK_TESTS = os.getenv("RUN_LLM_NETWORK_TESTS") == "1"
 

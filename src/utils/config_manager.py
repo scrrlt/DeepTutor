@@ -32,11 +32,11 @@ class ConfigManager:
     - Layered env: .env, then .env.local (override), then process env.
     """
 
-    _instance: ConfigManager | None = None
+    _instance: "ConfigManager | None" = None
     _config_cache: dict[str, Any] = {}
     _lock = Lock()
 
-    def __new__(cls, project_root: Optional[Path] = None):
+    def __new__(cls, project_root: Path | None = None):
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -44,7 +44,7 @@ class ConfigManager:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Path | None = None):
         if getattr(self, "_initialized", False):
             return
 

@@ -26,6 +26,7 @@ def _init_pipelines():
     from .pipelines import lightrag, llamaindex
     from .pipelines.raganything import RAGAnythingPipeline
     from .pipelines.raganything_docling import RAGAnythingDoclingPipeline
+    from .pipelines import AcademicPipeline
 
     _PIPELINES.update(
         {
@@ -33,6 +34,7 @@ def _init_pipelines():
             "raganything_docling": RAGAnythingDoclingPipeline,  # Docling parser: Office/HTML friendly, easier setup
             "lightrag": lightrag.LightRAGPipeline,  # Knowledge graph: PDFParser, fast text-only (medium speed)
             "llamaindex": llamaindex.LlamaIndexPipeline,  # Vector-only: Simple chunking, fast (fastest)
+            "academic": AcademicPipeline,  # Academic pipeline: Semantic chunking + numbered item extraction
         }
     )
     _PIPELINES_INITIALIZED = True
@@ -59,7 +61,7 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
     _init_pipelines()
     if name not in _PIPELINES:
         available = list(_PIPELINES.keys())
-        raise ValueError(f"Unknown pipeline: {name}. Available: {available}")
+        raise ValueError(f"Pipeline '{name}' not found. Available: {available}")
 
     factory = _PIPELINES[name]
 
@@ -106,6 +108,11 @@ def list_pipelines() -> List[Dict[str, str]]:
             "id": "raganything_docling",
             "name": "RAG-Anything (Docling)",
             "description": "Multimodal document processing with Docling parser. Better for Office documents (.docx, .pptx) and HTML. Easier to install.",
+        },
+        {
+            "id": "academic",
+            "name": "Academic",
+            "description": "Academic document pipeline: semantic chunking and numbered item extraction for papers and textbooks.",
         },
     ]
 

@@ -196,7 +196,7 @@ class TestPipelineFactory(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError) as context:
             get_pipeline("nonexistent")
 
-        self.assertIn("Unknown pipeline", str(context.exception))
+        self.assertIn("not found", str(context.exception))
         print("\n✓ Invalid pipeline correctly raises error")
 
 

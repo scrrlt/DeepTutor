@@ -3,8 +3,8 @@
 
 import logging
 
-import pytest
 from _pytest.logging import LogCaptureFixture
+import pytest
 
 from src.services.llm.telemetry import track_llm_call
 
