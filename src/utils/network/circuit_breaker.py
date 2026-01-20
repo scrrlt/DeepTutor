@@ -77,8 +77,3 @@ def is_call_allowed(provider: str) -> bool:
 def record_call_success(provider: str):
     """Record successful call."""
     circuit_breaker.record_success(provider)
-
-
-def record_call_failure(provider: str):
-    """Record failed call."""
-    circuit_breaker.record_failure(provider)
