@@ -69,7 +69,7 @@ DEFAULT_EXPONENTIAL_BACKOFF = settings.retry.exponential_backoff
 CallKwargs: TypeAlias = dict[str, Any]
 
 
-def _is_retriable_error(error: Exception) -> bool:
+def _is_retriable_error(error: BaseException) -> bool:
     """
     Check if an error is retriable.
 
@@ -177,7 +177,7 @@ async def complete(
     use_local = _should_use_local(base_url)
 
     # Define helper to determine if a generic LLMAPIError is retriable
-    def _is_retriable_llm_api_error(exc: Exception) -> bool:
+    def _is_retriable_llm_api_error(exc: BaseException) -> bool:
         """
         Thin wrapper around the module-level _is_retriable_error helper.
 
@@ -207,7 +207,7 @@ async def complete(
     if exponential_backoff:
         wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60)
     else:
-        wait_strategy = tenacity.wait_fixed(retry_delay)
+        wait_strategy = tenacity.wait_fixed(retry_delay)  # type: ignore[assignment]
 
     # Define the actual completion function with tenacity retry
     @tenacity.retry(
