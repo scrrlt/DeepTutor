@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
-from threading import Lock
+from threading import rLock
 from typing import Any
 
 from dotenv import dotenv_values, load_dotenv
@@ -34,11 +34,11 @@ class ConfigManager:
 
     _instance: "ConfigManager | None" = None
     _config_cache: dict[str, Any] = {}
-    _lock = Lock()
+    _rlock = rlock()
 
     def __new__(cls, project_root: Path | None = None):
         if cls._instance is None:
-            with cls._lock:
+            with cls._rlock:
                 if cls._instance is None:
                     cls._instance = super(ConfigManager, cls).__new__(cls)
                     cls._instance._initialized = False
@@ -93,7 +93,7 @@ class ConfigManager:
         Load configuration from main.yaml.
         Uses caching based on file modification time and validates against schema.
         """
-        with self._lock:
+        with self._rlock:
             if not self.config_path.exists():
                 logger.info("Config not found at %s", self.config_path)
                 self._config_cache = {}
@@ -124,7 +124,7 @@ class ConfigManager:
         Rejects invalid configs per schema.
         """
         try:
-            with self._lock:
+            with self._rlock:
                 current = self.load_config(force_reload=True)
                 self._deep_update(current, config)
                 validated = self._validate_and_migrate(current)
@@ -203,5 +203,5 @@ class ConfigManager:
     @classmethod
     def reset_for_tests(cls) -> None:
         """Reset singleton to allow re-initialization in tests with a different project_root."""
-        with cls._lock:
+        with cls._rlock:
             cls._instance = None

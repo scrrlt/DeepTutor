@@ -115,21 +115,28 @@ class EmbeddingClient:
         if current_loop == self._init_loop:
             # Called sync from within the init loop - this would block
             raise RuntimeError(
-                "Deadlock Risk: embed_sync() called from the initialization thread. "
-                "Asyncio will never execute the task because this thread is blocked. "
-                "Use 'await embed()' instead."
-            )
+                "Deadlock Risk: embed_sync() called from the initialization thread. Use 'await embed()' instead."
+            )  # noqa: TRY003
 
         if self._init_loop and self._init_loop.is_running():
             # Different loop context, dispatch to init loop for adapter affinity
             future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
             return future.result(timeout=self.config.request_timeout or 30)
 
+        if self._init_loop is None:
+            # Client was created outside any async context - no loop affinity to maintain
+            # Run the coroutine in a worker thread using asyncio.run to avoid blocking the
+            # current event loop where embed_sync was invoked.
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(asyncio.run, self.embed(texts))
+                return future.result(timeout=self.config.request_timeout or 30)
+
         # Init loop is dead but we're in a different running loop - can't safely proceed
         raise RuntimeError(
-            "embed_sync() called from a running event loop, but the initialization loop "
-            "is no longer running. Re-initialize the client in the current async context."
-        )
+            "embed_sync() called from a running event loop, but the initialization loop is no longer running. Re-initialize the client in the current async context."
+        )  # noqa: TRY003
 
     def get_embedding_func(self):
         """

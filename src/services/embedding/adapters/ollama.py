@@ -73,8 +73,11 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
             ValueError: If required configuration or response data is missing.
             httpx.HTTPError: If the Ollama API request fails.
         """
+        # Validate texts input
+        self._validate_texts(request.texts)
+
         if not self.base_url:
-            raise ValueError("Base URL is required for Ollama embedding")
+            raise ValueError("Base URL is required for Ollama embedding")  # noqa: TRY003
 
         payload: dict[str, Any] = {
             "model": request.model or self.model,
@@ -112,33 +115,32 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
                                     health_check.json().get("models", []),
                                 )
                             ]
-                            raise ValueError(
-                                f"Model '{payload['model']}' not found in Ollama. "
-                                f"Available models: {', '.join(available_models[:10])}. "
-                                f"Download it with: ollama pull {payload['model']}"
+                            logger.debug(
+                                "Model '%s' not found in Ollama. Available models: %s",
+                                payload["model"],
+                                ", ".join(available_models[:10])[:200],
                             )
+                            raise ValueError("Model not found")  # noqa: TRY003
                     except httpx.HTTPError:
                         pass
 
-                    raise ValueError(
-                        f"Model '{payload['model']}' not found. "
-                        f"Download it with: ollama pull {payload['model']}"
+                    logger.debug(
+                        "Model '%s' not found. Ask user to download it with: ollama pull %s",
+                        payload["model"],
+                        payload["model"],
                     )
+                    raise ValueError("Model not found")  # noqa: TRY003
 
                 response.raise_for_status()
                 data = response.json()
 
         except httpx.ConnectError as e:
-            raise ConnectionError(
-                f"Cannot connect to Ollama at {self.base_url}. "
-                f"Make sure Ollama is running. Start it with: ollama serve"
-            ) from e
+            logger.error("Cannot connect to Ollama at %s", self.base_url)
+            raise ConnectionError("Cannot connect to Ollama") from e  # noqa: TRY003
 
         except httpx.TimeoutException as e:
-            raise TimeoutError(
-                f"Request to Ollama timed out after {self.request_timeout}s. "
-                f"The model might be too large or the server is overloaded."
-            ) from e
+            logger.exception("Ollama request timed out after %ss", self.request_timeout)
+            raise TimeoutError("Ollama request timed out") from e  # noqa: TRY003
 
         except httpx.HTTPError as e:
             logger.error("Ollama API error: %s", e)
@@ -159,8 +161,10 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
             )
 
         logger.info(
-            f"Successfully generated {len(embeddings)} embeddings "
-            f"(model: {data.get('model', self.model)}, dimensions: {actual_dims})"
+            "Successfully generated %d embeddings " "(model: %s, dimensions: %d)",
+            len(embeddings),
+            data.get("model", self.model),
+            actual_dims,
         )
 
         return EmbeddingResponse(

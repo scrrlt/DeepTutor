@@ -87,6 +87,7 @@ def is_local_llm_server(base_url: str) -> bool:
     # Extract hostname/IP from URL
     try:
         from urllib.parse import urlparse
+
         parsed = urlparse(base_url)
         hostname = parsed.hostname or parsed.netloc
         if not hostname:
@@ -102,6 +103,7 @@ def is_local_llm_server(base_url: str) -> bool:
 
     # Check for private IP ranges
     import ipaddress
+
     try:
         # Try to parse as IP address
         ip = ipaddress.ip_address(hostname)
@@ -127,14 +129,9 @@ def _needs_v1_suffix(url: str) -> bool:
     """
     Check if the URL needs /v1 suffix for OpenAI compatibility.
 
-    Most local LLM servers (Ollama, LM Studio, vLLM, llama.cpp) expose
-    OpenAI-compatible endpoints at /v1.
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        True if /v1 should be appended
+    For robustness we treat any detected local LLM server as requiring /v1.
+    This avoids depending on a static list of ports which may not match container
+    port mappings used in Docker/Kubernetes setups.
     """
     if not url:
         return False
@@ -145,17 +142,14 @@ def _needs_v1_suffix(url: str) -> bool:
     if url_lower.endswith("/v1"):
         return False
 
-    # Only add /v1 for local servers with known ports that need it
-    if not is_local_llm_server(url):
-        return False
-
-    # Check if URL contains any port that needs /v1 suffix
-    # Also check for "ollama" in URL (but not ollama.com cloud service)
+    # If it's an Ollama host explicitly (not the cloud service), ensure /v1
     is_ollama = "ollama" in url_lower and "ollama.com" not in url_lower
     if is_ollama:
         return True
 
-    return any(port in url_lower for port in V1_SUFFIX_PORTS)
+    # For other local servers, rely on the local detection which checks hostnames
+    # and private IP ranges instead of a static list of ports.
+    return is_local_llm_server(url)
 
 
 def sanitize_url(base_url: str, model: str = "") -> str:
@@ -356,7 +350,8 @@ def extract_response_content(message: Any) -> str:
         message: Message object/dict from LLM response or direct string
 
     Returns:
-        Extracted content string
+        Extracted content string. For unrecognized types returns an empty
+        string to avoid poisoning downstream logic with reprs of error objects.
     """
     if message is None:
         return ""
@@ -364,8 +359,10 @@ def extract_response_content(message: Any) -> str:
     if isinstance(message, str):
         return message
 
+    # Defensive: non-mapping types (e.g., HTTP response objects) should not be
+    # returned as string reprs because that can be mistaken for valid content.
     if not isinstance(message, (dict, Mapping)):
-        return str(message)
+        return ""
 
     content = message.get("content", "")
 

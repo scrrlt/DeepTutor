@@ -11,6 +11,10 @@ from typing import Any, cast
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
+import ssl
+import socket
+
+from src.services.llm.cloud_provider import run_tls_diagnostics
 
 from .base import BaseEmbeddingAdapter, EmbeddingRequest, EmbeddingResponse
 
@@ -99,19 +103,24 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
             ValueError: If required configuration or response data is missing.
             httpx.HTTPError: If the request fails.
         """
+        # Validate texts input
+        self._validate_texts(request.texts)
+
         if not self.base_url:
-            raise ValueError("Base URL is required for OpenAI-compatible embedding")
+            raise ValueError("Base URL is required for OpenAI-compatible embedding")  # noqa: TRY003
 
         model = request.model or self.model
         if not model:
-            raise ValueError("Model is required for OpenAI-compatible embedding")
+            raise ValueError("Model is required for OpenAI-compatible embedding")  # noqa: TRY003
 
         headers = {
             "Content-Type": "application/json",
         }
         if self.api_version:
             if not self.api_key:
-                raise ValueError("API key is required for Azure/OpenAI with api_version")
+                raise ValueError(
+                    "API key is required for Azure/OpenAI with api_version"
+                )  # noqa: TRY003
             headers["api-key"] = self.api_key
         elif self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -157,7 +166,7 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         response_model = model
 
         # Check if SSL verification should be disabled for testing
-        if not hasattr(self, "_ssl_warning_logged"):
+        if not hasattr(self, "_ssl_checked"):
             disable_ssl = os.getenv("DISABLE_SSL_VERIFY", "").lower()
             self._disable_ssl_verify = disable_ssl in ("true", "1", "yes")
             if self._disable_ssl_verify:
@@ -166,14 +175,29 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
                     "environment variable. This should only be used in testing and "
                     "never in production."
                 )
-                self._ssl_warning_logged = True  # Ensure warning is logged only once
+                self._ssl_checked = True  # Ensure warning is logged only once
 
         async with httpx.AsyncClient(
             timeout=self.request_timeout, verify=not self._disable_ssl_verify
         ) as client:
             for batch in _chunk_texts(request.texts, self.batch_size):
                 payload["input"] = batch
-                response = await client.post(url, json=payload, headers=headers)
+                try:
+                    response = await client.post(url, json=payload, headers=headers)
+                except httpx.HTTPError as e:
+                    err_str = str(e).lower()
+                    is_ssl_error = (
+                        isinstance(e, ssl.SSLError) or "ssl" in err_str or "sslv3" in err_str
+                    )
+                    if is_ssl_error:
+                        diag = None
+                        try:
+                            diag = run_tls_diagnostics(url)
+                            logger.warning("TLS diagnostic for %s: %s", url, diag)
+                        except Exception as diag_exc:
+                            logger.debug(f"TLS diagnostics failed: {diag_exc}", exc_info=True)
+                        raise
+                    raise
 
                 if response.status_code >= 400:
                     logger.error(
@@ -186,11 +210,11 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
                 data = response.json()
 
                 if "data" not in data or not data["data"]:
-                    raise ValueError("Invalid API response: missing or empty 'data' field")
+                    raise ValueError("Invalid API response")  # noqa: TRY003
 
                 for item in data["data"]:
                     if "embedding" not in item:
-                        raise ValueError("Invalid API response: item missing 'embedding' field")
+                        raise ValueError("Invalid API response: missing embedding")  # noqa: TRY003
                     embeddings.append(item["embedding"])
                 response_model = data.get("model", response_model)
                 _merge_usage(usage_totals, data.get("usage", {}))

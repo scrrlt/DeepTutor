@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
 """Tests for LLM utility helpers."""
 
+import sys
+import types
+
+# Prevent optional provider imports from failing at collection time.
+mod = types.ModuleType("src.services.search.providers")
+mod.get_available_providers = lambda: []
+mod.get_default_provider = lambda: "perplexity"
+mod.get_provider = lambda name: types.SimpleNamespace(
+    name=name, supports_answer=True, search=lambda query, **kwargs: types.SimpleNamespace(to_dict=lambda: {"answer": "", "citations": [], "search_results": []})
+)
+mod.get_providers_info = lambda: []
+mod.list_providers = lambda: []
+sys.modules.setdefault("src.services.search.providers", mod)
+
 from src.services.llm.utils import (
     build_chat_url,
     clean_thinking_tags,
@@ -13,6 +27,23 @@ from src.services.llm.utils import (
 def test_is_local_llm_server() -> None:
     assert is_local_llm_server("http://localhost:1234/v1")
     assert not is_local_llm_server("https://api.openai.com/v1")
+
+
+def test_is_local_llm_server_private_ip_and_local_ports() -> None:
+    # Private IP ranges should be treated as local
+    assert is_local_llm_server("http://192.168.1.100:8000/v1")
+    assert is_local_llm_server("http://10.0.0.1:1234")
+    # Common local LLM ports should be detected
+    assert is_local_llm_server("http://myserver:11434")
+    assert is_local_llm_server("http://myserver:1234")
+
+
+def test_clean_thinking_tags_unicode_delimiters() -> None:
+    # Unicode delimiters used by some local/reasoning models
+    content1 = "◣skip◢answer"
+    content2 = "꽁skip꽁answer"
+    assert clean_thinking_tags(content1, binding="deepseek", model="deepseek-reasoner") == "answer"
+    assert clean_thinking_tags(content2, binding="deepseek", model="deepseek-reasoner") == "answer"
 
 
 def test_sanitize_url_adds_protocol_and_v1() -> None:

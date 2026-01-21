@@ -6,8 +6,9 @@ WebSocket endpoint for lightweight chat with session management.
 REST endpoints for session operations.
 """
 
-from pathlib import Path
 import sys
+import logging as _logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -19,9 +20,9 @@ from src.agents.chat import ChatAgent, SessionManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm.config import get_llm_config
+from src.services.llm.exceptions import LLMConfigError
 
 # Initialize logger
-import logging as _logging
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("solve_config.yaml", project_root)
 log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
@@ -126,10 +127,11 @@ async def websocket_chat(websocket: WebSocket):
         llm_config = get_llm_config()
         api_key = llm_config.api_key
         base_url = llm_config.base_url
-        api_version = getattr(llm_config, "api_version", None)
-    except Exception as e:
-        # Log configuration loading failure - system will continue with None values
-        # but ChatAgent must handle missing credentials gracefully
+        api_version = llm_config.api_version
+    except LLMConfigError as e:
+        # Log configuration loading failure - system will continue with None values.
+        # ChatAgent will attempt to refresh its configuration and raise a clear
+        # LLMConfigError if credentials remain missing.
         logger.warning("Failed to load LLM config: %s", e)
         api_key = None
         base_url = None
@@ -157,22 +159,10 @@ async def websocket_chat(websocket: WebSocket):
         Returns:
             Tuple of session and session ID.
         """
-        if session_id:
-            session = session_manager.get_session(session_id)
-            if not session:
-                # Session not found, create new one
-                session = session_manager.create_session(
-                    title=message[:50] + ("..." if len(message) > 50 else ""),
-                    settings={
-                        "kb_name": kb_name,
-                        "enable_rag": enable_rag,
-                        "enable_web_search": enable_web_search,
-                    },
-                )
-                session_id = session["session_id"]
-        else:
-            # Create new session
-            session = session_manager.create_session(
+
+        def _create_new_session() -> dict[str, object]:
+            """Helper to create a new session with consistent settings/title."""
+            return session_manager.create_session(
                 title=message[:50] + ("..." if len(message) > 50 else ""),
                 settings={
                     "kb_name": kb_name,
@@ -180,6 +170,16 @@ async def websocket_chat(websocket: WebSocket):
                     "enable_web_search": enable_web_search,
                 },
             )
+
+        if session_id:
+            session = session_manager.get_session(session_id)
+            if not session:
+                # Session not found, create new one
+                session = _create_new_session()
+                session_id = session["session_id"]
+        else:
+            # Create new session
+            session = _create_new_session()
             session_id = session["session_id"]
 
         return session, session_id
@@ -288,6 +288,23 @@ async def websocket_chat(websocket: WebSocket):
                         elif chunk_data["type"] == "complete":
                             full_response = chunk_data["response"]
                             sources = chunk_data.get("sources", {"rag": [], "web": []})
+                else:
+                    # Defensive logging and client notification when agent did not return a stream
+                    logger.warning(
+                        "stream_generator is not async iterable: %s",
+                        type(stream_generator).__name__,
+                    )
+                    # Inform client about unexpected non-streaming response
+                    try:
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": "LLM did not return a streaming generator. Please try again.",
+                            }
+                        )
+                    except Exception:
+                        # If sending fails, just log and continue; don't let this break the server loop
+                        logger.debug("Failed to notify client about non-iterable stream_generator")
 
                 # Send sources if any
                 if sources.get("rag") or sources.get("web"):

@@ -42,21 +42,12 @@ def _normalize_embeddings(
     Returns:
         Normalized embeddings when enabled.
     """
-    if normalize is False:
-        return embeddings
-    return [_normalize_vector(vector) for vector in embeddings]
-
+    if normalize is not False:
+        return [_normalize_vector(vector) for vector in embeddings]
+    return embeddings
 
 class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
-    """
-    Adapter for Cohere Embed API (v1 and v2).
-
-    Args:
-        None.
-
-    Returns:
-        None.
-    """
+    """Adapter for Cohere Embed API (v1 and v2)."""
 
     MODELS_INFO: dict[str, dict[str, Any]] = {
         "embed-v4.0": {
@@ -100,10 +91,13 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             ValueError: If required configuration or response data is missing.
             httpx.HTTPError: If the Cohere API request fails.
         """
+        # Validate texts input
+        self._validate_texts(request.texts)
+
         if not self.api_key:
-            raise ValueError("API key is required for Cohere embedding")
+            raise ValueError("API key is required for Cohere embedding")  # noqa: TRY003
         if not self.base_url:
-            raise ValueError("Base URL is required for Cohere embedding")
+            raise ValueError("Base URL is required for Cohere embedding")  # noqa: TRY003
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -112,7 +106,7 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
         model_name = request.model or self.model
         if not model_name:
-            raise ValueError("Model name is required for Cohere embedding")
+            raise ValueError("Model name is required for Cohere embedding")  # noqa: TRY003
         model_info = self.MODELS_INFO.get(model_name, {})
         api_version = model_info.get("api_version", "v2")
         dimension = request.dimensions or self.dimensions
@@ -166,7 +160,9 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             data = response.json()
 
         if "embeddings" not in data or not data["embeddings"]:
-            raise ValueError("Invalid API response: missing or empty 'embeddings' field")
+            raise ValueError(
+                "Invalid API response: missing or empty 'embeddings' field"
+            )  # noqa: TRY003
 
         if api_version == "v1":
             embeddings = cast(list[list[float]], data["embeddings"])

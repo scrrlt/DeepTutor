@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """Streaming parser utilities for handling partial thinking markers across chunks."""
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
 from src.services.llm.utils import clean_thinking_tags
-from src.services.llm.capabilities import has_thinking_tags
+from src.services.llm.capabilities import get_thinking_markers
 
 
 class StreamParser:
@@ -29,13 +30,20 @@ class StreamParser:
         self.model = model
 
         # Buffers
-        self.yield_buffer: str = ""
+        self.yield_buffer: str = ""  # content awaiting emission or pre-marker text
         self.thinking_buffer: str = ""
         self.in_thinking_block: bool = False
+        self._pre_marker: str | None = None  # holds pre-marker text until the thinking block closes
 
-        # Marker sets - can be overridden later if needed
-        self.open_markers = self.DEFAULT_OPEN_MARKERS
-        self.close_markers = self.DEFAULT_CLOSE_MARKERS
+        # Resolve markers from capabilities (provider/model), fall back to defaults
+        open_markers, close_markers = get_thinking_markers(binding, model)
+        # Normalize order: prefer longer markers first to avoid prefix collisions
+        self.open_markers = (
+            tuple(sorted(open_markers, key=len, reverse=True)) or self.DEFAULT_OPEN_MARKERS
+        )
+        self.close_markers = (
+            tuple(sorted(close_markers, key=len, reverse=True)) or self.DEFAULT_CLOSE_MARKERS
+        )
 
     def _ends_with_partial(self, buf: str, markers: Tuple[str, ...]) -> bool:
         for m in markers:
@@ -70,12 +78,9 @@ class StreamParser:
                     break  # wait for more data
 
                 if idx is not None:
-                    # Emit pre-marker text
-                    if idx > 0:
-                        pre = self.yield_buffer[:idx]
-                        if pre:
-                            outputs.append(pre)
-                    # Move the rest into thinking buffer
+                    # Found a full start marker - move the thinking block into a buffer
+                    # and hold pre-marker text in _pre_marker until a close marker is found.
+                    self._pre_marker = self.yield_buffer[:idx] if idx > 0 else ""
                     self.thinking_buffer = self.yield_buffer[idx:]
                     self.yield_buffer = ""
                     self.in_thinking_block = True
@@ -85,22 +90,24 @@ class StreamParser:
                         self.thinking_buffer, self.close_markers
                     )
                     if close_idx is not None:
+                        # When a close marker is found immediately, clean and emit
+                        # the pre-marker text and the trailing 'after' content.
                         after = self.thinking_buffer.split(close_marker, 1)[1]
-                        cleaned = clean_thinking_tags(
-                            self.thinking_buffer, self.binding, self.model
-                        )
-                        if cleaned:
-                            outputs.append(cleaned)
+                        _ = clean_thinking_tags(self.thinking_buffer, self.binding, self.model)
                         self.thinking_buffer = ""
                         self.in_thinking_block = False
-                        self.yield_buffer = after
+                        pre = self._pre_marker or ""
+                        self._pre_marker = None
+                        if pre:
+                            outputs.append(pre)
+                        if after:
+                            outputs.append(after)
                         progressed = True
                         continue
                 else:
-                    # No marker, emit entire buffer
-                    if self.yield_buffer:
-                        outputs.append(self.yield_buffer)
-                        self.yield_buffer = ""
+                    # No start marker present; keep buffer until finalization
+                    # (do not emit partial text here to avoid leaking partial tags).
+                    pass
             else:
                 # inside thinking block
                 self.thinking_buffer += self.yield_buffer
@@ -113,13 +120,19 @@ class StreamParser:
                     self.thinking_buffer, self.close_markers
                 )
                 if close_idx is not None:
+                    # Found closing marker while inside thinking block.
+                    # Clean the thinking buffer and emit the pre_marker followed by
+                    # the trailing after content immediately.
                     after = self.thinking_buffer.split(close_marker, 1)[1]
-                    cleaned = clean_thinking_tags(self.thinking_buffer, self.binding, self.model)
-                    if cleaned:
-                        outputs.append(cleaned)
+                    _ = clean_thinking_tags(self.thinking_buffer, self.binding, self.model)
                     self.thinking_buffer = ""
                     self.in_thinking_block = False
-                    self.yield_buffer = after
+                    pre = self._pre_marker or ""
+                    self._pre_marker = None
+                    if pre:
+                        outputs.append(pre)
+                    if after:
+                        outputs.append(after)
                     progressed = True
                     continue
                 # otherwise still inside thinking block, wait
@@ -128,12 +141,31 @@ class StreamParser:
         return outputs
 
     def finalize(self) -> List[str]:
-        """Flush any remaining buffered content at end-of-stream."""
+        """Flush any remaining buffered content at end-of-stream.
+
+        If a thinking block was left open, attempt to recover by:
+        1) Running clean_thinking_tags (may remove tags and reveal trailing text)
+        2) If cleaning yields nothing, try stripping the leading open marker and
+           presenting the remainder as best-effort recovery so the user sees
+           the last partial output.
+        """
         outputs: List[str] = []
         if self.in_thinking_block and self.thinking_buffer:
             cleaned = clean_thinking_tags(self.thinking_buffer, self.binding, self.model)
             if cleaned:
                 outputs.append(cleaned)
+            else:
+                # Attempt to strip a leading open marker and yield remainder
+                yielded = False
+                for m in self.open_markers:
+                    if self.thinking_buffer.startswith(m):
+                        candidate = self.thinking_buffer[len(m) :]
+                        if candidate:
+                            outputs.append(candidate)
+                            yielded = True
+                            break
+                if not yielded and self.thinking_buffer:
+                    outputs.append(self.thinking_buffer)
         elif self.yield_buffer:
             outputs.append(self.yield_buffer)
         # Reset buffers

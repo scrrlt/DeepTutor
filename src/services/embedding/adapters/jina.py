@@ -41,10 +41,13 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         Returns:
             EmbeddingResponse with embeddings and metadata
         """
+        # Validate texts input
+        self._validate_texts(request.texts)
+
         if not self.api_key:
-            raise ValueError("API key is required for Jina embedding")
+            raise ValueError("API key is required for Jina embedding")  # noqa: TRY003
         if not self.base_url:
-            raise ValueError("Base URL is required for Jina embedding")
+            raise ValueError("Base URL is required for Jina embedding")  # noqa: TRY003
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -64,7 +67,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         if request.input_type:
             task = self.INPUT_TYPE_TO_TASK.get(request.input_type, request.input_type)
             payload["task"] = task
-            logger.debug("Using Jina task: %s", task)
+            logger.debug(f"Using Jina task: {task}")
 
         if request.normalized is not None:
             payload["normalized"] = request.normalized
@@ -94,7 +97,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             data = response.json()
 
         if "data" not in data or not data["data"]:
-            raise ValueError("Invalid API response: missing or empty 'data' field")
+            raise ValueError("Invalid API response: missing or empty 'data' field")  # noqa: TRY003
 
         embeddings = [item["embedding"] for item in data["data"]]
         actual_dims = len(embeddings[0]) if embeddings else 0
@@ -102,13 +105,13 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         logger.info(
             "Successfully generated %d embeddings (model: %s, dimensions: %d)",
             len(embeddings),
-            data["model"],
+            data.get("model", self.model or "unknown"),
             actual_dims,
         )
 
         return EmbeddingResponse(
             embeddings=embeddings,
-            model=data["model"],
+            model=data.get("model", self.model or "unknown"),
             dimensions=actual_dims,
             usage=data.get("usage", {}),
         )
@@ -133,11 +136,11 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             }
 
         if isinstance(model_info, dict):
-            info_dict = cast(dict[str, Any], model_info)
+            model_info_dict = cast(dict[str, Any], model_info)
             return {
                 "model": model_name,
-                "dimensions": info_dict.get("default", self.dimensions),
-                "supported_dimensions": info_dict.get("dimensions", []),
+                "dimensions": model_info_dict.get("default", self.dimensions),
+                "supported_dimensions": model_info_dict.get("dimensions", []),
                 "supports_variable_dimensions": True,
                 "provider": "jina",
             }

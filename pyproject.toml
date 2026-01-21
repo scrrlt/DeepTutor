@@ -180,6 +180,7 @@ addopts = [
     "--disable-warnings",
     "--tb=short"
 ]
+markers = ["integration: mark tests that hit external services or are otherwise slow/costly"]
 
 # ============================================
 # MyPy type checking configuration

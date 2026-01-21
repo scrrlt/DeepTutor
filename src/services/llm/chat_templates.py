@@ -152,7 +152,7 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
             except TypeError:
                 return str(render_fn(template, **context))
     except Exception as exc:  # pragma: no cover - fallback path
-        logger.debug("minja render failed, falling back: %s", exc)
+        logger.debug(f"minja render failed, falling back: {exc}")
 
     from jinja2 import BaseLoader, Environment
 
@@ -209,13 +209,18 @@ def _load_template_from_tokenizer_dir(directory: Path) -> ChatTemplateInfo | Non
     template = None
     metadata: dict[str, Any] = {}
 
+    # Collect tokens from all available sources first to ensure we don't miss
+    # token metadata in the file that does not contain the template.
+    for data in (config_data, tokenizer_data):
+        if data:
+            metadata.update(_extract_tokens(data))
+
+    # Then find the template (prefer tokenizer_config.json over tokenizer.json when present)
     for source, data in ((config_path, config_data), (tokenizer_path, tokenizer_data)):
         if not data:
             continue
-        if template is None:
-            template = data.get("chat_template")
-        metadata.update(_extract_tokens(data))
-        if template:
+        template = data.get("chat_template")
+        if template is not None:
             return ChatTemplateInfo(
                 template=template,
                 metadata=metadata,
@@ -243,11 +248,14 @@ def _load_template_from_registry(
         None.
     """
     model_key = model.split("/")[-1].lower()
-    candidates = {
+    # Deterministic candidate ordering: prefer full model name, then dash-prefix, then underscore-prefix
+    raw_candidates = [
         model_key,
         model_key.split("-")[0],
         model_key.split("_")[0],
-    }
+    ]
+    # Preserve order but remove duplicates
+    candidates = list(dict.fromkeys(c for c in raw_candidates if c))
 
     for candidate in candidates:
         for extension in (".jinja", ".j2", ".tmpl"):
@@ -308,10 +316,7 @@ def _load_json_file(path: Path) -> dict[str, Any] | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        logger.warning("Failed to parse JSON at %s: %s", path, exc)
-        return None
-
-
+        logger.warning(f"Failed to parse JSON at {path}: {exc}")
 __all__ = [
     "ChatTemplateInfo",
     "render_chat_template",

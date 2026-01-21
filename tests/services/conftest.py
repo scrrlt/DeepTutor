@@ -22,18 +22,7 @@ def load_service_env_keys() -> None:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """
-    Register shared pytest command line options for service tests.
-
-    Args:
-        parser: Pytest argument parser.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
+    """Register shared pytest command line options for service tests."""
     parser.addoption(
         "--pipeline",
         action="store",

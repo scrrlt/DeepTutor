@@ -51,7 +51,7 @@ def _strip_value(value: str | None) -> str | None:
     return value.strip().strip("\"'")
 
 
-def _to_int(value: str | None, default: int) -> int:
+def _to_int(value: str | None, default: int | None) -> int | None:
     """Convert environment variable to int, fallback to default value on failure."""
     try:
         return int(value) if value is not None else default
@@ -158,7 +158,7 @@ def get_embedding_config() -> EmbeddingConfig:
         )
 
     # Get optional configuration
-    dim = _to_int(dim_str, None)
+
     # If dim not specified, use model-appropriate default
     if dim is None:
         dim = _get_default_dimensions(model)

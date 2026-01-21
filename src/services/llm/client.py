@@ -63,7 +63,7 @@ class LLMClient:
 
             if self.config.base_url:
                 os.environ["OPENAI_BASE_URL"] = self.config.base_url
-                self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
+                self.logger.debug(f"Set OPENAI_BASE_URL env var to {self.config.base_url}")
 
     async def complete(
         self,

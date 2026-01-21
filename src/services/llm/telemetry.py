@@ -41,7 +41,7 @@ def track_llm_call(provider_name: str) -> Callable[[F], F]:
             @functools.wraps(func)
             async def generator_wrapper(*args, **kwargs):
                 start_time = time.perf_counter()
-                logger.debug("LLM call to %s: %s", provider_name, func.__name__)
+                logger.debug(f"LLM call to {provider_name}: {func.__name__}")
                 # Instantiation errors are rare; iteration errors are handled in _wrap_stream.
                 stream = func(*args, **kwargs)
 
@@ -53,7 +53,7 @@ def track_llm_call(provider_name: str) -> Callable[[F], F]:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             start_time = time.perf_counter()
-            logger.debug("LLM call to %s: %s", provider_name, func.__name__)
+            logger.debug(f"LLM call to {provider_name}: {func.__name__}")
             try:
                 result = func(*args, **kwargs)
                 if inspect.isawaitable(result):
@@ -78,7 +78,7 @@ def track_llm_call(provider_name: str) -> Callable[[F], F]:
                     cost=float(getattr(result, "cost_estimate", 0.0) or 0.0),
                 )
 
-            logger.debug("LLM call to %s completed successfully", provider_name)
+            logger.debug(f"LLM call to {provider_name} completed successfully")
             return result
 
         return wrapper
@@ -121,7 +121,7 @@ async def _wrap_stream(
         duration = time.perf_counter() - start_time
         llm_stats.record_latency(provider_name, duration)
         if completed:
-            logger.debug("LLM stream to %s completed successfully", provider_name)
+            logger.debug(f"LLM stream to {provider_name} completed successfully")
 
 
 def _has_stream_payload(chunk: object) -> bool:

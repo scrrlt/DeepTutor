@@ -12,6 +12,7 @@ import logging
 import os
 import threading
 from typing import Any, Protocol, cast
+from types import SimpleNamespace
 
 import aiohttp
 
@@ -23,6 +24,47 @@ logger = logging.getLogger(__name__)
 
 # Thread-safe lock for SSL-warning state
 _ssl_warning_lock = threading.Lock()
+# One-time flag to ensure SSL-disable warning is logged once
+_ssl_warning_logged: bool = False
+
+
+def run_tls_diagnostics(target_url: str) -> dict[str, object]:
+    """Run lightweight TLS diagnostics against the host:port extracted from URL.
+
+    Returns a small dictionary containing outcome information to help debug
+    transient TLS/SSL failures (protocol, cipher, cert subject, error).
+    """
+    from urllib.parse import urlparse
+
+    parsed = urlparse(target_url)
+    host = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme in ("https", "wss") else 80)
+    info: dict[str, object] = {"host": host, "port": port}
+
+    try:
+        # Quick TCP connect
+        with socket.create_connection((host, port), timeout=5) as sock:
+            try:
+                ctx = ssl.create_default_context()
+                with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+                    info["peer_cert_subject"] = ssock.getpeercert().get("subject")
+                    info["cipher"] = ssock.cipher()
+                    # ssl.SSLSocket has version() returning protocol
+                    info["protocol"] = getattr(ssock, "version", lambda: None)()
+                    info["success"] = True
+            except Exception as tls_exc:
+                info["tls_error"] = str(tls_exc)
+                info["success"] = False
+    except Exception as conn_exc:
+        info["connect_error"] = str(conn_exc)
+        info["success"] = False
+
+    # Environment hints
+    info["https_proxy"] = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+    info["http_proxy"] = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+    info["disable_ssl_verify"] = os.getenv("DISABLE_SSL_VERIFY")
+    return info
+
 
 class OpenAICompleteIfCache(Protocol):
     """Protocol for the lightrag OpenAI completion helper."""
@@ -102,18 +144,8 @@ def _coerce_int(value: object, default: int | None) -> int | None:
     return default
 
 
-# Use lowercase to avoid constant redefinition warning
-_ssl_warning_logged = False
-
-
 def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
-    """
-    Build an optional aiohttp connector with SSL verification disabled.
-
-    Returns:
-        A TCPConnector with SSL verification disabled when DISABLE_SSL_VERIFY
-        is truthy; otherwise None to use aiohttp defaults.
-    """
+    global _ssl_warning_logged
     # Thread-safe check and one-time warning emission
     disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
     if not disable_flag:
@@ -121,7 +153,6 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
 
     # Emit warning once across threads
     with _ssl_warning_lock:
-        global _ssl_warning_logged
         if not _ssl_warning_logged:
             logger.warning(
                 "SSL verification is disabled via DISABLE_SSL_VERIFY. This is unsafe and must "
@@ -130,6 +161,9 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
             _ssl_warning_logged = True
     return aiohttp.TCPConnector(ssl=False)
 
+
+import socket
+import ssl
 
 from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
@@ -338,13 +372,14 @@ async def _openai_complete(
         else:
             # lightrag caching not available; proceed with normal cloud call
             content = None
-    except Exception as exc:
-        # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
-        logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
+    except Exception:
+        # Log the exception with stack info for debuggability and continue to fallback
+        logger.debug("Optional dependency lightrag unavailable", exc_info=True)
     # Fallback: Direct aiohttp call
     if not content and base_url:
         # Build URL using unified utility (use binding for Azure detection)
         url = build_chat_url(base_url, api_version, binding)
+
 
         # Build headers using unified utility
         headers = build_auth_headers(api_key, binding)
@@ -400,8 +435,20 @@ async def _openai_complete(
                             provider=binding or "openai",
                         )
             except aiohttp.ClientError as e:
-                # Handle connection errors with more specific messages
-                if "forcibly closed" in str(e).lower() or "10054" in str(e):
+                # Enhanced diagnostics for TLS/SSL failures and network errors.
+                err_str = str(e).lower()
+
+                # If this appears to be SSL-related, run TLS diagnostics to gather context
+                is_ssl_error = isinstance(e, ssl.SSLError) or "ssl" in err_str or "sslv3" in err_str
+                diagnostic_info = None
+                if is_ssl_error:
+                    try:
+                        diagnostic_info = run_tls_diagnostics(url)
+                        logger.warning(f"TLS diagnostic for {url}: {diagnostic_info}")
+                    except Exception as diag_exc:
+                        logger.debug(f"TLS diagnostics failed: {diag_exc}", exc_info=True)
+
+                if "forcibly closed" in err_str or "10054" in err_str:
                     raise LLMAPIError(
                         f"Connection to {binding} API was forcibly closed. "
                         "This may indicate network issues or server-side problems. "
@@ -409,14 +456,22 @@ async def _openai_complete(
                         status_code=0,
                         provider=binding or "openai",
                     ) from e
-                else:
+
+                # Include diagnostic summary in the error message if available
+                if diagnostic_info:
                     raise LLMAPIError(
-                        f"Network error connecting to {binding} API: {e}",
+                        f"Network/SSL error connecting to {binding} API: {e}; diagnostics: {diagnostic_info}",
                         status_code=0,
                         provider=binding or "openai",
                     ) from e
 
-    if content is not None:
+                raise LLMAPIError(
+                    f"Network error connecting to {binding} API: {e}",
+                    status_code=0,
+                    provider=binding or "openai",
+                ) from e
+
+    if isinstance(content, str):
         # Clean thinking tags from response using unified utility
         return clean_thinking_tags(content, binding, model)
 
@@ -495,14 +550,11 @@ async def _openai_stream(
                 )
 
             # Per-stream context object to hold partial buffers
-            from types import SimpleNamespace
-
             _stream_context = SimpleNamespace(
                 yield_buffer="",
                 thinking_buffer="",
                 in_thinking_block=False,
             )
-
 
             async for line in resp.content:
                 line_str = line.decode("utf-8").strip()
@@ -515,37 +567,44 @@ async def _openai_stream(
 
                 try:
                     chunk_data = cast(dict[str, object], json.loads(data_str))
-                    choices = chunk_data.get("choices")
-                    if isinstance(choices, list) and choices:
-                        choices_list = cast(list[object], choices)
-                        first_choice = choices_list[0]
-                        if isinstance(first_choice, Mapping):
-                            delta = cast(Mapping[str, object], first_choice).get("delta")
-                        else:
-                            delta = None
-                        if isinstance(delta, Mapping):
-                            content = cast(Mapping[str, object], delta).get("content")
-                        else:
-                            content = None
-                        if isinstance(content, str) and content:
-                            # Handle thinking tags in streaming for different marker styles
-                            open_markers = ("<think>", "◣", "꽁")
-                            close_markers = ("</think>", "◢", "꽁")
-
-                            # Use shared StreamParser to handle buffering and marker logic
-                            parser = getattr(_stream_context, "parser", None)
-                            if parser is None:
-                                from src.services.llm.stream_parser import StreamParser
-
-                                parser = StreamParser(binding=binding, model=model)
-                                _stream_context.parser = parser
-
-                            for out in parser.append(content):
-                                yield out
-
-
                 except json.JSONDecodeError:
+                    # Malformed JSON frame, skip this SSE data
+                    logger.warning("Skipping malformed SSE JSON chunk: %.100s", data_str)
                     continue
+
+                # Defensive guards for unusual provider frames
+                choices = chunk_data.get("choices")
+                if not (isinstance(choices, list) and choices):
+                    continue
+
+                first_choice = choices[0]
+                if not isinstance(first_choice, Mapping):
+                    continue
+
+                delta = cast(Mapping[str, object], first_choice).get("delta", {})
+                if not isinstance(delta, Mapping):
+                    continue
+
+                content = delta.get("content")
+                if not isinstance(content, str) or not content:
+                    continue
+
+                # Use shared StreamParser to handle buffering and marker logic
+                parser = getattr(_stream_context, "parser", None)
+                if parser is None:
+                    from src.services.llm.stream_parser import StreamParser
+
+                    parser = StreamParser(binding=binding, model=model)
+                    _stream_context.parser = parser
+
+                for out in parser.append(content):
+                    yield out
+
+            # End of streaming loop - flush any remaining buffered content
+            parser = getattr(_stream_context, "parser", None)
+            if parser is not None:
+                for out in parser.finalize():
+                    yield out
 
 
 async def _anthropic_complete(

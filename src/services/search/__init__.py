@@ -46,13 +46,40 @@ from src.services.config import PROJECT_ROOT, load_config_with_main
 
 from .base import SEARCH_API_KEY_ENV, BaseSearchProvider
 from .consolidation import CONSOLIDATION_TYPES, PROVIDER_TEMPLATES, AnswerConsolidator
-from .providers import (
-    get_available_providers,
-    get_default_provider,
-    get_provider,
-    get_providers_info,
-    list_providers,
-)
+try:
+    # Providers package may be intentionally removed in some deployments. Import
+    # lazily and provide graceful fallbacks so importing this module doesn't
+    # crash the process during startup.
+    from .providers import (
+        get_available_providers,
+        get_default_provider,
+        get_provider,
+        get_providers_info,
+        list_providers,
+    )
+except Exception as e:  # pragma: no cover - fallback path
+    _logger = get_logger("Search")
+    _logger.warning(f"Search providers module not available: {e}. Search features will be limited.")
+
+    def get_available_providers() -> list[str]:
+        return []
+
+    def get_default_provider() -> str:
+        return "perplexity"
+
+    def get_provider(name: str):
+        raise ImportError(
+            "Search providers are not installed in this environment. "
+            "Restore src/services/search/providers or configure SEARCH_PROVIDER appropriately."
+        )
+
+    def get_providers_info() -> list[dict[str, object]]:
+        return []
+
+    def list_providers() -> list[str]:
+        return []
+
+
 from .types import Citation, SearchResult, WebSearchResponse
 
 # Module logger

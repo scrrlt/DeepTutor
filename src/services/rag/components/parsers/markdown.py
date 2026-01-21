@@ -44,7 +44,7 @@ class MarkdownParser(BaseComponent):
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
         except OSError as e:
-            self.logger.error(f"Failed to read file {file_path}: {e}")
+            self.logger.exception("Failed to read file %s", file_path)
             raise
 
         return Document(

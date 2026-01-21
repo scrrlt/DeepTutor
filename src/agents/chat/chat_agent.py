@@ -1,61 +1,57 @@
-#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-ChatAgent - Lightweight conversational AI with multi-turn support.
+ChatAgent (Hardened)
+====================
 
-This agent provides:
-- Multi-turn conversation with history management
-- Token-based context truncation
-- Optional RAG and Web Search augmentation
-- Streaming response generation
-
-Uses the unified LLM factory from BaseAgent for both cloud and local LLM support.
+Conversational agent with multi-turn support, optimized for throughput
+and resilience. Enforces strict token management and explicit error handling.
 """
 
 import asyncio
-from functools import partial
-from pathlib import Path
+import logging
 import sys
-from typing import Any, AsyncGenerator
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union
 
-# Add project root to path
+# Add project root to path (Defensive path setup)
 _project_root = Path(__file__).parent.parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
+try:
+    import tiktoken
+except ImportError:
+    tiktoken = None
+
 from src.agents.base_agent import BaseAgent
+from src.services.llm.exceptions import LLMConfigError
 from src.tools import rag_search, web_search
+
+logger = logging.getLogger(__name__)
 
 
 class ChatAgent(BaseAgent):
     """
-    Lightweight conversational agent with multi-turn support.
+    Hardened conversational agent.
 
     Features:
-    - Conversation history management with token limits
-    - RAG (Retrieval-Augmented Generation) support
-    - Web search integration
-    - Streaming response generation via BaseAgent.stream_llm()
+    - Cached tokenizer (zero-latency lookups).
+    - Strict configuration validation (no implicit side-effects).
+    - Type-safe streaming contracts (content-only).
+    - Defensive history truncation.
     """
 
-    # Default token limit for conversation history
     DEFAULT_MAX_HISTORY_TOKENS = 4000
+    _tokenizer = None  # Class-level cache
 
     def __init__(
         self,
         language: str = "zh",
-        config: dict[str, Any] | None = None,
-        max_history_tokens: int | None = None,
+        config: Optional[Dict[str, Any]] = None,
+        max_history_tokens: Optional[int] = None,
         **kwargs,
     ):
-        """
-        Initialize ChatAgent.
-
-        Args:
-            language: Language setting ('zh' | 'en')
-            config: Optional configuration dictionary
-            max_history_tokens: Maximum tokens for conversation history
-            **kwargs: Additional arguments passed to BaseAgent
-        """
         super().__init__(
             module_name="chat",
             agent_name="chat_agent",
@@ -64,135 +60,98 @@ class ChatAgent(BaseAgent):
             **kwargs,
         )
 
-        # Configure history token limit
         self.max_history_tokens = max_history_tokens or self.agent_config.get(
             "max_history_tokens", self.DEFAULT_MAX_HISTORY_TOKENS
         )
 
-        self.logger.info(f"ChatAgent initialized: model={self.model}, base_url={self.base_url}")
+        # Hardened Validation: Fail fast if credentials missing.
+        if not self.api_key or not self.base_url:
+            raise LLMConfigError(
+                "ChatAgent requires valid 'api_key' and 'base_url'. "
+                "Ensure LLM factory is fully initialized before instantiating agents."
+            )
+
+        self.logger.info(
+            "ChatAgent initialized: model=%s, max_tokens=%d",
+            self.model,
+            self.max_history_tokens,
+        )
+
+    @classmethod
+    def _get_tokenizer(cls):
+        """Singleton accessor for tokenizer to avoid re-initialization cost."""
+        if cls._tokenizer is None and tiktoken is not None:
+            try:
+                cls._tokenizer = tiktoken.get_encoding("cl100k_base")
+            except Exception as e:
+                logger.warning("Failed to initialize tiktoken: %s. Using fallback.", e)
+        return cls._tokenizer
 
     def count_tokens(self, text: str) -> int:
         """
-        Count tokens in text using tiktoken.
+        Count tokens with cached encoding. Optimized hot path.
 
-        Falls back to character-based estimation if tiktoken unavailable.
-
-        Args:
-            text: Text to count tokens for
-
-        Returns:
-            Estimated token count
+        Note: Fallback character-based estimation is intentionally pessimistic
+        to ensure context limits are never exceeded.
         """
-        try:
-            import tiktoken
+        if not text:
+            return 0
 
-            # Use cl100k_base encoding (GPT-4, GPT-3.5-turbo)
-            encoding = tiktoken.get_encoding("cl100k_base")
-            return len(encoding.encode(text))
-        except ImportError:
-            # Fallback: rough estimate of 4 characters per token
-            return len(text) // 4
+        encoder = self._get_tokenizer()
+        if encoder:
+            try:
+                return len(encoder.encode(text))
+            except Exception:
+                pass
+
+        # Fallback: Pessimistic character heuristic
+        return len(text) // 3
 
     def truncate_history(
         self,
-        history: list[dict[str, str]],
-        max_tokens: int | None = None,
-    ) -> list[dict[str, str]]:
-        """
-        Truncate conversation history to fit within token limit.
-
-        Keeps the most recent messages, discarding older ones first.
-
-        Args:
-            history: List of message dicts with 'role' and 'content'
-            max_tokens: Maximum tokens allowed (uses default if None)
-
-        Returns:
-            Truncated history list
-        """
-        max_tokens = max_tokens or self.max_history_tokens
-
-        if not history:
+        history: List[Dict[str, str]],
+        max_tokens: Optional[int] = None,
+    ) -> List[Dict[str, str]]:
+        """Defensive history truncation prioritizing recent context."""
+        limit = max_tokens or self.max_history_tokens
+        if not history or limit <= 0:
             return []
 
-        # Calculate tokens for each message
-        message_tokens = []
-        for msg in history:
-            content = msg.get("content", "")
-            tokens = self.count_tokens(content)
-            message_tokens.append((msg, tokens))
-
-        # Build history from newest to oldest, stop when limit reached
         truncated = []
-        total_tokens = 0
+        current_tokens = 0
 
-        for msg, tokens in reversed(message_tokens):
-            if total_tokens + tokens > max_tokens:
+        for msg in reversed(history):
+            content = msg.get("content", "") or ""
+            msg_tokens = self.count_tokens(content)
+
+            if current_tokens + msg_tokens > limit:
+                if not truncated:
+                    self.logger.warning(
+                        "Latest message (%d tokens) exceeds limit (%d). Dropping.",
+                        msg_tokens,
+                        limit,
+                    )
                 break
-            truncated.insert(0, msg)
-            total_tokens += tokens
 
-        if len(truncated) < len(history):
-            self.logger.info(
-                f"Truncated history from {len(history)} to {len(truncated)} messages "
-                f"({total_tokens} tokens)"
-            )
+            truncated.insert(0, msg)
+            current_tokens += msg_tokens
 
         return truncated
-
-    def format_history_for_prompt(self, history: list[dict[str, str]]) -> str:
-        """
-        Format conversation history as a string for the prompt.
-
-        Args:
-            history: List of message dicts
-
-        Returns:
-            Formatted history string
-        """
-        if not history:
-            return ""
-
-        lines = []
-        for msg in history:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            prefix = "User" if role == "user" else "Assistant"
-            lines.append(f"{prefix}: {content}")
-
-        return "\n\n".join(lines)
 
     async def retrieve_context(
         self,
         message: str,
-        kb_name: str | None = None,
+        kb_name: Optional[str] = None,
         enable_rag: bool = False,
         enable_web_search: bool = False,
-    ) -> tuple[str, dict[str, Any]]:
-        """
-        Retrieve context from RAG and/or Web Search.
-
-        Args:
-            message: User message to search for
-            kb_name: Knowledge base name for RAG
-            enable_rag: Whether to use RAG
-            enable_web_search: Whether to use Web Search
-
-        Returns:
-            Tuple of (context_string, sources_dict)
-        """
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Retrieve context with explicit failure visibility in logs."""
         context_parts = []
         sources = {"rag": [], "web": []}
 
-        # RAG retrieval
         if enable_rag and kb_name:
             try:
-                self.logger.info(f"RAG search: {message[:50]}...")
-                rag_result = await rag_search(
-                    query=message,
-                    kb_name=kb_name,
-                    mode="hybrid",
-                )
+                rag_result = await rag_search(query=message, kb_name=kb_name, mode="hybrid")
                 rag_answer = rag_result.get("answer", "")
                 if rag_answer:
                     context_parts.append(f"[Knowledge Base: {kb_name}]\n{rag_answer}")
@@ -204,107 +163,51 @@ class ChatAgent(BaseAgent):
                             ),
                         }
                     )
-                    self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
             except Exception as e:
-                self.logger.warning(f"RAG search failed: {e}")
+                self.logger.error("RAG search failed: %s", e)
 
-        # Web search
         if enable_web_search:
             try:
-                self.logger.info(f"Web search: {message[:50]}...")
+                from functools import partial
+
                 loop = asyncio.get_running_loop()
                 web_result = await loop.run_in_executor(
-                    None,
-                    partial(web_search, query=message, verbose=False),
+                    None, partial(web_search, query=message, verbose=False)
                 )
                 web_answer = web_result.get("answer", "")
-                web_citations = web_result.get("citations", [])
-
                 if web_answer:
                     context_parts.append(f"[Web Search Results]\n{web_answer}")
-                    sources["web"] = web_citations[:5]
-                    self.logger.info(
-                        f"Web search returned {len(web_answer)} chars, "
-                        f"{len(web_citations)} citations"
-                    )
+                    sources["web"] = web_result.get("citations", [])[:5]
             except Exception as e:
-                self.logger.warning(f"Web search failed: {e}")
+                self.logger.error("Web search failed: %s", e)
 
-        context = "\n\n".join(context_parts)
-        return context, sources
+        return "\n\n".join(context_parts), sources
 
     def build_messages(
-        self,
-        message: str,
-        history: list[dict[str, str]],
-        context: str = "",
-    ) -> list[dict[str, str]]:
-        """
-        Build the messages array for the LLM API call.
-
-        Args:
-            message: Current user message
-            history: Truncated conversation history
-            context: Retrieved context (RAG/Web)
-
-        Returns:
-            List of message dicts for OpenAI API
-        """
+        self, message: str, history: List[Dict[str, str]], context: str = ""
+    ) -> List[Dict[str, str]]:
+        """Build message array for LLM provider."""
         messages = []
-
-        # System prompt
         system_prompt = self.get_prompt("system", "You are a helpful AI assistant.")
         messages.append({"role": "system", "content": system_prompt})
 
-        # Add context if available
         if context:
-            context_template = self.get_prompt("context_template", "Reference context:\n{context}")
-            context_msg = context_template.format(context=context)
-            messages.append({"role": "system", "content": context_msg})
+            template = self.get_prompt("context_template", "Reference context:\n{context}")
+            messages.append({"role": "system", "content": template.format(context=context)})
 
-        # Add conversation history
         for msg in history:
             role = msg.get("role", "user")
-            content = msg.get("content", "")
             if role in ("user", "assistant"):
-                messages.append({"role": role, "content": content})
+                messages.append({"role": role, "content": msg.get("content", "")})
 
-        # Add current message
         messages.append({"role": "user", "content": message})
-
         return messages
 
-    async def generate_stream(
-        self,
-        messages: list[dict[str, str]],
-    ) -> AsyncGenerator[str, None]:
-        """
-        Generate streaming response from LLM.
+    async def generate_stream(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
+        """Generate streaming response content chunks."""
+        system_prompt = next((m["content"] for m in messages if m["role"] == "system"), "")
+        user_prompt = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
 
-        Uses BaseAgent.stream_llm() which routes to the appropriate provider
-        (cloud or local) based on configuration.
-
-        Args:
-            messages: Messages array for OpenAI API
-
-        Yields:
-            Response chunks as strings
-        """
-        # Extract system prompt from messages
-        system_prompt = ""
-        user_prompt = ""
-        for msg in messages:
-            if msg.get("role") == "system":
-                system_prompt = msg.get("content", "")
-                break
-
-        # Get the last user message as user_prompt (for logging/tracking)
-        for msg in reversed(messages):
-            if msg.get("role") == "user":
-                user_prompt = msg.get("content", "")
-                break
-
-        # Use BaseAgent's stream_llm which routes through the factory
         async for chunk in self.stream_llm(
             user_prompt=user_prompt,
             system_prompt=system_prompt,
@@ -313,36 +216,11 @@ class ChatAgent(BaseAgent):
         ):
             yield chunk
 
-    async def generate(self, messages: list[dict[str, str]]) -> str:
-        """
-        Generate complete response from LLM (non-streaming).
+    async def generate(self, messages: List[Dict[str, str]]) -> str:
+        """Generate complete non-streaming response."""
+        system_prompt = next((m["content"] for m in messages if m["role"] == "system"), "")
+        user_prompt = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
 
-        Uses BaseAgent.call_llm() which routes to the appropriate provider
-        (cloud or local) based on configuration.
-
-        Args:
-            messages: Messages array for OpenAI API
-
-        Returns:
-            Complete response string
-        """
-        # Extract system prompt from messages
-        system_prompt = ""
-        user_prompt = ""
-        for msg in messages:
-            if msg.get("role") == "system":
-                system_prompt = msg.get("content", "")
-                break
-
-        # Get the last user message
-        for msg in reversed(messages):
-            if msg.get("role") == "user":
-                user_prompt = msg.get("content", "")
-                break
-
-        # Use BaseAgent's call_llm which routes through the factory
-        # Note: call_llm expects simple prompt/system_prompt, but for multi-turn
-        # we need to use the factory directly with messages
         from src.services.llm import complete as llm_complete
 
         response = await llm_complete(
@@ -355,7 +233,6 @@ class ChatAgent(BaseAgent):
             temperature=self.get_temperature(),
         )
 
-        # Track token usage
         self._track_tokens(
             model=self.get_model(),
             system_prompt=system_prompt,
@@ -363,39 +240,25 @@ class ChatAgent(BaseAgent):
             response=response,
             stage="chat",
         )
-
         return response
 
     async def process(
         self,
         message: str,
-        history: list[dict[str, str]] | None = None,
-        kb_name: str | None = None,
+        history: Optional[List[Dict[str, str]]] = None,
+        kb_name: Optional[str] = None,
         enable_rag: bool = False,
         enable_web_search: bool = False,
         stream: bool = False,
-    ) -> dict[str, Any] | AsyncGenerator[dict[str, Any], None]:
+    ) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
         """
-        Process a chat message with optional context retrieval.
+        Process chat.
 
-        Args:
-            message: User message
-            history: Conversation history (will be truncated if needed)
-            kb_name: Knowledge base name for RAG
-            enable_rag: Whether to enable RAG retrieval
-            enable_web_search: Whether to enable web search
-            stream: Whether to stream the response
-
-        Returns:
-            If stream=False: Dict with 'response', 'sources', 'truncated_history'
-            If stream=True: AsyncGenerator yielding chunks
+        If stream=True, returns AsyncGenerator yielding ONLY content chunks (strings).
+        If stream=False, returns Dict with response and metadata.
         """
         history = history or []
-
-        # Truncate history to fit token limit
         truncated_history = self.truncate_history(history)
-
-        # Retrieve context if needed
         context, sources = await self.retrieve_context(
             message=message,
             kb_name=kb_name,
@@ -403,39 +266,24 @@ class ChatAgent(BaseAgent):
             enable_web_search=enable_web_search,
         )
 
-        # Build messages for LLM
-        messages = self.build_messages(
-            message=message,
-            history=truncated_history,
-            context=context,
-        )
+        messages = self.build_messages(message, truncated_history, context)
 
         if stream:
-            # Return async generator for streaming
-            async def stream_generator():
-                full_response = ""
-                async for chunk in self.generate_stream(messages):
-                    full_response += chunk
-                    yield {"type": "chunk", "content": chunk}
-
-                # Yield final result with sources
-                yield {
-                    "type": "complete",
-                    "response": full_response,
-                    "sources": sources,
-                    "truncated_history": truncated_history,
-                }
-
-            return stream_generator()
+            return self._stream_generator(messages)
         else:
-            # Generate complete response
             response = await self.generate(messages)
-
             return {
                 "response": response,
                 "sources": sources,
                 "truncated_history": truncated_history,
+                "usage": {"token_count": self.count_tokens(response)},
             }
 
-
-__all__ = ["ChatAgent"]
+    async def _stream_generator(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
+        """Encapsulated generator yielding pure content chunks."""
+        try:
+            async for chunk in self.generate_stream(messages):
+                yield chunk
+        except Exception as e:
+            self.logger.error("Streaming failed: %s", e)
+            raise

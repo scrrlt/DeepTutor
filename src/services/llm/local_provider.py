@@ -12,15 +12,18 @@ Key features:
 - Extended timeouts for potentially slower local inference
 """
 
+from collections.abc import AsyncGenerator
+from types import SimpleNamespace
+from typing import Any
+
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict, List, Optional
-from types import SimpleNamespace
+import os
 import threading
-from urllib.parse import urljoin
+
+import aiohttp
 
 from src.services.llm.stream_parser import StreamParser
-import aiohttp
 
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
@@ -32,6 +35,7 @@ from .utils import (
     sanitize_url,
 )
 
+# ruff: noqa: TRY003
 logger = logging.getLogger(__name__)
 
 # Extended timeout for local servers (may be slower than cloud)
@@ -41,10 +45,10 @@ DEFAULT_TIMEOUT = 300  # 5 minutes
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> str:
     """
@@ -65,7 +69,7 @@ async def complete(
         str: The LLM response
     """
     if not base_url:
-        raise LLMConfigError("base_url is required for local LLM provider")
+        raise LLMConfigError("base_url is required for local LLM provider")  # noqa: TRY003
 
     # Sanitize URL and build chat endpoint
     base_url = sanitize_url(base_url, model or "")
@@ -114,12 +118,12 @@ async def complete(
         async with session.post(url, json=data, headers=headers) as response:
             if response.status != 200:
                 error_text = await response.text()
+                logger.error("Local LLM error: %s", error_text[:200])
                 raise LLMAPIError(
-                    f"Local LLM error: {error_text}",
+                    "Local LLM error",
                     status_code=response.status,
                     provider="local",
-                )
-
+                )  # noqa: TRY003
             result = await response.json()
 
             if "choices" in result and result["choices"]:
@@ -138,10 +142,10 @@ async def complete(
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
@@ -163,7 +167,7 @@ async def stream(
         str: Response chunks
     """
     if not base_url:
-        raise LLMConfigError("base_url is required for local LLM provider")
+        raise LLMConfigError("base_url is required for local LLM provider")  # noqa: TRY003
 
     # Sanitize URL and build chat endpoint
     base_url = sanitize_url(base_url, model or "")
@@ -199,28 +203,20 @@ async def stream(
             async with session.post(url, json=data, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
+                    logger.error("Local LLM stream error: %s", error_text[:200])
                     raise LLMAPIError(
-                        f"Local LLM stream error: {error_text}",
+                        "Local LLM error",
                         status_code=response.status,
                         provider="local",
-                    )
+                    )  # noqa: TRY003
 
                 # Per-stream context to manage partial tags across chunks
-                from types import SimpleNamespace
 
                 _stream_ctx = SimpleNamespace(
                     yield_buffer="",
                     thinking_buffer="",
                     in_thinking_block=False,
                 )
-
-                def _ends_with_partial(buf: str, marker: str) -> bool:
-                    """Return True if buf ends with a prefix of marker (partial match)."""
-                    for k in range(1, len(marker)):
-                        if buf.endswith(marker[:k]):
-                            return True
-                    return False
-
 
                 async for line in response.content:
                     line_str = line.decode("utf-8").strip()
@@ -243,14 +239,14 @@ async def stream(
                                 content = delta.get("content")
 
                                 if content:
-                                        # Use shared StreamParser that understands binding/model
-                                        parser = getattr(_stream_ctx, "parser", None)
-                                        if parser is None:
-                                            parser = StreamParser(binding="local", model=model)
-                                            _stream_ctx.parser = parser
+                                    # Use shared StreamParser that understands binding/model
+                                    parser = getattr(_stream_ctx, "parser", None)
+                                    if parser is None:
+                                        parser = StreamParser(binding="local", model=model)
+                                        _stream_ctx.parser = parser
 
-                                        for out in parser.append(content):
-                                            yield out
+                                    for out in parser.append(content):
+                                        yield out
                         except json.JSONDecodeError:
                             # Log and skip malformed JSON chunks
                             logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
@@ -272,6 +268,9 @@ async def stream(
 
                                     for out in parser.append(content):
                                         yield out
+                        except json.JSONDecodeError:
+                            logger.warning("Skipping malformed JSON chunk: %s...", line_str[:50])
+                            continue
 
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is
@@ -292,16 +291,16 @@ async def stream(
             if content:
                 yield content
         except Exception as e2:
+            logger.error("Local LLM failed: streaming=%s, non-streaming=%s", e, e2)
             raise LLMAPIError(
-                f"Local LLM failed: streaming={e}, non-streaming={e2}",
-                provider="local",
-            )
+                "Local LLM failed",
+            )  # noqa: TRY003
 
 
 async def fetch_models(
     base_url: str,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """
     Fetch available models from local LLM server.
 
@@ -358,7 +357,7 @@ async def fetch_models(
                     elif isinstance(data, list):
                         return collect_model_names(data)
         except Exception as e:
-            logger.error("Error fetching models from %s: %s", base_url, e)
+            logger.exception("Error fetching models from %s", base_url)
 
         return []
 

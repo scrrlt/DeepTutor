@@ -11,7 +11,7 @@ python-dotenv>=1.0.0
 PyYAML>=6.0
 tiktoken>=0.5.0
 jinja2>=3.1.0              # Template engine for search consolidation
-minja>=0.1.0               # Lightweight Jinja renderer for chat templates
+minja>=1.0.0               # Lightweight Jinja renderer for chat templates (pin to stable API)
 
 # ============================================
 # HTTP and API clients

@@ -91,9 +91,17 @@ pytest --cov=src --cov-report=html
 **Prerequisites**: Populate `.env` with API keys for providers you want to test.
 
 
-# SSL inspection must be disabled to avoid SSL/TLS errors during tests.
-DISABLE_SSL_VERIFY=true  # Set to 'true' to disable SSL verification for LLM network tests.
-                        # It is recommended to set this to 'true' only for testing purposes.
+```text
+# Integration test guidance
+# - Integration tests are marked with @pytest.mark.integration and will be skipped
+#   automatically if required environment variables (API keys, hosts) are absent.
+# - To enforce key validation locally or in CI, set ENFORCE_LLM_KEYS=1; tests will
+#   then fail fast for missing or malformed keys.
+# - Do NOT enable DISABLE_SSL_VERIFY in CI or production; it may mask TLS issues.
+# - If you encounter TLS/SSL errors locally (e.g., SSLV3_ALERT_BAD_RECORD_MAC),
+#   check your proxy (HTTP(S)_PROXY/HTTPS_PROXY env vars) and network TLS inspection.
+#   The test harness now runs lightweight TLS diagnostics and logs cipher/protocol
+#   and peer cert info to help debugging.
 
 # [Optional] For VS Code users: To enable the Python extension to load environment
 # variables from this .env file, set `python.terminal.useEnvFile` to 'True' in your
@@ -113,6 +121,7 @@ DISABLE_SSL_VERIFY=true  # Set to 'true' to disable SSL verification for LLM net
 #         [Environment]::SetEnvironmentVariable($key, $value, "Process")
 #     }
 # }
+```
 
 # If you need to test specific providers, use LLM_BINDING=<provider> with the integration tests.
 ```
