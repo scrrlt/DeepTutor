@@ -251,7 +251,9 @@ class KnowledgeBaseInitializer:
                 error=error_msg,
             )
         except Exception as e:
-            error_msg = str(e)
+            from src.utils.error_utils import format_exception_message
+
+            error_msg = format_exception_message(e)
             logger.error(f"✗ Error processing documents: {error_msg}")
             import traceback
 
@@ -400,7 +402,9 @@ class KnowledgeBaseInitializer:
             )
 
         except Exception as e:
-            error_msg = str(e)
+            from src.utils.error_utils import format_exception_message
+
+            error_msg = format_exception_message(e)
             logger.error(f"\n✗ Numbered items extraction failed: {error_msg}")
             import traceback
 

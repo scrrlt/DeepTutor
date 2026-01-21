@@ -23,6 +23,7 @@ sys.path.insert(0, str(_project_root))
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.utils.error_utils import format_exception_message
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
@@ -197,8 +198,9 @@ async def websocket_solve(websocket: WebSocket):
             base_url = llm_config.base_url
             api_version = getattr(llm_config, "api_version", None)
         except Exception as e:
-            logger.error(f"Failed to get LLM config: {e}", exc_info=True)
-            await websocket.send_json({"type": "error", "content": f"LLM configuration error: {e}"})
+            friendly = format_exception_message(e)
+            logger.error(f"Failed to get LLM config: {friendly}", exc_info=True)
+            await websocket.send_json({"type": "error", "content": f"LLM configuration error: {friendly}"})
             return
 
         solver = MainSolver(
@@ -387,10 +389,11 @@ async def websocket_solve(websocket: WebSocket):
     except Exception as e:
         # Mark connection as closed before sending error (to prevent log_pusher from interfering)
         connection_closed.set()
-        await safe_send_json({"type": "error", "content": str(e)})
-        logger.error(f"[{task_id if 'task_id' in locals() else 'unknown'}] Solving failed: {e}")
+        friendly = format_exception_message(e)
+        await safe_send_json({"type": "error", "content": friendly})
+        logger.error(f"[{task_id if 'task_id' in locals() else 'unknown'}] Solving failed: {friendly}")
         if "task_id" in locals():
-            task_manager.update_task_status(task_id, "error", error=str(e))
+            task_manager.update_task_status(task_id, "error", error=friendly)
     finally:
         # Stop log pusher first
         connection_closed.set()

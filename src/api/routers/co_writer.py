@@ -24,6 +24,7 @@ from src.agents.co_writer.narrator_agent import NarratorAgent
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.tts import get_tts_config
+from src.utils.error_utils import format_exception_message
 
 router = APIRouter()
 
@@ -117,7 +118,7 @@ async def edit_text(request: EditRequest):
 
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.post("/automark", response_model=AutoMarkResponse)
@@ -135,7 +136,7 @@ async def auto_mark_text(request: AutoMarkRequest):
         return result
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/history")
@@ -145,7 +146,7 @@ async def get_history():
         history = load_history()
         return {"history": history, "total": len(history)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/history/{operation_id}")
@@ -160,7 +161,7 @@ async def get_operation(operation_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/tool_calls/{operation_id}")
@@ -175,7 +176,7 @@ async def get_tool_call(operation_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.post("/export/markdown")
@@ -191,7 +192,7 @@ async def export_markdown(content: dict):
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 # ================= TTS Narration Feature =================
@@ -251,10 +252,10 @@ async def narrate_content(request: NarrateRequest):
         return result
     except ValueError as e:
         # TTS configuration related error
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=format_exception_message(e))
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.post("/narrate/script")
@@ -270,7 +271,7 @@ async def generate_script_only(request: ScriptOnlyRequest):
         return result
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/tts/status")

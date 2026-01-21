@@ -320,8 +320,9 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
                 logger.debug(f"WebSocket disconnected: {session_id}")
                 break
             except Exception as e:
-                logger.error(f"WebSocket error: {e}")
-                await websocket.send_json({"type": "error", "content": str(e)})
+                friendly = format_exception_message(e)
+                logger.error(f"WebSocket error: {friendly}")
+                await websocket.send_json({"type": "error", "content": friendly})
 
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")

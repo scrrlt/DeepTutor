@@ -23,6 +23,7 @@ from src.api.utils.task_id_manager import TaskIDManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.utils.error_utils import format_exception_message
 
 router = APIRouter()
 
@@ -404,12 +405,13 @@ async def websocket_ideagen(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected (task_id={task_id})")
     except Exception as e:
-        logger.error(f"ERROR: {e}")
+        friendly = format_exception_message(e)
+        logger.error(f"ERROR: {friendly}")
 
         logger.exception("Exception details:")
 
         if task_id:
-            task_manager.update_task_status(task_id, "error", error=str(e))
+            task_manager.update_task_status(task_id, "error", error=friendly)
 
         try:
             # Send unified error message via send_status
@@ -418,8 +420,8 @@ async def websocket_ideagen(websocket: WebSocket):
             await send_status(
                 websocket,
                 IdeaGenStage.ERROR,
-                f"Error: {e!s}",
-                {"error": str(e)},
+                f"Error: {friendly}",
+                {"error": friendly},
                 task_id=task_id,
             )
         except (RuntimeError, WebSocketDisconnect, ConnectionError):

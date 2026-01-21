@@ -13,6 +13,7 @@ from src.services.embedding import get_embedding_client, get_embedding_config
 from src.services.llm import complete as llm_complete
 from src.services.llm import get_llm_config, get_token_limit_kwargs
 from src.services.tts import get_tts_config
+from src.utils.error_utils import format_exception_message
 
 router = APIRouter()
 
@@ -50,10 +51,10 @@ async def get_system_status():
         result["llm"]["status"] = "configured"
     except ValueError as e:
         result["llm"]["status"] = "not_configured"
-        result["llm"]["error"] = str(e)
+        result["llm"]["error"] = format_exception_message(e)
     except Exception as e:
         result["llm"]["status"] = "error"
-        result["llm"]["error"] = str(e)
+        result["llm"]["error"] = format_exception_message(e)
 
     # Check Embeddings configuration
     try:
@@ -62,10 +63,10 @@ async def get_system_status():
         result["embeddings"]["status"] = "configured"
     except ValueError as e:
         result["embeddings"]["status"] = "not_configured"
-        result["embeddings"]["error"] = str(e)
+        result["embeddings"]["error"] = format_exception_message(e)
     except Exception as e:
         result["embeddings"]["status"] = "error"
-        result["embeddings"]["error"] = str(e)
+        result["embeddings"]["error"] = format_exception_message(e)
 
     # Check TTS configuration
     try:
@@ -74,10 +75,10 @@ async def get_system_status():
         result["tts"]["status"] = "configured"
     except ValueError as e:
         result["tts"]["status"] = "not_configured"
-        result["tts"]["error"] = str(e)
+        result["tts"]["error"] = format_exception_message(e)
     except Exception as e:
         result["tts"]["status"] = "error"
-        result["tts"]["error"] = str(e)
+        result["tts"]["error"] = format_exception_message(e)
 
     return result
 
@@ -139,14 +140,15 @@ async def test_llm_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"LLM configuration error: {e!s}", error=str(e))
+        return TestResponse(success=False, message=f"LLM configuration error: {format_exception_message(e)}", error=format_exception_message(e))
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
+        friendly = format_exception_message(e)
         return TestResponse(
             success=False,
-            message=f"LLM connection failed: {e!s}",
+            message=f"LLM connection failed: {friendly}",
             response_time_ms=round(response_time, 2),
-            error=str(e),
+            error=friendly,
         )
 
 

@@ -162,7 +162,7 @@ async def websocket_mimic_generate(websocket: WebSocket):
                     pdf_bytes = base64.b64decode(pdf_data)
                 except Exception as e:
                     await websocket.send_json(
-                        {"type": "error", "content": f"Invalid base64 PDF data: {e}"}
+                        {"type": "error", "content": f"Invalid base64 PDF data: {format_exception_message(e)}"}
                     )
                     return
 
@@ -198,7 +198,7 @@ async def websocket_mimic_generate(websocket: WebSocket):
                 except (ValueError, FileNotFoundError, PermissionError) as e:
                     # Clean up invalid or inaccessible file
                     pdf_path.unlink(missing_ok=True)
-                    await websocket.send_json({"type": "error", "content": str(e)})
+                    await websocket.send_json({"type": "error", "content": format_exception_message(e)})
                     return
 
                 await websocket.send_json(

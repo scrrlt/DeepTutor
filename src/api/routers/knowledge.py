@@ -193,7 +193,8 @@ async def run_upload_processing_task(
         logger.success(f"[{task_id}] Processed {len(processed_files)} files to KB '{kb_name}'")
         task_manager.update_task_status(task_id, "completed")
     except Exception as e:
-        error_msg = f"Upload processing failed (KB '{kb_name}'): {e}"
+        friendly = format_exception_message(e)
+        error_msg = f"Upload processing failed (KB '{kb_name}'): {friendly}"
         logger.error(f"[{task_id}] {error_msg}")
 
         task_manager.update_task_status(task_id, "error", error=error_msg)
@@ -219,7 +220,7 @@ async def health_check():
             "knowledge_bases_count": kb_count,
         }
     except Exception as e:
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+        return {"status": "error", "error": format_exception_message(e), "traceback": traceback.format_exc()}
 
 
 @router.get("/rag-providers")
@@ -231,8 +232,8 @@ async def get_rag_providers():
         providers = RAGService.list_providers()
         return {"providers": providers}
     except Exception as e:
-        logger.error(f"Error getting RAG providers: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting RAG providers: {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/configs")
@@ -244,8 +245,8 @@ async def get_all_kb_configs():
         service = get_kb_config_service()
         return service.get_all_configs()
     except Exception as e:
-        logger.error(f"Error getting KB configs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting KB configs: {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/{kb_name}/config")
@@ -258,8 +259,8 @@ async def get_kb_config(kb_name: str):
         config = service.get_kb_config(kb_name)
         return {"kb_name": kb_name, "config": config}
     except Exception as e:
-        logger.error(f"Error getting config for KB '{kb_name}': {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting config for KB '{kb_name}': {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.put("/{kb_name}/config")
@@ -272,8 +273,8 @@ async def update_kb_config(kb_name: str, config: dict):
         service.set_kb_config(kb_name, config)
         return {"status": "success", "kb_name": kb_name, "config": service.get_kb_config(kb_name)}
     except Exception as e:
-        logger.error(f"Error updating config for KB '{kb_name}': {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error updating config for KB '{kb_name}': {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.post("/configs/sync")
@@ -286,8 +287,8 @@ async def sync_configs_from_metadata():
         service.sync_all_from_metadata(_kb_base_dir)
         return {"status": "success", "message": "Configurations synced from metadata files"}
     except Exception as e:
-        logger.error(f"Error syncing configs: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error syncing configs: {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.get("/default")
@@ -298,8 +299,8 @@ async def get_default_kb():
         default_kb = manager.get_default()
         return {"default_kb": default_kb}
     except Exception as e:
-        logger.error(f"Error getting default KB: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error getting default KB: {format_exception_message(e)}")
+        raise HTTPException(status_code=500, detail=format_exception_message(e))
 
 
 @router.put("/default/{kb_name}")
@@ -386,9 +387,10 @@ async def list_knowledge_bases():
     except HTTPException:
         raise
     except Exception as e:
-        error_msg = f"Error listing knowledge bases: {e}"
+        friendly = format_exception_message(e)
+        error_msg = f"Error listing knowledge bases: {friendly}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Failed to list knowledge bases: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to list knowledge bases: {friendly}")
 
 
 @router.get("/{kb_name}")
@@ -597,9 +599,10 @@ async def create_knowledge_base(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create KB: {e}")
+        friendly = format_exception_message(e)
+        logger.error(f"Failed to create KB: {friendly}")
         logger.debug(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=friendly)
 
 
 @router.get("/{kb_name}/progress")
@@ -700,7 +703,7 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
     except Exception as e:
         logger.debug(f"Progress WS error: {e}")
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json({"type": "error", "message": format_exception_message(e)})
         except:
             pass
     finally:
@@ -800,7 +803,7 @@ async def sync_folder(kb_name: str, folder_id: str, background_tasks: Background
             api_key = llm_config.api_key
             base_url = llm_config.base_url
         except ValueError as e:
-            raise HTTPException(status_code=500, detail=f"LLM config error: {e!s}")
+            raise HTTPException(status_code=500, detail=format_exception_message(e))
 
         logger.info(
             f"Syncing {len(files_to_process)} files from folder '{folder_path}' to KB '{kb_name}'"

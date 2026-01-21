@@ -15,6 +15,7 @@ from src.api.utils.task_id_manager import TaskIDManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.utils.error_utils import format_exception_message
 
 # Force stdout to use utf-8 to prevent encoding errors with emojis on Windows
 if sys.platform == "win32":
@@ -53,7 +54,7 @@ async def optimize_topic(request: OptimizeRequest):
             api_key = llm_config.api_key
             base_url = llm_config.base_url
         except Exception as e:
-            return {"error": f"LLM config error: {e!s}"}
+            return {"error": format_exception_message(e)}
 
         # Init Agent
         agent = RephraseAgent(config=config, api_key=api_key, base_url=base_url)
@@ -71,7 +72,7 @@ async def optimize_topic(request: OptimizeRequest):
 
     except Exception as e:
         traceback.print_exc()
-        return {"error": str(e)}
+        return {"error": format_exception_message(e)}
 
 
 @router.websocket("/run")
@@ -374,8 +375,9 @@ async def websocket_research_run(websocket: WebSocket):
             sys.stdout = original_stdout  # Safely restore using saved reference
 
     except Exception as e:
-        await websocket.send_json({"type": "error", "content": str(e)})
-        logging.error(f"Research error: {e}", exc_info=True)
+        friendly = format_exception_message(e)
+        await websocket.send_json({"type": "error", "content": friendly})
+        logging.error(f"Research error: {friendly}", exc_info=True)
 
         # Update task status to error
         try:
@@ -383,8 +385,8 @@ async def websocket_research_run(websocket: WebSocket):
                 "log_dir"
             )
             research_logger = get_logger("Research", log_dir=log_dir)
-            research_logger.error(f"[{task_id}] Research flow failed: {e}")
-            task_manager.update_task_status(task_id, "error", error=str(e))
+            research_logger.error(f"[{task_id}] Research flow failed: {friendly}")
+            task_manager.update_task_status(task_id, "error", error=friendly)
         except Exception as log_err:
             logger.warning(f"Failed to log error: {log_err}")
     finally:

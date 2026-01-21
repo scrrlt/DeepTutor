@@ -80,3 +80,42 @@ def format_exception_message(exc: Exception) -> str:
 
     # Return original message if parsing fails
     return message
+
+
+def user_friendly_message(exc: Exception) -> str:
+    """
+    Convert an exception into a concise, human-friendly message suitable for UI display.
+
+    Args:
+        exc: The exception to convert.
+
+    Returns:
+        A short, actionable message for users.
+    """
+    # Use format_exception_message as base
+    base = format_exception_message(exc)
+
+    # Map known exception types to friendlier messages without leaking internal details
+    try:
+        # Import lazily to avoid circular imports
+        from src.services.llm.exceptions import (
+            LLMConfigError,
+            LLMAuthenticationError,
+            LLMAPIError,
+            LLMModelNotFoundError,
+        )
+    except Exception:
+        LLMConfigError = LLMAuthenticationError = LLMAPIError = LLMModelNotFoundError = None
+
+    if LLMConfigError and isinstance(exc, LLMConfigError):
+        return f"LLM configuration error: {base}. Check your LLM settings (model, api_key, host)."
+    if LLMAuthenticationError and isinstance(exc, LLMAuthenticationError):
+        return f"Authentication failed: {base}. Verify your API key and permissions."
+    if LLMModelNotFoundError and isinstance(exc, LLMModelNotFoundError):
+        return f"Model not found: {base}. Check your model name in LLM configuration."
+    if LLMAPIError and isinstance(exc, LLMAPIError):
+        # For API errors, keep it concise
+        return f"LLM API error: {base}"
+
+    # Default: return parsed/cleaned message
+    return base

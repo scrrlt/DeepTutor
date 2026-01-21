@@ -21,6 +21,7 @@ from src.services.config import (
 )
 from src.services.llm import complete as llm_complete
 from src.services.llm import sanitize_url
+from src.utils.error_utils import format_exception_message
 
 router = APIRouter()
 
@@ -278,7 +279,7 @@ async def test_llm_connection(request: TestConnectionRequest):
         )
         return {"success": True, "message": "Connection successful", "response": response[:100]}
     except Exception as e:
-        return {"success": False, "message": f"Connection failed: {str(e)}"}
+        return {"success": False, "message": f"Connection failed: {format_exception_message(e)}"}
 
 
 @router.post("/llm/{config_id}/test")
@@ -318,7 +319,7 @@ async def test_llm_config_by_id(config_id: str):
         )
         return {"success": True, "message": "Connection successful", "response": response[:100]}
     except Exception as e:
-        return {"success": False, "message": f"Connection failed: {str(e)}"}
+        return {"success": False, "message": f"Connection failed: {format_exception_message(e)}"}
 
 
 # ==================== Embedding Configuration Endpoints ====================
