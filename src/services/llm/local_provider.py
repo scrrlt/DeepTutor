@@ -15,7 +15,11 @@ Key features:
 import json
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
+from types import SimpleNamespace
+import threading
+from urllib.parse import urljoin
 
+from src.services.llm.stream_parser import StreamParser
 import aiohttp
 
 from .exceptions import LLMAPIError, LLMConfigError
@@ -93,7 +97,20 @@ async def complete(
 
     timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
 
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    # Support disabling SSL verification for local proxies (warn once)
+    _ssl_warning_lock = threading.Lock()
+    disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
+    connector = None
+    if disable_flag:
+        with _ssl_warning_lock:
+            if not globals().get("_local_ssl_warning_logged", False):
+                logger.warning(
+                    "SSL verification is disabled via DISABLE_SSL_VERIFY for local LLM. This is unsafe."
+                )
+                globals()["_local_ssl_warning_logged"] = True
+        connector = aiohttp.TCPConnector(ssl=False)
+
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, json=data, headers=headers) as response:
             if response.status != 200:
                 error_text = await response.text()
@@ -109,8 +126,8 @@ async def complete(
                 msg = result["choices"][0].get("message", {})
                 # Use unified response extraction
                 content = extract_response_content(msg)
-                # Clean thinking tags using unified utility
-                content = clean_thinking_tags(content)
+                # Clean thinking tags using unified utility (pass binding/model)
+                content = clean_thinking_tags(content, "local", model)
                 if content:
                     return content
 
@@ -204,80 +221,6 @@ async def stream(
                             return True
                     return False
 
-                def _process_buffers(open_tag: str, close_tag: str):
-                    """Process buffers in _stream_ctx and yield any ready output chunks."""
-                    while True:
-                        yield_buffer = _stream_ctx.yield_buffer
-                        thinking_buffer = _stream_ctx.thinking_buffer
-                        in_thinking_block = _stream_ctx.in_thinking_block
-
-                        progressed = False
-
-                        if not in_thinking_block:
-                            idx = yield_buffer.find(open_tag)
-
-                            # If buffer ends with a partial open tag, wait for more
-                            if _ends_with_partial(yield_buffer, open_tag):
-                                break
-
-                            if idx != -1:
-                                pre = yield_buffer[:idx]
-                                if pre:
-                                    yield pre
-                                thinking_buffer = yield_buffer[idx:]
-                                yield_buffer = ""
-                                in_thinking_block = True
-
-                                # If we also have a closing tag already, process it
-                                if close_tag in thinking_buffer:
-                                    after = thinking_buffer.split(close_tag, 1)[1]
-                                    cleaned = clean_thinking_tags(thinking_buffer)
-                                    if cleaned:
-                                        yield cleaned
-                                    thinking_buffer = ""
-                                    in_thinking_block = False
-                                    yield_buffer = after
-                                    progressed = True
-                                    # continue to attempt further processing
-                                    _stream_ctx.yield_buffer = yield_buffer
-                                    _stream_ctx.thinking_buffer = thinking_buffer
-                                    _stream_ctx.in_thinking_block = in_thinking_block
-                                    continue
-                            else:
-                                if yield_buffer:
-                                    yield yield_buffer
-                                    yield_buffer = ""
-                        else:
-                            # inside thinking block
-                            thinking_buffer += yield_buffer
-                            yield_buffer = ""
-
-                            # If buffer ends with a partial close tag, wait for more
-                            if _ends_with_partial(thinking_buffer, close_tag):
-                                break
-
-                            if close_tag in thinking_buffer:
-                                after = thinking_buffer.split(close_tag, 1)[1]
-                                cleaned = clean_thinking_tags(thinking_buffer)
-                                if cleaned:
-                                    yield cleaned
-                                thinking_buffer = ""
-                                in_thinking_block = False
-                                yield_buffer = after
-                                progressed = True
-                                _stream_ctx.yield_buffer = yield_buffer
-                                _stream_ctx.thinking_buffer = thinking_buffer
-                                _stream_ctx.in_thinking_block = in_thinking_block
-                                continue
-                            # Nothing to do yet
-                            break
-
-                        _stream_ctx.yield_buffer = yield_buffer
-                        _stream_ctx.thinking_buffer = thinking_buffer
-                        _stream_ctx.in_thinking_block = in_thinking_block
-
-                        if not progressed:
-                            break
 
                 async for line in response.content:
                     line_str = line.decode("utf-8").strip()
@@ -300,16 +243,14 @@ async def stream(
                                 content = delta.get("content")
 
                                 if content:
-                                    # Use buffered parsing to handle partial <think> tags
-                                    open_tag = "<think>"
-                                    close_tag = "</think>"
+                                        # Use shared StreamParser that understands binding/model
+                                        parser = getattr(_stream_ctx, "parser", None)
+                                        if parser is None:
+                                            parser = StreamParser(binding="local", model=model)
+                                            _stream_ctx.parser = parser
 
-                                    # Append content and let the shared processor handle it
-                                    _stream_ctx.yield_buffer += content
-
-                                    for out in _process_buffers(open_tag, close_tag):
-                                        yield out
-
+                                        for out in parser.append(content):
+                                            yield out
                         except json.JSONDecodeError:
                             # Log and skip malformed JSON chunks
                             logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
@@ -323,20 +264,14 @@ async def stream(
                                 delta = chunk_data["choices"][0].get("delta", {})
                                 content = delta.get("content")
                                 if content:
-                                    # Apply buffered parsing to non-SSE JSON streams as well
-                                    open_tag = "<think>"
-                                    close_tag = "</think>"
-                                    _stream_ctx.yield_buffer += content
-                                    for out in _process_buffers(open_tag, close_tag):
-                                        yield out
-                    in_thinking_block = getattr(_stream_ctx, "in_thinking_block", False)
+                                    # Use shared StreamParser for non-SSE streams too
+                                    parser = getattr(_stream_ctx, "parser", None)
+                                    if parser is None:
+                                        parser = StreamParser(binding="local", model=model)
+                                        _stream_ctx.parser = parser
 
-                    if in_thinking_block and thinking_buffer:
-                        cleaned = clean_thinking_tags(thinking_buffer)
-                        if cleaned:
-                            yield cleaned
-                    elif yield_buffer:
-                        yield yield_buffer
+                                    for out in parser.append(content):
+                                        yield out
 
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is
@@ -395,7 +330,11 @@ async def fetch_models(
         is_ollama = ":11434" in base_url or "ollama" in base_url.lower()
         if is_ollama:
             try:
-                ollama_url = base_url.replace("/v1", "") + "/api/tags"
+                # Construct the tags URL safely, removing a trailing /v1 if present
+                base = base_url.rstrip("/")
+                if base.endswith("/v1"):
+                    base = base[: -len("/v1")]
+                ollama_url = f"{base}/api/tags"
                 async with session.get(ollama_url, headers=headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
