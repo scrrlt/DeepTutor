@@ -10,7 +10,7 @@ How to run integration tests locally
    - `COHERE_API_KEY` (Cohere)
    - `ANTHROPIC_API_KEY` (Anthropic)
    - `PERPLEXITY_API_KEY` (Perplexity)
-   - Optionally: `OPENAI_BASE_URL`, `COHERE_API_URL`, `ANTHROPIC_API_URL`, etc.
+- `AZURE_API_KEY`, `AZURE_API_URL`, `AZURE_API_VERSION` (Azure OpenAI)
 
 2. Run pytest targeting integration tests only:
 

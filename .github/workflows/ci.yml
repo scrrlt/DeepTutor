@@ -30,10 +30,19 @@ jobs:
         run: pytest -m "not integration"
 
   integration:
-    name: Integration Tests
+    name: Integration Tests (per-provider matrix)
     runs-on: ubuntu-latest
     needs: unit
-    if: ${{ secrets.OPENAI_API_KEY || secrets.COHERE_API_KEY || secrets.ANTHROPIC_API_KEY || secrets.PERPLEXITY_API_KEY }}
+    strategy:
+      matrix:
+        provider: [openai, cohere, anthropic, perplexity, azure]
+    # Only run job for a provider when its secret is present
+    if: >
+      ${{ (matrix.provider == 'openai' && secrets.OPENAI_API_KEY) ||
+         (matrix.provider == 'cohere' && secrets.COHERE_API_KEY) ||
+         (matrix.provider == 'anthropic' && secrets.ANTHROPIC_API_KEY) ||
+         (matrix.provider == 'perplexity' && secrets.PERPLEXITY_API_KEY) ||
+         (matrix.provider == 'azure' && secrets.AZURE_API_KEY) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +58,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
-      - name: Run integration tests
+      - name: Run provider integration tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
@@ -58,4 +67,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_API_URL: ${{ secrets.ANTHROPIC_API_URL }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-        run: pytest -m integration -q
+          AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+          AZURE_API_URL: ${{ secrets.AZURE_API_URL }}
+          AZURE_API_VERSION: ${{ secrets.AZURE_API_VERSION }}
+        # Run only tests that mention provider to minimize cross-provider failures
+        run: pytest -m integration -k "${{ matrix.provider }}" -q
