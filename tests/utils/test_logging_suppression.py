@@ -10,6 +10,8 @@ def test_suppressed_logging_filters_non_critical(caplog):
     logger = logging.getLogger(logger_name)
     # Ensure logger propagates to root so caplog can capture
     logger.propagate = True
+    # Ensure caplog captures INFO/ERROR level logs
+    caplog.set_level(logging.INFO)
 
     # Emit an INFO log outside context
     logger.info("info-outside")
@@ -24,6 +26,7 @@ def test_suppressed_logging_filters_non_critical(caplog):
 
     messages = [rec.getMessage() for rec in caplog.records]
 
-    # info-inside should be suppressed; crit-inside should appear
+    # info-inside and error-inside should be suppressed; crit-inside should appear
     assert not any("info-inside" in m for m in messages)
+    assert not any("error-inside" in m for m in messages)
     assert any("crit-inside" in m for m in messages)

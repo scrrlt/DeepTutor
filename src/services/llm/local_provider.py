@@ -317,6 +317,19 @@ async def stream(
                         except json.JSONDecodeError:
                             pass
 
+                # Clean up any remaining buffers at end of stream to avoid silent data loss
+                if "_stream_ctx" in locals():
+                    yield_buffer = getattr(_stream_ctx, "yield_buffer", "")
+                    thinking_buffer = getattr(_stream_ctx, "thinking_buffer", "")
+                    in_thinking_block = getattr(_stream_ctx, "in_thinking_block", False)
+
+                    if in_thinking_block and thinking_buffer:
+                        cleaned = clean_thinking_tags(thinking_buffer)
+                        if cleaned:
+                            yield cleaned
+                    elif yield_buffer:
+                        yield yield_buffer
+
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is
     except Exception as e:

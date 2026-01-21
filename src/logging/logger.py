@@ -210,7 +210,7 @@ class Logger:
         self._task_handlers: List[logging.Handler] = []
 
     # ------------------ Helpers for temporary log suppression ------------------
-    
+
     class _LevelFilter(logging.Filter):
         """Filter that suppresses records below a threshold level."""
 
@@ -221,39 +221,6 @@ class Logger:
         def filter(self, record: logging.LogRecord) -> bool:
             # Only allow records which are >= the threshold level
             return record.levelno >= self._level
-
-
-    from contextlib import contextmanager
-
-
-# Module-level context manager for suppressing logs on named loggers
-from contextlib import contextmanager
-
-@contextmanager
-def suppressed_logging(logger_names: list[str], level: int = logging.CRITICAL):
-    """Temporarily suppress logs below `level` for the named loggers.
-
-    This attaches a short-lived filter to each logger rather than changing the
-    global logger level, which is unsafe in asyncio where other tasks may be
-    running concurrently.
-    Usage:
-        with suppressed_logging(["lightrag", "openai"], level=logging.CRITICAL):
-            # call into 3rd-party libs that are noisy
-    """
-    filters: list[tuple[logging.Logger, logging.Filter]] = []
-    try:
-        for name in logger_names:
-            log = logging.getLogger(name)
-            f = Logger._LevelFilter(level)
-            log.addFilter(f)
-            filters.append((log, f))
-        yield
-    finally:
-        for log, f in filters:
-            try:
-                log.removeFilter(f)
-            except Exception:
-                pass
 
     def add_task_log_handler(
         self, task_log_file: str, capture_stdout: bool = False, capture_stderr: bool = False
@@ -282,24 +249,13 @@ def suppressed_logging(logger_names: list[str], level: int = logging.CRITICAL):
             self.logger.removeHandler(handler)
             handler.close()
         self._task_handlers.clear()
-
-    def log_stage_progress(self, stage: str, status: str, detail: Optional[str] = None):
-        """Backwards compatibility alias for stage()"""
-        self.stage(stage, status, detail)
-
-    def section(self, title: str, char: str = "=", length: int = 60):
-        """Print a section header"""
-        self.info(char * length)
-        self.info(title)
-        self.info(char * length)
-
     def _log(
         self,
         level: int,
         message: str,
         display_level: Optional[str] = None,
         **kwargs: Any,
-    ):
+    ): 
         """Internal logging method with extra attributes."""
         extra = {
             "module_name": self.name,
@@ -651,6 +607,36 @@ def suppressed_logging(logger_names: list[str], level: int = logging.CRITICAL):
             handler.close()
             self.logger.removeHandler(handler)
 
+
+# Module-level context manager for suppressing logs on named loggers
+from contextlib import contextmanager
+
+@contextmanager
+def suppressed_logging(logger_names: list[str], level: int = logging.CRITICAL):
+    """Temporarily suppress logs below `level` for the named loggers.
+
+    This attaches a short-lived filter to each logger rather than changing the
+    global logger level, which is unsafe in asyncio where other tasks may be
+    running concurrently.
+
+    Usage:
+        with suppressed_logging(["lightrag", "openai"], level=logging.CRITICAL):
+            # call into 3rd-party libs that are noisy
+    """
+    filters: list[tuple[logging.Logger, logging.Filter]] = []
+    try:
+        for name in logger_names:
+            log = logging.getLogger(name)
+            f = Logger._LevelFilter(level)
+            log.addFilter(f)
+            filters.append((log, f))
+        yield
+    finally:
+        for log, f in filters:
+            try:
+                log.removeFilter(f)
+            except Exception:
+                pass
 
 # Global logger registry - key is tuple of (name, level, console_output, file_output, log_dir, service_prefix)
 _loggers: dict[tuple[str, str, bool, bool, Optional[str], Optional[str]], "Logger"] = {}
