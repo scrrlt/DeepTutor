@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   loadFromStorage,
   saveToStorage,
@@ -58,15 +58,16 @@ export function usePersistentState<T extends Record<string, any>>(
   });
 
   // Create debounced save function
-  const debouncedSave = useCallback(
-    debounce((value: T) => {
-      if (!enabled) return;
+  const debouncedSave = useMemo(
+    () =>
+      debounce((value: T) => {
+        if (!enabled) return;
 
-      // Filter out excluded fields before saving
-      const toSave = persistState(value, exclude as (keyof T)[]);
-      saveToStorage(key, toSave);
-    }, debounceMs),
-    [key, exclude, debounceMs, enabled]
+        // Filter out excluded fields before saving
+        const toSave = persistState(value, exclude as (keyof T)[]);
+        saveToStorage(key, toSave);
+      }, debounceMs),
+    [key, exclude, debounceMs, enabled],
   );
 
   // Save state whenever it changes (after initial load)
@@ -113,11 +114,12 @@ export function usePersistentValue<T>(
     return loadFromStorage<T>(key, initialValue);
   });
 
-  const debouncedSave = useCallback(
-    debounce((val: T) => {
-      saveToStorage(key, val);
-    }, debounceMs),
-    [key, debounceMs]
+  const debouncedSave = useMemo(
+    () =>
+      debounce((val: T) => {
+        saveToStorage(key, val);
+      }, debounceMs),
+    [key, debounceMs],
   );
 
   useEffect(() => {
@@ -151,12 +153,13 @@ export function useStatePersistence<T extends Record<string, any>>(
   saveState: (state: T) => void;
 } {
   // Create debounced save function
-  const saveState = useCallback(
-    debounce((currentState: T) => {
-      const toSave = persistState(currentState, excludeFields as (keyof T)[]);
-      saveToStorage(key, toSave);
-    }, debounceMs),
-    [key, excludeFields, debounceMs]
+  const saveState = useMemo(
+    () =>
+      debounce((currentState: T) => {
+        const toSave = persistState(currentState, excludeFields as (keyof T)[]);
+        saveToStorage(key, toSave);
+      }, debounceMs),
+    [key, excludeFields, debounceMs],
   );
 
   // Load persisted state

@@ -3,6 +3,7 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { X, FileText, HelpCircle, Search, Clock, Database } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -30,6 +31,7 @@ export default function ActivityDetail({
   onClose,
 }: ActivityDetailProps) {
   const mounted = useIsClient();
+  const { t } = useTranslation();
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function ActivityDetail({
             </div>
             <div>
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
-                Activity Details
+                {t("Activity Details")}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Clock className="w-3 h-3" />
@@ -97,7 +99,7 @@ export default function ActivityDetail({
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                Type
+                {t("Type")}
               </div>
               <div className="font-medium text-slate-900 dark:text-slate-100 capitalize">
                 {activity.type}
@@ -105,11 +107,11 @@ export default function ActivityDetail({
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                Knowledge Base
+                {t("Knowledge Base")}
               </div>
               <div className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Database className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                {activity.content?.kb_name || "Unknown"}
+                {activity.content?.kb_name || t("Unknown")}
               </div>
             </div>
           </div>
@@ -121,7 +123,7 @@ export default function ActivityDetail({
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Question
+                  {t("Question")}
                 </h3>
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 leading-relaxed">
                   {activity.content.question}
@@ -129,7 +131,7 @@ export default function ActivityDetail({
               </div>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Final Answer
+                  {t("Final Answer")}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                   <div className="prose prose-slate dark:prose-invert max-w-none prose-sm">
@@ -150,35 +152,35 @@ export default function ActivityDetail({
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Parameters
+                  {t("Parameters")}
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">Topic:</span>{" "}
-                    {activity.content?.requirement?.knowledge_point || "N/A"}
+                    <span className="font-bold">{t("Topic:")}</span>{" "}
+                    {activity.content?.requirement?.knowledge_point || t("N/A")}
                   </div>
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">Difficulty:</span>{" "}
-                    {activity.content?.requirement?.difficulty || "N/A"}
+                    <span className="font-bold">{t("Difficulty:")}</span>{" "}
+                    {activity.content?.requirement?.difficulty || t("N/A")}
                   </div>
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">Type:</span>{" "}
+                    <span className="font-bold">{t("Type:")}</span>{" "}
                     {activity.content?.requirement?.question_type ||
                       activity.content?.question?.question_type ||
-                      "N/A"}
+                      t("N/A")}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Generated Question
+                  {t("Generated Question")}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
                   <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
                     {activity.content?.question?.content ||
                       activity.content?.question?.question ||
-                      "No question content"}
+                      t("No question content")}
                   </p>
 
                   {/* Handle options as object (A, B, C, D format) or array */}
@@ -220,18 +222,18 @@ export default function ActivityDetail({
 
               <div className="space-y-2">
                 <h3 className="font-bold text-green-700 dark:text-green-400">
-                  Correct Answer & Explanation
+                  {t("Correct Answer & Explanation")}
                 </h3>
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 text-green-800 dark:text-green-300 space-y-2">
                   <p className="font-bold">
-                    Answer:{" "}
+                    {t("Answer:")}{" "}
                     {activity.content?.question?.answer ||
                       activity.content?.question?.correct_answer ||
-                      "N/A"}
+                      t("N/A")}
                   </p>
                   <p className="text-sm leading-relaxed">
                     {activity.content?.question?.explanation ||
-                      "No explanation provided"}
+                      t("No explanation provided")}
                   </p>
                 </div>
               </div>
@@ -243,7 +245,7 @@ export default function ActivityDetail({
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Topic
+                  {t("Topic")}
                 </h3>
                 <div className="text-lg font-medium text-slate-800 dark:text-slate-200">
                   {activity.content.topic}
@@ -251,7 +253,7 @@ export default function ActivityDetail({
               </div>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  Report Preview
+                  {t("Report Preview")}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-h-96 overflow-y-auto font-mono text-xs text-slate-600 dark:text-slate-300">
                   {activity.content.report}
@@ -267,7 +269,7 @@ export default function ActivityDetail({
             onClick={onClose}
             className="px-6 py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
           >
-            Close
+            {t("Close")}
           </button>
         </div>
       </div>

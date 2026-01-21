@@ -46,6 +46,8 @@ import {
   Star,
 } from "lucide-react";
 import { apiUrl, wsUrl } from "@/lib/api";
+import { useGlobal } from "@/context/GlobalContext";
+import { useTranslation } from "react-i18next";
 
 interface ProgressInfo {
   stage: string;
@@ -89,6 +91,7 @@ interface UploadFile {
 }
 
 export default function KnowledgePage() {
+  const { t } = useTranslation();
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -851,7 +854,7 @@ export default function KnowledgePage() {
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error(t("Upload failed"));
 
       setUploadModalOpen(false);
       clearAllFiles();
@@ -953,10 +956,10 @@ export default function KnowledgePage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            Knowledge Bases
+            {t("Knowledge Bases")}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2">
-            Manage and explore your educational content repositories.
+            {t("Manage and explore your educational content repositories.")}
           </p>
         </div>
         <div className="flex gap-3">
@@ -966,10 +969,10 @@ export default function KnowledgePage() {
               await fetchKnowledgeBases();
             }}
             className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow"
-            title="Refresh knowledge bases"
+            title={t("Refresh knowledge bases")}
           >
             <RefreshCw className="w-4 h-4" />
-            Refresh
+            {t("Refresh")}
           </button>
           <button
             onClick={() => {
@@ -981,7 +984,7 @@ export default function KnowledgePage() {
             className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors flex items-center gap-2 shadow-lg shadow-slate-900/20"
           >
             <Plus className="w-4 h-4" />
-            New Knowledge Base
+            {t("New Knowledge Base")}
           </button>
         </div>
       </div>
@@ -1027,7 +1030,7 @@ export default function KnowledgePage() {
                     <div className="flex items-center gap-1.5 mt-1">
                       {kb.is_default && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wide border border-blue-100 dark:border-blue-800">
-                          Default
+                          {t("Default")}
                         </span>
                       )}
                       {kb.statistics.rag_provider && (
@@ -1041,11 +1044,11 @@ export default function KnowledgePage() {
                           }`}
                         >
                           {kb.statistics.rag_provider === "raganything"
-                            ? "RAG-Anything"
+                            ? t("RAG-Anything")
                             : kb.statistics.rag_provider === "lightrag"
-                              ? "LightRAG"
+                              ? t("LightRAG")
                               : kb.statistics.rag_provider === "llamaindex"
-                                ? "LlamaIndex"
+                                ? t("LlamaIndex")
                                 : kb.statistics.rag_provider}
                         </span>
                       )}
@@ -1078,7 +1081,7 @@ export default function KnowledgePage() {
                         }
                       }}
                       className="p-2 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-                      title="Set as Default"
+                      title={t("Set as Default")}
                     >
                       <Star className="w-4 h-4" />
                     </button>
@@ -1094,14 +1097,14 @@ export default function KnowledgePage() {
                       setUploadModalOpen(true);
                     }}
                     className="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    title="Upload Documents"
+                    title={t("Upload Documents")}
                   >
                     <Upload className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(kb.name)}
                     className="p-2 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    title="Delete Knowledge Base"
+                    title={t("Delete Knowledge Base")}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1113,7 +1116,7 @@ export default function KnowledgePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1 flex items-center gap-1.5">
-                      <FileText className="w-3 h-3" /> Documents
+                      <FileText className="w-3 h-3" /> {t("Documents")}
                     </p>
                     <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
                       {kb.statistics.raw_documents}
@@ -1121,7 +1124,7 @@ export default function KnowledgePage() {
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1 flex items-center gap-1.5">
-                      <ImageIcon className="w-3 h-3" /> Images
+                      <ImageIcon className="w-3 h-3" /> {t("Images")}
                     </p>
                     <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
                       {kb.statistics.images}
@@ -1132,7 +1135,7 @@ export default function KnowledgePage() {
                 <div className="pt-2">
                   <div className="flex items-center justify-between text-xs mb-2">
                     <span className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
-                      <Layers className="w-3 h-3" /> Status
+                      <Layers className="w-3 h-3" /> {t("Status")}
                     </span>
                     {(() => {
                       // Priority: API progress > WebSocket progressMap > rag_initialized
@@ -1147,7 +1150,7 @@ export default function KnowledgePage() {
                       ) {
                         return (
                           <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                            Ready
+                            {t("Ready")}
                           </span>
                         );
                       } else if (
@@ -1156,7 +1159,7 @@ export default function KnowledgePage() {
                       ) {
                         return (
                           <span className="text-red-600 dark:text-red-400 font-bold">
-                            Error
+                            {t("Error")}
                           </span>
                         );
                       } else if (
@@ -1166,10 +1169,10 @@ export default function KnowledgePage() {
                       ) {
                         // Display current stage and progress
                         const stageLabels: Record<string, string> = {
-                          initializing: "Initializing",
-                          processing_documents: "Processing",
-                          processing_file: "Processing File",
-                          extracting_items: "Extracting Items",
+                          initializing: t("Initializing"),
+                          processing_documents: t("Processing"),
+                          processing_file: t("Processing File"),
+                          extracting_items: t("Extracting Items"),
                         };
                         const stage =
                           progress?.stage || status || "initializing";
@@ -1192,8 +1195,8 @@ export default function KnowledgePage() {
                           }
                         >
                           {kb.statistics.rag_initialized
-                            ? "Ready"
-                            : "Not Indexed"}
+                            ? t("Ready")
+                            : t("Not Indexed")}
                         </span>
                       );
                     })()}
@@ -1267,7 +1270,7 @@ export default function KnowledgePage() {
                                     fetchKnowledgeBases();
                                   }}
                                   className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                  title="Clear progress status"
+                                  title={t("Clear progress status")}
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -1336,7 +1339,7 @@ export default function KnowledgePage() {
           {kbs.length === 0 && (
             <div className="col-span-full text-center py-12 text-slate-400 dark:text-slate-500">
               <Database className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>No knowledge bases found. Create one to get started.</p>
+              <p>{t("No knowledge bases found. Create one to get started.")}</p>
             </div>
           )}
         </div>
@@ -1348,7 +1351,7 @@ export default function KnowledgePage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                Create Knowledge Base
+                {t("Create Knowledge Base")}
               </h3>
               <button
                 onClick={() => setCreateModalOpen(false)}
@@ -1361,21 +1364,21 @@ export default function KnowledgePage() {
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Knowledge Base Name
+                  {t("Knowledge Base Name")}
                 </label>
                 <input
                   type="text"
                   required
                   value={newKbName}
                   onChange={(e) => setNewKbName(e.target.value)}
-                  placeholder="e.g., Math101"
+                  placeholder={t("e.g., Math101")}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  RAG Provider
+                  {t("RAG Provider")}
                 </label>
                 <select
                   value={ragProvider}
@@ -1390,9 +1393,9 @@ export default function KnowledgePage() {
                     ))
                   ) : (
                     <>
-                      <option value="llamaindex">LlamaIndex</option>
-                      <option value="lightrag">LightRAG</option>
-                      <option value="raganything">RAG-Anything</option>
+                      <option value="llamaindex">{t("LlamaIndex")}</option>
+                      <option value="lightrag">{t("LightRAG")}</option>
+                      <option value="raganything">{t("RAG-Anything")}</option>
                     </>
                   )}
                 </select>
@@ -1409,15 +1412,19 @@ export default function KnowledgePage() {
                       // Fallback descriptions
                       const fallbackDescriptions: Record<string, string> = {
                         llamaindex:
-                          "Pure vector retrieval, fastest processing speed.",
+                          t("Pure vector retrieval, fastest processing speed."),
                         lightrag:
-                          "Lightweight knowledge graph retrieval, fast processing of text documents.",
+                          t(
+                            "Lightweight knowledge graph retrieval, fast processing of text documents.",
+                          ),
                         raganything:
-                          "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
+                          t(
+                            "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
+                          ),
                       };
                       return (
                         fallbackDescriptions[ragProvider] ||
-                        "Select a RAG pipeline suitable for your document type"
+                        t("Select a RAG pipeline suitable for your document type")
                       );
                     })()}
                   </p>
@@ -1426,7 +1433,7 @@ export default function KnowledgePage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Upload Documents
+                  {t("Upload Documents")}
                 </label>
                 <div
                   className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
@@ -1466,8 +1473,8 @@ export default function KnowledgePage() {
                     />
                     <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                       {uploadFiles.length > 0
-                        ? "Click or drop to add more files"
-                        : "Drag & drop files or folders here"}
+                        ? t("Click or drop to add more files")
+                        : t("Drag & drop files or folders here")}
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
                       {getFileTypeHint(ragProvider)}
@@ -1479,8 +1486,15 @@ export default function KnowledgePage() {
                     <div className="border-t border-slate-200 dark:border-slate-600 px-3 py-2 max-h-48 overflow-y-auto">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          {uploadFiles.length} file
-                          {uploadFiles.length > 1 ? "s" : ""} selected
+                          {uploadFiles.length === 1
+                            ? t("{n} file selected").replace(
+                                "{n}",
+                                String(uploadFiles.length),
+                              )
+                            : t("{n} files selected").replace(
+                                "{n}",
+                                String(uploadFiles.length),
+                              )}
                         </span>
                         <button
                           type="button"
@@ -1490,7 +1504,7 @@ export default function KnowledgePage() {
                           }}
                           className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                         >
-                          Clear all
+                          {t("Clear all")}
                         </button>
                       </div>
                       <div className="space-y-1">
@@ -1521,7 +1535,7 @@ export default function KnowledgePage() {
                                 removeFile(file.id);
                               }}
                               className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                              title="Remove file"
+                              title={t("Remove file")}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -1539,7 +1553,7 @@ export default function KnowledgePage() {
                   onClick={() => setCreateModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="submit"
@@ -1549,7 +1563,7 @@ export default function KnowledgePage() {
                   {uploading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    "Create & Initialize"
+                    t("Create & Initialize")
                   )}
                 </button>
               </div>
@@ -1564,7 +1578,7 @@ export default function KnowledgePage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                Upload Documents
+                {t("Upload Documents")}
               </h3>
               <button
                 onClick={() => setUploadModalOpen(false)}
@@ -1574,7 +1588,7 @@ export default function KnowledgePage() {
               </button>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Upload documents to{" "}
+              {t("Upload documents to")}{" "}
               <strong className="text-slate-700 dark:text-slate-200">
                 {targetKb}
               </strong>
@@ -1583,7 +1597,7 @@ export default function KnowledgePage() {
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  RAG Provider (Optional)
+                  {t("RAG Provider (Optional)")}
                 </label>
                 <select
                   value={ragProvider}
@@ -1598,9 +1612,9 @@ export default function KnowledgePage() {
                     ))
                   ) : (
                     <>
-                      <option value="llamaindex">LlamaIndex</option>
-                      <option value="lightrag">LightRAG</option>
-                      <option value="raganything">RAG-Anything</option>
+                      <option value="llamaindex">{t("LlamaIndex")}</option>
+                      <option value="lightrag">{t("LightRAG")}</option>
+                      <option value="raganything">{t("RAG-Anything")}</option>
                     </>
                   )}
                 </select>
@@ -1616,21 +1630,25 @@ export default function KnowledgePage() {
                       }
                       const fallbackDescriptions: Record<string, string> = {
                         llamaindex:
-                          "Pure vector retrieval, fastest processing speed.",
+                          t("Pure vector retrieval, fastest processing speed."),
                         lightrag:
-                          "Lightweight knowledge graph retrieval, fast processing of text documents.",
+                          t(
+                            "Lightweight knowledge graph retrieval, fast processing of text documents.",
+                          ),
                         raganything:
-                          "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
+                          t(
+                            "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
+                          ),
                       };
                       return (
                         fallbackDescriptions[ragProvider] ||
-                        "Select a RAG pipeline suitable for your document type"
+                        t("Select a RAG pipeline suitable for your document type")
                       );
                     })()}
                   </p>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Leave as-is to use the KB&apos;s existing provider
+                  {t("Leave as-is to use the KB's existing provider")}
                 </p>
               </div>
 
@@ -1672,8 +1690,8 @@ export default function KnowledgePage() {
                   />
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                     {uploadFiles.length > 0
-                      ? "Click or drop to add more files"
-                      : "Drag & drop files or folders here"}
+                      ? t("Click or drop to add more files")
+                      : t("Drag & drop files or folders here")}
                   </span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">
                     {getFileTypeHint(ragProvider)}
@@ -1696,7 +1714,7 @@ export default function KnowledgePage() {
                         }}
                         className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                       >
-                        Clear all
+                          {t("Clear all")}
                       </button>
                     </div>
                     <div className="space-y-1">
@@ -1727,7 +1745,7 @@ export default function KnowledgePage() {
                               removeFile(file.id);
                             }}
                             className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title="Remove file"
+                            title={t("Remove file")}
                           >
                             <X className="w-4 h-4" />
                           </button>

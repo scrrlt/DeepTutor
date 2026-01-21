@@ -9,6 +9,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import "katex/dist/katex.min.css";
 import { Mermaid } from "../Mermaid";
+import { useTranslation } from "react-i18next";
 import {
   GitBranch,
   Zap,
@@ -32,10 +33,10 @@ import {
 type ProcessTab = "planning" | "researching" | "reporting";
 
 // Steps configuration - moved outside component to avoid recreation
-const steps: { id: ProcessTab; label: string; icon: React.ElementType }[] = [
-  { id: "planning", label: "Planning", icon: GitBranch },
-  { id: "researching", label: "Researching", icon: Zap },
-  { id: "reporting", label: "Reporting", icon: PenTool },
+const steps: { id: ProcessTab; labelKey: string; icon: React.ElementType }[] = [
+  { id: "planning", labelKey: "Planning", icon: GitBranch },
+  { id: "researching", labelKey: "Researching", icon: Zap },
+  { id: "reporting", labelKey: "Reporting", icon: PenTool },
 ];
 
 const stageOrder: Record<string, number> = {
@@ -65,6 +66,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
   onExportPdf,
   isExportingPdf = false,
 }) => {
+  const { t } = useTranslation();
   const { global, tasks, activeTaskIds, planning, reporting } = state;
   
   // Track previous stage to detect changes and reset user selection
@@ -174,7 +176,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             ) : (
               <Clock className="w-4 h-4 text-slate-300" />
             )}
-            <span className="text-sm font-medium">{step.label}</span>
+            <span className="text-sm font-medium">{t(step.labelKey)}</span>
 
             {/* Active indicator dot */}
             {isCurrentStage && !isCompleted && (
@@ -220,12 +222,12 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         )}
 
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-          {isPlanningActive ? "Planning Research Strategy" : "Research Plan"}
+          {isPlanningActive ? t("Planning Research Strategy") : t("Research Plan")}
         </h3>
 
         {isPlanningActive && (
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-            {planning.progress || "Initializing..."}
+            {planning.progress || t("Initializing...")}
           </p>
         )}
 
@@ -235,7 +237,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             {planning.originalTopic && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  Original Topic
+                  {t("Original Topic")}
                 </p>
                 <p className="text-sm text-slate-700 dark:text-slate-200">
                   {planning.originalTopic}
@@ -246,7 +248,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
               planning.optimizedTopic !== planning.originalTopic && (
                 <div>
                   <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                    Optimized Topic
+                    {t("Optimized Topic")}
                   </p>
                   <p className="text-sm text-slate-700 dark:text-slate-200">
                     {planning.optimizedTopic}
@@ -285,7 +287,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center text-slate-400 dark:text-slate-500">
         <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p>No research data yet</p>
+        <p>{t("No research data yet")}</p>
       </div>
     </div>
   ) : (
@@ -298,7 +300,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             Research Tasks
             {!isResearchingActive && (
               <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-2">
-                (History)
+                {t("(History)")}
               </span>
             )}
           </h3>
@@ -380,17 +382,17 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
 
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
           {isCompleted
-            ? "Report Generated!"
+            ? t("Report Generated!")
             : isReportingActive
-              ? "Generating Report"
-              : "Report Generation"}
+              ? t("Generating Report")
+              : t("Report Generation")}
         </h3>
 
         {/* Current Section Being Written */}
         {isReportingActive && reporting.currentSection && (
           <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-100 dark:border-purple-800 rounded-lg px-4 py-2 mb-4 w-full">
             <p className="text-xs text-purple-600 dark:text-purple-400 font-medium uppercase tracking-wider mb-1">
-              Currently Writing
+              {t("Currently Writing")}
             </p>
             <p className="text-purple-800 dark:text-purple-200 font-semibold">
               {reporting.currentSection}
@@ -464,7 +466,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         {reporting.outline && reporting.outline.sections.length > 0 && (
           <div className="mt-6 w-full text-left bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-100 dark:border-slate-600 max-h-[200px] overflow-y-auto">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-              Report Outline
+              {t("Report Outline")}
             </p>
             <ul className="space-y-2">
               {reporting.outline.sections.map((section, i) => (
@@ -515,7 +517,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             className="mt-6 flex items-center justify-center gap-2 w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-sm"
           >
             <FileText className="w-4 h-4" />
-            View Full Report
+            {t("View Full Report")}
           </button>
         )}
       </div>
@@ -545,7 +547,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
           <div>
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
               {global.stage === "idle"
-                ? "Ready to Research"
+                ? t("Ready to Research")
                 : global.stage === "completed"
                   ? "Research Complete"
                   : planning.optimizedTopic ||
@@ -571,7 +573,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                 <>
                   <span>•</span>
                   <span className="text-violet-600 dark:text-violet-400 font-medium">
-                    Parallel Mode
+                    {t("Parallel Mode")}
                   </span>
                 </>
               )}
@@ -590,7 +592,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Process
+            {t("Process")}
           </button>
           <button
             onClick={() => setActiveView("report")}
@@ -606,7 +608,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             }`}
           >
             <FileOutput className="w-4 h-4" />
-            Report
+            {t("Report")}
           </button>
         </div>
       </div>
@@ -622,10 +624,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   <Search className="w-8 h-8 text-slate-400 dark:text-slate-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                  Ready to Research
+                  {t("Ready to Research")}
                 </h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Enter a topic in the left panel to start deep research.
+                  {t("Enter a topic in the left panel to start deep research.")}
                 </p>
               </div>
             </div>
@@ -655,7 +657,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   onClick={onAddToNotebook}
                   className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all"
                 >
-                  <Book className="w-4 h-4" /> Add to Notebook
+                  <Book className="w-4 h-4" /> {t("Add to Notebook")}
                 </button>
               )}
               {onExportMarkdown && (
@@ -663,7 +665,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   onClick={onExportMarkdown}
                   className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
                 >
-                  <Download className="w-4 h-4" /> Markdown
+                  <Download className="w-4 h-4" /> {t("Markdown")}
                 </button>
               )}
               {onExportPdf && (
@@ -853,7 +855,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
               ) : (
                 <div className="flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500">
                   <Loader2 className="w-8 h-8 mb-4 animate-spin opacity-50" />
-                  <p>Generating report preview...</p>
+                  <p>{t("Generating report preview...")}</p>
                 </div>
               )}
             </div>

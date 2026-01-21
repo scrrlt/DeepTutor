@@ -8,7 +8,7 @@ Unified RAG pipeline service for DeepTutor.
 Provides:
 - RAGService: Unified entry point for all RAG operations
 - Composable RAG pipelines
-- Pre-configured pipelines (RAGAnything, LightRAG, LlamaIndex, Academic)
+- Pre-configured pipelines (RAGAnything, LightRAG, LlamaIndex)
 - Modular components (parsers, chunkers, embedders, indexers, retrievers)
 - Factory for pipeline creation
 
@@ -51,6 +51,19 @@ def __getattr__(name: str):
         from .pipelines.raganything import RAGAnythingPipeline
 
         return RAGAnythingPipeline
+    if name == "RAGAnythingDoclingPipeline":
+        from .pipelines.raganything_docling import RAGAnythingDoclingPipeline
+
+        return RAGAnythingDoclingPipeline
+    if name == "LlamaIndexPipeline":
+        # Optional dependency: llama_index
+        from .pipelines.llamaindex import LlamaIndexPipeline
+
+        return LlamaIndexPipeline
+    if name == "LightRAGPipeline":
+        from .pipelines.lightrag import LightRAGPipeline
+
+        return LightRAGPipeline
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

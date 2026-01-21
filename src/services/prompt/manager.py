@@ -21,8 +21,8 @@ class PromptManager:
 
     # Language fallback chain: if primary language not found, try alternatives
     LANGUAGE_FALLBACKS = {
-        "zh": ["zh", "en"],
-        "en": ["en", "zh"],
+        "zh": ["zh", "cn", "en"],
+        "en": ["en", "zh", "cn"],
     }
 
     # Supported modules

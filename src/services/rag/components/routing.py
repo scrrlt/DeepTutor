@@ -292,7 +292,7 @@ class FileTypeRouter:
         Get supported file extensions for a specific RAG provider.
 
         Args:
-            provider: RAG provider name (llamaindex, lightrag, raganything)
+            provider: RAG provider name (llamaindex, lightrag, raganything, raganything_docling)
 
         Returns:
             Set of supported file extensions (with leading dot, e.g., {".pdf", ".txt"})
@@ -308,7 +308,7 @@ class FileTypeRouter:
             # LightRAG: PDF + all text files (uses FileTypeRouter)
             return cls.MINERU_EXTENSIONS | text_extensions
 
-        elif provider == "raganything":
+        elif provider in ("raganything", "raganything_docling"):
             # RAGAnything: PDF + Word + Images + all text files (full multimodal via MinerU)
             return (
                 cls.MINERU_EXTENSIONS | cls.DOCX_EXTENSIONS | cls.IMAGE_EXTENSIONS | text_extensions
@@ -325,7 +325,7 @@ class FileTypeRouter:
         Get glob patterns for file searching based on RAG provider.
 
         Args:
-            provider: RAG provider name (llamaindex, lightrag, raganything)
+            provider: RAG provider name (llamaindex, lightrag, raganything, raganything_docling)
 
         Returns:
             List of glob patterns (e.g., ["*.pdf", "*.txt", "*.md"])

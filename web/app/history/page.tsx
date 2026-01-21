@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import {
   History,
   Clock,
@@ -19,7 +20,7 @@ import {
   Eye,
 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
-import { getTranslation } from "@/lib/i18n";
+import { formatDate } from "@/lib/datetime";
 import { useGlobal } from "@/context/GlobalContext";
 import ActivityDetail from "@/components/ActivityDetail";
 import ChatSessionDetail from "@/components/ChatSessionDetail";
@@ -90,7 +91,7 @@ interface SolverSession {
 
 export default function HistoryPage() {
   const { uiSettings, loadChatSession, loadSolverSession } = useGlobal();
-  const t = (key: string) => getTranslation(uiSettings.language, key);
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -213,21 +214,15 @@ export default function HistoryPage() {
 
       let dateKey: string;
       if (date.toDateString() === today.toDateString()) {
-        dateKey = "Today";
+        dateKey = t("Today");
       } else if (date.toDateString() === yesterday.toDateString()) {
-        dateKey = "Yesterday";
+        dateKey = t("Yesterday");
       } else {
-        dateKey = date.toLocaleDateString(
-          uiSettings.language === "zh" ? "zh-CN" : "en-US",
-          {
-            month: "long",
-            day: "numeric",
-            year:
-              date.getFullYear() !== today.getFullYear()
-                ? "numeric"
-                : undefined,
-          },
-        );
+        dateKey = formatDate(date, uiSettings.language, {
+          month: "long",
+          day: "numeric",
+          year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+        });
       }
 
       if (!groups[dateKey]) {
@@ -413,7 +408,7 @@ export default function HistoryPage() {
                 </h2>
                 <span className="text-xs text-slate-400 ml-auto">
                   {chatSessions.length}{" "}
-                  {chatSessions.length === 1 ? "session" : "sessions"}
+                  {t(chatSessions.length === 1 ? "session" : "sessions")}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -441,16 +436,13 @@ export default function HistoryPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
                             <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                              Chat
+                              {t("Chat")}
                             </span>
                             <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {new Date(
-                                session.updated_at * 1000,
-                              ).toLocaleDateString(
-                                uiSettings.language === "zh"
-                                  ? "zh-CN"
-                                  : "en-US",
+                              {formatDate(
+                                new Date(session.updated_at * 1000),
+                                uiSettings.language,
                               )}
                             </span>
                           </div>
@@ -459,7 +451,7 @@ export default function HistoryPage() {
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-400 dark:text-slate-500">
-                              {session.message_count} messages
+                              {session.message_count} {t("messages")}
                             </span>
                             {session.last_message && (
                               <p className="text-sm text-slate-500 dark:text-slate-400 truncate flex-1">
@@ -513,7 +505,7 @@ export default function HistoryPage() {
                 </h2>
                 <span className="text-xs text-slate-400 ml-auto">
                   {solverSessions.length}{" "}
-                  {solverSessions.length === 1 ? "session" : "sessions"}
+                  {t(solverSessions.length === 1 ? "session" : "sessions")}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -541,16 +533,13 @@ export default function HistoryPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
                             <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-                              Solver
+                              {t("Solve")}
                             </span>
                             <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {new Date(
-                                session.updated_at * 1000,
-                              ).toLocaleDateString(
-                                uiSettings.language === "zh"
-                                  ? "zh-CN"
-                                  : "en-US",
+                              {formatDate(
+                                new Date(session.updated_at * 1000),
+                                uiSettings.language,
                               )}
                             </span>
                           </div>
@@ -559,7 +548,7 @@ export default function HistoryPage() {
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-400 dark:text-slate-500">
-                              {session.message_count} messages
+                              {session.message_count} {t("messages")}
                             </span>
                             {session.kb_name && (
                               <span className="text-xs text-blue-500 dark:text-blue-400">

@@ -118,7 +118,7 @@ class TestRAGToolIntegration(unittest.IsolatedAsyncioTestCase):
 
         # Check expected providers
         provider_ids = [p["id"] for p in providers]
-        expected = ["raganything", "lightrag", "llamaindex", "academic"]
+        expected = ["raganything", "lightrag", "llamaindex"]
         for expected_id in expected:
             self.assertIn(expected_id, provider_ids, f"Missing provider: {expected_id}")
 
@@ -130,13 +130,13 @@ class TestRAGToolIntegration(unittest.IsolatedAsyncioTestCase):
         print(f"\n=== Current Provider: {provider} ===")
 
         self.assertIsInstance(provider, str)
-        self.assertIn(provider, ["raganything", "lightrag", "llamaindex", "academic"])
+        self.assertIn(provider, ["raganything", "lightrag", "llamaindex"])
 
     async def test_has_pipeline_valid(self):
         """Test has_pipeline with valid pipeline names"""
         from src.services.rag.factory import has_pipeline
 
-        for name in ["raganything", "lightrag", "llamaindex", "academic"]:
+        for name in ["raganything", "lightrag", "llamaindex"]:
             self.assertTrue(has_pipeline(name), f"Pipeline {name} should exist")
 
     async def test_has_pipeline_invalid(self):
@@ -172,22 +172,18 @@ class TestPipelineFactory(unittest.IsolatedAsyncioTestCase):
     async def test_get_pipeline_llamaindex(self):
         """Test getting LlamaIndex pipeline"""
         from src.services.rag.factory import get_pipeline
-        from src.services.rag.pipeline import RAGPipeline
+        try:
+            pipeline = get_pipeline("llamaindex")
+        except ValueError as e:
+            # Optional dependency may be missing in many installs
+            self.skipTest(f"LlamaIndex not available (optional dependency missing): {e}")
 
-        pipeline = get_pipeline("llamaindex")
-        self.assertIsInstance(pipeline, RAGPipeline)
-        self.assertEqual(pipeline.name, "llamaindex")
-        print(f"\n✓ LlamaIndex pipeline created: {pipeline.name}")
+        # LlamaIndexPipeline is class-based (not the composed RAGPipeline)
+        self.assertTrue(hasattr(pipeline, "initialize"))
+        self.assertTrue(hasattr(pipeline, "search"))
+        self.assertTrue(hasattr(pipeline, "delete"))
+        print(f"\n✓ LlamaIndex pipeline created: {type(pipeline).__name__}")
 
-    async def test_get_pipeline_academic(self):
-        """Test getting Academic pipeline"""
-        from src.services.rag.factory import get_pipeline
-        from src.services.rag.pipeline import RAGPipeline
-
-        pipeline = get_pipeline("academic")
-        self.assertIsInstance(pipeline, RAGPipeline)
-        self.assertEqual(pipeline.name, "academic")
-        print(f"\n✓ Academic pipeline created: {pipeline.name}")
 
     async def test_get_pipeline_invalid(self):
         """Test getting invalid pipeline raises error"""
@@ -297,20 +293,16 @@ class TestLlamaIndexPipeline(unittest.IsolatedAsyncioTestCase, RAGPipelineTestBa
 
         from src.services.rag.factory import get_pipeline
 
-        pipeline = get_pipeline("llamaindex")
+        try:
+            pipeline = get_pipeline("llamaindex")
+        except ValueError as e:
+            self.skipTest(f"LlamaIndex not available (optional dependency missing): {e}")
 
-        # Check components
-        self.assertIsNotNone(pipeline._parser)
-        self.assertGreater(len(pipeline._chunkers), 0)
-        self.assertIsNotNone(pipeline._embedder)
-        self.assertGreater(len(pipeline._indexers), 0)
-        self.assertIsNotNone(pipeline._retriever)
-
-        print(f"✓ Parser: {pipeline._parser.name}")
-        print(f"✓ Chunkers: {[c.name for c in pipeline._chunkers]}")
-        print(f"✓ Embedder: {pipeline._embedder.name}")
-        print(f"✓ Indexers: {[i.name for i in pipeline._indexers]}")
-        print(f"✓ Retriever: {pipeline._retriever.name}")
+        # LlamaIndexPipeline config is internal to llama_index Settings; just sanity-check interface.
+        self.assertTrue(hasattr(pipeline, "initialize"))
+        self.assertTrue(hasattr(pipeline, "search"))
+        self.assertTrue(hasattr(pipeline, "delete"))
+        print(f"✓ LlamaIndex pipeline ready: {type(pipeline).__name__}")
 
     @unittest.skipUnless(
         os.environ.get("TEST_LLAMAINDEX", "").lower() == "true"
@@ -377,32 +369,6 @@ class TestLightRAGPipeline(unittest.IsolatedAsyncioTestCase, RAGPipelineTestBase
         print("\n⚠ Note: LightRAG pipeline requires RAG-Anything for search/indexing")
 
 
-class TestAcademicPipeline(unittest.IsolatedAsyncioTestCase, RAGPipelineTestBase):
-    """Test Academic pipeline (requires RAG-Anything)"""
-
-    async def test_academic_components(self):
-        """Test Academic pipeline components are properly configured"""
-        print("\n=== Testing Academic Pipeline Components ===")
-
-        from src.services.rag.factory import get_pipeline
-
-        pipeline = get_pipeline("academic")
-
-        # Check components - Academic has 2 chunkers
-        self.assertIsNotNone(pipeline._parser)
-        self.assertEqual(len(pipeline._chunkers), 2)  # SemanticChunker + NumberedItemExtractor
-        self.assertIsNotNone(pipeline._embedder)
-        self.assertGreater(len(pipeline._indexers), 0)
-        self.assertIsNotNone(pipeline._retriever)
-
-        print(f"✓ Parser: {pipeline._parser.name}")
-        print(f"✓ Chunkers: {[c.name for c in pipeline._chunkers]}")
-        print(f"✓ Embedder: {pipeline._embedder.name}")
-        print(f"✓ Indexers: {[i.name for i in pipeline._indexers]}")
-        print(f"✓ Retriever: {pipeline._retriever.name}")
-
-        # Note: This pipeline requires RAG-Anything for full functionality
-        print("\n⚠ Note: Academic pipeline requires RAG-Anything for search/indexing")
 
 
 class TestRAGToolWithProviders(unittest.IsolatedAsyncioTestCase, RAGPipelineTestBase):

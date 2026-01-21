@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { apiUrl } from "@/lib/api";
 import {
   SessionState,
@@ -37,21 +37,21 @@ export function useGuideSession() {
   const [loadingMessage, setLoadingMessage] = useState("");
 
   // Debounced save functions
-  const saveSessionState = useCallback(
-    debounce((state: SessionState) => {
-      if (!isHydrated.current) return;
+  const saveSessionState = useMemo(
+    () =>
+      debounce((state: SessionState) => {
       const toSave = persistState(state, GUIDE_SESSION_EXCLUDE);
       saveToStorage(STORAGE_KEYS.GUIDE_SESSION, toSave);
-    }, 500),
-    []
+      }, 500),
+    [],
   );
 
-  const saveChatMessages = useCallback(
-    debounce((messages: ChatMessage[]) => {
-      if (!isHydrated.current) return;
-      saveToStorage(GUIDE_CHAT_KEY, messages);
-    }, 500),
-    []
+  const saveChatMessages = useMemo(
+    () =>
+      debounce((messages: ChatMessage[]) => {
+        saveToStorage(GUIDE_CHAT_KEY, messages);
+      }, 500),
+    [],
   );
 
   // Restore persisted state after hydration
@@ -65,12 +65,14 @@ export function useGuideSession() {
     const persistedChat = loadFromStorage<ChatMessage[]>(GUIDE_CHAT_KEY, []);
 
     if (Object.keys(persistedSession).length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration restore
       setSessionState((prev) =>
         mergeWithDefaults(persistedSession, prev, GUIDE_SESSION_EXCLUDE)
       );
     }
 
     if (persistedChat.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration restore
       setChatMessages(persistedChat);
     }
 

@@ -20,7 +20,7 @@ import "katex/dist/katex.min.css";
 import { apiUrl, API_BASE_URL } from "@/lib/api";
 import { processLatexContent } from "@/lib/latex";
 import { useGlobal } from "@/context/GlobalContext";
-import { getTranslation } from "@/lib/i18n";
+import { useTranslation } from "react-i18next";
 
 interface SolverMessage {
   role: "user" | "assistant";
@@ -84,7 +84,7 @@ export default function SolverSessionDetail({
   onContinue,
 }: SolverSessionDetailProps) {
   const { uiSettings } = useGlobal();
-  const t = (key: string) => getTranslation(uiSettings.language, key);
+  const { t } = useTranslation();
 
   const [session, setSession] = useState<SolverSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +111,8 @@ export default function SolverSessionDetail({
         const data = await response.json();
         setSession(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setError(msg === "Failed to load session" ? t("Failed to load session") : msg);
       } finally {
         setLoading(false);
       }
@@ -194,7 +195,7 @@ export default function SolverSessionDetail({
                 {session.kb_name && (
                   <span className="px-2.5 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full flex items-center gap-1">
                     <Database className="w-3 h-3" />
-                    KB: {session.kb_name}
+                    {t("KB")}: {session.kb_name}
                   </span>
                 )}
                 {session.token_stats && (
@@ -206,7 +207,7 @@ export default function SolverSessionDetail({
                     )}
                     {session.token_stats.tokens > 0 && (
                       <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full">
-                        {session.token_stats.tokens.toLocaleString()} tokens
+                        {session.token_stats.tokens.toLocaleString()} {t("tokens")}
                       </span>
                     )}
                     {session.token_stats.cost > 0 && (
@@ -258,7 +259,7 @@ export default function SolverSessionDetail({
                                     msg.output_dir,
                                   ) || undefined
                                 }
-                                alt={alt || "Solution image"}
+                                alt={alt || t("Solution image")}
                                 loading="lazy"
                                 className="max-w-full h-auto rounded-lg"
                               />

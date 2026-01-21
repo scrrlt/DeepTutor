@@ -23,6 +23,7 @@ from src.api.utils.task_id_manager import TaskIDManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.services.settings.interface_settings import get_ui_language
 
 router = APIRouter()
 
@@ -148,6 +149,7 @@ async def websocket_ideagen(websocket: WebSocket):
 
         # Get LLM configuration
         llm_config = get_llm_config()
+        ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
 
         # Get records
         records = []
@@ -198,6 +200,7 @@ async def websocket_ideagen(websocket: WebSocket):
                 base_url=llm_config.base_url,
                 api_version=getattr(llm_config, "api_version", None),
                 model=llm_config.model,
+                language=ui_language,
             )
 
             knowledge_points = await organizer.process(
@@ -258,6 +261,7 @@ async def websocket_ideagen(websocket: WebSocket):
             api_version=getattr(llm_config, "api_version", None),
             model=llm_config.model,
             progress_callback=None,  # We manually manage status here
+            language=ui_language,
         )
 
         filtered_points = await workflow.loose_filter(knowledge_points)

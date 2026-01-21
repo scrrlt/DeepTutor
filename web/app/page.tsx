@@ -30,8 +30,8 @@ import "katex/dist/katex.min.css";
 import { useGlobal } from "@/context/GlobalContext";
 import { apiUrl } from "@/lib/api";
 import { processLatexContent } from "@/lib/latex";
-import { getTranslation } from "@/lib/i18n";
 import AddToNotebookModal from "@/components/AddToNotebookModal";
+import { useTranslation } from "react-i18next";
 
 interface KnowledgeBase {
   name: string;
@@ -45,9 +45,8 @@ export default function HomePage() {
     sendChatMessage,
     clearChatHistory,
     newChatSession,
-    uiSettings,
   } = useGlobal();
-  const t = (key: string) => getTranslation(uiSettings.language, key);
+  const { t } = useTranslation();
 
   const [inputMessage, setInputMessage] = useState("");
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
@@ -65,13 +64,15 @@ export default function HomePage() {
     const title =
       firstUserMsg?.content.slice(0, 50) +
         (firstUserMsg && firstUserMsg.content.length > 50 ? "..." : "") ||
-      "Chat Session";
+      t("Chat Session");
 
     // Format all messages as markdown
     const formattedMessages = chatState.messages
       .map((msg, idx) => {
         const roleLabel =
-          msg.role === "user" ? "👤 **User**" : "🤖 **Assistant**";
+          msg.role === "user"
+            ? `👤 **${t("User")}**`
+            : `🤖 **${t("Assistant")}**`;
         return `### ${roleLabel}\n\n${msg.content}`;
       })
       .join("\n\n---\n\n");
@@ -136,42 +137,42 @@ export default function HomePage() {
       label: t("Smart Problem Solving"),
       href: "/solver",
       color: "blue",
-      description: "Multi-agent reasoning",
+      description: t("Multi-agent reasoning"),
     },
     {
       icon: PenTool,
       label: t("Generate Practice Questions"),
       href: "/question",
       color: "purple",
-      description: "Auto-validated quizzes",
+      description: t("Auto-validated quizzes"),
     },
     {
       icon: Microscope,
       label: t("Deep Research Reports"),
       href: "/research",
       color: "emerald",
-      description: "Comprehensive analysis",
+      description: t("Comprehensive analysis"),
     },
     {
       icon: Lightbulb,
       label: t("Generate Novel Ideas"),
       href: "/ideagen",
       color: "amber",
-      description: "Brainstorm & synthesize",
+      description: t("Brainstorm & synthesize"),
     },
     {
       icon: GraduationCap,
       label: t("Guided Learning"),
       href: "/guide",
       color: "indigo",
-      description: "Step-by-step tutoring",
+      description: t("Step-by-step tutoring"),
     },
     {
       icon: Edit3,
       label: t("Co-Writer"),
       href: "/co_writer",
       color: "pink",
-      description: "Collaborative writing",
+      description: t("Collaborative writing"),
     },
   ];
 
