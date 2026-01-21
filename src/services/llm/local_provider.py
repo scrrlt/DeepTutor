@@ -192,6 +192,11 @@ async def stream(
                 in_thinking_block = False
                 thinking_buffer = ""
 
+                # Per-stream context to manage partial tags across chunks
+                from types import SimpleNamespace
+
+                _stream_ctx = SimpleNamespace()
+
                 async for line in response.content:
                     line_str = line.decode("utf-8").strip()
 
@@ -213,35 +218,86 @@ async def stream(
                                 content = delta.get("content")
 
                                 if content:
-                                    # Handle thinking tags in streaming
-                                    if "<think>" in content:
-                                        in_thinking_block = True
-                                        # Handle case where content has text BEFORE <think>
-                                        parts = content.split("<think>", 1)
-                                        if parts[0]:
-                                            yield parts[0]
-                                        thinking_buffer = "<think>" + parts[1]
+                                    # Use buffered parsing to handle partial <think> tags
+                                    open_tag = "<think>"
+                                    close_tag = "</think>"
 
-                                        # Check if closed immediately in same chunk
-                                        if "</think>" in thinking_buffer:
-                                            cleaned = clean_thinking_tags(thinking_buffer)
-                                            if cleaned:
-                                                yield cleaned
-                                            thinking_buffer = ""
-                                            in_thinking_block = False
-                                        continue
-                                    elif in_thinking_block:
-                                        thinking_buffer += content
-                                        if "</think>" in thinking_buffer:
-                                            # Block finished
-                                            cleaned = clean_thinking_tags(thinking_buffer)
-                                            if cleaned:
-                                                yield cleaned
-                                            in_thinking_block = False
-                                            thinking_buffer = ""
-                                        continue
-                                    else:
-                                        yield content
+                                    if not hasattr(_stream_ctx, "yield_buffer"):
+                                        _stream_ctx.yield_buffer = ""
+                                    if not hasattr(_stream_ctx, "thinking_buffer"):
+                                        _stream_ctx.thinking_buffer = thinking_buffer
+                                    if not hasattr(_stream_ctx, "in_thinking_block"):
+                                        _stream_ctx.in_thinking_block = in_thinking_block
+
+                                    yield_buffer = _stream_ctx.yield_buffer
+                                    thinking_buffer = _stream_ctx.thinking_buffer
+                                    in_thinking_block = _stream_ctx.in_thinking_block
+
+                                    yield_buffer += content
+
+                                    def _ends_with_partial(buf: str, marker: str) -> bool:
+                                        for k in range(1, len(marker)):
+                                            if buf.endswith(marker[:k]):
+                                                return True
+                                        return False
+
+                                    processed = True
+                                    while processed:
+                                        processed = False
+                                        if not in_thinking_block:
+                                            idx = yield_buffer.find(open_tag)
+
+                                            if _ends_with_partial(yield_buffer, open_tag):
+                                                # Wait for more data
+                                                break
+
+                                            if idx != -1:
+                                                # Yield pre-open text
+                                                pre = yield_buffer[:idx]
+                                                if pre:
+                                                    yield pre
+                                                thinking_buffer = yield_buffer[idx:]
+                                                yield_buffer = ""
+                                                in_thinking_block = True
+
+                                                # Check for immediate closure
+                                                if close_tag in thinking_buffer:
+                                                    after = thinking_buffer.split(close_tag, 1)[1]
+                                                    cleaned = clean_thinking_tags(thinking_buffer)
+                                                    if cleaned:
+                                                        yield cleaned
+                                                    thinking_buffer = ""
+                                                    in_thinking_block = False
+                                                    yield_buffer = after
+                                                    processed = True
+                                                    continue
+                                            else:
+                                                if yield_buffer:
+                                                    yield yield_buffer
+                                                    yield_buffer = ""
+                                        else:
+                                            thinking_buffer += yield_buffer
+                                            yield_buffer = ""
+
+                                            if _ends_with_partial(thinking_buffer, close_tag):
+                                                # Wait for more data
+                                                break
+
+                                            if close_tag in thinking_buffer:
+                                                after = thinking_buffer.split(close_tag, 1)[1]
+                                                cleaned = clean_thinking_tags(thinking_buffer)
+                                                if cleaned:
+                                                    yield cleaned
+                                                thinking_buffer = ""
+                                                in_thinking_block = False
+                                                yield_buffer = after
+                                                processed = True
+                                                continue
+                                            break
+
+                                    _stream_ctx.yield_buffer = yield_buffer
+                                    _stream_ctx.thinking_buffer = thinking_buffer
+                                    _stream_ctx.in_thinking_block = in_thinking_block
 
                         except json.JSONDecodeError:
                             # Log and skip malformed JSON chunks

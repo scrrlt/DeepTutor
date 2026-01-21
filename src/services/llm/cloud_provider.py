@@ -121,12 +121,13 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
 
     # Emit warning once across threads
     with _ssl_warning_lock:
-        if not globals().get("_ssl_warning_logged", False):
+        global _ssl_warning_logged
+        if not _ssl_warning_logged:
             logger.warning(
                 "SSL verification is disabled via DISABLE_SSL_VERIFY. This is unsafe and must "
                 "not be used in production environments."
             )
-            globals()["_ssl_warning_logged"] = True
+            _ssl_warning_logged = True
     return aiohttp.TCPConnector(ssl=False)
 
 
@@ -308,30 +309,35 @@ async def _openai_complete(
         lightrag_kwargs.pop("base_url", None)
         lightrag_kwargs.pop("api_version", None)
 
-        # Suppress lightrag's and openai's internal error logging during the call
-        # (errors are handled by our fallback mechanism)
-        original_lightrag_level = _lightrag_logger.level
-        original_openai_level = _openai_logger.level
-        _lightrag_logger.setLevel(logging.CRITICAL)
-        _openai_logger.setLevel(logging.CRITICAL)
-        try:
+        # Try using lightrag's cached complete implementation when available.
+        # We avoid mutating logger levels across an await point because that is
+        # unsafe in asyncio (other tasks may run concurrently and observe
+        # intermediate global level changes). Instead, use a temporary filter
+        # that suppresses non-critical messages for the named loggers.
+        openai_complete_if_cache = _get_openai_complete_if_cache()
+        if openai_complete_if_cache is not None:
+            from src.logging.logger import suppressed_logging
+
             # model and prompt must be positional arguments
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
 
-            openai_complete_if_cache = _get_openai_complete_if_cache()
-            content = await openai_complete_if_cache(
-                model,
-                prompt,
-                system_prompt=system_prompt,
-                history_messages=history_messages,
-                api_key=api_key,
-                base_url=base_url,
-                **lightrag_kwargs,
-            )
-        finally:
-            _lightrag_logger.setLevel(original_lightrag_level)
-            _openai_logger.setLevel(original_openai_level)
+            # Use a filter-based suppression to avoid race conditions with log levels
+            with suppressed_logging(["lightrag", "openai"], level=logging.CRITICAL):
+                try:
+                    content = await openai_complete_if_cache(
+                        model,
+                        prompt,
+                        system_prompt=system_prompt,
+                        history_messages=history_messages,
+                        api_key=api_key,
+                    )
+                except Exception:
+                    # Swallow errors - we'll fall back to the standard cloud call
+                    content = None
+        else:
+            # lightrag caching not available; proceed with normal cloud call
+            content = None
     except Exception as exc:
         # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
         logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
@@ -492,6 +498,11 @@ async def _openai_stream(
             in_thinking_block = False
             thinking_buffer = ""
 
+            # Per-stream context object to hold partial buffers
+            from types import SimpleNamespace
+
+            _stream_context = SimpleNamespace()
+
             async for line in resp.content:
                 line_str = line.decode("utf-8").strip()
                 if not line_str or not line_str.startswith("data:"):
@@ -520,38 +531,102 @@ async def _openai_stream(
                             open_markers = ("<think>", "◣", "꽁")
                             close_markers = ("</think>", "◢", "꽁")
 
-                            # Check for start tag (handle split tags)
-                            if any(open_m in content for open_m in open_markers):
-                                in_thinking_block = True
-                                # Handle case where content has text BEFORE <think>
-                                for open_m in open_markers:
-                                    if open_m in content:
-                                        parts = content.split(open_m, 1)
-                                        if parts[0]:
-                                            yield parts[0]
-                                        thinking_buffer = open_m + parts[1]
+                            # Stateful buffering to handle partial tags across chunks
+                            if not hasattr(_stream_context, "yield_buffer"):
+                                _stream_context.yield_buffer = ""
+                            if not hasattr(_stream_context, "thinking_buffer"):
+                                _stream_context.thinking_buffer = thinking_buffer
+                            if not hasattr(_stream_context, "in_thinking_block"):
+                                _stream_context.in_thinking_block = in_thinking_block
 
-                                        # Check if closed immediately in same chunk
-                                        if any(close_m in thinking_buffer for close_m in close_markers):
+                            yield_buffer = _stream_context.yield_buffer
+                            thinking_buffer = _stream_context.thinking_buffer
+                            in_thinking_block = _stream_context.in_thinking_block
+
+                            yield_buffer += content
+
+                            def _ends_with_partial(buf: str, markers: tuple[str, ...]) -> bool:
+                                for m in markers:
+                                    for k in range(1, len(m)):
+                                        if buf.endswith(m[:k]):
+                                            return True
+                                return False
+
+                            def _find_first_marker(buf: str, markers: tuple[str, ...]):
+                                first_idx = None
+                                first_marker = None
+                                for m in markers:
+                                    idx = buf.find(m)
+                                    if idx != -1 and (first_idx is None or idx < first_idx):
+                                        first_idx = idx
+                                        first_marker = m
+                                return first_idx, first_marker
+
+                            processed = True
+                            while processed:
+                                processed = False
+                                if not in_thinking_block:
+                                    idx, marker = _find_first_marker(yield_buffer, open_markers)
+                                    # If buffer ends with a partial open marker, wait for more
+                                    if _ends_with_partial(yield_buffer, open_markers):
+                                        break
+
+                                    if idx is not None:
+                                        # Yield text before the marker
+                                        if idx > 0:
+                                            pre = yield_buffer[:idx]
+                                            if pre:
+                                                yield pre
+                                        # Move rest into thinking buffer
+                                        thinking_buffer = yield_buffer[idx:]
+                                        yield_buffer = ""
+                                        in_thinking_block = True
+
+                                        # If closed already in same buffer, process immediately
+                                        close_idx, close_marker = _find_first_marker(thinking_buffer, close_markers)
+                                        if close_idx is not None:
+                                            after = thinking_buffer.split(close_marker, 1)[1]
                                             cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                             if cleaned:
                                                 yield cleaned
                                             thinking_buffer = ""
                                             in_thinking_block = False
+                                            yield_buffer = after
+                                            processed = True
+                                            continue
+                                    else:
+                                        # No marker, yield whole buffer
+                                        if yield_buffer:
+                                            yield yield_buffer
+                                            yield_buffer = ""
+                                else:
+                                    # inside thinking block
+                                    thinking_buffer += yield_buffer
+                                    yield_buffer = ""
+
+                                    # If ends with partial close marker, wait for more
+                                    if _ends_with_partial(thinking_buffer, close_markers):
                                         break
-                                continue
-                            elif in_thinking_block:
-                                thinking_buffer += content
-                                if any(close_m in thinking_buffer for close_m in close_markers):
-                                    # Block finished
-                                    cleaned = clean_thinking_tags(thinking_buffer, binding, model)
-                                    if cleaned:
-                                        yield cleaned
-                                    in_thinking_block = False
-                                    thinking_buffer = ""
-                                continue
-                            else:
-                                yield content
+
+                                    close_idx, close_marker = _find_first_marker(thinking_buffer, close_markers)
+                                    if close_idx is not None:
+                                        after = thinking_buffer.split(close_marker, 1)[1]
+                                        cleaned = clean_thinking_tags(thinking_buffer, binding, model)
+                                        if cleaned:
+                                            yield cleaned
+                                        thinking_buffer = ""
+                                        in_thinking_block = False
+                                        yield_buffer = after
+                                        processed = True
+                                        continue
+                                    # otherwise, still inside thinking block and no close yet
+                                    break
+
+                            # Update context
+                            _stream_context.yield_buffer = yield_buffer
+                            _stream_context.thinking_buffer = thinking_buffer
+                            _stream_context.in_thinking_block = in_thinking_block
+
                 except json.JSONDecodeError:
                     continue
 

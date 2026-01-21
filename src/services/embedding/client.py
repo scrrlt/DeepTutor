@@ -115,7 +115,8 @@ class EmbeddingClient:
         if current_loop == self._init_loop:
             # Called sync from within the init loop - this would block
             raise RuntimeError(
-                "embed_sync() cannot be called from within the same running event loop. "
+                "Deadlock Risk: embed_sync() called from the initialization thread. "
+                "Asyncio will never execute the task because this thread is blocked. "
                 "Use 'await embed()' instead."
             )
 

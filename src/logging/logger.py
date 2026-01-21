@@ -209,8 +209,51 @@ class Logger:
         # For backwards compatibility with task-specific logging
         self._task_handlers: List[logging.Handler] = []
 
-        # Display manager for TUI (optional, used by solve_agents)
-        self.display_manager = None
+    # ------------------ Helpers for temporary log suppression ------------------
+    
+    class _LevelFilter(logging.Filter):
+        """Filter that suppresses records below a threshold level."""
+
+        def __init__(self, level: int):
+            super().__init__()
+            self._level = level
+
+        def filter(self, record: logging.LogRecord) -> bool:
+            # Only allow records which are >= the threshold level
+            return record.levelno >= self._level
+
+
+    from contextlib import contextmanager
+
+
+# Module-level context manager for suppressing logs on named loggers
+from contextlib import contextmanager
+
+@contextmanager
+def suppressed_logging(logger_names: list[str], level: int = logging.CRITICAL):
+    """Temporarily suppress logs below `level` for the named loggers.
+
+    This attaches a short-lived filter to each logger rather than changing the
+    global logger level, which is unsafe in asyncio where other tasks may be
+    running concurrently.
+    Usage:
+        with suppressed_logging(["lightrag", "openai"], level=logging.CRITICAL):
+            # call into 3rd-party libs that are noisy
+    """
+    filters: list[tuple[logging.Logger, logging.Filter]] = []
+    try:
+        for name in logger_names:
+            log = logging.getLogger(name)
+            f = Logger._LevelFilter(level)
+            log.addFilter(f)
+            filters.append((log, f))
+        yield
+    finally:
+        for log, f in filters:
+            try:
+                log.removeFilter(f)
+            except Exception:
+                pass
 
     def add_task_log_handler(
         self, task_log_file: str, capture_stdout: bool = False, capture_stderr: bool = False
