@@ -321,6 +321,7 @@ async def _openai_complete(
     **kwargs: object,
 ) -> str:
     """OpenAI-compatible completion."""
+    binding_lower = (binding or "openai").lower()
     # Sanitize URL
     if base_url:
         base_url = sanitize_url(base_url, model)
@@ -349,36 +350,33 @@ async def _openai_complete(
         # intermediate global level changes). Instead, use a temporary filter
         # that suppresses non-critical messages for the named loggers.
         openai_complete_if_cache = _get_openai_complete_if_cache()
-        if openai_complete_if_cache is not None:
+        if binding_lower not in ["azure", "azure_openai"]:
             from src.logging.logger import suppressed_logging
 
             # model and prompt must be positional arguments
+            lightrag_kwargs["system_prompt"] = system_prompt
+            lightrag_kwargs["history_messages"] = history_messages
+            lightrag_kwargs["api_key"] = api_key
+            if base_url:
+                lightrag_kwargs["base_url"] = base_url
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
 
             # Use a filter-based suppression to avoid race conditions with log levels
             with suppressed_logging(["lightrag", "openai"], level=logging.CRITICAL):
                 try:
-                    content = await openai_complete_if_cache(
-                        model,
-                        prompt,
-                        system_prompt=system_prompt,
-                        history_messages=history_messages,
-                        api_key=api_key,
-                    )
+                    content = await openai_complete_if_cache(model, prompt, **lightrag_kwargs)
                 except Exception:
                     # Swallow errors - we'll fall back to the standard cloud call
                     content = None
-        else:
-            # lightrag caching not available; proceed with normal cloud call
-            content = None
     except Exception:
         # Log the exception with stack info for debuggability and continue to fallback
         logger.debug("Optional dependency lightrag unavailable", exc_info=True)
     # Fallback: Direct aiohttp call
-    if not content and base_url:
+    if not content:
+        effective_base = base_url or "https://api.openai.com/v1"
         # Build URL using unified utility (use binding for Azure detection)
-        url = build_chat_url(base_url, api_version, binding)
+        url = build_chat_url(effective_base, api_version, binding, model)
 
 
         # Build headers using unified utility
@@ -502,7 +500,7 @@ async def _openai_stream(
 
     # Build URL using unified utility
     effective_base = base_url or "https://api.openai.com/v1"
-    url = build_chat_url(effective_base, api_version, binding)
+    url = build_chat_url(effective_base, api_version, binding, model)
 
     # Build headers using unified utility
     headers = build_auth_headers(api_key, binding)

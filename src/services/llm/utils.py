@@ -10,52 +10,77 @@ Utility functions for LLM service:
 """
 
 from collections.abc import Mapping, Sequence
-import re
+from dataclasses import dataclass
+from functools import lru_cache
+import ipaddress
+import os
 from typing import Any, cast
+from urllib.parse import urlparse
 
-# Known cloud provider domains (should never be treated as local)
-CLOUD_DOMAINS = [
-    ".openai.com",
-    ".anthropic.com",
-    ".deepseek.com",
-    ".openrouter.ai",
-    ".azure.com",
-    ".googleapis.com",
-    ".cohere.ai",
-    ".mistral.ai",
-    ".together.ai",
-    ".fireworks.ai",
-    ".groq.com",
-    ".perplexity.ai",
-]
+DEFAULT_LOCAL_CIDRS = (
+    "127.0.0.0/8",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "::1/128",
+)
 
-# Common local server ports
-LOCAL_PORTS = [
-    ":1234",  # LM Studio
-    ":11434",  # Ollama
-    ":8000",  # vLLM
-    ":8080",  # llama.cpp
-    ":5000",  # Common dev port
-    ":3000",  # Common dev port
-    ":8001",  # Alternative vLLM
-    ":5001",  # Alternative dev port
-]
-
-# Local hostname indicators
-LOCAL_HOSTS = [
+DEFAULT_LOCAL_HOSTS = {
     "localhost",
     "127.0.0.1",
     "0.0.0.0",  # Used by some local LLM servers for all-interface binding  # nosec B104
-]
-
-# Ports that need /v1 suffix for OpenAI compatibility
-V1_SUFFIX_PORTS = {
-    ":11434",  # Ollama
-    ":1234",  # LM Studio
-    ":8000",  # vLLM
-    ":8001",  # Alternative vLLM
-    ":8080",  # llama.cpp
+    "::1",
 }
+
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkSettings:
+    """Network detection configuration for local LLM servers.
+
+    Args:
+        cloud_domains: Domain suffixes to treat as non-local.
+        local_cidrs: CIDR blocks considered local/private.
+        local_hosts: Hostnames treated as local.
+    """
+
+    cloud_domains: set[str]
+    local_cidrs: tuple[Network, ...]
+    local_hosts: set[str]
+
+
+def _parse_csv_env(name: str) -> set[str]:
+    raw = os.getenv(name, "")
+    return {item.strip().lower() for item in raw.split(",") if item.strip()}
+
+
+def _parse_cidrs_env(name: str, defaults: Sequence[str]) -> tuple[Network, ...]:
+    raw = os.getenv(name, "")
+    values = [item.strip() for item in raw.split(",") if item.strip()]
+    if not values:
+        values = list(defaults)
+    return tuple(ipaddress.ip_network(value) for value in values)
+
+
+@lru_cache(maxsize=1)
+def get_network_settings() -> NetworkSettings:
+    """Load network detection settings from environment overrides.
+
+    Returns:
+        NetworkSettings with defaults and environment overrides applied.
+
+    Raises:
+        ValueError: If configured CIDR values are invalid.
+    """
+    cloud_domains = _parse_csv_env("LLM_CLOUD_DOMAINS")
+    local_hosts = _parse_csv_env("LLM_LOCAL_HOSTS") or set(DEFAULT_LOCAL_HOSTS)
+    local_cidrs = _parse_cidrs_env("LLM_LOCAL_CIDRS", DEFAULT_LOCAL_CIDRS)
+    return NetworkSettings(
+        cloud_domains=cloud_domains,
+        local_cidrs=local_cidrs,
+        local_hosts=local_hosts,
+    )
 
 
 def is_local_llm_server(base_url: str) -> bool:
@@ -63,10 +88,9 @@ def is_local_llm_server(base_url: str) -> bool:
     Check if the given URL points to a local LLM server.
 
     Detects local servers by:
-    1. Checking for local/private hostnames and IPs
-    2. Checking for private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
-    3. Checking for common local LLM server ports (as fallback)
-    4. Excluding known cloud provider domains
+    1. Checking for configured local hostnames
+    2. Checking configured local CIDR ranges
+    3. Excluding configured cloud provider domains
 
     Args:
         base_url: The base URL to check
@@ -78,49 +102,31 @@ def is_local_llm_server(base_url: str) -> bool:
         return False
 
     base_url_lower = base_url.lower()
+    settings = get_network_settings()
 
-    # First, exclude known cloud providers
-    for domain in CLOUD_DOMAINS:
-        if domain in base_url_lower:
+    for domain in settings.cloud_domains:
+        if domain and domain in base_url_lower:
             return False
 
-    # Extract hostname/IP from URL
     try:
-        from urllib.parse import urlparse
-
         parsed = urlparse(base_url)
         hostname = parsed.hostname or parsed.netloc
         if not hostname:
             return False
         hostname_lower = hostname.lower()
     except Exception:
-        # Fallback to simple string checks if URL parsing fails
         hostname_lower = base_url_lower
 
-    # Check for local hostname indicators (regardless of port)
-    if any(host in hostname_lower for host in LOCAL_HOSTS):
+    if any(host in hostname_lower for host in settings.local_hosts):
         return True
 
-    # Check for private IP ranges
-    import ipaddress
-
     try:
-        # Try to parse as IP address
         ip = ipaddress.ip_address(hostname)
-        # Check if it's a private IP
-        if ip.is_private:
-            return True
-        # Also allow loopback IPs
-        if ip.is_loopback:
-            return True
+        for network in settings.local_cidrs:
+            if ip in network:
+                return True
     except ValueError:
-        # Not a valid IP, continue with hostname checks
         pass
-
-    # Check for common local server ports (as fallback for edge cases)
-    for port in LOCAL_PORTS:
-        if port in base_url_lower:
-            return True
 
     return False
 
@@ -230,27 +236,89 @@ def clean_thinking_tags(
         if not has_thinking_tags(binding, model):
             return content
 
-    # Remove <think>...</think> blocks
-    if "<think>" in content:
-        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
-
-    # Remove unicode thinking delimiters often used by local/reasoning models
-    # e.g., ◣ ... ◢  (U+25E3 / U+25E2) or repeated marker like 꽁...꽁
-    # Use non-greedy matching and DOTALL to span multiple lines
-    if "◣" in content and "◢" in content:
-        content = re.sub(r"\u25E3.*?\u25E2", "", content, flags=re.DOTALL)
-
-    if "꽁" in content:
-        # 꽁 is sometimes used as both open+close marker, remove paired blocks
-        content = re.sub(r"꽁.*?꽁", "", content, flags=re.DOTALL)
-
+    content = _strip_tagged_content(content, "<think>", "</think>")
+    content = _strip_tagged_content(content, "◣", "◢")
+    content = _strip_tagged_content(content, "꽁", "꽁")
     return content.strip()
+
+
+def _strip_tagged_content(content: str, open_tag: str, close_tag: str) -> str:
+    """Remove tagged sections without regex backtracking overhead.
+
+    Args:
+        content: Input text.
+        open_tag: Opening marker.
+        close_tag: Closing marker.
+
+    Returns:
+        Text with tagged sections removed.
+
+    Raises:
+        None.
+    """
+    if open_tag not in content:
+        return content
+
+    segments: list[str] = []
+    index = 0
+    while True:
+        start = content.find(open_tag, index)
+        if start == -1:
+            segments.append(content[index:])
+            break
+        segments.append(content[index:start])
+        end = content.find(close_tag, start + len(open_tag))
+        if end == -1:
+            break
+        index = end + len(close_tag)
+
+    return "".join(segments)
+
+
+def _ensure_azure_deployment_path(base_url: str, deployment: str | None) -> str:
+    """
+    Ensure Azure OpenAI deployment path is present in the base URL.
+
+    Args:
+        base_url: Azure endpoint base URL.
+        deployment: Azure deployment name (model identifier).
+
+    Returns:
+        Base URL with the deployment path appended.
+
+    Raises:
+        ValueError: If deployment is missing for Azure bindings.
+    """
+    if not base_url:
+        return base_url
+
+    if not deployment:
+        raise ValueError("Azure OpenAI requires a deployment name for routing")
+
+    from urllib.parse import urlparse, urlunparse
+
+    parsed = urlparse(base_url)
+    path = parsed.path.rstrip("/")
+    if "/openai/deployments/" not in path:
+        path = f"{path}/openai/deployments/{deployment}"
+
+    return urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def build_chat_url(
     base_url: str,
     api_version: str | None = None,
     binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Build the full chat completions endpoint URL.
@@ -264,6 +332,7 @@ def build_chat_url(
         base_url: Base URL (should be sanitized first)
         api_version: API version for Azure OpenAI (optional)
         binding: Provider binding name (optional, for Anthropic detection)
+        model: Model or deployment name (required for Azure OpenAI)
 
     Returns:
         Full endpoint URL
@@ -278,6 +347,8 @@ def build_chat_url(
 
     # Anthropic uses /messages endpoint
     binding_lower = (binding or "").lower()
+    if binding_lower in ["azure", "azure_openai"]:
+        url = _ensure_azure_deployment_path(url, model)
     if binding_lower in ["anthropic", "claude"]:
         if not url.endswith("/messages"):
             url += "/messages"
@@ -298,6 +369,7 @@ def build_completion_url(
     base_url: str,
     api_version: str | None = None,
     binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Build the full completions endpoint URL.
@@ -310,6 +382,7 @@ def build_completion_url(
         base_url: Base URL (should be sanitized first)
         api_version: API version for Azure OpenAI (optional)
         binding: Provider binding name (optional, for compatibility)
+        model: Model or deployment name (required for Azure OpenAI)
 
     Returns:
         Full endpoint URL
@@ -326,6 +399,9 @@ def build_completion_url(
     binding_lower = (binding or "").lower()
     if binding_lower in ["anthropic", "claude"]:
         raise ValueError("Anthropic does not support /completions endpoint")
+
+    if binding_lower in ["azure", "azure_openai"]:
+        url = _ensure_azure_deployment_path(url, model)
 
     if not url.endswith("/completions"):
         url += "/completions"
@@ -480,9 +556,7 @@ __all__ = [
     # Content utilities
     "clean_thinking_tags",
     "extract_response_content",
-    # Constants
-    "CLOUD_DOMAINS",
-    "LOCAL_PORTS",
-    "LOCAL_HOSTS",
-    "V1_SUFFIX_PORTS",
+    # Network configuration
+    "get_network_settings",
+    "NetworkSettings",
 ]

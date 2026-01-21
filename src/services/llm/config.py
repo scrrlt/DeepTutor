@@ -20,6 +20,8 @@ from .exceptions import LLMConfigError
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
 # Load environment variables
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
@@ -50,7 +52,7 @@ def initialize_environment():
 
     Should be called during application startup (main.py/run_server.py).
     """
-    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
+    binding = _normalize_binding(os.getenv("LLM_BINDING"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
     base_url = _strip_value(os.getenv("LLM_HOST"))
 
@@ -72,9 +74,26 @@ def _strip_value(value: Optional[str]) -> Optional[str]:
     return value.strip().strip("\"'")
 
 
+def _normalize_binding(value: str | None) -> str:
+    """
+    Normalize provider binding values.
+
+    Args:
+        value: Raw binding value.
+
+    Returns:
+        Normalized binding value.
+    """
+    binding = _strip_value(value) or "openai"
+    binding_lower = binding.lower()
+    if binding_lower == "azure":
+        return "azure_openai"
+    return binding_lower
+
+
 def _get_llm_config_from_env() -> LLMConfig:
     """Get LLM configuration from environment variables."""
-    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
+    binding = _normalize_binding(os.getenv("LLM_BINDING"))
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
     base_url = _strip_value(os.getenv("LLM_HOST"))
@@ -84,6 +103,13 @@ def _get_llm_config_from_env() -> LLMConfig:
     if not model:
         raise LLMConfigError(
             "LLM_MODEL not set, please configure it in .env file or add a configuration in Settings"
+        )
+    if binding == "openai" and not base_url:
+        base_url = DEFAULT_OPENAI_BASE_URL
+    if binding == "azure_openai" and not api_version:
+        raise LLMConfigError(
+            "LLM_API_VERSION not set for Azure OpenAI provider. "
+            "Please configure it in .env file or add a configuration in Settings"
         )
     if not base_url:
         raise LLMConfigError(
@@ -119,11 +145,20 @@ def get_llm_config() -> LLMConfig:
 
         config = get_active_llm_config()
         if config:
+            binding_value = _normalize_binding(config.get("provider"))
+            base_url = config.get("base_url")
+            if binding_value == "openai" and not base_url:
+                base_url = DEFAULT_OPENAI_BASE_URL
+            if binding_value == "azure_openai" and not config.get("api_version"):
+                raise LLMConfigError(
+                    "LLM_API_VERSION not set for Azure OpenAI provider. "
+                    "Please configure it in Settings"
+                )
             return LLMConfig(
-                binding=config.get("provider") or "openai",
+                binding=binding_value,
                 model=config["model"],
                 api_key=config.get("api_key", ""),
-                base_url=config.get("base_url"),
+                base_url=base_url,
                 api_version=config.get("api_version"),
             )
     except ImportError:

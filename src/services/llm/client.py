@@ -82,9 +82,10 @@ class LLMClient:
 
         # Use capabilities to determine if provider uses OpenAI-style messages
         uses_openai_style = system_in_messages(binding, self.config.model)
+        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
 
         # For non-OpenAI-compatible providers (e.g., Anthropic), use Factory
-        if not uses_openai_style:
+        if not uses_openai_style or binding_lower in ("azure", "azure_openai"):
             from . import factory
 
             def llm_model_func_via_factory(
@@ -145,9 +146,10 @@ class LLMClient:
 
         # Use capabilities to determine if provider uses OpenAI-style messages
         uses_openai_style = system_in_messages(binding, self.config.model)
+        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
 
         # For non-OpenAI-compatible providers, use Factory
-        if not uses_openai_style:
+        if not uses_openai_style or binding_lower in ("azure", "azure_openai"):
             from . import factory
 
             def vision_model_func_via_factory(
