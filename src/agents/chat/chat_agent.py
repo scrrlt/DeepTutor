@@ -26,6 +26,7 @@ except ImportError:
 
 from src.agents.base_agent import BaseAgent
 from src.services.llm.exceptions import LLMConfigError
+from src.services.llm.utils import is_local_llm_server
 from src.tools import rag_search, web_search
 
 logger = logging.getLogger(__name__)
@@ -64,11 +65,18 @@ class ChatAgent(BaseAgent):
             "max_history_tokens", self.DEFAULT_MAX_HISTORY_TOKENS
         )
 
-        # Hardened Validation: Fail fast if credentials missing.
-        if not self.api_key or not self.base_url:
+        base_url = (self.base_url or "").strip()
+        api_key = (self.api_key or "").strip()
+        if not base_url:
             raise LLMConfigError(
-                "ChatAgent requires valid 'api_key' and 'base_url'. "
+                "ChatAgent requires a non-empty 'base_url'. "
                 "Ensure LLM factory is fully initialized before instantiating agents."
+            )
+
+        if not api_key and not is_local_llm_server(base_url):
+            raise LLMConfigError(
+                "ChatAgent requires 'api_key' for remote providers. "
+                "Local providers may omit the key."
             )
 
         self.logger.info(
@@ -133,9 +141,10 @@ class ChatAgent(BaseAgent):
                     )
                 break
 
-            truncated.insert(0, msg)
+            truncated.append(msg)
             current_tokens += msg_tokens
 
+        truncated.reverse()
         return truncated
 
     async def retrieve_context(

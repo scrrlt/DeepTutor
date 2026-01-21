@@ -13,7 +13,6 @@ Key features:
 """
 
 from collections.abc import AsyncGenerator
-from types import SimpleNamespace
 from typing import Any
 
 import json
@@ -40,6 +39,57 @@ logger = logging.getLogger(__name__)
 
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
+
+_ssl_warning_lock = threading.Lock()
+_ssl_warning_logged = False
+
+
+def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
+    """Create an aiohttp connector with optional SSL verification disabled.
+
+    Returns:
+        TCPConnector when SSL is disabled, otherwise None.
+
+    Raises:
+        None.
+    """
+    global _ssl_warning_logged
+    disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
+    if not disable_flag:
+        return None
+
+    with _ssl_warning_lock:
+        if not _ssl_warning_logged:
+            logger.warning(
+                "SSL verification is disabled via DISABLE_SSL_VERIFY for local LLM. "
+                "This is unsafe."
+            )
+            _ssl_warning_logged = True
+    return aiohttp.TCPConnector(ssl=False)
+
+
+async def _iter_stream_lines(
+    stream: aiohttp.StreamReader,
+) -> AsyncGenerator[str, None]:
+    """Yield decoded lines from a stream reader.
+
+    Args:
+        stream: Aiohttp stream reader for the response body.
+
+    Yields:
+        Decoded lines with CRLF stripped.
+
+    Raises:
+        None.
+    """
+    buffer = ""
+    async for chunk in stream:
+        buffer += chunk.decode("utf-8", errors="ignore")
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            yield line.rstrip("\r")
+    if buffer:
+        yield buffer.rstrip("\r")
 
 
 async def complete(
@@ -101,18 +151,7 @@ async def complete(
 
     timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
 
-    # Support disabling SSL verification for local proxies (warn once)
-    _ssl_warning_lock = threading.Lock()
-    disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
-    connector = None
-    if disable_flag:
-        with _ssl_warning_lock:
-            if not globals().get("_local_ssl_warning_logged", False):
-                logger.warning(
-                    "SSL verification is disabled via DISABLE_SSL_VERIFY for local LLM. This is unsafe."
-                )
-                globals()["_local_ssl_warning_logged"] = True
-        connector = aiohttp.TCPConnector(ssl=False)
+    connector = _get_aiohttp_connector()
 
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, json=data, headers=headers) as response:
@@ -199,7 +238,8 @@ async def stream(
     timeout = aiohttp.ClientTimeout(total=kwargs.get("timeout", DEFAULT_TIMEOUT))
 
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        connector = _get_aiohttp_connector()
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             async with session.post(url, json=data, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
@@ -209,68 +249,84 @@ async def stream(
                         status_code=response.status,
                         provider="local",
                     )  # noqa: TRY003
+                parser: StreamParser | None = None
+                data_lines: list[str] = []
 
-                # Per-stream context to manage partial tags across chunks
+                def _emit_content(text: str) -> None:
+                    nonlocal parser
+                    if not text:
+                        return
+                    if parser is None:
+                        parser = StreamParser(binding="local", model=model)
+                    for out in parser.append(text):
+                        yield out
 
-                _stream_ctx = SimpleNamespace(
-                    yield_buffer="",
-                    thinking_buffer="",
-                    in_thinking_block=False,
-                )
-
-                async for line in response.content:
-                    line_str = line.decode("utf-8").strip()
-
-                    # Skip empty lines
-                    if not line_str:
+                async for line_str in _iter_stream_lines(response.content):
+                    if line_str == "":
+                        if data_lines:
+                            data_str = "\n".join(data_lines).strip()
+                            data_lines = []
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                chunk_data = json.loads(data_str)
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "Skipping malformed SSE JSON chunk: %s...",
+                                    data_str[:100],
+                                )
+                                continue
+                            choices = chunk_data.get("choices")
+                            if isinstance(choices, list) and choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content")
+                                if isinstance(content, str):
+                                    for out in _emit_content(content):
+                                        yield out
                         continue
 
-                    # Handle SSE format
+                    if line_str.startswith(":") or line_str.startswith("event:"):
+                        continue
+                    if line_str.startswith("id:"):
+                        continue
                     if line_str.startswith("data:"):
-                        data_str = line_str[5:].strip()
-
-                        if data_str == "[DONE]":
-                            break
-
-                        try:
-                            chunk_data = json.loads(data_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
-
-                                if content:
-                                    # Use shared StreamParser that understands binding/model
-                                    parser = getattr(_stream_ctx, "parser", None)
-                                    if parser is None:
-                                        parser = StreamParser(binding="local", model=model)
-                                        _stream_ctx.parser = parser
-
-                                    for out in parser.append(content):
-                                        yield out
-                        except json.JSONDecodeError:
-                            # Log and skip malformed JSON chunks
-                            logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
-                            continue
-
-                    # Some servers don't use SSE format
-                    elif line_str.startswith("{"):
+                        data_lines.append(line_str[5:].lstrip())
+                        continue
+                    if line_str.startswith("{"):
                         try:
                             chunk_data = json.loads(line_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
-                                if content:
-                                    # Use shared StreamParser for non-SSE streams too
-                                    parser = getattr(_stream_ctx, "parser", None)
-                                    if parser is None:
-                                        parser = StreamParser(binding="local", model=model)
-                                        _stream_ctx.parser = parser
+                        except json.JSONDecodeError:
+                            logger.warning("Skipping malformed JSON chunk: %s...", line_str[:100])
+                            continue
+                        choices = chunk_data.get("choices")
+                        if isinstance(choices, list) and choices:
+                            delta = choices[0].get("delta", {})
+                            content = delta.get("content")
+                            if isinstance(content, str):
+                                for out in _emit_content(content):
+                                    yield out
 
-                                    for out in parser.append(content):
+                if data_lines:
+                    data_str = "\n".join(data_lines).strip()
+                    if data_str and data_str != "[DONE]":
+                        try:
+                            chunk_data = json.loads(data_str)
+                            choices = chunk_data.get("choices")
+                            if isinstance(choices, list) and choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content")
+                                if isinstance(content, str):
+                                    for out in _emit_content(content):
                                         yield out
                         except json.JSONDecodeError:
-                            logger.warning("Skipping malformed JSON chunk: %s...", line_str[:50])
-                            continue
+                            logger.warning(
+                                "Skipping malformed SSE JSON chunk at stream end: %s...",
+                                data_str[:100],
+                            )
+
+                if parser is not None:
+                    for out in parser.finalize():
+                        yield out
 
     except LLMAPIError:
         raise  # Re-raise LLM errors as-is

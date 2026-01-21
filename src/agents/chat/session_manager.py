@@ -10,11 +10,14 @@ This module handles:
 - Deleting sessions
 """
 
+import asyncio
 import json
 from pathlib import Path
 import time
 from typing import Any
 import uuid
+
+import aiofiles
 
 
 class SessionManager:
@@ -51,6 +54,7 @@ class SessionManager:
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
         self.sessions_file = self.base_dir / "chat_sessions.json"
+        self._lock = asyncio.Lock()
         self._ensure_file()
 
     def _ensure_file(self):
@@ -60,33 +64,42 @@ class SessionManager:
                 "version": "1.0",
                 "sessions": [],
             }
-            self._save_data(initial_data)
+            self.sessions_file.write_text(
+                json.dumps(initial_data, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
 
-    def _load_data(self) -> dict[str, Any]:
+    async def _read_data(self) -> dict[str, Any]:
         """Load sessions data from file."""
         try:
-            with open(self.sessions_file, encoding="utf-8") as f:
-                return json.load(f)
+            async with aiofiles.open(self.sessions_file, encoding="utf-8") as f:
+                content = await f.read()
+            return json.loads(content)
         except (json.JSONDecodeError, FileNotFoundError):
             return {"version": "1.0", "sessions": []}
 
-    def _save_data(self, data: dict[str, Any]):
+    async def _write_data(self, data: dict[str, Any]) -> None:
         """Save sessions data to file."""
-        with open(self.sessions_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        payload = json.dumps(data, indent=2, ensure_ascii=False)
+        tmp_path = self.sessions_file.with_suffix(".json.tmp")
+        async with aiofiles.open(tmp_path, "w", encoding="utf-8") as f:
+            await f.write(payload)
+        await asyncio.to_thread(tmp_path.replace, self.sessions_file)
 
-    def _get_sessions(self) -> list[dict[str, Any]]:
+    async def _get_sessions(self) -> list[dict[str, Any]]:
         """Get list of all sessions."""
-        data = self._load_data()
-        return data.get("sessions", [])
+        async with self._lock:
+            data = await self._read_data()
+            return data.get("sessions", [])
 
-    def _save_sessions(self, sessions: list[dict[str, Any]]):
+    async def _save_sessions(self, sessions: list[dict[str, Any]]) -> None:
         """Save sessions list."""
-        data = self._load_data()
-        data["sessions"] = sessions
-        self._save_data(data)
+        async with self._lock:
+            data = await self._read_data()
+            data["sessions"] = sessions
+            await self._write_data(data)
 
-    def create_session(
+    async def create_session(
         self,
         title: str = "New Chat",
         settings: dict[str, Any] | None = None,
@@ -113,19 +126,22 @@ class SessionManager:
             "updated_at": now,
         }
 
-        sessions = self._get_sessions()
-        sessions.insert(0, session)  # Add to front (newest first)
+        async with self._lock:
+            data = await self._read_data()
+            sessions = data.get("sessions", [])
+            sessions.insert(0, session)  # Add to front (newest first)
 
-        # Limit total sessions to prevent file bloat
-        max_sessions = 100
-        if len(sessions) > max_sessions:
-            sessions = sessions[:max_sessions]
+            # Limit total sessions to prevent file bloat
+            max_sessions = 100
+            if len(sessions) > max_sessions:
+                sessions = sessions[:max_sessions]
 
-        self._save_sessions(sessions)
+            data["sessions"] = sessions
+            await self._write_data(data)
 
         return session
 
-    def get_session(self, session_id: str) -> dict[str, Any] | None:
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
         """
         Get a session by ID.
 
@@ -135,13 +151,13 @@ class SessionManager:
         Returns:
             Session dict or None if not found
         """
-        sessions = self._get_sessions()
+        sessions = await self._get_sessions()
         for session in sessions:
             if session.get("session_id") == session_id:
                 return session
         return None
 
-    def update_session(
+    async def update_session(
         self,
         session_id: str,
         messages: list[dict[str, Any]] | None = None,
@@ -160,29 +176,32 @@ class SessionManager:
         Returns:
             Updated session or None if not found
         """
-        sessions = self._get_sessions()
+        async with self._lock:
+            data = await self._read_data()
+            sessions = data.get("sessions", [])
 
-        for i, session in enumerate(sessions):
-            if session.get("session_id") == session_id:
-                if messages is not None:
-                    session["messages"] = messages
-                if title is not None:
-                    session["title"] = title[:100]
-                if settings is not None:
-                    session["settings"] = settings
+            for i, session in enumerate(sessions):
+                if session.get("session_id") == session_id:
+                    if messages is not None:
+                        session["messages"] = messages
+                    if title is not None:
+                        session["title"] = title[:100]
+                    if settings is not None:
+                        session["settings"] = settings
 
-                session["updated_at"] = time.time()
+                    session["updated_at"] = time.time()
 
-                # Move to front (most recently updated)
-                sessions.pop(i)
-                sessions.insert(0, session)
+                    # Move to front (most recently updated)
+                    sessions.pop(i)
+                    sessions.insert(0, session)
 
-                self._save_sessions(sessions)
-                return session
+                    data["sessions"] = sessions
+                    await self._write_data(data)
+                    return session
 
         return None
 
-    def add_message(
+    async def add_message(
         self,
         session_id: str,
         role: str,
@@ -201,7 +220,7 @@ class SessionManager:
         Returns:
             Updated session or None if not found
         """
-        session = self.get_session(session_id)
+        session = await self.get_session(session_id)
         if not session:
             return None
 
@@ -219,11 +238,11 @@ class SessionManager:
         # Update title from first user message if still default
         if session.get("title") == "New Chat" and role == "user":
             new_title = content[:50] + ("..." if len(content) > 50 else "")
-            return self.update_session(session_id, messages=messages, title=new_title)
+            return await self.update_session(session_id, messages=messages, title=new_title)
 
-        return self.update_session(session_id, messages=messages)
+        return await self.update_session(session_id, messages=messages)
 
-    def list_sessions(
+    async def list_sessions(
         self,
         limit: int = 20,
         include_messages: bool = False,
@@ -238,7 +257,7 @@ class SessionManager:
         Returns:
             List of session dicts (newest first)
         """
-        sessions = self._get_sessions()[:limit]
+        sessions = (await self._get_sessions())[:limit]
 
         if not include_messages:
             # Return summary only (without full messages)
@@ -262,7 +281,7 @@ class SessionManager:
 
         return sessions
 
-    def delete_session(self, session_id: str) -> bool:
+    async def delete_session(self, session_id: str) -> bool:
         """
         Delete a session.
 
@@ -272,28 +291,34 @@ class SessionManager:
         Returns:
             True if deleted, False if not found
         """
-        sessions = self._get_sessions()
-        original_count = len(sessions)
+        async with self._lock:
+            data = await self._read_data()
+            sessions = data.get("sessions", [])
+            original_count = len(sessions)
 
-        sessions = [s for s in sessions if s.get("session_id") != session_id]
+            sessions = [s for s in sessions if s.get("session_id") != session_id]
 
-        if len(sessions) < original_count:
-            self._save_sessions(sessions)
-            return True
+            if len(sessions) < original_count:
+                data["sessions"] = sessions
+                await self._write_data(data)
+                return True
 
         return False
 
-    def clear_all_sessions(self) -> int:
+    async def clear_all_sessions(self) -> int:
         """
         Delete all sessions.
 
         Returns:
             Number of sessions deleted
         """
-        sessions = self._get_sessions()
-        count = len(sessions)
-        self._save_sessions([])
-        return count
+        async with self._lock:
+            data = await self._read_data()
+            sessions = data.get("sessions", [])
+            count = len(sessions)
+            data["sessions"] = []
+            await self._write_data(data)
+            return count
 
 
 # Singleton instance for convenience

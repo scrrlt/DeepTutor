@@ -54,7 +54,7 @@ async def list_sessions(limit: int = 20):
     Returns:
         List of session summaries
     """
-    return session_manager.list_sessions(limit=limit, include_messages=False)
+    return await session_manager.list_sessions(limit=limit, include_messages=False)
 
 
 @router.get("/chat/sessions/{session_id}")
@@ -68,7 +68,7 @@ async def get_session(session_id: str):
     Returns:
         Complete session data including messages
     """
-    session = session_manager.get_session(session_id)
+    session = await session_manager.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
@@ -85,7 +85,7 @@ async def delete_session(session_id: str):
     Returns:
         Success message
     """
-    if session_manager.delete_session(session_id):
+    if await session_manager.delete_session(session_id):
         return {"status": "deleted", "session_id": session_id}
     raise HTTPException(status_code=404, detail="Session not found")
 
@@ -145,7 +145,13 @@ async def websocket_chat(websocket: WebSocket):
         api_version=api_version,
     )
 
-    def _get_or_create_session(session_id: str | None, message: str, kb_name: str, enable_rag: bool, enable_web_search: bool):
+    async def _get_or_create_session(
+        session_id: str | None,
+        message: str,
+        kb_name: str,
+        enable_rag: bool,
+        enable_web_search: bool,
+    ):
         """
         Get an existing session or create a new one if it doesn't exist.
 
@@ -160,9 +166,9 @@ async def websocket_chat(websocket: WebSocket):
             Tuple of session and session ID.
         """
 
-        def _create_new_session() -> dict[str, object]:
+        async def _create_new_session() -> dict[str, object]:
             """Helper to create a new session with consistent settings/title."""
-            return session_manager.create_session(
+            return await session_manager.create_session(
                 title=message[:50] + ("..." if len(message) > 50 else ""),
                 settings={
                     "kb_name": kb_name,
@@ -172,14 +178,14 @@ async def websocket_chat(websocket: WebSocket):
             )
 
         if session_id:
-            session = session_manager.get_session(session_id)
+            session = await session_manager.get_session(session_id)
             if not session:
                 # Session not found, create new one
-                session = _create_new_session()
+                session = await _create_new_session()
                 session_id = session["session_id"]
         else:
             # Create new session
-            session = _create_new_session()
+            session = await _create_new_session()
             session_id = session["session_id"]
 
         return session, session_id
@@ -207,7 +213,9 @@ async def websocket_chat(websocket: WebSocket):
 
                 agent.refresh_config()
 
-                session, session_id = _get_or_create_session(session_id, message, kb_name, enable_rag, enable_web_search)
+                session, session_id = await _get_or_create_session(
+                    session_id, message, kb_name, enable_rag, enable_web_search
+                )
 
                 # Send session ID to frontend
                 await websocket.send_json(
@@ -228,7 +236,7 @@ async def websocket_chat(websocket: WebSocket):
                     ]
 
                 # Add user message to session
-                session_manager.add_message(
+                await session_manager.add_message(
                     session_id=session_id,
                     role="user",
                     content=message,
@@ -319,7 +327,7 @@ async def websocket_chat(websocket: WebSocket):
                 )
 
                 # Save assistant message to session
-                session_manager.add_message(
+                await session_manager.add_message(
                     session_id=session_id,
                     role="assistant",
                     content=full_response,
@@ -327,6 +335,8 @@ async def websocket_chat(websocket: WebSocket):
                 )
 
                 logger.info(f"Chat completed: session={session_id}, {len(full_response)} chars")
+            except WebSocketDisconnect:
+                raise
             except Exception as exc:
                 # Log internal exception with traceback for server-side diagnostics
                 logger.warning("Chat message processing failed", exc_info=True)

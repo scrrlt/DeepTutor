@@ -350,11 +350,37 @@ class AnswerConsolidator:
         max_tokens = self.llm_config.get("max_tokens", 1000)
         temperature = self.llm_config.get("temperature", 0.3)
 
-        return llm.complete_sync(
+        return self._run_llm_completion(
+            llm,
             prompt=user_prompt,
             system_prompt=system_prompt,
             max_tokens=max_tokens,
             temperature=temperature,
+        )
+
+    def _run_llm_completion(self, llm: Any, **kwargs: Any) -> str:
+        """Run an async LLM completion in a synchronous context.
+
+        Args:
+            llm: LLM client instance.
+            **kwargs: Completion keyword arguments.
+
+        Returns:
+            LLM response text.
+
+        Raises:
+            RuntimeError: If called from a running event loop.
+        """
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(llm.complete(**kwargs))
+
+        raise RuntimeError(
+            "LLM consolidation cannot run inside an active event loop. "
+            "Call the async LLM client directly instead."
         )
 
     def _build_prompts(self, response: WebSearchResponse) -> tuple[str, str]:

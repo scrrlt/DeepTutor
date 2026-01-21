@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 from typing import Any, Mapping
 
+from src.config.constants import PROJECT_ROOT
+
 logger = logging.getLogger(__name__)
 
 ENV_CHAT_TEMPLATE = "LOCAL_LLM_CHAT_TEMPLATE"
@@ -18,7 +20,6 @@ ENV_TOKENIZER_DIR = "LOCAL_LLM_TOKENIZER_DIR"
 ENV_MODEL_DIR = "LOCAL_LLM_MODEL_DIR"
 ENV_TEMPLATE_DIR = "LOCAL_LLM_TEMPLATE_DIR"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_TEMPLATE_DIR = PROJECT_ROOT / "config" / "chat_templates"
 
 
@@ -154,12 +155,12 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
     except Exception as exc:  # pragma: no cover - fallback path
         logger.debug(f"minja render failed, falling back: {exc}")
 
-    from jinja2 import BaseLoader, Environment
+    from jinja2 import BaseLoader
+    from jinja2.sandbox import SandboxedEnvironment
 
-    # Disable autoescape for chat templates - these contain system prompts and user messages
-    # that must preserve formatting and characters like '<' and '>' used in prompt structures.
-    # Input validation is handled at the API layer before reaching this function.
-    env = Environment(loader=BaseLoader(), autoescape=False)  # Preserve original characters for LLM prompts
+    # Disable autoescape for chat templates to preserve formatting tokens while
+    # keeping the execution environment sandboxed.
+    env = SandboxedEnvironment(loader=BaseLoader(), autoescape=False)
     return env.from_string(template).render(**context)
 
 

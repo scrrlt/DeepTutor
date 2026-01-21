@@ -36,12 +36,17 @@ class StreamParser:
     Finite State Machine parser for robust thinking tag removal.
 
     Attributes:
-        MAX_THOUGHT_SIZE (int): Hard limit (bytes) for thought buffers (1MB).
+        MAX_THOUGHT_SIZE (int): Hard limit (characters) for thought buffers (1MB).
                                 Prevents DoS via infinite buffering.
+        FAIL_OPEN_THRESHOLD (int): Fail-open size in characters for unclosed thoughts.
+                                   Prevents permanent suppression on missing close tags.
     """
 
     # 1MB Safety Limit
     MAX_THOUGHT_SIZE = 1024 * 1024
+    # 5MB Fail-Open Threshold for unclosed thought blocks
+    FAIL_OPEN_THRESHOLD = 5 * 1024 * 1024
+    FAIL_OPEN_NOTICE = "[RAW_THOUGHT_BLOCK]"
 
     DEFAULT_OPEN_MARKERS: tuple[str, ...] = ("<think>", "◣", "꽁")
     DEFAULT_CLOSE_MARKERS: tuple[str, ...] = ("</think>", "◢", "꽁")
@@ -186,9 +191,9 @@ class StreamParser:
                     # Soft limit check for auditing/monitoring only; content is discarded regardless.
                     if self.current_thought_size + thought_chunk_len > self.MAX_THOUGHT_SIZE:
                         logger.warning(
-                            f"Thought block exceeded soft limit of {self.MAX_THOUGHT_SIZE} bytes "
-                            f"before close marker. Content has been discarded; logging for audit only."
-                            f"Truncating internal tracking."
+                            "Thought block exceeded soft limit of %s characters before close marker. "
+                            "Content has been discarded; logging for audit only.",
+                            self.MAX_THOUGHT_SIZE,
                         )
 
                     # Transition State
@@ -208,6 +213,21 @@ class StreamParser:
                     safe_len = self._get_safe_length(self.buffer, self.close_markers)
 
                     discard_len = safe_len
+
+                    if self.current_thought_size + discard_len > self.FAIL_OPEN_THRESHOLD:
+                        logger.warning(
+                            "Thought block exceeded fail-open threshold of %s characters. "
+                            "Emitting raw buffered content.",
+                            self.FAIL_OPEN_THRESHOLD,
+                        )
+                        self.state = ParseState.NORMAL
+                        self.current_thought_size = 0
+                        if self.FAIL_OPEN_NOTICE:
+                            outputs.append(self.FAIL_OPEN_NOTICE)
+                        if self.buffer:
+                            outputs.append(self.buffer)
+                            self.buffer = ""
+                        break
 
                     # Enforce Memory Limit
                     if self.current_thought_size + discard_len > self.MAX_THOUGHT_SIZE:
@@ -238,8 +258,8 @@ class StreamParser:
         if self.state == ParseState.THINKING:
             if self.current_thought_size > 0 or self.buffer:
                 logger.warning(
-                    f"Stream ended inside thinking block. "
-                    f"Suppressed {self.current_thought_size + len(self.buffer)} bytes of unfinished thought."
+                    "Stream ended inside thinking block. Suppressed %s characters of unfinished thought.",
+                    self.current_thought_size + len(self.buffer),
                 )
             # Do not emit buffer.
             self.buffer = ""

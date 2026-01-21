@@ -36,34 +36,6 @@ class LLMClient:
         self.config = config or get_llm_config()
         self.logger = get_logger("LLMClient")
 
-        # Set environment variables for LightRAG compatibility
-        # LightRAG's internal functions (openai_complete_if_cache, etc.) read from
-        # os.environ["OPENAI_API_KEY"] even when api_key is passed as parameter.
-        # We must set these env vars early to ensure all LightRAG operations work.
-        self._setup_openai_env_vars()
-
-    def _setup_openai_env_vars(self):
-        """
-        Set OpenAI environment variables for LightRAG compatibility.
-
-        LightRAG's internal functions read from os.environ["OPENAI_API_KEY"]
-        even when api_key is passed as parameter. This method ensures the
-        environment variables are set for all LightRAG operations.
-        """
-        import os
-
-        binding = getattr(self.config, "binding", "openai")
-        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
-
-        # Only set env vars for OpenAI-compatible bindings
-        if binding_lower in ("openai", "azure", "azure_openai", "gemini"):
-            if self.config.api_key:
-                os.environ["OPENAI_API_KEY"] = self.config.api_key
-                self.logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility")
-
-            if self.config.base_url:
-                os.environ["OPENAI_BASE_URL"] = self.config.base_url
-                self.logger.debug(f"Set OPENAI_BASE_URL env var to {self.config.base_url}")
 
     async def complete(
         self,
@@ -98,30 +70,6 @@ class LLMClient:
             **kwargs,
         )
 
-    def complete_sync(
-        self,
-        prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
-        **kwargs: Any,
-    ) -> str:
-        """
-        Synchronous wrapper for complete().
-
-        Use this when you need to call from non-async context.
-        """
-        import asyncio
-
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            # No running event loop -> safe to run synchronously.
-            return asyncio.run(self.complete(prompt, system_prompt, history, **kwargs))
-
-        raise RuntimeError(
-            "LLMClient.complete_sync() cannot be called from a running event loop. "
-            "Use `await llm.complete(...)` instead."
-        )
 
     def get_model_func(self):
         """
@@ -159,7 +107,6 @@ class LLMClient:
             return llm_model_func_via_factory
 
         # OpenAI-compatible bindings use lightrag (has caching)
-        # Note: Environment variables are already set in __init__ via _setup_openai_env_vars()
         from lightrag.llm.openai import openai_complete_if_cache
 
         def llm_model_func(

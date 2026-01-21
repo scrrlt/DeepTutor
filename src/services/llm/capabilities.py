@@ -8,12 +8,13 @@ Optimized for performance via pre-sorted lookups and enforced immutability.
 Refactored for thread safety and type integrity.
 """
 
-import functools
-import logging
-from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional, Tuple
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+import functools
+import threading
+import warnings
+from types import MappingProxyType
+from typing import Any, Mapping, Optional, Tuple
 
 # --- Constants & Defaults ---
 DEFAULT_PROVIDER = "openai"
@@ -65,7 +66,7 @@ PROVIDER_CAPABILITIES: MappingProxyType[str, MappingProxyType[str, Any]] = Mappi
         ),
         "deepseek": MappingProxyType(
             {
-                "supports_response_format": True,  # V3 supports JSON mode
+                "supports_response_format": True,
                 "supports_streaming": True,
                 "supports_tools": True,
                 "system_in_messages": True,
@@ -79,7 +80,7 @@ PROVIDER_CAPABILITIES: MappingProxyType[str, MappingProxyType[str, Any]] = Mappi
             {
                 "supports_response_format": True,
                 "supports_streaming": True,
-                "supports_tools": True,  # Ollama supports function calling
+                "supports_tools": True,
                 "system_in_messages": True,
             }
         ),
@@ -94,7 +95,6 @@ PROVIDER_CAPABILITIES: MappingProxyType[str, MappingProxyType[str, Any]] = Mappi
     }
 )
 
-# Frozen default fallbacks
 DEFAULT_CAPABILITIES: Mapping[str, Any] = MappingProxyType(
     {
         "supports_response_format": True,
@@ -106,12 +106,11 @@ DEFAULT_CAPABILITIES: Mapping[str, Any] = MappingProxyType(
     }
 )
 
-# Model-specific overrides.
 MODEL_OVERRIDES: Mapping[str, Mapping[str, Any]] = MappingProxyType(
     {
         "deepseek-reasoner": MappingProxyType(
             {
-                "supports_response_format": False,  # R1 struggles with strict JSON schemas
+                "supports_response_format": False,
                 "has_thinking_tags": True,
             }
         ),
@@ -128,13 +127,12 @@ MODEL_OVERRIDES: Mapping[str, Mapping[str, Any]] = MappingProxyType(
     }
 )
 
-# Performance Optimization: Pre-sorted override patterns for O(N) lookup.
 _SORTED_OVERRIDE_PATTERNS: Tuple[Tuple[str, Mapping[str, Any]], ...] = tuple(
     sorted(MODEL_OVERRIDES.items(), key=lambda x: -len(x[0]))
 )
 
-
-# --- Internal Logic ---
+_RUNTIME_CAPABILITIES: dict[str, Mapping[str, Any]] = {}
+_RUNTIME_LOCK = threading.RLock()
 
 
 @functools.lru_cache(maxsize=1)
@@ -143,9 +141,11 @@ def _log_missing_binding_warning() -> None:
     Thread-safe, idempotent warning for deprecated API usage.
     Uses lru_cache to ensure the log is emitted exactly once per process runtime.
     """
-    logger.warning(
+    warnings.warn(
         "Deprecated API usage: get_capability called without binding. "
-        f"Fallback to '{DEFAULT_PROVIDER}' used."
+        f"Fallback to '{DEFAULT_PROVIDER}' used.",
+        DeprecationWarning,
+        stacklevel=2,
     )
 
 
@@ -164,7 +164,27 @@ def _resolve_model_override(model: Optional[str]) -> Mapping[str, Any]:
     return MappingProxyType({})
 
 
-# --- Public API ---
+def register_provider_capabilities(binding: str, capabilities: Mapping[str, Any]) -> None:
+    """Register runtime capability overrides for a provider.
+
+    Args:
+        binding: Provider binding name.
+        capabilities: Capability mapping to override defaults.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
+    binding_key = binding.lower().strip()
+    with _RUNTIME_LOCK:
+        _RUNTIME_CAPABILITIES[binding_key] = MappingProxyType(dict(capabilities))
+
+
+def _get_runtime_capabilities(binding_key: str) -> Mapping[str, Any] | None:
+    with _RUNTIME_LOCK:
+        return _RUNTIME_CAPABILITIES.get(binding_key)
 
 
 def get_capability(
@@ -178,26 +198,27 @@ def get_capability(
 
     Resolution order:
     1. Model-specific overrides (Prefix matched).
-    2. Provider-specific capabilities.
-    3. Registry defaults.
+    2. Runtime registry overrides.
+    3. Provider-specific capabilities.
+    4. Registry defaults.
     """
     if not binding:
         _log_missing_binding_warning()
 
-    # Defensive: Normalize binding to string to prevent AttributeError on .lower()
     binding_key = str(binding or DEFAULT_PROVIDER).lower()
 
-    # 1. Check pre-sorted model overrides (Centralized)
     overrides = _resolve_model_override(model)
     if capability in overrides:
         return overrides[capability]
 
-    # 2. Check provider capabilities
+    runtime_caps = _get_runtime_capabilities(binding_key)
+    if runtime_caps and capability in runtime_caps:
+        return runtime_caps[capability]
+
     provider_caps = PROVIDER_CAPABILITIES.get(binding_key)
     if provider_caps and capability in provider_caps:
         return provider_caps[capability]
 
-    # 3. Final default fallback
     return DEFAULT_CAPABILITIES.get(capability, default)
 
 
@@ -205,22 +226,23 @@ def get_thinking_markers(
     binding: Optional[str], model: Optional[str] = None
 ) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
     """Resolve open/close thinking markers for a given provider/model."""
+    binding_key = str(binding or DEFAULT_PROVIDER).lower()
 
-    # 1. Check Model Overrides
     overrides = _resolve_model_override(model)
     if "thinking_markers" in overrides:
         markers = overrides["thinking_markers"]
         return tuple(markers.get("open", ())), tuple(markers.get("close", ()))
 
-    # 2. Check Provider Capabilities
-    binding_key = str(binding or DEFAULT_PROVIDER).lower()
-    provider_caps = PROVIDER_CAPABILITIES.get(binding_key, {})
+    runtime_caps = _get_runtime_capabilities(binding_key)
+    if runtime_caps and "thinking_markers" in runtime_caps:
+        markers = runtime_caps["thinking_markers"]
+        return tuple(markers.get("open", ())), tuple(markers.get("close", ()))
 
+    provider_caps = PROVIDER_CAPABILITIES.get(binding_key, {})
     if "thinking_markers" in provider_caps:
         markers = provider_caps["thinking_markers"]
         return tuple(markers.get("open", ())), tuple(markers.get("close", ()))
 
-    # 3. Fallback based on capability flag
     if get_capability(binding, "has_thinking_tags", model):
         return DEFAULT_OPEN_MARKERS, DEFAULT_CLOSE_MARKERS
 
@@ -274,6 +296,7 @@ def get_effective_temperature(
 
 __all__ = [
     "get_capability",
+    "register_provider_capabilities",
     "supports_response_format",
     "supports_streaming",
     "system_in_messages",
@@ -282,5 +305,4 @@ __all__ = [
     "requires_api_version",
     "uses_completion_tokens",
     "get_effective_temperature",
-    "get_thinking_markers",
 ]
