@@ -377,7 +377,7 @@ async def websocket_research_run(websocket: WebSocket):
     except Exception as e:
         friendly = format_exception_message(e)
         await websocket.send_json({"type": "error", "content": friendly})
-        logging.error(f"Research error: {friendly}", exc_info=True)
+        logging(f"Research error: {friendly}", exc_info=True)
 
         # Update task status to error
         try:

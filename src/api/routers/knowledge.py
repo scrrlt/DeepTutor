@@ -287,8 +287,8 @@ async def sync_configs_from_metadata():
         service.sync_all_from_metadata(_kb_base_dir)
         return {"status": "success", "message": "Configurations synced from metadata files"}
     except Exception as e:
-        logger.error(f"Error syncing configs: {format_exception_message(e)}")
-        raise HTTPException(status_code=500, detail=format_exception_message(e))
+        logger.error(f"Error syncing configs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/default")
@@ -299,8 +299,8 @@ async def get_default_kb():
         default_kb = manager.get_default()
         return {"default_kb": default_kb}
     except Exception as e:
-        logger.error(f"Error getting default KB: {format_exception_message(e)}")
-        raise HTTPException(status_code=500, detail=format_exception_message(e))
+        logger.error(f"Error getting default KB: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/default/{kb_name}")
