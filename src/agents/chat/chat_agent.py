@@ -170,16 +170,17 @@ class ChatAgent(BaseAgent):
         enable_web_search: bool = False,
     ) -> tuple[str, dict[str, Any]]:
         """
-        Retrieve context from RAG and/or Web Search.
-
-        Args:
-            message: User message to search for
-            kb_name: Knowledge base name for RAG
-            enable_rag: Whether to use RAG
-            enable_web_search: Whether to use Web Search
-
+        Assemble optional contextual information from a knowledge base and/or web search for a user message.
+        
+        Parameters:
+            message (str): The user query to retrieve context for.
+            kb_name (str | None): Name of the knowledge base to query when `enable_rag` is True.
+            enable_rag (bool): If True and `kb_name` is provided, perform a RAG retrieval and include its answer.
+            enable_web_search (bool): If True, perform a web search and include its answer and citations.
+        
         Returns:
-            Tuple of (context_string, sources_dict)
+            tuple[str, dict[str, Any]]: A pair where the first element is the combined context text (sections separated by blank lines),
+            and the second element is a sources dictionary with keys `"rag"` (list of RAG source entries) and `"web"` (list of web citations).
         """
         context_parts = []
         sources = {"rag": [], "web": []}

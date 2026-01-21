@@ -53,21 +53,26 @@ class SerperProvider(BaseSearchProvider):
         **kwargs: Any,
     ) -> WebSearchResponse:
         """
-        Perform Google SERP search using Serper API.
-
-        Args:
-            query: Search query.
-            mode: Search mode - "search" or "scholar".
-            num: Number of results (default 10, max 100).
-            gl: Country code (default "us").
-            hl: Language code (default "en").
-            page: Page number for pagination.
-            autocorrect: Enable autocorrect (default True).
-            timeout: Request timeout in seconds.
-            **kwargs: Additional options.
-
+        Perform a Google SERP request via the Serper API and return a standardized WebSearchResponse.
+        
+        Converts the Serper API JSON response into a WebSearchResponse containing citations, search results, an extracted answer (from answerBox or knowledgeGraph when available), and rich SERP metadata.
+        
+        Parameters:
+            query (str): Search query.
+            mode (str): "search" for web results or "scholar" for academic results.
+            num (int): Number of results to request (default 10, max 100).
+            gl (str): Country code for geolocation (default "us").
+            hl (str): Language code for results (default "en").
+            page (int): Page number for paginated results (default 1).
+            autocorrect (bool): Whether to enable query autocorrect (default True).
+            timeout (int): HTTP request timeout in seconds (default 30).
+            **kwargs: Additional options forwarded to the provider request.
+        
         Returns:
-            WebSearchResponse: Standardized search response.
+            WebSearchResponse: Standardized search response including query, answer, provider, timestamp, model, citations, search_results, usage, and metadata.
+        
+        Raises:
+            SerperAPIError: If the Serper API returns a non-200 status or the response JSON cannot be decoded.
         """
         self.logger.debug(f"Calling Serper API mode={mode}, num={num}")
         headers = {

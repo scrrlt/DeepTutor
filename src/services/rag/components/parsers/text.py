@@ -28,14 +28,24 @@ class TextParser(BaseComponent):
 
     async def process(self, data: str | Path, **kwargs: Any) -> Document:
         """
-        Parse a text file into a Document.
-
-        Args:
-            data: Path to the text file (str or Path)
-            **kwargs: Additional arguments
-
+        Parse a plain-text file from the given path into a Document object.
+        
+        Attempts to read the file using a sequence of common text encodings and, if those fail, falls back to a binary read decoded with UTF-8 using replacement for invalid bytes. The returned Document contains the file content and metadata including filename, parser name, file extension, and size in bytes.
+        
+        Parameters:
+            data (str | Path): Path to the text file to parse.
+            **kwargs: Additional unused keyword arguments.
+        
         Returns:
-            Parsed Document
+            Document: A Document containing the file content and metadata:
+                - content: the text content of the file
+                - file_path: stringified file path
+                - metadata: dict with keys `filename`, `parser`, `extension`, and `size_bytes`
+        
+        Raises:
+            TypeError: If `data` is not a str or Path.
+            FileNotFoundError: If the specified file does not exist.
+            OSError: If an I/O error occurs while reading the file.
         """
         if not isinstance(data, (str, Path)):
             raise TypeError(f"Expected str or Path, got {type(data).__name__}")
@@ -87,13 +97,9 @@ class TextParser(BaseComponent):
     @classmethod
     def can_parse(cls, file_path: str | Path) -> bool:
         """
-        Check if this parser can handle the given file.
-
-        Args:
-            file_path: Path to check
-
-        Returns:
-            True if file can be parsed
+        Determine whether this parser supports the file's extension.
+        
+        @returns: `True` if the file's extension is one of the parser's supported extensions, `False` otherwise.
         """
         suffix = Path(file_path).suffix.lower()
         return suffix in cls.SUPPORTED_EXTENSIONS

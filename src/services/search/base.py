@@ -45,7 +45,19 @@ class BaseSearchProvider(ABC):
         self.config = kwargs
 
     def _get_api_key(self) -> str:
-        """Get API key from unified SEARCH_API_KEY environment variable."""
+        """
+        Retrieve the provider's API key from the SEARCH_API_KEY environment variable.
+        
+        Reads the environment variable named by SEARCH_API_KEY_ENV and returns its value.
+        If the provider requires an API key and the environment variable is missing or empty,
+        a ValueError is raised.
+        
+        Returns:
+            str: The API key string from the environment (may be empty if not required).
+        
+        Raises:
+            ValueError: If `requires_api_key` is True and the environment variable is not set or empty.
+        """
         key = os.environ.get(SEARCH_API_KEY_ENV, "")
         if self.requires_api_key and not key:
             raise ValueError(
@@ -57,14 +69,14 @@ class BaseSearchProvider(ABC):
     @abstractmethod
     async def search(self, query: str, **kwargs: Any) -> WebSearchResponse:
         """
-        Execute search and return standardized response.
-
-        Args:
-            query: The search query.
-            **kwargs: Provider-specific options.
-
+        Perform a web search for the given query using this provider and return a standardized response.
+        
+        Parameters:
+            query (str): The search query string.
+            **kwargs: Provider-specific options that modify the search behavior (e.g., pagination, filters, locale).
+        
         Returns:
-            WebSearchResponse: Standardized search response.
+            WebSearchResponse: A standardized response containing search results and associated metadata.
         """
         pass
 

@@ -33,13 +33,16 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings using Jina AI API.
-
-        Args:
-            request: EmbeddingRequest containing texts and parameters
-
+        Generate embeddings for the provided texts using the Jina AI embeddings API.
+        
+        Parameters:
+            request (EmbeddingRequest): Request containing texts and optional parameters such as model, dimensions, input_type, normalized, and late_chunking.
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata
+            EmbeddingResponse: Contains embeddings (list of vectors), the model name returned by the API, the actual embedding dimension, and usage information.
+        
+        Raises:
+            ValueError: If the adapter is missing an API key or base URL, or if the API response lacks a non-empty "data" field.
         """
         if not self.api_key:
             raise ValueError("API key is required for Jina embedding")
@@ -115,10 +118,17 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Return normalized metadata for the adapter's configured model.
+        
+        Provides a consistent dictionary describing the adapter's current model selection and its dimensional capabilities.
+        
         Returns:
-            Dictionary with model metadata (name, dimensions, etc.)
+        	model_info (dict): Metadata with the following keys:
+        		- model (str): Configured model name, or "unknown" when no model is set.
+        		- dimensions (int | None): Default or configured embedding dimension, or None if unknown.
+        		- supported_dimensions (list[int]): List of supported dimensions when available, otherwise an empty list.
+        		- supports_variable_dimensions (bool): `True` when the model entry declares multiple supported dimensions, `False` otherwise.
+        		- provider (str): Provider identifier, always "jina".
         """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, self.dimensions)

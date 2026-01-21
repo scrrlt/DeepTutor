@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 def _normalize_vector(vector: list[float]) -> list[float]:
     """
-    Normalize a vector to unit length.
-
-    Args:
-        vector: Embedding vector.
-
+    Normalize a numeric vector to unit length.
+    
+    Parameters:
+        vector (list[float]): Input embedding vector.
+    
     Returns:
-        Normalized vector (or original if norm is zero).
+        list[float]: Vector scaled to have Euclidean norm 1, or the original vector if its norm is zero.
     """
     norm = math.sqrt(sum(value * value for value in vector))
     if norm == 0:
@@ -33,14 +33,14 @@ def _normalize_embeddings(
     normalize: bool | None,
 ) -> list[list[float]]:
     """
-    Normalize embeddings when requested.
-
-    Args:
-        embeddings: Raw embedding vectors.
-        normalize: Whether to normalize embeddings.
-
+    Optionally normalize a list of embedding vectors to unit length.
+    
+    Parameters:
+        embeddings (list[list[float]]): Embedding vectors to process.
+        normalize (bool | None): If False, return `embeddings` unchanged; otherwise scale each vector to unit length. Vectors with zero Euclidean norm are returned unchanged.
+    
     Returns:
-        Normalized embeddings when enabled.
+        list[list[float]]: The processed list of embedding vectors (normalized when enabled).
     """
     if normalize is False:
         return embeddings
@@ -88,17 +88,21 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings using Cohere API.
-
-        Args:
-            request: EmbeddingRequest containing texts and parameters
-
+        Generate embeddings for provided texts using Cohere's embed API.
+        
+        Parameters:
+            request (EmbeddingRequest): Request containing texts and optional parameters
+                such as model, dimensions, input_type, truncate, and normalized.
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata
-
+            EmbeddingResponse: Contains the list of embeddings, the model name (from the
+            response or configured fallback), the actual embedding dimensionality, and
+            any billing/usage metadata from the API response.
+        
         Raises:
-            ValueError: If required configuration or response data is missing.
-            httpx.HTTPError: If the Cohere API request fails.
+            ValueError: If API key, base URL, or model name is missing, or if the API
+                response does not include a non-empty `embeddings` field.
+            httpx.HTTPError: If the HTTP request to the Cohere API fails.
         """
         if not self.api_key:
             raise ValueError("API key is required for Cohere embedding")
@@ -202,10 +206,18 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Provide metadata for the adapter's configured model.
+        
         Returns:
-            Dictionary with model metadata (name, dimensions, etc.)
+            info (dict[str, Any]): Dictionary containing:
+                - model: Configured model name or empty string.
+                - dimensions: Default or configured output dimension, or None when unknown.
+                - supported_dimensions: List of supported output dimensions (may be empty).
+                - supports_variable_dimensions: `True` when multiple supported dimensions are available, `False` otherwise.
+                - provider: The string "cohere".
+            
+            When no model name and no dimensions are configured, `dimensions` is `None`,
+            `supported_dimensions` is an empty list, and `model` is "unknown".
         """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, {})

@@ -21,14 +21,14 @@ DEFAULT_BATCH_SIZE = 100
 
 def _chunk_texts(texts: list[str], batch_size: int) -> list[list[str]]:
     """
-    Split texts into batches to respect provider limits.
-
-    Args:
-        texts: Input texts to embed.
-        batch_size: Maximum number of texts per request.
-
+    Split a list of texts into consecutive batches of up to `batch_size` items.
+    
+    Parameters:
+    	texts (list[str]): The input texts to partition.
+    	batch_size (int): Maximum number of texts per batch; if <= 0, returns a single batch containing all texts.
+    
     Returns:
-        List of text batches.
+    	list[list[str]]: A list of text batches, each batch being a list of strings.
     """
     if batch_size <= 0:
         return [texts]
@@ -38,11 +38,11 @@ def _chunk_texts(texts: list[str], batch_size: int) -> list[list[str]]:
 
 def _merge_usage(total: dict[str, int], usage: dict[str, Any]) -> None:
     """
-    Merge usage counters into the total usage dictionary.
-
-    Args:
-        total: Mutable totals dictionary.
-        usage: Usage payload from a single response.
+    Accumulate integer usage counters from a single response into a running totals dictionary.
+    
+    Parameters:
+        total (dict[str, int]): Mutable dictionary of aggregated usage counters; keys map to integer totals.
+        usage (dict[str, Any]): Usage payload from a single response; only entries with integer values are added to `total`.
     """
     for key, value in usage.items():
         if isinstance(value, int):
@@ -71,33 +71,32 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def __init__(self, config: dict[str, Any]):
         """
-        Initialize the OpenAI-compatible adapter.
-
-        Args:
-            config: Adapter configuration payload.
-
-        Returns:
-            None.
-
-        Raises:
-            None.
+        Create an OpenAICompatibleEmbeddingAdapter configured from the provided settings.
+        
+        Parameters:
+            config (dict[str, Any]): Adapter configuration. Recognized keys:
+                - "batch_size" (int, optional): Number of texts per request. Defaults to DEFAULT_BATCH_SIZE.
         """
         super().__init__(config)
         self.batch_size = config.get("batch_size", DEFAULT_BATCH_SIZE)
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings using an OpenAI-compatible API.
-
-        Args:
-            request: EmbeddingRequest containing texts and parameters.
-
+        Generate embeddings from an OpenAI-compatible embedding endpoint.
+        
+        Parameters:
+            request (EmbeddingRequest): Contains input texts and optional parameters such as
+                model, dimensions, and encoding_format.
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata.
-
+            EmbeddingResponse: Contains the list of embeddings, the model used (may be updated
+            from the API response), the actual embedding dimensionality, and aggregated usage
+            counters across batched requests.
+        
         Raises:
-            ValueError: If required configuration or response data is missing.
-            httpx.HTTPError: If the request fails.
+            ValueError: If required configuration (base URL or model) is missing or if the API
+                response is missing expected fields (`data` or per-item `embedding`).
+            httpx.HTTPError: If an HTTP request fails.
         """
         if not self.base_url:
             raise ValueError("Base URL is required for OpenAI-compatible embedding")
@@ -223,10 +222,15 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Provide metadata about the adapter's configured model.
+        
         Returns:
-            Dictionary with model metadata (name, dimensions, etc.)
+            dict: Metadata with the following keys:
+                - model (str): Configured model name (empty string if unset).
+                - dimensions (int | None): Effective embedding dimensionality for the model or None if unknown.
+                - supported_dimensions (list[int]): List of supported dimensionalities reported for the model.
+                - supports_variable_dimensions (bool): `true` when more than one supported dimension is available.
+                - provider (str): Provider identifier ("openai_compatible").
         """
         model_name = self.model or ""
         model_info = self.MODELS_INFO.get(model_name, self.dimensions)

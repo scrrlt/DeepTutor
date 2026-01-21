@@ -192,7 +192,11 @@ class LLMStats:
         self.log_summary()
 
     def reset(self):
-        """Reset all statistics."""
+        """
+        Reset the tracker to its initial empty state.
+        
+        Clears all recorded LLM call entries, sets prompt and completion token totals to 0, sets total cost to 0.0, and clears the recorded model.
+        """
         self.calls.clear()
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
@@ -220,13 +224,28 @@ class LLMTelemetryStats:
     """
 
     def __init__(self) -> None:
+        """
+        Initialize an in-memory telemetry recorder for LLM metrics.
+        
+        Creates empty containers used to collect per-provider metrics:
+        - latencies: lists of total request latencies (seconds) per provider.
+        - ttft: lists of time-to-first-token measurements (seconds) per provider.
+        - errors: maps provider -> (error type -> count).
+        - usage: ProviderUsageStats instances aggregated per provider.
+        """
         self.latencies: dict[str, list[float]] = defaultdict(list)
         self.ttft: dict[str, list[float]] = defaultdict(list)
         self.errors: dict[str, dict[str, int]] = defaultdict(dict)
         self.usage: dict[str, ProviderUsageStats] = defaultdict(ProviderUsageStats)
 
     def record_latency(self, provider: str, duration: float) -> None:
-        """Record total request latency for a provider."""
+        """
+        Record a latency sample for a provider.
+        
+        Parameters:
+            provider (str): Identifier for the provider.
+            duration (float): Latency in seconds to append to the provider's latency list.
+        """
         self.latencies[provider].append(duration)
 
     def record_ttft(self, provider: str, duration: float) -> None:
@@ -240,7 +259,17 @@ class LLMTelemetryStats:
         tokens: int,
         cost: float,
     ) -> None:
-        """Record token usage and cost for a provider/model."""
+        """
+        Record aggregated usage metrics for a provider and model.
+        
+        Updates the provider's call count, total tokens, total cost, and accumulates tokens and cost per model.
+        
+        Parameters:
+            provider (str): Provider identifier (e.g., "openai", "azure").
+            model (str): Model name used for the call.
+            tokens (int): Number of tokens consumed by the call.
+            cost (float): Cost incurred by the call in USD.
+        """
         usage = self.usage[provider]
         usage.calls += 1
         usage.tokens += tokens
@@ -249,7 +278,15 @@ class LLMTelemetryStats:
         usage.model_costs[model] = usage.model_costs.get(model, 0.0) + cost
 
     def record_error(self, provider: str, error_type: str) -> None:
-        """Record an error occurrence for a provider."""
+        """
+        Increment the recorded count for a specific error type under a provider.
+        
+        If the provider or error type does not yet exist in the telemetry, they will be created and initialized to 1.
+        
+        Parameters:
+            provider (str): Name of the provider (e.g., "openai", "azure").
+            error_type (str): Classification of the error to record (e.g., "timeout", "auth_error").
+        """
         errors = self.errors.setdefault(provider, {})
         errors[error_type] = errors.get(error_type, 0) + 1
 

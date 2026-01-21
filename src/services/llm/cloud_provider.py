@@ -38,7 +38,21 @@ class OpenAICompleteIfCache(Protocol):
         base_url: str | None,
         **kwargs: object,
     ) -> str | None:
-        """Return cached completion content when available."""
+        """
+        Attempt to retrieve a cached completion for the given model and conversation context.
+        
+        Parameters:
+            model (str): Model identifier used to scope the cache lookup.
+            prompt (str): User prompt for which a cached completion is sought.
+            system_prompt (str): System-level prompt/context to include in the cache key.
+            history_messages (list[dict[str, str]]): Prior conversation messages; each message is a mapping with keys like "role" and "content" used to match cached entries.
+            api_key (str | None): API key or credential context used to scope or validate the cache lookup.
+            base_url (str | None): Provider base URL used to scope the cache lookup.
+            **kwargs: Additional provider- or request-specific options that may influence cache matching.
+        
+        Returns:
+            str | None: Cached completion text when a matching entry exists, `None` when no cache hit is available.
+        """
 
 
 # Lazy import for lightrag to avoid import errors when not installed
@@ -46,7 +60,12 @@ _openai_complete_if_cache: OpenAICompleteIfCache | None = None
 
 
 def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
-    """Lazy load openai_complete_if_cache from lightrag."""
+    """
+    Return the module-level OpenAICompleteIfCache callable, loading and caching it from lightrag on first use.
+    
+    Returns:
+        openai_complete_if_cache (OpenAICompleteIfCache): A callable matching the OpenAICompleteIfCache protocol that, when awaited, returns a string completion or `None`.
+    """
     global _openai_complete_if_cache
     if _openai_complete_if_cache is None:
         # Import inside the function to avoid circular dependencies
@@ -60,18 +79,18 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
 
 def _coerce_float(value: object, default: float) -> float:
     """
-    Coerce a value into a float with a fallback.
-
-    Booleans are treated specially because ``bool`` is a subclass of ``int`` in
-    Python. Coercing ``True``/``False`` into ``1.0``/``0.0`` would hide invalid
-    inputs, so we fall back to the default instead.
-
-    Args:
-        value: The raw value.
-        default: Value to use when coercion fails.
-
+    Convert a value to a float, returning a fallback when conversion is not appropriate.
+    
+    Parameters:
+        value (object): Input to convert.
+        default (float): Fallback value returned when `value` is not a valid numeric input.
+    
+    Notes:
+        Booleans are treated as invalid inputs and cause `default` to be returned (to avoid treating
+        `True`/`False` as `1.0`/`0.0`).
+    
     Returns:
-        A float value.
+        float: The converted float, or `default` when conversion is not performed.
     """
     if isinstance(value, bool):
         return default
@@ -154,22 +173,25 @@ async def complete(
     **kwargs: Any,
 ) -> str:
     """
-    Complete a prompt using cloud API providers.
-
-    Supports OpenAI-compatible APIs and Anthropic.
-
-    Args:
-        prompt: The user prompt
-        system_prompt: System prompt for context
-        model: Model name
-        api_key: API key
-        base_url: Base URL for the API
-        api_version: API version for Azure OpenAI
-        binding: Provider binding type (openai, anthropic)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
+    Perform a single completion request to a cloud LLM provider.
+    
+    Selects the provider based on `binding` and returns the provider's text response for the given prompt and system context. Supports OpenAI-compatible endpoints (default), Anthropic/Claude, and Cohere; provider-specific parameters such as `max_tokens` and `temperature` may be supplied via `kwargs`.
+    
+    Parameters:
+        prompt (str): The user prompt to complete.
+        system_prompt (str): System-level context or instructions for the model.
+        model (str | None): Name of the model to use; required.
+        api_key (str | None): API key to authenticate with the provider; falls back to environment-based defaults per provider.
+        base_url (str | None): Base URL for a custom or self-hosted provider endpoint.
+        api_version (str | None): API version to include for Azure/OpenAI-compatible endpoints.
+        binding (str): Provider binding identifier (e.g., "openai", "anthropic", "cohere"); case-insensitive.
+        **kwargs: Additional provider-specific options (commonly `temperature`, `max_tokens`, and `response_format`).
+    
     Returns:
-        str: The LLM response
+        str: The text completion returned by the selected cloud provider.
+    
+    Raises:
+        LLMConfigError: If `model` is missing or empty.
     """
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
@@ -226,21 +248,21 @@ async def stream(
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
-    Stream a response from cloud API providers.
-
-    Args:
-        prompt: The user prompt (ignored if messages provided)
-        system_prompt: System prompt for context
-        model: Model name
-        api_key: API key
-        base_url: Base URL for the API
-        api_version: API version for Azure OpenAI
-        binding: Provider binding type (openai, anthropic)
-        messages: Pre-built messages array (optional, overrides prompt/system_prompt)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
+    Stream incremental text chunks from a cloud LLM provider.
+    
+    Parameters:
+        prompt (str): User prompt; ignored if `messages` is provided.
+        system_prompt (str): System prompt used when `messages` is not provided.
+        model (str | None): Model identifier (required; will raise LLMConfigError if missing).
+        api_key (str | None): API key to authenticate the request.
+        base_url (str | None): Provider base URL override.
+        api_version (str | None): API version (used for Azure/OpenAI-compatible endpoints).
+        binding (str): Provider binding (e.g., "openai", "anthropic"); determines provider-specific streaming behavior.
+        messages (list[dict[str, str]] | None): Pre-built message list that, if present, overrides `prompt` and `system_prompt`.
+        **kwargs: Additional provider-specific options (e.g., `temperature`, `max_tokens`).
+    
     Yields:
-        str: Response chunks
+        str: Successive chunks of generated text from the provider.
     """
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
@@ -285,7 +307,28 @@ async def _openai_complete(
     binding: str = "openai",
     **kwargs: object,
 ) -> str:
-    """OpenAI-compatible completion."""
+    """
+    Obtain a text completion from an OpenAI-compatible cloud LLM, preferring a cached result and falling back to a direct HTTP request.
+    
+    Attempts to retrieve a cached completion via the lightrag helper; if that fails or returns no content and a base_url is provided, issues a direct POST to the provider's chat endpoint and extracts the first message content. The final returned text has provider-specific "thinking" tags removed.
+    
+    Parameters:
+        model (str): Model identifier to request.
+        prompt (str): User prompt to complete.
+        system_prompt (str): System/instructional prompt to include.
+        api_key (str | None): API key to authenticate the request.
+        base_url (str | None): Base URL for the provider's API (used for direct HTTP fallback).
+        api_version (str | None): Optional API version (used for Azure-style endpoints).
+        binding (str): Provider binding name (e.g., "openai", "azure", "anthropic") affecting URL, headers, and capability handling.
+        **kwargs: Provider-specific options (commonly includes `temperature`, `max_tokens` or `max_completion_tokens`, and `response_format`).
+    
+    Returns:
+        str: The cleaned completion text returned by the provider.
+    
+    Raises:
+        LLMAPIError: On network or provider API errors during the direct HTTP fallback.
+        LLMConfigError: If no completion could be obtained from cache or direct request.
+    """
     # Sanitize URL
     if base_url:
         base_url = sanitize_url(base_url, model)
@@ -428,7 +471,28 @@ async def _openai_stream(
     messages: list[dict[str, str]] | None = None,
     **kwargs: object,
 ) -> AsyncGenerator[str, None]:
-    """OpenAI-compatible streaming."""
+    """
+    Stream text chunks from an OpenAI-compatible chat model, yielding cleaned content as it arrives.
+    
+    Streams delta content from the provider's chunked responses and yields consecutive text fragments. Thinking/agent markers (e.g., <think>…</think>, ◣…◢, 꽁…꽁) are buffered and removed using clean_thinking_tags before yielding; non-JSON or non-data lines are ignored.
+    
+    Parameters:
+        model (str): Model identifier to call.
+        prompt (str): User prompt used when `messages` is not provided.
+        system_prompt (str): System prompt used when `messages` is not provided.
+        api_key (str | None): API key to authenticate the request; may be None to rely on other configuration.
+        base_url (str | None): Base URL for the provider; uses the default OpenAI base if None.
+        api_version (str | None): Optional API version segment appended to the chat URL.
+        binding (str): Provider binding label (e.g., "openai", "anthropic"); used for headers and tag cleaning.
+        messages (list[dict[str, str]] | None): Optional explicit messages list; if provided, `prompt`/`system_prompt` are ignored.
+        **kwargs: Additional provider parameters; supported keys include `temperature`, `max_tokens` or `max_completion_tokens`, and `response_format`.
+    
+    Returns:
+        AsyncGenerator[str, None]: Streamed text chunks from the model, after cleaning thinking/agent tags.
+    
+    Raises:
+        LLMAPIError: If the HTTP streaming request returns a non-200 status or the provider reports an error.
+    """
     import json
 
     # Sanitize URL
@@ -566,7 +630,26 @@ async def _anthropic_complete(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
-    """Anthropic (Claude) API completion."""
+    """
+    Perform a completion using the Anthropic (Claude) API.
+    
+    Parameters:
+        model (str): Anthropic model identifier to use.
+        prompt (str): User prompt text used when `messages` is not provided.
+        system_prompt (str): System-level instruction sent as the Anthropic `system` field.
+        api_key (str | None): Anthropic API key; if None, the `ANTHROPIC_API_KEY` environment variable is used.
+        base_url (str | None): Base URL for the Anthropic API; defaults to "https://api.anthropic.com/v1" when None.
+        messages (list[dict[str, str]] | None): Optional pre-built message list. Each message should be a mapping with keys `"role"` and `"content"`. Any message with `"role" == 'system'` will be extracted and used as `system_prompt`; other messages are sent as the Anthropic `messages` payload.
+        max_tokens (int | None): Maximum tokens for the completion; defaults to 4096 when None.
+        temperature (float | None): Sampling temperature; defaults to 0.7 when None.
+    
+    Returns:
+        str: The text content of the first completion item returned by the Anthropic API.
+    
+    Raises:
+        LLMAuthenticationError: If no API key is provided via argument or environment.
+        LLMAPIError: If the Anthropic API responds with a non-200 status or an unexpected payload.
+    """
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
@@ -638,7 +721,31 @@ async def _anthropic_stream(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Anthropic (Claude) API streaming."""
+    """
+    Stream response text from Anthropic (Claude) for a chat request.
+    
+    Messages provided by `messages` will be sent as the conversation (system messages are removed for Anthropic);
+    if a system message is present its content takes precedence over `system_prompt`. If `messages` is not provided,
+    the `prompt` is used as the single user message and `system_prompt` is used as the system content.
+    Defaults: `max_tokens` = 4096, `temperature` = 0.7. The `api_key` falls back to the `ANTHROPIC_API_KEY` environment variable if not set.
+    
+    Parameters:
+        model (str): Anthropic model identifier.
+        prompt (str): User prompt used when `messages` is not provided.
+        system_prompt (str): System prompt used when no system message is present in `messages`.
+        api_key (str | None): Anthropic API key or None to read from `ANTHROPIC_API_KEY`.
+        base_url (str | None): Base URL for the Anthropic API; defaults to Anthropic's public endpoint when None.
+        messages (list[dict[str, str]] | None): Optional pre-built message list; system messages are filtered out for the API.
+        max_tokens (int | None): Maximum tokens to generate; defaults to 4096 when None.
+        temperature (float | None): Sampling temperature; defaults to 0.7 when None.
+    
+    Returns:
+        AsyncGenerator[str, None]: An async generator yielding response text chunks as they arrive from the stream.
+    
+    Raises:
+        LLMAuthenticationError: If no API key is available.
+        LLMAPIError: If the Anthropic API responds with a non-200 status.
+    """
     import json
 
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
@@ -720,7 +827,22 @@ async def _cohere_complete(
     max_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
-    """Cohere API completion."""
+    """
+    Request a completion from the Cohere chat API for the specified model and prompts.
+    
+    Parameters:
+        api_key (str | None): Cohere API key to use; if None, the `COHERE_API_KEY` environment variable is used.
+        base_url (str | None): Base URL for the Cohere API; defaults to "https://api.cohere.ai/v1" when not provided.
+        max_tokens (int | None): Maximum number of tokens to generate; defaults to 4096 when not provided.
+        temperature (float | None): Sampling temperature for generation; defaults to 0.7 when not provided.
+    
+    Returns:
+        str: The text content returned by Cohere.
+    
+    Raises:
+        LLMAuthenticationError: If no API key is available.
+        LLMAPIError: If the Cohere API returns a non-200 status or an unexpected payload.
+    """
     api_key = api_key or os.getenv("COHERE_API_KEY")
     if not api_key:
         raise LLMAuthenticationError("Cohere API key is missing.", provider="cohere")
@@ -770,15 +892,15 @@ async def fetch_models(
     binding: str = "openai",
 ) -> list[str]:
     """
-    Fetch available models from cloud provider.
-
-    Args:
-        base_url: API endpoint URL
-        api_key: API key
-        binding: Provider type (openai, anthropic)
-
+    Fetch available model identifiers from the given cloud LLM provider endpoint.
+    
+    Parameters:
+        base_url (str): Base API URL (may include path; trailing slash is permitted).
+        api_key (str | None): Provider API key to include in authorization headers.
+        binding (str): Provider type identifier (e.g., "openai", "anthropic"); compared case-insensitively.
+    
     Returns:
-        List of available model names
+        list[str]: A list of available model names/identifiers; empty list on error or if none found.
     """
     binding = binding.lower()
     base_url = base_url.rstrip("/")

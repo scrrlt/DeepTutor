@@ -44,11 +44,9 @@ class LLMClient:
 
     def _setup_openai_env_vars(self):
         """
-        Set OpenAI environment variables for LightRAG compatibility.
-
-        LightRAG's internal functions read from os.environ["OPENAI_API_KEY"]
-        even when api_key is passed as parameter. This method ensures the
-        environment variables are set for all LightRAG operations.
+        Ensure OpenAI-compatible environment variables are set for LightRAG when the client's binding indicates an OpenAI-style provider.
+        
+        When the configured binding is one of "openai", "azure", "azure_openai", or "gemini", this function sets the environment variables used by LightRAG: it sets OPENAI_API_KEY if the client's config provides an api_key, and sets OPENAI_BASE_URL if the client's config provides a base_url.
         """
         import os
 
@@ -73,16 +71,16 @@ class LLMClient:
         **kwargs: Any,
     ) -> str:
         """
-        Call LLM completion via Factory.
-
+        Generate a text completion for the given user prompt.
+        
         Args:
-            prompt: User prompt
-            system_prompt: Optional system prompt
-            history: Optional conversation history
-            **kwargs: Additional arguments passed to the API
-
+            prompt: The user prompt to complete.
+            system_prompt: Optional system-level instruction to steer the assistant (defaults to "You are a helpful assistant.").
+            history: Optional conversation history as a list of message dicts (each with roles and content).
+            **kwargs: Additional provider-specific options forwarded to the completion call.
+        
         Returns:
-            LLM response text
+            The generated completion text.
         """
         from . import factory
 

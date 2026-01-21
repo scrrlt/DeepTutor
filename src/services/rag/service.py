@@ -34,13 +34,45 @@ class RAGPipelineProtocol(Protocol):
     """
 
     async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
-        """Initialize a knowledge base with documents."""
+        """
+        Initialize a knowledge base with the given documents.
+        
+        Parameters:
+            kb_name (str): Name of the knowledge base to create or update.
+            file_paths (list[str]): Paths to documents to ingest into the knowledge base.
+            **kwargs: Additional provider-specific options forwarded to the underlying pipeline.
+        
+        Returns:
+            true if initialization succeeded, false otherwise.
+        """
 
     async def search(self, query: str, kb_name: str, **kwargs: Any) -> dict[str, Any]:
-        """Search a knowledge base for relevant context."""
+        """
+        Perform a retrieval-augmented search against a knowledge base and return a normalized result payload.
+        
+        Parameters:
+            query (str): The user's search query.
+            kb_name (str): The name of the knowledge base to query.
+            **kwargs: Additional provider-specific options (e.g., `mode`).
+        
+        Returns:
+            dict[str, Any]: A normalized result dictionary that always includes the keys:
+                - `query`: the original query string,
+                - `answer`: the selected answer text (falls back to `content` if absent),
+                - `content`: the context/content (falls back to `answer` if absent),
+                - `provider`: the pipeline provider that served the request,
+                - `mode`: the retrieval mode used.
+        """
 
     async def delete(self, kb_name: str) -> bool:
-        """Delete a knowledge base."""
+        """
+        Delete the named knowledge base from storage.
+        
+        Attempts to remove the knowledge base identified by `kb_name`; may use a provider-specific deletion implementation when available and otherwise removes the KB directory.
+        
+        Returns:
+            bool: `True` if the knowledge base was deleted, `False` otherwise.
+        """
 
 
 class RAGService:
@@ -69,13 +101,11 @@ class RAGService:
         provider: str | None = None,
     ):
         """
-        Initialize RAG service.
-
-        Args:
-            kb_base_dir: Base directory for knowledge bases.
-                         Defaults to data/knowledge_bases.
-            provider: RAG pipeline provider to use.
-                      Defaults to RAG_PROVIDER env var or "raganything".
+        Create a RAGService configured with a knowledge-base base directory and a default pipeline provider.
+        
+        Parameters:
+            kb_base_dir (str | None): Path to the base directory for knowledge bases. If None, uses DEFAULT_KB_BASE_DIR.
+            provider (str | None): Default RAG pipeline provider name. If None, uses the RAG_PROVIDER environment variable or "raganything".
         """
         self.logger = get_logger("RAGService")
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
@@ -84,13 +114,13 @@ class RAGService:
 
     def _get_cached_pipeline(self, provider: str) -> RAGPipelineProtocol:
         """
-        Get or create a cached pipeline instance for a provider.
-
-        Args:
-            provider: Pipeline provider name.
-
+        Retrieve a cached RAG pipeline instance for the given provider and the service's knowledge-base base directory.
+        
+        Parameters:
+            provider (str): Name of the pipeline provider to retrieve.
+        
         Returns:
-            Cached pipeline instance.
+            RAGPipelineProtocol: Pipeline instance associated with the specified provider and this service's `kb_base_dir`.
         """
         cache_key = f"{provider}:{self.kb_base_dir}"
         if cache_key not in self._pipeline_cache:
@@ -101,24 +131,24 @@ class RAGService:
         return self._pipeline_cache[cache_key]
 
     def _get_pipeline(self) -> RAGPipelineProtocol:
-        """Get or create the default pipeline instance."""
+        """
+        Retrieve the RAG pipeline instance for the service's current provider.
+        
+        @returns RAGPipelineProtocol: The pipeline instance associated with the service's configured provider and knowledge-base directory.
+        """
         return self._get_cached_pipeline(self.provider)
 
     async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """
-        Initialize a knowledge base with documents.
-
-        Args:
-            kb_name: Knowledge base name
-            file_paths: List of file paths to process
-            **kwargs: Additional arguments passed to pipeline
-
+        Initialize a knowledge base by ingesting the provided documents into the configured pipeline.
+        
+        Parameters:
+            kb_name (str): Name of the knowledge base to create or update.
+            file_paths (list[str]): Paths to document files to ingest into the knowledge base.
+            **kwargs: Additional provider-specific options forwarded to the pipeline's initialize method.
+        
         Returns:
-            True if successful
-
-        Example:
-            service = RAGService()
-            success = await service.initialize("my_kb", ["doc1.pdf", "doc2.txt"])
+            bool: `True` if the knowledge base was initialized successfully, `False` otherwise.
         """
         self.logger.info(f"Initializing KB '{kb_name}' with provider '{self.provider}'")
         pipeline = self._get_pipeline()
@@ -128,26 +158,22 @@ class RAGService:
         self, query: str, kb_name: str, mode: str = "hybrid", **kwargs: Any
     ) -> dict[str, Any]:
         """
-        Search a knowledge base.
-
-        Args:
-            query: Search query
-            kb_name: Knowledge base name
-            mode: Search mode (hybrid, local, global, naive)
-            **kwargs: Additional arguments passed to pipeline
-
+        Search a knowledge base and return a normalized result payload.
+        
+        Parameters:
+            query (str): Search query text.
+            kb_name (str): Knowledge base name to search.
+            mode (str): Search mode to use; typically "hybrid", "local", "global", or "naive".
+            **kwargs: Forwarded to the provider pipeline's search implementation.
+        
         Returns:
-            Search results dictionary with keys:
-            - query: Original query
-            - answer: Generated answer
-            - content: Retrieved content
-            - mode: Search mode used
-            - provider: Pipeline provider used
-
-        Example:
-            service = RAGService()
-            result = await service.search("What is ML?", "textbook")
-            print(result["answer"])
+            dict[str, Any]: Result dictionary containing at minimum the keys:
+                - `query`: The original query.
+                - `answer`: Generated answer (falls back to `content` if missing).
+                - `content`: Retrieved content (falls back to `answer` if missing).
+                - `mode`: The search mode used.
+                - `provider`: The pipeline provider that served the query.
+            May include additional provider-specific fields.
         """
         # Get the provider from KB metadata, fallback to instance provider
         provider = await self._get_provider_for_kb(kb_name)
@@ -177,14 +203,15 @@ class RAGService:
 
     async def _get_provider_for_kb(self, kb_name: str) -> str:
         """
-        Get the RAG provider for a specific knowledge base from its metadata.
-        Falls back to instance provider or env var if not found in metadata.
-
-        Args:
-            kb_name: Knowledge base name
-
+        Determine which RAG provider to use for a given knowledge base by inspecting its metadata.
+        
+        If the KB's metadata contains a `rag_provider` that corresponds to a known pipeline, that provider is returned; otherwise the service's configured provider is returned.
+        
+        Parameters:
+            kb_name (str): Name of the knowledge base.
+        
         Returns:
-            Provider name (e.g., 'llamaindex', 'lightrag', 'raganything')
+            str: Selected provider name (for example, 'llamaindex', 'lightrag', or 'raganything').
         """
         try:
             metadata_file = Path(self.kb_base_dir) / kb_name / "metadata.json"
@@ -218,17 +245,15 @@ class RAGService:
 
     async def delete(self, kb_name: str) -> bool:
         """
-        Delete a knowledge base.
-
-        Args:
-            kb_name: Knowledge base name
-
+        Delete the named knowledge base.
+        
+        Attempts to use the configured pipeline's `delete` method; if not available, removes the KB directory from the service's base directory.
+        
+        Parameters:
+            kb_name (str): Name of the knowledge base to delete.
+        
         Returns:
-            True if successful
-
-        Example:
-            service = RAGService()
-            success = await service.delete("old_kb")
+            bool: `True` if the knowledge base was deleted, `False` otherwise.
         """
         self.logger.info(f"Deleting KB '{kb_name}'")
         pipeline = self._get_pipeline()
@@ -248,15 +273,11 @@ class RAGService:
     @staticmethod
     def list_providers() -> list[dict[str, str]]:
         """
-        List available RAG pipeline providers.
-
+        Return a list of available RAG pipeline providers.
+        
         Returns:
-            List of provider info dictionaries
-
-        Example:
-            providers = RAGService.list_providers()
-            for p in providers:
-                print(f"{p['id']}: {p['description']}")
+            list[dict[str, str]]: A list of provider info dictionaries, each containing at least
+                "id" (provider identifier) and "description" (human-readable description).
         """
         return list_pipelines()
 

@@ -27,10 +27,13 @@ class EmbeddingClient:
 
     def __init__(self, config: Optional[EmbeddingConfig] = None):
         """
-        Initialize embedding client.
-
-        Args:
-            config: Embedding configuration. If None, loads from environment.
+        Create and configure an EmbeddingClient, loading adapters and capturing the initialization event loop.
+        
+        Parameters:
+            config (Optional[EmbeddingConfig]): Configuration for the client. If omitted, the default configuration is loaded.
+        
+        Raises:
+            Exception: If adapter initialization fails.
         """
         self.config = config or get_embedding_config()
         self.logger = get_logger("EmbeddingClient")
@@ -98,10 +101,16 @@ class EmbeddingClient:
 
     def embed_sync(self, texts: List[str]) -> List[List[float]]:
         """
-        Thread-safe synchronous wrapper for embed().
-
-        Executes the async embed call on the loop where the client was initialized
-        to avoid event loop affinity issues.
+        Synchronously obtain embeddings, honoring the event loop where the client was initialized.
+        
+        If there is no running event loop in the current thread, the call runs the embedding request on a fresh loop and returns the results. If the client was initialized with a running loop and that loop is still active, the request is dispatched to the initialization loop and this call waits for the result (up to `self.config.request_timeout` or 30 seconds). If called from the same running loop that initialized the client, the call raises to avoid blocking the event loop. If a different loop is running but the client's initialization loop is no longer running, the call raises to indicate the client must be re-initialized in the current async context.
+        
+        Returns:
+            List[List[float]]: A list of embedding vectors corresponding to the provided `texts`.
+        
+        Raises:
+            RuntimeError: If called from the same running event loop that initialized the client.
+            RuntimeError: If called from a running event loop while the client's initialization loop is no longer running.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -132,10 +141,10 @@ class EmbeddingClient:
 
     def get_embedding_func(self):
         """
-        Get an EmbeddingFunc compatible with LightRAG.
-
+        Return an EmbeddingFunc compatible with LightRAG that produces NumPy arrays of embeddings.
+        
         Returns:
-            EmbeddingFunc instance
+            EmbeddingFunc: a configured embedding function that returns embeddings as a NumPy array and uses this client's embedding dimension and max token size.
         """
         from lightrag.utils import EmbeddingFunc
         import numpy as np

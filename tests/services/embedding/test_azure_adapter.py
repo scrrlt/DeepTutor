@@ -11,6 +11,16 @@ from src.services.embedding.adapters.base import EmbeddingRequest
 
 
 def _build_mock_response(embeddings: list[list[float]], model: str):
+    """
+    Create a MagicMock that simulates an OpenAI embeddings response for tests.
+    
+    Parameters:
+        embeddings (list[list[float]]): Embedding vectors to expose via response.data[*].embedding.
+        model (str): Model identifier to set on response.model.
+    
+    Returns:
+        MagicMock: Mock response whose .data is a list of mocks with .embedding set to each vector, .model set to the provided model, and .usage.model_dump() returning {"total_tokens": 2}.
+    """
     response = MagicMock()
     response.data = [MagicMock(embedding=value) for value in embeddings]
     response.model = model

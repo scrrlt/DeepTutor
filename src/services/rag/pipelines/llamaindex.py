@@ -78,7 +78,15 @@ class CustomEmbedding(BaseEmbedding):
         return asyncio.run(self._aget_text_embedding(text))
 
     async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Get embeddings for multiple texts."""
+        """
+        Retrieve embeddings for a list of input texts.
+        
+        Parameters:
+            texts (List[str]): Input strings to convert to embedding vectors.
+        
+        Returns:
+            List[List[float]]: A list of embedding vectors where each inner list is the embedding for the corresponding input text.
+        """
         return await self._client.embed(texts)
 
 
@@ -94,10 +102,12 @@ class LlamaIndexPipeline(RAGPipeline):
 
     def __init__(self, kb_base_dir: Optional[str] = None):
         """
-        Initialize LlamaIndex pipeline.
-
-        Args:
-            kb_base_dir: Base directory for knowledge bases
+        Create and configure a LlamaIndex RAG pipeline instance.
+        
+        Initializes the pipeline as a RAGPipeline, sets up logging and the knowledge-base base directory (uses DEFAULT_KB_BASE_DIR when not provided), applies library-specific settings, and attempts to register a set of default RAG components (parser, chunker, embedder, indexer, retriever) so tests and consumers expecting those components can inspect them. If optional dependencies for those components are missing or misconfigured, initialization logs a warning but does not raise.
+        
+        Parameters:
+            kb_base_dir (Optional[str]): Base directory for knowledge bases; when omitted, the module default is used.
         """
         # Initialize as RAGPipeline so tests/components can access standard attributes
         super().__init__(name="llamaindex", kb_base_dir=kb_base_dir)
@@ -127,7 +137,11 @@ class LlamaIndexPipeline(RAGPipeline):
                 exc,
             )
     def _configure_settings(self):
-        """Configure LlamaIndex global settings."""
+        """
+        Set global LlamaIndex settings used by this pipeline.
+        
+        Configures the embedding provider to use the project's CustomEmbedding and sets document chunking parameters (chunk size and overlap). Logs the configured embedding model and chunk size.
+        """
         # Get embedding config
         embedding_cfg = get_embedding_config()
 

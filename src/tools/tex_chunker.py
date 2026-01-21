@@ -47,13 +47,15 @@ class TexChunker:
 
     def estimate_tokens(self, text: str) -> int:
         """
-        Estimate token count of text
-
-        Args:
-            text: Input text
-
+        Estimate the number of tokens in the provided text.
+        
+        The text is normalized via the chunker's cleaning routine before encoding. If encoding succeeds, returns the count of encoded tokens; if encoding fails, logs a warning and returns a rough estimate calculated as len(text) // 4.
+        
+        Parameters:
+            text (str): Input text to estimate tokens for; will be cleaned before tokenization.
+        
         Returns:
-            Token count
+            int: Estimated token count for the input text (or a rough estimate on encoding failure).
         """
         try:
             cleaned_text = self._clean_text(text)
@@ -66,9 +68,15 @@ class TexChunker:
 
     def _clean_text(self, text: str) -> str:
         """
-        Clean text to prevent token estimation anomalies by:
-        - Removing overly long repeated character sequences
-        - Limiting single line length
+        Normalize input text to reduce tokenization anomalies.
+        
+        This function collapses sequences of the same character longer than ten to at most two repeats, replaces any run of whitespace (spaces, newlines, tabs) with a single space, and trims leading/trailing whitespace. The result is intended for more stable token-count estimation.
+        
+        Parameters:
+            text (str): The input text to normalize.
+        
+        Returns:
+            str: The normalized text with long character repeats collapsed, whitespace normalized, and edges trimmed.
         """
         import re
 
@@ -80,21 +88,18 @@ class TexChunker:
     def split_tex_into_chunks(
         self, tex_content: str, max_tokens: int = 8000, overlap: int = 500
     ) -> list[str]:
-        r"""
-        Split LaTeX content into chunks
-
-        Strategy:
-        1. Prioritize splitting by sections (\section, \subsection)
-        2. If single section is too long, split by paragraphs
-        3. Maintain overlap tokens to avoid context loss
-
-        Args:
-            tex_content: LaTeX source code
-            max_tokens: Maximum tokens per chunk (default: 8000)
-            overlap: Overlap tokens between chunks (default: 500)
-
+        """
+        Split LaTeX source into token-bounded chunks with optional overlap.
+        
+        Chunks are produced to respect the provided token limit where possible; section boundaries are preferred, and overly long sections are further split by paragraphs. Consecutive chunks may include an overlap of trailing tokens from the previous chunk to preserve context.
+        
+        Parameters:
+            tex_content (str): LaTeX source to split.
+            max_tokens (int): Target maximum tokens per chunk.
+            overlap (int): Number of tokens to include from the end of the previous chunk at the start of the next chunk to preserve context.
+        
         Returns:
-            List of chunks
+            list[str]: List of LaTeX chunk strings; chunks are sized to avoid exceeding `max_tokens` where possible and include `overlap` tokens between adjacent chunks.
         """
         total_tokens = self.estimate_tokens(tex_content)
 
@@ -160,15 +165,15 @@ class TexChunker:
 
     def _split_by_sections(self, tex_content: str) -> list[str]:
         """
-        Split LaTeX content by sections
-
-        Recognizes:
-        - \\section{...}
-        - \\subsection{...}
-        - \\subsubsection{...}
-
+        Split LaTeX content into top-level section blocks.
+        
+        This function partitions the input TeX text at LaTeX sectioning commands (\section{...}, \subsection{...}, \subsubsection{...}) and returns each section marker together with its following content as a block. If no section markers are found, the function falls back to splitting the content into paragraph-based chunks via the paragraph-splitting helper.
+        
+        Parameters:
+            tex_content (str): Raw LaTeX document text to split.
+        
         Returns:
-            List of sections
+            list[str]: A list of text blocks where each element is either a preamble (text before the first section) or a section block beginning with a sectioning command followed by its content.
         """
         # Regex match section markers
         pattern = r"(\\(?:sub)*section\{[^}]*\})"

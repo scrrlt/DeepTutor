@@ -40,21 +40,18 @@ def resolve_chat_template(
     template_dir: str | None = None,
 ) -> ChatTemplateInfo | None:
     """
-    Resolve a chat template from overrides, tokenizer metadata, or registry.
-
-    Args:
-        model: Model name used for registry lookup.
-        template: Explicit template override.
-        template_path: Path to a template file.
-        tokenizer_dir: Directory containing tokenizer metadata.
-        model_dir: Directory containing model metadata.
-        template_dir: Directory containing registry templates.
-
+    Resolve a chat template using explicit overrides, environment variables, tokenizer metadata, or a template registry.
+    
+    Parameters:
+        model (str | None): Model name used to look up a registry template when available.
+        template (str | None): Explicit template string that takes highest precedence.
+        template_path (str | None): Filesystem path to a template file to load.
+        tokenizer_dir (str | None): Directory to search for tokenizer metadata (e.g., tokenizer_config.json or tokenizer.json).
+        model_dir (str | None): Alternative directory for tokenizer/model metadata lookup.
+        template_dir (str | None): Directory containing registry templates; defaults to the configured registry directory.
+    
     Returns:
-        ChatTemplateInfo if found, otherwise None.
-
-    Raises:
-        None.
+        ChatTemplateInfo | None: Resolved template information (template string, metadata, and source) or `None` if no template is found.
     """
     if template:
         return ChatTemplateInfo(template=template, metadata={}, source="override")
@@ -100,18 +97,15 @@ def render_chat_template(
     add_generation_prompt: bool = True,
 ) -> str:
     """
-    Render a chat template using the provided messages.
-
-    Args:
-        messages: List of role/content message dictionaries.
-        template_info: Template metadata to render.
-        add_generation_prompt: Whether to append the generation prompt.
-
+    Render the provided chat messages into a prompt using the given chat template.
+    
+    Parameters:
+        messages (list[dict[str, str]]): Sequence of message mappings; each item is expected to include at least "role" and "content".
+        template_info (ChatTemplateInfo): Resolved template string and associated metadata used for rendering.
+        add_generation_prompt (bool): If true, include the generation prompt marker defined by the template/metadata.
+    
     Returns:
-        Rendered prompt string.
-
-    Raises:
-        None.
+        str: The rendered prompt string.
     """
     metadata = _normalize_metadata(template_info.metadata)
     context: dict[str, Any] = {
@@ -126,17 +120,14 @@ def render_chat_template(
 
 def _render_template(template: str, context: Mapping[str, Any]) -> str:
     """
-    Render a Jinja-style template with minja or fallback renderer.
-
-    Args:
-        template: Template string.
-        context: Context variables for rendering.
-
+    Render the provided template using minja if available, falling back to Jinja2.
+    
+    Parameters:
+        template (str): Template string to render.
+        context (Mapping[str, Any]): Mapping of variables to use while rendering.
+    
     Returns:
-        Rendered string.
-
-    Raises:
-        Exception: If template rendering fails.
+        Rendered string produced by the template.
     """
     try:
         import minja  # type: ignore
@@ -165,16 +156,13 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
 
 def _normalize_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
     """
-    Normalize tokenizer metadata for template rendering.
-
-    Args:
-        metadata: Raw metadata mapping.
-
+    Ensure tokenizer metadata contains expected special-token keys used by templates.
+    
+    Parameters:
+        metadata (Mapping[str, Any]): Mapping of tokenizer or model metadata (may include token fields).
+    
     Returns:
-        Normalized metadata with safe token defaults.
-
-    Raises:
-        None.
+        dict[str, Any]: A copy of `metadata` with keys "bos_token", "eos_token", "eot_token", "unk_token", and "pad_token" present; any missing token keys are set to an empty string.
     """
     normalized = dict(metadata)
     for token_key in ("bos_token", "eos_token", "eot_token", "unk_token", "pad_token"):
@@ -186,16 +174,17 @@ def _normalize_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
 
 def _load_template_from_tokenizer_dir(directory: Path) -> ChatTemplateInfo | None:
     """
-    Load a chat template from tokenizer metadata files.
-
-    Args:
-        directory: Directory containing tokenizer metadata.
-
+    Load a chat template and associated token metadata from a tokenizer directory.
+    
+    Searches tokenizer_config.json then tokenizer.json for a `chat_template` value and extracts special token mappings. If a template is found, returns a ChatTemplateInfo containing the template string, the collected token metadata, and the path of the source file.
+    
+    Parameters:
+        directory (Path): Path to a tokenizer directory expected to contain
+            `tokenizer_config.json` or `tokenizer.json`.
+    
     Returns:
-        ChatTemplateInfo if a template is found.
-
-    Raises:
-        None.
+        ChatTemplateInfo | None: A ChatTemplateInfo with `template`, `metadata`, and `source`
+        when a template is discovered; `None` if no template is found.
     """
     if not directory.exists():
         return None
@@ -230,17 +219,14 @@ def _load_template_from_registry(
     model: str,
 ) -> ChatTemplateInfo | None:
     """
-    Load a template from the registry directory.
-
-    Args:
-        template_dir: Directory containing template files.
-        model: Model name for lookup.
-
+    Search the registry directory for a template file that matches the provided model name and return it as a ChatTemplateInfo.
+    
+    Parameters:
+        template_dir (Path): Directory containing template files.
+        model (str): Model identifier used to derive candidate filenames (uses the last path segment lowercased and also tries prefix segments separated by '-' or '_').
+    
     Returns:
-        ChatTemplateInfo if a template is found.
-
-    Raises:
-        None.
+        ChatTemplateInfo | None: ChatTemplateInfo for the first matching template file (.jinja, .j2, .tmpl), or `None` if no match is found.
     """
     model_key = model.split("/")[-1].lower()
     candidates = {
@@ -264,16 +250,16 @@ def _load_template_from_registry(
 
 def _extract_tokens(data: Mapping[str, Any]) -> dict[str, Any]:
     """
-    Extract special tokens from tokenizer metadata.
-
-    Args:
-        data: Tokenizer metadata mapping.
-
+    Extract special token values from tokenizer metadata.
+    
+    Parameters:
+        data (Mapping[str, Any]): Tokenizer metadata mapping which may contain top-level token keys
+            and an optional `special_tokens_map` mapping.
+    
     Returns:
-        Dictionary of token values.
-
-    Raises:
-        None.
+        dict[str, Any]: Mapping of extracted token names to their values. Keys checked (in order of preference)
+        are `"bos_token"`, `"eos_token"`, `"eot_token"`, `"unk_token"`, and `"pad_token"`. If a key is not present
+        at the top level but appears in `special_tokens_map`, its value is taken from that mapping.
     """
     tokens: dict[str, Any] = {}
     for key in ("bos_token", "eos_token", "eot_token", "unk_token", "pad_token"):
@@ -291,16 +277,13 @@ def _extract_tokens(data: Mapping[str, Any]) -> dict[str, Any]:
 
 def _load_json_file(path: Path) -> dict[str, Any] | None:
     """
-    Load a JSON file if it exists.
-
-    Args:
-        path: Path to JSON file.
-
+    Load and parse a JSON file from the given path.
+    
+    Parameters:
+        path (Path): Filesystem path to the JSON file.
+    
     Returns:
-        Parsed JSON mapping or None.
-
-    Raises:
-        None.
+        dict[str, Any] | None: Parsed JSON mapping, or `None` if the file does not exist or cannot be decoded.
     """
     if not path.exists():
         return None

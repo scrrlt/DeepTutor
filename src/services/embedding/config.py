@@ -45,14 +45,31 @@ class EmbeddingConfig:
 
 
 def _strip_value(value: str | None) -> str | None:
-    """Remove leading/trailing whitespace and quotes from string."""
+    """
+    Normalize a possibly quoted string by removing surrounding whitespace and surrounding single or double quotes.
+    
+    Parameters:
+        value (str | None): Input string to clean.
+    
+    Returns:
+        str | None: Cleaned string with leading/trailing whitespace and surrounding single/double quotes removed, or `None` if `value` is `None`.
+    """
     if value is None:
         return None
     return value.strip().strip("\"'")
 
 
 def _to_int(value: str | None, default: int) -> int:
-    """Convert environment variable to int, fallback to default value on failure."""
+    """
+    Convert a string to an integer, returning a fallback when conversion is not possible.
+    
+    Parameters:
+        value (str | None): The string to parse as an integer; may be None.
+        default (int): The value to return if `value` is None or cannot be parsed as an integer.
+    
+    Returns:
+        int: The parsed integer, or `default` if parsing fails or `value` is None.
+    """
     try:
         return int(value) if value is not None else default
     except (TypeError, ValueError):
@@ -60,7 +77,16 @@ def _to_int(value: str | None, default: int) -> int:
 
 
 def _to_bool(value: str | None, default: bool) -> bool:
-    """Convert environment variable to bool."""
+    """
+    Interpret an optional string as a boolean, falling back to a provided default.
+    
+    Parameters:
+        value (str | None): The string to interpret; commonly an environment variable value.
+        default (bool): The boolean value to return when `value` is None.
+    
+    Returns:
+        bool: `true` if `value` (case-insensitive) is one of "true", "1", "yes", or "on"; `false` otherwise. If `value` is None, returns `default`.
+    """
     if value is None:
         return default
     return value.lower() in ("true", "1", "yes", "on")
@@ -68,13 +94,13 @@ def _to_bool(value: str | None, default: bool) -> bool:
 
 def _get_default_dimensions(model: str) -> int:
     """
-    Get default embedding dimensions for known models.
-
-    Args:
-        model: Model name (case-insensitive)
-
+    Determines default embedding dimensionality for a given model name.
+    
+    Parameters:
+        model (str): Model name (case-insensitive); used to select a model-specific default.
+    
     Returns:
-        Default dimensions for the model
+        int: Default embedding dimensionality for the model (e.g., 1536 or 3072).
     """
     model_lower = model.lower()
 

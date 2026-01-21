@@ -257,7 +257,17 @@ class Logger:
         display_level: Optional[str] = None,
         **kwargs: Any,
     ):
-        """Internal logging method with extra attributes."""
+        """
+        Log a message to the internal logger with added metadata.
+        
+        Adds `module_name` (the logger's name) and `display_level` to the log record, then forwards the message to the underlying logger while passing through standard logging extras. Recognizes `exc_info`, `stack_info`, and `stacklevel` in `kwargs`; the provided `stacklevel` is increased by 2 before being forwarded.
+        
+        Parameters:
+            level (int): Numeric logging level for the message.
+            message (str): The log message text.
+            display_level (Optional[str]): Optional override for the display label used in formatted output.
+            **kwargs (Any): Additional logging keyword arguments (e.g., `exc_info`, `stack_info`, `stacklevel`).
+        """
         extra = {
             "module_name": self.name,
             "display_level": display_level or logging.getLevelName(level),
@@ -273,27 +283,73 @@ class Logger:
 
     # Standard logging methods
     def debug(self, message: str, **kwargs: Any):
-        """Debug level log [DEBUG]"""
+        """
+        Log a message at the DEBUG level.
+        
+        Parameters:
+            message (str): The message to log.
+            **kwargs (Any): Additional logging options forwarded to the logger (for example: `exc_info`, `stack_info`, `stacklevel`, `display_level`).
+        """
         self._log(logging.DEBUG, message, **kwargs)
 
     def info(self, message: str, **kwargs: Any):
-        """Info level log [INFO]"""
+        """
+        Log a message at the INFO level.
+        
+        This forwards standard logging extras to the underlying logger and accepts an optional
+        `display_level` keyword to override the level label shown by formatters.
+        
+        Parameters:
+            kwargs (Any): Optional logging extras forwarded to the logger (for example
+                `exc_info`, `stack_info`, `stacklevel`) and `display_level` to override the
+                visible level tag.
+        """
         self._log(logging.INFO, message, **kwargs)
 
     def warning(self, message: str, **kwargs: Any):
-        """Warning level log [WARNING]"""
+        """
+        Log a message at the WARNING level.
+        
+        Parameters:
+            message (str): The message to log.
+            **kwargs: Additional logging extras forwarded to the underlying logger, such as
+                `exc_info`, `stack_info`, `stacklevel`, or a custom `display_level`.
+        """
         self._log(logging.WARNING, message, **kwargs)
 
     def error(self, message: str, **kwargs: Any):
-        """Error level log [ERROR]"""
+        """
+        Log a message at the error level.
+        
+        Parameters:
+            message (str): The message to log.
+            **kwargs: Optional logging extras forwarded to the underlying logger (e.g., `exc_info`, `stack_info`, `stacklevel`, `display_level`).
+        """
         self._log(logging.ERROR, message, **kwargs)
 
     def critical(self, message: str, **kwargs: Any):
-        """Critical level log [CRITICAL]"""
+        """
+        Log a message with CRITICAL severity.
+        
+        Parameters:
+            message (str): Message to log.
+            **kwargs: Optional logging extras forwarded to the logger. Recognized keys include:
+                display_level (str): Override the textual level shown in console output.
+                exc_info (bool | Exception): Include exception info when True or an exception tuple.
+                stack_info (bool): Include stack information when True.
+                stacklevel (int): Call stack level used to compute source information.
+        """
         self._log(logging.CRITICAL, message, **kwargs)
 
     def exception(self, message: str, **kwargs: Any):
-        """Log exception with traceback"""
+        """
+        Log an error-level message and include the current exception traceback.
+        
+        Parameters:
+            message (str): The log message describing the error context.
+            **kwargs: Optional logging extras forwarded to the logger (e.g., `stack_info`, `stacklevel`).
+                If `exc_info` is not provided, it will be set to `True` to include the exception traceback.
+        """
         # Ensure exc_info is True to print the stack trace
         kwargs.setdefault("exc_info", True)
 
@@ -302,7 +358,15 @@ class Logger:
 
     # Convenience methods
     def success(self, message: str, elapsed: Optional[float] = None, **kwargs):
-        """Success log [SUCCESS]"""
+        """
+        Log a success message tagged as SUCCESS.
+        
+        If `elapsed` is provided, appends "in {elapsed:.1f}s" to the message before logging.
+        
+        Parameters:
+            message (str): The message to log.
+            elapsed (Optional[float]): Optional elapsed time in seconds to append to the message.
+        """
         if elapsed is not None:
             message = f"{message} in {elapsed:.1f}s"
         self._log(logging.INFO, message, display_level="SUCCESS", **kwargs)

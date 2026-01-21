@@ -43,7 +43,11 @@ class EmbeddingProviderManager:
     }
 
     def __init__(self):
-        """Initialize the provider manager."""
+        """
+        Create a new EmbeddingProviderManager with no active adapter configured.
+        
+        Initializes internal state and sets the manager's active adapter reference to `None`.
+        """
         self.adapter: Optional[BaseEmbeddingAdapter] = None
 
     def get_adapter(
@@ -75,10 +79,10 @@ class EmbeddingProviderManager:
 
     def set_adapter(self, adapter: BaseEmbeddingAdapter) -> None:
         """
-        Set the active adapter.
-
-        Args:
-            adapter: Adapter instance to set as active
+        Set the manager's active embedding adapter.
+        
+        Parameters:
+            adapter (BaseEmbeddingAdapter): Adapter instance to register as the active provider for subsequent embedding operations.
         """
         self.adapter = adapter
         logger.debug(
@@ -87,13 +91,13 @@ class EmbeddingProviderManager:
 
     def get_active_adapter(self) -> BaseEmbeddingAdapter:
         """
-        Get the currently active adapter.
-
+        Get the currently configured embedding adapter.
+        
         Returns:
-            Active adapter instance
-
+            BaseEmbeddingAdapter: The active adapter instance.
+        
         Raises:
-            RuntimeError: If no adapter is configured
+            RuntimeError: If no adapter is configured.
         """
         if not self.adapter:
             raise RuntimeError(

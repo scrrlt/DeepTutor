@@ -60,19 +60,13 @@ V1_SUFFIX_PORTS = {
 
 def is_local_llm_server(base_url: str) -> bool:
     """
-    Check if the given URL points to a local LLM server.
-
-    Detects local servers by:
-    1. Checking for local/private hostnames and IPs
-    2. Checking for private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
-    3. Checking for common local LLM server ports (as fallback)
-    4. Excluding known cloud provider domains
-
-    Args:
-        base_url: The base URL to check
-
+    Determine whether a URL refers to a local LLM server.
+    
+    Parameters:
+        base_url (str): The base URL to inspect.
+    
     Returns:
-        True if the URL appears to be a local LLM server
+        bool: `True` if the URL appears to point to a local or private LLM server (local hostname, loopback or private IP range, or common local port), `False` otherwise.
     """
     if not base_url:
         return False
@@ -160,21 +154,14 @@ def _needs_v1_suffix(url: str) -> bool:
 
 def sanitize_url(base_url: str, model: str = "") -> str:
     """
-    Sanitize base URL for OpenAI-compatible APIs, with special handling for local LLM servers.
-
-    Handles:
-    - Ollama (port 11434)
-    - LM Studio (port 1234)
-    - vLLM (port 8000)
-    - llama.cpp (port 8080)
-    - Other localhost OpenAI-compatible servers
-
-    Args:
-        base_url: The base URL to sanitize
-        model: Optional model name (unused, kept for API compatibility)
-
+    Normalize a base URL for OpenAI-compatible endpoints, ensuring a protocol, removing client-appended endpoint suffixes, and appending `/v1` for qualifying local LLM servers.
+    
+    Parameters:
+        base_url (str): The input base URL; an empty string is returned unchanged.
+        model (str): Optional model name (unused; retained for API compatibility).
+    
     Returns:
-        Sanitized URL string
+        str: The sanitized base URL suitable for use with OpenAI-compatible clients.
     """
     if not base_url:
         return base_url
@@ -212,18 +199,15 @@ def clean_thinking_tags(
     model: str | None = None,
 ) -> str:
     """
-    Remove thinking tags from model output.
-
-    Some reasoning models (DeepSeek, Qwen, etc.) include <think>...</think> blocks
-    that should be stripped from the final response.
-
-    Args:
-        content: Raw model output
-        binding: Provider binding name (optional, for capability check)
-        model: Model name (optional, for capability check)
-
+    Strip reasoning/thinking markers from model-generated text.
+    
+    Parameters:
+        content (str): Raw model output to clean.
+        binding (str | None): Optional provider binding name used to decide whether thinking tags apply.
+        model (str | None): Optional model name used when determining if thinking tags apply.
+    
     Returns:
-        Cleaned content without thinking tags
+        str: The input text with reasoning/thinking blocks removed and surrounding whitespace trimmed.
     """
     if not content:
         return content
@@ -259,23 +243,15 @@ def build_chat_url(
     binding: str | None = None,
 ) -> str:
     """
-    Build the full chat completions endpoint URL.
-
-    Handles:
-    - Adding /chat/completions suffix for OpenAI-compatible endpoints
-    - Adding /messages suffix for Anthropic endpoints
-    - Adding api-version query parameter for Azure OpenAI
-
-    Args:
-        base_url: Base URL (should be sanitized first)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding name (optional, for Anthropic detection)
-
+    Construct the full chat endpoint URL for the given provider.
+    
+    Parameters:
+        base_url (str): Base endpoint URL (may be a sanitized OpenAI-compatible or Anthropic base).
+        api_version (str | None): API version to append as `api-version` query parameter (used by Azure OpenAI).
+        binding (str | None): Provider binding name; if "anthropic" or "claude" (case-insensitive), the function uses the `/messages` endpoint, otherwise `/chat/completions` is used.
+    
     Returns:
-        Full endpoint URL
-
-    Raises:
-        ValueError: If an unsupported binding is provided.
+        str: The complete chat endpoint URL with the appropriate path and optional `api-version` query parameter.
     """
     if not base_url:
         return base_url
@@ -306,23 +282,20 @@ def build_completion_url(
     binding: str | None = None,
 ) -> str:
     """
-    Build the full completions endpoint URL.
-
-    Handles:
-    - Adding /completions suffix for OpenAI-compatible endpoints
-    - Adding api-version query parameter for Azure OpenAI
-
-    Args:
-        base_url: Base URL (should be sanitized first)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding name (optional, for compatibility)
-
+    Constructs the full completions endpoint URL for an OpenAI-compatible API.
+    
+    Appends the `/completions` path to the provided base URL (if missing) and, when an `api_version` is supplied, appends it as an `api-version` query parameter. Raises a ValueError for Anthropic/Claude bindings which do not support the legacy completions endpoint.
+    
+    Parameters:
+        base_url (str): Base URL (should be sanitized beforehand; protocol and trailing slash are normalized).
+        api_version (str | None): Optional API version to add as `api-version` (commonly used for Azure OpenAI).
+        binding (str | None): Optional provider binding name; if `'anthropic'` or `'claude'`, a ValueError is raised.
+    
     Returns:
-        Full endpoint URL
-
+        str: The fully constructed completions endpoint URL.
+    
     Raises:
-        ValueError: If binding is 'anthropic' or 'claude' (Anthropic does not
-            support the legacy completions endpoint).
+        ValueError: If `binding` is `'anthropic'` or `'claude'`.
     """
     if not base_url:
         return base_url
@@ -384,15 +357,14 @@ def extract_response_content(message: Any) -> str:
 def _normalize_model_name(entry: object) -> str | None:
     """
     Normalize a model name from a provider payload entry.
-
-    Args:
-        entry: The raw model entry returned by a provider.
-
+    
+    Accepts a string, a mapping (dict-like) with an "id" or "name" key, or any other object; returns the derived model name string or None when no usable name can be obtained.
+    
+    Parameters:
+        entry: The raw model entry returned by a provider (string, mapping, or other).
+    
     Returns:
-        The normalized model name, or None if one cannot be derived.
-
-    Raises:
-        None.
+        The normalized model name, or `None` if a name cannot be derived.
     """
     if entry is None:
         return None
@@ -418,16 +390,13 @@ def _normalize_model_name(entry: object) -> str | None:
 
 def collect_model_names(entries: Sequence[object]) -> list[str]:
     """
-    Collect normalized model names from a sequence of entries.
-
-    Args:
-        entries: Sequence of model entries from provider payloads.
-
+    Collect normalized model names from a sequence of provider entries.
+    
+    Parameters:
+        entries (Sequence[object]): Sequence of provider model entries (strings, mappings, or other types) to normalize.
+    
     Returns:
-        List of normalized model names.
-
-    Raises:
-        None.
+        list[str]: List of normalized model name strings, preserving the input order and omitting entries that cannot be normalized.
     """
     names: list[str] = []
     for entry in entries:
@@ -442,17 +411,14 @@ def build_auth_headers(
     binding: str | None = None,
 ) -> dict[str, str]:
     """
-    Build authentication headers for LLM API requests.
-
-    Args:
-        api_key: API key
-        binding: Provider binding name (for provider-specific headers)
-
+    Create HTTP headers for authenticating requests to different LLM providers.
+    
+    Parameters:
+        api_key (str | None): API key to include in headers; if None or empty, only Content-Type header is returned.
+        binding (str | None): Provider binding name (e.g., "anthropic", "azure", "claude") to select provider-specific header keys.
+    
     Returns:
-        Headers dict
-
-    Raises:
-        None.
+        dict[str, str]: A dictionary of HTTP headers suitable for the target provider.
     """
     headers = {"Content-Type": "application/json"}
 

@@ -159,7 +159,20 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    """Lazy import for provider modules that depend on heavy libraries."""
+    """
+    Lazily load and return a provider submodule when accessed as a module attribute.
+    
+    This function supports lazy access to heavy provider modules so they are imported only on demand. When `name` is "cloud_provider" or "local_provider", the corresponding submodule is imported and returned; otherwise an AttributeError is raised.
+    
+    Parameters:
+        name (str): The attribute name being accessed on the package (e.g., "cloud_provider" or "local_provider").
+    
+    Returns:
+        module: The imported provider submodule corresponding to `name`.
+    
+    Raises:
+        AttributeError: If `name` is not a supported lazy-loaded attribute.
+    """
     import importlib
 
     if name == "cloud_provider":

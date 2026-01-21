@@ -42,13 +42,9 @@ class LLMConfig:
 
 def initialize_environment():
     """
-    Explicitly initialize environment variables for compatibility.
-
-    LightRAG's internal functions (e.g., create_openai_async_client) read directly
-    from os.environ["OPENAI_API_KEY"] instead of using the api_key parameter.
-    This function ensures the environment variable is set.
-
-    Should be called during application startup (main.py/run_server.py).
+    Ensure OpenAI-compatible environment variables are populated from LLM_* variables for compatibility.
+    
+    If the configured binding is "openai", "azure_openai", or "gemini", sets OPENAI_API_KEY from LLM_API_KEY and OPENAI_BASE_URL from LLM_HOST when those OPENAI_* variables are not already present. Intended to be called during application startup to provide compatibility with code paths that read OPENAI_API_KEY/OPENAI_BASE_URL directly.
     """
     binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
@@ -66,14 +62,29 @@ def initialize_environment():
 
 
 def _strip_value(value: Optional[str]) -> Optional[str]:
-    """Remove leading/trailing whitespace and quotes from string."""
+    """
+    Strip surrounding whitespace and surrounding single or double quotes from a string.
+    
+    Returns:
+        `None` if `value` is `None`; otherwise the input string with leading and trailing whitespace and any surrounding single or double quotes removed.
+    """
     if value is None:
         return None
     return value.strip().strip("\"'")
 
 
 def _get_llm_config_from_env() -> LLMConfig:
-    """Get LLM configuration from environment variables."""
+    """
+    Load LLM configuration from environment variables.
+    
+    Reads LLM_BINDING (defaults to "openai"), LLM_MODEL, LLM_API_KEY, LLM_HOST, and LLM_API_VERSION and returns an LLMConfig populated from those values. If LLM_API_KEY is missing the returned config will contain an empty string for api_key.
+    
+    Returns:
+        LLMConfig: Configuration constructed from environment variables.
+    
+    Raises:
+        LLMConfigError: If LLM_MODEL or LLM_HOST is not set.
+    """
     binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
@@ -138,28 +149,25 @@ def get_llm_config() -> LLMConfig:
 
 async def get_llm_config_async() -> LLMConfig:
     """
-    Async wrapper for get_llm_config.
-
-    Useful for consistency in async contexts, though the underlying load is synchronous.
-
+    Provide an async-compatible entry point that returns the active LLM configuration.
+    
+    This exists for API consistency in asynchronous code paths.
+    
     Returns:
-        LLMConfig: Configuration dataclass
+        LLMConfig: The active LLM configuration.
     """
     return get_llm_config()
 
 
 def uses_max_completion_tokens(model: str) -> bool:
     """
-    Check if the model uses max_completion_tokens instead of max_tokens.
-
-    Newer OpenAI models (o1, o3, gpt-4o, gpt-5.x, etc.) require max_completion_tokens
-    while older models use max_tokens.
-
-    Args:
-        model: The model name
-
+    Determine whether a model uses the `max_completion_tokens` parameter instead of `max_tokens`.
+    
+    Parameters:
+        model (str): Model name to evaluate.
+    
     Returns:
-        True if the model requires max_completion_tokens, False otherwise
+        `true` if the model uses `max_completion_tokens`, `false` otherwise.
     """
     model_lower = model.lower()
 
@@ -183,14 +191,14 @@ def uses_max_completion_tokens(model: str) -> bool:
 
 def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
     """
-    Get the appropriate token limit parameter for the model.
-
-    Args:
-        model: The model name
-        max_tokens: The desired token limit
-
+    Choose the correct token-limit parameter name for the given model.
+    
+    Parameters:
+        model (str): Model identifier used to determine which token limit key to use.
+        max_tokens (int): Token limit value to assign.
+    
     Returns:
-        Dictionary with either {"max_tokens": value} or {"max_completion_tokens": value}
+        dict[str, int]: A mapping containing either `{"max_completion_tokens": <value>}` for models that use completion-specific limits or `{"max_tokens": <value>}` for models that use the general token limit.
     """
     if uses_max_completion_tokens(model):
         return {"max_completion_tokens": max_tokens}

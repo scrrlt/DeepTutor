@@ -18,7 +18,13 @@ _PIPELINES_INITIALIZED = False
 
 
 def _init_pipelines():
-    """Lazily initialize pipeline registry to avoid import errors when RAG deps not installed."""
+    """
+    Initialize the module pipeline registry by importing and registering known RAG pipeline implementations.
+    
+    This function performs a lazy import of available pipeline implementations and populates the module-level
+    _pipeline registry with their factory/class entries under canonical names. Calling it multiple times is
+    safe: it is idempotent and becomes a no-op after the registry has been initialized.
+    """
     global _PIPELINES, _PIPELINES_INITIALIZED
     if _PIPELINES_INITIALIZED:
         return
@@ -42,18 +48,18 @@ def _init_pipelines():
 
 def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, **kwargs):
     """
-    Get a pre-configured pipeline by name.
-
-    Args:
-        name: Pipeline name (raganything, lightrag, llamaindex, academic)
-        kb_base_dir: Base directory for knowledge bases (passed to all pipelines)
-        **kwargs: Additional arguments passed to pipeline constructor
-
+    Retrieve a configured RAG pipeline by its registry name.
+    
+    Parameters:
+        name (str): Identifier of the pipeline to retrieve (e.g., "raganything", "lightrag", "llamaindex", "academic").
+        kb_base_dir (Optional[str]): Base directory for knowledge bases; passed to the pipeline factory/constructor when supported.
+        **kwargs: Additional keyword arguments forwarded to the pipeline factory or constructor.
+    
     Returns:
-        Pipeline instance
-
+        The pipeline instance corresponding to `name`.
+    
     Raises:
-        ValueError: If pipeline name is not found or is None
+        ValueError: If `name` is falsy or does not correspond to a registered pipeline.
     """
     if not name:
         raise ValueError("Pipeline name must be specified.")
@@ -83,10 +89,13 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
 
 def list_pipelines() -> List[Dict[str, str]]:
     """
-    List available pipelines.
-
+    Return a catalog of available RAG pipelines with their identifiers, display names, and short descriptions.
+    
     Returns:
-        List of pipeline info dictionaries
+        A list of dictionaries, each containing:
+        - id: pipeline identifier string
+        - name: human-readable pipeline name
+        - description: brief description of the pipeline's intended use
     """
     return [
         {

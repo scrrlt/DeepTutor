@@ -57,26 +57,21 @@ class ExaProvider(BaseSearchProvider):
         **kwargs: Any,
     ) -> WebSearchResponse:
         """
-        Perform neural search using Exa API.
-
-        Args:
-            query: Search query.
-            search_type: Search type - "auto", "neural", or "keyword".
-            num_results: Number of results to return.
-            include_text: Include full text content.
-            include_highlights: Include relevant highlights.
-            include_summary: Include AI-generated summaries.
-            max_characters: Maximum characters per result.
-            category: Filter by category.
-            include_domains: List of domains to include.
-            exclude_domains: List of domains to exclude.
-            start_published_date: Filter by start date (ISO format).
-            end_published_date: Filter by end date (ISO format).
-            timeout: Request timeout in seconds.
-            **kwargs: Additional options.
-
+        Perform a search via the Exa API and return a standardized WebSearchResponse containing results, citations, and optional summaries.
+        
+        Parameters:
+            query (str): Search query string.
+            search_type (str): One of "auto", "neural", or "keyword" to select the search mode.
+            max_characters (int | None): Maximum number of characters to include for each result's text when `include_text` is true; if None, the full text may be returned.
+            category (str | None): Optional category filter (e.g., "research paper", "news", "company").
+            include_domains (list[str] | None): Optional list of domains to restrict results to.
+            exclude_domains (list[str] | None): Optional list of domains to exclude from results.
+            start_published_date (str | None): Optional ISO-format start date to filter published results (inclusive).
+            end_published_date (str | None): Optional ISO-format end date to filter published results (inclusive).
+            timeout (int): Request timeout in seconds.
+        
         Returns:
-            WebSearchResponse: Standardized search response.
+            WebSearchResponse: Standardized response containing the original query, assembled answer (combined summaries if present), provider metadata, list of citations, list of SearchResult items, and request metadata.
         """
         self.logger.debug(f"Calling Exa API type={search_type}, num_results={num_results}")
         headers = {

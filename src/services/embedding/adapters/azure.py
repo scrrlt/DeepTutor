@@ -18,6 +18,17 @@ class AzureEmbeddingAdapter(BaseEmbeddingAdapter):
     """
 
     def __init__(self, config: dict[str, Any]):
+        """
+        Initialize the Azure OpenAI embedding adapter and construct the AsyncAzureOpenAI client.
+        
+        Expects the provided configuration to supply authentication and endpoint settings. Requires an API key and a base URL; optionally accepts an API version and request timeout. Constructs self.client as an AsyncAzureOpenAI instance using the adapter's resolved api_key, base_url (as azure_endpoint), api_version (defaulting to "2023-05-15" if not set), and request_timeout.
+        
+        Parameters:
+            config (dict[str, Any]): Adapter configuration used by the base class to populate attributes like `api_key`, `base_url`, `api_version`, and `request_timeout`.
+        
+        Raises:
+            ValueError: If the API key or base URL is missing from the configuration.
+        """
         super().__init__(config)
 
         if not self.api_key:
@@ -34,13 +45,17 @@ class AzureEmbeddingAdapter(BaseEmbeddingAdapter):
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings using Azure OpenAI SDK.
-
-        Args:
-            request: EmbeddingRequest containing texts and parameters
-
+        Generate embeddings for the provided texts using the configured Azure OpenAI model.
+        
+        Parameters:
+            request (EmbeddingRequest): Input texts and optional per-request settings (model, dimensions, encoding_format).
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata
+            EmbeddingResponse: Contains the list of embeddings, the model name, actual embedding dimensions, and usage metadata (empty dict if not provided).
+        
+        Raises:
+            ValueError: If `request.texts` is empty, if the API response has no usable data, or if the returned embedding dimensionality does not match the expected dimensions.
+            openai.APIError: If the underlying Azure OpenAI SDK reports an API error (re-raised).
         """
         # Validate request early
         if not request.texts:
@@ -91,10 +106,15 @@ class AzureEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Provide metadata about the adapter's currently configured embedding model.
+        
         Returns:
-            Dictionary with model metadata
+            info (dict[str, Any]): Dictionary with keys:
+                - "model": configured model name (str)
+                - "dimensions": expected embedding dimensionality (int | None)
+                - "provider": provider identifier, "azure" (str)
+                - "client_wrapper": client wrapper identifier, "openai-sdk" (str)
+                - "supports_variable_dimensions": whether the adapter supports variable-length embeddings (`True`)
         """
         return {
             "model": self.model,

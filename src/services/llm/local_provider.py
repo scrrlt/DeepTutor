@@ -44,21 +44,23 @@ async def complete(
     **kwargs: Any,
 ) -> str:
     """
-    Complete a prompt using local LLM server.
-
-    Uses aiohttp for better compatibility with local servers.
-
-    Args:
-        prompt: The user prompt (ignored if messages provided)
-        system_prompt: System prompt for context
-        model: Model name
-        api_key: API key (optional for most local servers)
-        base_url: Base URL for the local server
-        messages: Pre-built messages array (optional)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
+    Send a prompt to a local LLM server and return the assistant's reply.
+    
+    Parameters:
+        prompt (str): The user prompt; ignored if `messages` is provided.
+        system_prompt (str): System-level context appended as a system message when `messages` is not provided.
+        model (Optional[str]): Model identifier to request; uses `"default"` if not supplied.
+        api_key (Optional[str]): Optional API key for authenticating with the local server.
+        base_url (Optional[str]): Base URL of the local LLM server (required).
+        messages (Optional[List[Dict[str, str]]]): If provided, use this pre-built message list instead of constructing one from `system_prompt` and `prompt`.
+        **kwargs: Additional request options (e.g., `temperature`, `max_tokens`, `timeout`).
+    
     Returns:
-        str: The LLM response
+        str: The cleaned assistant response content, or an empty string if the server returned no usable content.
+    
+    Raises:
+        LLMConfigError: If `base_url` is not provided.
+        LLMAPIError: On non-200 responses or other API-level failures when contacting the local server.
     """
     if not base_url:
         raise LLMConfigError("base_url is required for local LLM provider")
@@ -128,22 +130,16 @@ async def stream(
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
-    Stream a response from local LLM server.
-
-    Uses aiohttp for better compatibility with local servers.
-    Falls back to non-streaming if streaming fails.
-
-    Args:
-        prompt: The user prompt (ignored if messages provided)
-        system_prompt: System prompt for context
-        model: Model name
-        api_key: API key (optional for most local servers)
-        base_url: Base URL for the local server
-        messages: Pre-built messages array (optional)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
-    Yields:
-        str: Response chunks
+    Stream response chunks from a local LLM server.
+    
+    Yields the model's incremental text outputs as they arrive. Thinking blocks delimited by `<think>...</think>` are emitted only after the block is closed. If streaming fails, the function falls back to a non-streaming completion and yields the final content.
+    
+    Raises:
+        LLMConfigError: If `base_url` is not provided.
+        LLMAPIError: On provider-level errors when streaming or when both streaming and fallback fail.
+    
+    Returns:
+        AsyncGenerator[str, None]: Sequential text chunks from the model; thinking-block content is emitted after closing tags.
     """
     if not base_url:
         raise LLMConfigError("base_url is required for local LLM provider")
@@ -291,18 +287,16 @@ async def fetch_models(
     api_key: Optional[str] = None,
 ) -> List[str]:
     """
-    Fetch available models from local LLM server.
-
-    Supports:
-    - Ollama (/api/tags)
-    - OpenAI-compatible (/models)
-
-    Args:
-        base_url: Base URL for the local server
-        api_key: API key (optional)
-
+    Retrieve available model names from a local LLM server.
+    
+    Attempts to detect and query common local endpoints (Ollama's /api/tags and OpenAI-compatible /models) and returns the collected model names. Trailing slashes in `base_url` and a `/v1` prefix are handled transparently.
+    
+    Parameters:
+        base_url (str): Base URL of the local LLM server (may include or omit trailing slash).
+        api_key (Optional[str]): Optional API key to include in requests.
+    
     Returns:
-        List of available model names
+        List[str]: A list of model names discovered on the server, or an empty list if none are found.
     """
     base_url = base_url.rstrip("/")
 

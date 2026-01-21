@@ -39,6 +39,11 @@ async def test_openai_adapter_real():
 
 @pytest.mark.asyncio
 async def test_jina_adapter_real():
+    """
+    Integration test that verifies the Jina embedding adapter returns a single 1024-dimensional embedding for a sample input.
+    
+    Skips the test if the `JINA_API_KEY` environment variable is not set. Constructs a JinaEmbeddingAdapter using that API key, sends a single sample text for embedding, and asserts that exactly one embedding is returned and that its dimensionality is 1024.
+    """
     api_key = os.getenv("JINA_API_KEY")
     if not api_key:
         pytest.skip("JINA_API_KEY not set")

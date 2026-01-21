@@ -71,19 +71,12 @@ CallKwargs: TypeAlias = dict[str, Any]
 
 def _is_retriable_error(error: BaseException) -> bool:
     """
-    Check if an error is retriable.
-
-    Retriable errors:
-    - Timeout errors
-    - Rate limit errors (429)
-    - Server errors (5xx)
-    - Network/connection errors
-
-    Non-retriable errors:
-    - Authentication errors (401)
-    - Bad request (400)
-    - Not found (404)
-    - Client errors (4xx except 429)
+    Determine whether an exception should be treated as retriable for LLM provider calls.
+    
+    Recognizes timeouts, network/connection errors, rate limits, server errors, and unknown API errors (e.g., LLMAPIError with no status) as retriable; treats authentication errors and client 4xx errors (except 429) as non-retriable.
+    
+    Returns:
+        `true` if the error is retriable, `false` otherwise.
     """
     from aiohttp import ClientError
 
@@ -142,27 +135,24 @@ async def complete(
     **kwargs: object,
 ) -> str:
     """
-    Unified LLM completion function with automatic retry.
-
-    Routes to cloud_provider or local_provider based on configuration.
-    Includes automatic retry with exponential backoff for transient errors.
-
-    Args:
-        prompt: The user prompt
-        system_prompt: System prompt for context
-        model: Model name (optional, uses effective config if not provided)
-        api_key: API key (optional)
-        base_url: Base URL for the API (optional)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding type (optional)
-        messages: Pre-built messages array (optional)
-        max_retries: Maximum number of retry attempts (default: 3)
-        retry_delay: Initial delay between retries in seconds (default: 1.0)
-        exponential_backoff: Whether to use exponential backoff (default: True)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
+    Request a text completion from the configured LLM provider, automatically routing to a local or cloud provider and retrying transient errors.
+    
+    Parameters:
+    	prompt (str): The user prompt to complete.
+    	system_prompt (str): System prompt providing assistant context.
+    	model (Optional[str]): Model name; uses configured default if omitted.
+    	api_key (Optional[str]): API key to use for cloud providers.
+    	base_url (Optional[str]): Base URL for the provider; determines local vs cloud routing.
+    	api_version (Optional[str]): Cloud provider API version (used when not using a local provider).
+    	binding (Optional[str]): Provider binding identifier (used when not using a local provider).
+    	messages (Optional[List[Dict[str, str]]]): Pre-built message list to send instead of a single prompt.
+    	max_retries (int): Maximum number of retry attempts for transient errors.
+    	retry_delay (float): Initial retry delay in seconds; used as multiplier for exponential backoff when enabled.
+    	exponential_backoff (bool): Whether to use exponential backoff between retries.
+    	**kwargs (object): Additional provider-specific call options (e.g., temperature, max_tokens).
+    
     Returns:
-        str: The LLM response
+    	The final completion text returned by the LLM.
     """
     # Get config if parameters not provided
     if not model or not base_url:
@@ -179,19 +169,18 @@ async def complete(
     # Define helper to determine if a generic LLMAPIError is retriable
     def _is_retriable_llm_api_error(exc: BaseException) -> bool:
         """
-        Thin wrapper around the module-level _is_retriable_error helper.
-
-        Keeps a local, semantically named helper within complete() while
-        delegating the actual retriability logic to the shared function
-        to avoid code duplication.
+        Determine whether the given exception should trigger a retry for LLM API calls.
+        
+        Returns:
+            bool: True if the exception is considered retriable, False otherwise.
         """
         return _is_retriable_error(exc)
     def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
         """
-        Log retry warnings with safe handling for missing exceptions.
-
-        Args:
-            retry_state: Tenacity retry state for the current attempt.
+        Log a formatted warning about a retry attempt including attempt count, upcoming sleep, and the failure reason.
+        
+        Parameters:
+        	retry_state (tenacity.RetryCallState): Current tenacity retry state containing the attempt number, upcoming sleep duration, and outcome (exception or result). The logged message will include the exception message if present or "unknown error" otherwise.
         """
         outcome = retry_state.outcome
         exception = outcome.exception() if outcome else None
@@ -221,6 +210,18 @@ async def complete(
         before_sleep=_log_retry_warning,
     )
     async def _do_complete(call_kwargs: CallKwargs) -> str:
+        """
+        Invoke the selected provider's completion endpoint with the provided call arguments and return the resulting text.
+        
+        Parameters:
+            call_kwargs (dict): Provider-specific keyword arguments forwarded to the provider's `complete` function.
+        
+        Returns:
+            str: The completion text produced by the provider.
+        
+        Raises:
+            Exception: A mapped, unified provider error if the underlying provider SDK raises an exception.
+        """
         try:
             if use_local:
                 return await local_provider.complete(**call_kwargs)
@@ -275,30 +276,26 @@ async def stream(
     **kwargs: object,
 ) -> AsyncGenerator[str, None]:
     """
-    Unified LLM streaming function with automatic retry.
-
-    Routes to cloud_provider or local_provider based on configuration.
-    Includes automatic retry with exponential backoff for connection errors.
-
-    Note: Retry only applies to initial connection errors. Once streaming
-    starts, errors during streaming will not be automatically retried.
-
-    Args:
-        prompt: The user prompt
-        system_prompt: System prompt for context
-        model: Model name (optional, uses effective config if not provided)
-        api_key: API key (optional)
-        base_url: Base URL for the API (optional)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding type (optional)
-        messages: Pre-built messages array (optional)
-        max_retries: Maximum number of retry attempts (default: 3)
-        retry_delay: Initial delay between retries in seconds (default: 1.0)
-        exponential_backoff: Whether to use exponential backoff (default: True)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
-    Yields:
-        str: Response chunks
+    Stream model-generated text chunks for a prompt, routing to a local or cloud provider and retrying initial connections on transient errors.
+    
+    Streams response chunks produced for the given prompt. If model/base_url are omitted, the effective configuration is used. The function chooses a local provider when the base URL indicates a local LLM server; otherwise it calls the cloud provider and adds cloud-specific fields. Retries apply only to failures that occur before any chunk has been yielded; once streaming has started, errors will not be retried. Retry behavior is controlled by max_retries, retry_delay, and exponential_backoff; rate-limit errors with a retry_after value will use that delay when larger than the computed backoff.
+    
+    Parameters:
+        prompt: The user prompt to generate a response for.
+        system_prompt: System prompt providing assistant context.
+        model: Optional model identifier; falls back to configured model when omitted.
+        api_key: Optional API key for the provider.
+        base_url: Optional base URL for the provider; determines local vs cloud routing when provided.
+        api_version: Optional cloud API version (added when using a cloud provider).
+        binding: Optional provider binding (added when using a cloud provider).
+        messages: Optional list of pre-built message dicts to send instead of composing from prompt/system_prompt.
+        max_retries: Maximum number of retry attempts for initial connection failures.
+        retry_delay: Initial delay (in seconds) between retry attempts.
+        exponential_backoff: If true, use exponential backoff (capped) between retries.
+        **kwargs: Additional provider-specific call parameters (for example temperature, max_tokens).
+    
+    Returns:
+        An async generator that yields response chunks as strings.
     """
     # Get config if parameters not provided
     if not model or not base_url:
@@ -386,17 +383,15 @@ async def fetch_models(
     api_key: Optional[str] = None,
 ) -> List[str]:
     """
-    Fetch available models from the provider.
-
-    Routes to cloud_provider or local_provider based on URL.
-
-    Args:
-        binding: Provider type (openai, ollama, etc.)
-        base_url: API endpoint URL
-        api_key: API key (optional for local providers)
-
+    Return the list of model identifiers available from the specified provider.
+    
+    Parameters:
+        binding (str): Provider identifier (e.g., "openai", "ollama") used to select provider-specific behavior.
+        base_url (str): Provider API base URL to query for models.
+        api_key (Optional[str]): Optional API key used for authenticated providers; not required for some local providers.
+    
     Returns:
-        List of available model names
+        List[str]: A list of available model names/identifiers.
     """
     if is_local_llm_server(base_url):
         return await local_provider.fetch_models(base_url, api_key)
@@ -490,7 +485,10 @@ LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
 
 def get_provider_presets() -> ProviderPresetBundle:
     """
-    Get all provider presets for frontend display.
+    Return a bundle of provider presets grouped by provider type for frontend display.
+    
+    Returns:
+        ProviderPresetBundle: Mapping with keys "api" and "local" where each value maps provider names to their preset definitions.
     """
     return {
         "api": API_PROVIDER_PRESETS,

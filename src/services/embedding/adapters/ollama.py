@@ -14,13 +14,15 @@ logger = logging.getLogger(__name__)
 
 def _normalize_vector(vector: list[float]) -> list[float]:
     """
-    Normalize a vector to unit length.
-
-    Args:
-        vector: Embedding vector.
-
+    Scale a numeric vector to unit Euclidean length.
+    
+    If the vector's Euclidean norm is zero, returns the original vector unchanged.
+    
+    Parameters:
+        vector (list[float]): Input embedding vector.
+    
     Returns:
-        Normalized vector (or original if norm is zero).
+        list[float]: The vector normalized to length 1, or the original vector if its norm is zero.
     """
     norm = math.sqrt(sum(value * value for value in vector))
     if norm == 0:
@@ -33,14 +35,14 @@ def _normalize_embeddings(
     normalize: bool | None,
 ) -> list[list[float]]:
     """
-    Normalize embeddings when requested.
-
-    Args:
-        embeddings: Raw embedding vectors.
-        normalize: Whether to normalize embeddings.
-
+    Return embeddings normalized to unit length when requested.
+    
+    Parameters:
+        embeddings (list[list[float]]): List of embedding vectors.
+        normalize (bool | None): If True, scale each vector to unit length; if False or None, return embeddings unchanged.
+    
     Returns:
-        Normalized embeddings when enabled.
+        list[list[float]]: The normalized embeddings when `normalize` is True, otherwise the original embeddings.
     """
     if normalize is True:
         return [_normalize_vector(vector) for vector in embeddings]
@@ -61,17 +63,21 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings using Ollama local API.
-
-        Args:
-            request: EmbeddingRequest containing texts and parameters
-
+        Generate embeddings for the provided texts using the local Ollama API.
+        
+        Parameters:
+            request (EmbeddingRequest): Request containing input texts and optional parameters
+                such as model, dimensions, truncate, and normalized.
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata
-
+            EmbeddingResponse: Response containing generated embeddings, the model name,
+            the embedding dimensionality, and usage metadata (`prompt_eval_count`, `total_duration`).
+        
         Raises:
-            ValueError: If required configuration or response data is missing.
-            httpx.HTTPError: If the Ollama API request fails.
+            ValueError: If base_url is not configured or the requested model is not found.
+            ConnectionError: If unable to connect to the Ollama server.
+            TimeoutError: If the request to Ollama times out.
+            httpx.HTTPError: For other HTTP-related errors from the Ollama API.
         """
         if not self.base_url:
             raise ValueError("Base URL is required for Ollama embedding")
@@ -175,10 +181,16 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Provide metadata about the adapter's configured model.
+        
         Returns:
-            Dictionary with model metadata (name, dimensions, etc.)
+            dict: Metadata dictionary with the following keys:
+                - model (str): Configured model name or empty string if unset.
+                - dimensions (int): Expected embedding dimensionality (from MODELS_INFO or adapter fallback).
+                - supported_dimensions (list): List of supported dimensions (empty for local Ollama).
+                - local (bool): True indicating the model runs locally.
+                - supports_variable_dimensions (bool): False for Ollama (no variable-dimension support).
+                - provider (str): Provider identifier, always "ollama".
         """
         model_name = self.model or ""
         return {

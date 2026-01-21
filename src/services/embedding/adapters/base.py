@@ -76,16 +76,16 @@ class BaseEmbeddingAdapter(ABC):
 
     def __init__(self, config: dict[str, Any]):
         """
-        Initialize the adapter with configuration.
-
-        Args:
-            config: Dictionary containing:
-                - api_key: API authentication key (optional for local)
-                - base_url: API endpoint URL
-                - api_version: API version (optional, provider-specific)
-                - model: Model name to use
-                - dimensions: Embedding vector dimensions
-                - request_timeout: Request timeout in seconds
+        Initialize the adapter with provider configuration.
+        
+        Parameters:
+            config (dict[str, Any]): Adapter configuration. Recognized keys:
+                - api_key (str | None): API authentication key (optional for local providers).
+                - base_url (str | None): API endpoint URL.
+                - api_version (str | None): Provider-specific API version.
+                - model (str | None): Default model name to use for requests.
+                - dimensions (int | None): Expected embedding vector dimension.
+                - request_timeout (int): Request timeout in seconds (defaults to 30).
         """
         self.api_key: str | None = config.get("api_key")
         self.base_url: str | None = config.get("base_url")
@@ -97,25 +97,25 @@ class BaseEmbeddingAdapter(ABC):
     @abstractmethod
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """
-        Generate embeddings for a list of texts.
-
-        Args:
-            request: EmbeddingRequest with texts and parameters
-
+        Generate embeddings for the provided texts.
+        
+        Parameters:
+            request (EmbeddingRequest): Request containing the texts to embed and optional parameters such as model, dimensions, encoding_format, truncate, normalized, and late_chunking.
+        
         Returns:
-            EmbeddingResponse with embeddings and metadata
-
+            EmbeddingResponse: Response containing embedding vectors, the model used, dimensions, and usage/metadata.
+        
         Raises:
-            httpx.HTTPError: If the API request fails
+            httpx.HTTPError: If the underlying API request fails.
         """
         pass
 
     @abstractmethod
     def get_model_info(self) -> dict[str, Any]:
         """
-        Return information about the configured model.
-
+        Provide metadata for the adapter's configured model.
+        
         Returns:
-            Dictionary with model metadata (name, dimensions, etc.)
+            dict: Dictionary with model metadata, including model name, embedding dimensions, and other provider-specific properties.
         """
         pass

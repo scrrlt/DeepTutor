@@ -25,13 +25,16 @@ class MarkdownParser(BaseComponent):
     async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
         """
         Parse a Markdown file into a Document.
-
-        Args:
-            file_path: Path to the Markdown file
-            **kwargs: Additional arguments
-
+        
+        Parameters:
+            file_path (Union[str, Path]): Path to the Markdown file to parse.
+        
         Returns:
-            Parsed Document
+            Document: Document with `content` set to the file text, `file_path` set to the path string, and `metadata` containing `"filename"` and `"parser"`.
+        
+        Raises:
+            FileNotFoundError: If the specified path does not exist.
+            OSError: If an error occurs while reading the file.
         """
         file_path = Path(file_path)
 

@@ -14,6 +14,11 @@ except ImportError:
 @pytest.mark.integration
 @pytest.mark.timeout(30)
 def test_google_tts_synthesize():
+    """
+    Integration test that verifies Google Cloud Text-to-Speech can synthesize audio for a simple English utterance.
+    
+    Skips the test if no Google service key file is configured via GOOGLE_SERVICE_KEY_FILE or GOOGLE_APPLICATION_CREDENTIALS. Asserts that the synthesized response contains non-empty audio content and, when written to a temporary WAV file, that the file size is greater than zero.
+    """
     key_file = os.getenv("GOOGLE_SERVICE_KEY_FILE") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not key_file or not os.path.exists(key_file):
         pytest.skip("No Google service key file configured")

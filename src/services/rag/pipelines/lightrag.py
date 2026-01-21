@@ -19,23 +19,16 @@ from ..pipeline import RAGPipeline
 
 def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     """
-    Create a pure LightRAG pipeline (text-only, no multimodal).
-
-    This pipeline uses:
-    - PDFParser for document parsing (extracts raw text from PDF/txt/md)
-    - LightRAGIndexer for knowledge graph indexing (text-only, fast)
-      * LightRAG handles chunking, entity extraction, and embedding internally
-      * No separate chunker/embedder needed - LightRAG does it all
-    - LightRAGRetriever for retrieval (uses LightRAG.aquery() directly)
-
-    Performance: Medium speed (~10-15s per document)
-    Use for: Business docs, text-heavy PDFs, when you need knowledge graph
-
-    Args:
-        kb_base_dir: Base directory for knowledge bases
-
+    Create and configure a LightRAG RAGPipeline for text-heavy, text-only documents.
+    
+    The pipeline is configured with a PDFParser, a FixedSizeChunker (chunk_size=512, chunk_overlap=50),
+    an OpenAIEmbedder, a LightRAGIndexer, and a LightRAGRetriever to provide knowledge-graph backed retrieval.
+    
+    Parameters:
+        kb_base_dir (Optional[str]): Base directory for knowledge bases; passed to the indexer and retriever.
+    
     Returns:
-        Configured RAGPipeline
+        RAGPipeline: A configured RAGPipeline instance named "lightrag".
     """
     return (
         RAGPipeline("lightrag", kb_base_dir=kb_base_dir)

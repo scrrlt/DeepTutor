@@ -43,13 +43,13 @@ PROVIDER_KEY_MAP: Mapping[str, list[str]] = {
 
 def _missing_keys(keys: Iterable[str]) -> list[str]:
     """
-    Collect missing environment variables.
-
-    Args:
-        keys: Environment variable names to validate.
-
+    Identify which environment variable names are missing or contain only whitespace.
+    
+    Parameters:
+        keys (Iterable[str]): Environment variable names to check.
+    
     Returns:
-        List of missing variable names.
+        list[str]: Names from `keys` whose environment value is None or empty after trimming.
     """
     missing: list[str] = []
     for key in keys:
@@ -61,13 +61,13 @@ def _missing_keys(keys: Iterable[str]) -> list[str]:
 
 def _invalid_key_formats(keys: Mapping[str, str]) -> list[str]:
     """
-    Collect environment variables that fail expected format checks.
-
-    Args:
-        keys: Mapping of variable names to regex patterns.
-
+    Return the names of environment variables whose current values do not match the provided regex patterns.
+    
+    Parameters:
+        keys (Mapping[str, str]): Mapping of environment variable names to regex pattern strings.
+    
     Returns:
-        List of variable names that fail format validation.
+        list[str]: List of variable names for which a non-empty environment value exists and does not match its pattern. Missing or empty values are ignored.
     """
     invalid: list[str] = []
     for name, pattern in keys.items():
@@ -82,16 +82,16 @@ def _invalid_key_formats(keys: Mapping[str, str]) -> list[str]:
 
 def _get_keys_for_binding(binding: str) -> list[str]:
     """
-    Select the environment keys required for a provider binding.
-
-    Args:
-        binding: Provider binding name.
-
+    Return the list of environment variable names required for the given provider binding.
+    
+    Parameters:
+        binding (str): Provider binding name (case-insensitive); must be a supported provider key.
+    
     Returns:
-        List of environment variable names to validate.
-
+        list[str]: Environment variable names required for the binding.
+    
     Raises:
-        ValueError: If the binding name is empty or not recognized.
+        ValueError: If `binding` is empty or not one of the supported provider keys.
     """
     normalized = binding.strip().lower()
     if not normalized or normalized not in PROVIDER_KEY_MAP:
@@ -101,6 +101,14 @@ def _get_keys_for_binding(binding: str) -> list[str]:
 
 
 def test_required_llm_api_keys_present() -> None:
+    """
+    Verifies that all required LLM API key environment variables for the configured binding are present.
+    
+    Skips the test if the environment variable ENFORCE_LLM_KEYS is not set to "1". The active binding is taken from LLM_BINDING (defaults to "openai"); the test checks the keys required for that binding and fails if any are missing.
+    
+    Raises:
+        AssertionError: If one or more required environment variables are missing; the assertion message lists the missing keys.
+    """
     if os.getenv("ENFORCE_LLM_KEYS") != "1":
         pytest.skip("ENFORCE_LLM_KEYS is not set")
 
@@ -112,6 +120,11 @@ def test_required_llm_api_keys_present() -> None:
 
 
 def test_llm_api_keys_have_expected_format() -> None:
+    """
+    Check that configured LLM provider API key environment variables match their expected formats.
+    
+    Skips the test unless ENFORCE_LLM_KEYS is "1". Reads LLM_BINDING (defaults to "openai") to determine which keys to validate, then asserts all present keys match their regex patterns; on failure lists keys with invalid formats.
+    """
     if os.getenv("ENFORCE_LLM_KEYS") != "1":
         pytest.skip("ENFORCE_LLM_KEYS is not set")
 

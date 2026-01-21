@@ -97,25 +97,29 @@ async def delete_session(session_id: str):
 @router.websocket("/chat")
 async def websocket_chat(websocket: WebSocket):
     """
-    WebSocket endpoint for chat with session and context management.
-
-    Message format:
-    {
-        "message": str,              # User message
-        "session_id": str | null,    # Session ID (null for new session)
-        "history": [...] | null,     # Optional: explicit history override
-        "kb_name": str,              # Knowledge base name (for RAG)
-        "enable_rag": bool,          # Enable RAG retrieval
-        "enable_web_search": bool    # Enable Web Search
-    }
-
-    Response format:
-    - {"type": "session", "session_id": str}           # Session ID (new or existing)
-    - {"type": "status", "stage": str, "message": str} # Status updates
-    - {"type": "stream", "content": str}               # Streaming response chunks
-    - {"type": "sources", "rag": list, "web": list}    # Source citations
-    - {"type": "result", "content": str}               # Final complete response
-    - {"type": "error", "message": str}                # Error message
+    Handle a WebSocket chat connection that manages sessions, optional retrieval (RAG) and web search, and streams agent responses.
+    
+    Accepts JSON messages with fields:
+    - message (str): user message (required)
+    - session_id (str|None): existing session id or null to create a new session
+    - history (list|None): optional explicit role/content history to override stored session history
+    - kb_name (str): knowledge base name for RAG
+    - enable_rag (bool): enable knowledge-base retrieval
+    - enable_web_search (bool): enable web search
+    
+    Sends JSON messages to the client with these types:
+    - {"type": "session", "session_id": str}: current or newly created session ID
+    - {"type": "status", "stage": str, "message": str}: progress/status updates (e.g., "rag", "web", "generating")
+    - {"type": "stream", "content": str}: incremental streaming chunks of the assistant response
+    - {"type": "sources", "rag": list, "web": list}: citation sources from RAG and/or web search
+    - {"type": "result", "content": str}: final complete assistant response
+    - {"type": "error", "message": str}: user-facing error message
+    
+    Behavioral notes:
+    - If a provided session_id is missing, a new session is created with a title derived from the message.
+    - If explicit history is provided it replaces the session-stored history for the current request.
+    - The assistant response is streamed to the client and the final response (and any sources) are persisted to the session.
+    - Validation: an empty or missing "message" field results in an error message sent to the client.
     """
     await websocket.accept()
 
@@ -145,17 +149,17 @@ async def websocket_chat(websocket: WebSocket):
 
     def _get_or_create_session(session_id: str | None, message: str, kb_name: str, enable_rag: bool, enable_web_search: bool):
         """
-        Get an existing session or create a new one if it doesn't exist.
-
-        Args:
-            session_id: Existing session ID or None.
-            message: User message to generate session title.
-            kb_name: Knowledge base name.
-            enable_rag: Enable RAG retrieval.
-            enable_web_search: Enable web search.
-
+        Return an existing session for the given ID or create a new session configured with the provided settings.
+        
+        Parameters:
+            session_id (str | None): Existing session ID, or None to force creation of a new session.
+            message (str): User message used to derive a session title when creating a new session.
+            kb_name (str): Knowledge-base name to store in the session settings.
+            enable_rag (bool): Whether retrieval-augmented generation (RAG) is enabled for the session.
+            enable_web_search (bool): Whether web search is enabled for the session.
+        
         Returns:
-            Tuple of session and session ID.
+            tuple: (session, session_id) where `session` is the session object and `session_id` is its ID.
         """
         if session_id:
             session = session_manager.get_session(session_id)
