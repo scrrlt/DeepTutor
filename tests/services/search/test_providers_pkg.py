@@ -35,4 +35,3 @@ def test_get_provider_returns_instance(monkeypatch):
 
     resp = p.search("hello")
     assert resp.provider == "perplexity"
-
