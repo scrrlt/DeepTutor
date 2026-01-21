@@ -23,8 +23,8 @@ DEFAULT_CLOSE_MARKERS: Tuple[str, ...] = ("</think>",)
 # --- Configuration ---
 
 # Frozen provider capabilities.
-# Type hint corrected to Mapping to reflect immutable nature of MappingProxyType.
-PROVIDER_CAPABILITIES: Mapping[str, Mapping[str, Any]] = MappingProxyType(
+# Type hint uses MappingProxyType to reflect the actual immutable implementation.
+PROVIDER_CAPABILITIES: MappingProxyType[str, MappingProxyType[str, Any]] = MappingProxyType(
     {
         "openai": MappingProxyType(
             {

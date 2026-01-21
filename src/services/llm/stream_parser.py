@@ -103,13 +103,14 @@ class StreamParser:
         max_marker_len = max((len(m) for m in markers), default=0)
         check_len = min(len(text), max_marker_len)
 
-        # Scan suffixes from longest to shortest (1)
-        # We need to find the longest suffix that IS a prefix of a marker.
-        # Actually, we strictly need to find if ANY suffix is a prefix.
-        # If so, we must hold back from that point onwards.
+        # Scan suffixes from longest to shortest.
+        # We are looking for the longest suffix of `text` that is also a prefix
+        # of any marker. Such a suffix may be the start of a marker that
+        # continues in future chunks, so we must keep it in the buffer and only
+        # emit the content before it.
 
         # Iterate backwards from the end of the string
-        # text: "ABC<t", len=5. check range: 1..2 (assuming max marker 2+)
+        # Example: text "ABC<t", len=5. For max_marker_len=2, check range: 1..2
         for i in range(check_len, 0, -1):
             suffix = text[-i:]
             # Check if this suffix starts any marker
@@ -182,11 +183,11 @@ class StreamParser:
                     # Case 3: Full Close Marker Found
                     # The content before idx is the end of the thought.
                     thought_chunk_len = idx
-
-                    # Check limits (Audit purposes only, we discard anyway)
+                    # Soft limit check for auditing/monitoring only; content is discarded regardless.
                     if self.current_thought_size + thought_chunk_len > self.MAX_THOUGHT_SIZE:
                         logger.warning(
-                            f"Thought block exceeded {self.MAX_THOUGHT_SIZE} bytes. "
+                            f"Thought block exceeded soft limit of {self.MAX_THOUGHT_SIZE} bytes "
+                            f"before close marker. Content has been discarded; logging for audit only."
                             f"Truncating internal tracking."
                         )
 
