@@ -157,9 +157,9 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
     from jinja2 import BaseLoader, Environment
 
     # Disable autoescape for chat templates - these contain system prompts and user messages
-    # that need to preserve formatting like newlines and special characters.
+    # that must preserve formatting and characters like '<' and '>' used in prompt structures.
     # Input validation is handled at the API layer before reaching this function.
-    env = Environment(loader=BaseLoader(), autoescape=True)  # Enable autoescaping for security
+    env = Environment(loader=BaseLoader(), autoescape=False)  # Preserve original characters for LLM prompts
     return env.from_string(template).render(**context)
 
 

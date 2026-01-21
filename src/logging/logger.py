@@ -249,13 +249,14 @@ class Logger:
             self.logger.removeHandler(handler)
             handler.close()
         self._task_handlers.clear()
+
     def _log(
         self,
         level: int,
         message: str,
         display_level: Optional[str] = None,
         **kwargs: Any,
-    ): 
+    ):
         """Internal logging method with extra attributes."""
         extra = {
             "module_name": self.name,

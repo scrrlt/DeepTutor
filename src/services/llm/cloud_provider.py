@@ -494,14 +494,111 @@ async def _openai_stream(
                     provider=binding or "openai",
                 )
 
-            # Track thinking block state for streaming
-            in_thinking_block = False
-            thinking_buffer = ""
-
             # Per-stream context object to hold partial buffers
             from types import SimpleNamespace
 
-            _stream_context = SimpleNamespace()
+            _stream_context = SimpleNamespace(
+                yield_buffer="",
+                thinking_buffer="",
+                in_thinking_block=False,
+            )
+
+            def _ends_with_partial(buf: str, markers: tuple[str, ...]) -> bool:
+                for m in markers:
+                    for k in range(1, len(m)):
+                        if buf.endswith(m[:k]):
+                            return True
+                return False
+
+            def _find_first_marker(buf: str, markers: tuple[str, ...]):
+                first_idx = None
+                first_marker = None
+                for m in markers:
+                    idx = buf.find(m)
+                    if idx != -1 and (first_idx is None or idx < first_idx):
+                        first_idx = idx
+                        first_marker = m
+                return first_idx, first_marker
+
+            def _process_buffers(open_markers: tuple[str, ...], close_markers: tuple[str, ...], binding: str | None = None, model: str | None = None):
+                """Process buffers in _stream_context and yield ready outputs."""
+                while True:
+                    yield_buffer = _stream_context.yield_buffer
+                    thinking_buffer = _stream_context.thinking_buffer
+                    in_thinking_block = _stream_context.in_thinking_block
+
+                    progressed = False
+
+                    if not in_thinking_block:
+                        idx, marker = _find_first_marker(yield_buffer, open_markers)
+
+                        # If buffer ends with a partial open marker, wait for more
+                        if _ends_with_partial(yield_buffer, open_markers):
+                            break
+
+                        if idx is not None:
+                            # Yield text before the marker
+                            if idx > 0:
+                                pre = yield_buffer[:idx]
+                                if pre:
+                                    yield pre
+                            # Move rest into thinking buffer
+                            thinking_buffer = yield_buffer[idx:]
+                            yield_buffer = ""
+                            in_thinking_block = True
+
+                            # If closed already in same buffer, process immediately
+                            close_idx, close_marker = _find_first_marker(thinking_buffer, close_markers)
+                            if close_idx is not None:
+                                after = thinking_buffer.split(close_marker, 1)[1]
+                                cleaned = clean_thinking_tags(thinking_buffer, binding, model)
+                                if cleaned:
+                                    yield cleaned
+                                thinking_buffer = ""
+                                in_thinking_block = False
+                                yield_buffer = after
+                                progressed = True
+                                _stream_context.yield_buffer = yield_buffer
+                                _stream_context.thinking_buffer = thinking_buffer
+                                _stream_context.in_thinking_block = in_thinking_block
+                                continue
+                        else:
+                            # No marker, yield whole buffer
+                            if yield_buffer:
+                                yield yield_buffer
+                                yield_buffer = ""
+                    else:
+                        # inside thinking block
+                        thinking_buffer += yield_buffer
+                        yield_buffer = ""
+
+                        # If ends with partial close marker, wait for more
+                        if _ends_with_partial(thinking_buffer, close_markers):
+                            break
+
+                        close_idx, close_marker = _find_first_marker(thinking_buffer, close_markers)
+                        if close_idx is not None:
+                            after = thinking_buffer.split(close_marker, 1)[1]
+                            cleaned = clean_thinking_tags(thinking_buffer, binding, model)
+                            if cleaned:
+                                yield cleaned
+                            thinking_buffer = ""
+                            in_thinking_block = False
+                            yield_buffer = after
+                            progressed = True
+                            _stream_context.yield_buffer = yield_buffer
+                            _stream_context.thinking_buffer = thinking_buffer
+                            _stream_context.in_thinking_block = in_thinking_block
+                            continue
+                        # otherwise, still inside thinking block and no close yet
+                        break
+
+                    _stream_context.yield_buffer = yield_buffer
+                    _stream_context.thinking_buffer = thinking_buffer
+                    _stream_context.in_thinking_block = in_thinking_block
+
+                    if not progressed:
+                        break
 
             async for line in resp.content:
                 line_str = line.decode("utf-8").strip()
@@ -511,6 +608,19 @@ async def _openai_stream(
                 data_str = line_str[5:].strip()
                 if data_str == "[DONE]":
                     break
+
+            # End of streaming loop - ensure any remaining buffers are emitted
+            if "_stream_context" in locals():
+                yield_buffer = getattr(_stream_context, "yield_buffer", "")
+                thinking_buffer = getattr(_stream_context, "thinking_buffer", "")
+                in_thinking_block = getattr(_stream_context, "in_thinking_block", False)
+
+                if in_thinking_block and thinking_buffer:
+                    cleaned = clean_thinking_tags(thinking_buffer, binding, model)
+                    if cleaned:
+                        yield cleaned
+                elif yield_buffer:
+                    yield yield_buffer
 
                 try:
                     chunk_data = cast(dict[str, object], json.loads(data_str))
@@ -531,74 +641,11 @@ async def _openai_stream(
                             open_markers = ("<think>", "◣", "꽁")
                             close_markers = ("</think>", "◢", "꽁")
 
-                            # Stateful buffering to handle partial tags across chunks
-                            if not hasattr(_stream_context, "yield_buffer"):
-                                _stream_context.yield_buffer = ""
-                            if not hasattr(_stream_context, "thinking_buffer"):
-                                _stream_context.thinking_buffer = thinking_buffer
-                            if not hasattr(_stream_context, "in_thinking_block"):
-                                _stream_context.in_thinking_block = in_thinking_block
+                            # Append content and let the shared processor handle it
+                            _stream_context.yield_buffer += content
 
-                            yield_buffer = _stream_context.yield_buffer
-                            thinking_buffer = _stream_context.thinking_buffer
-                            in_thinking_block = _stream_context.in_thinking_block
-
-                            yield_buffer += content
-
-                            def _ends_with_partial(buf: str, markers: tuple[str, ...]) -> bool:
-                                for m in markers:
-                                    for k in range(1, len(m)):
-                                        if buf.endswith(m[:k]):
-                                            return True
-                                return False
-
-                            def _find_first_marker(buf: str, markers: tuple[str, ...]):
-                                first_idx = None
-                                first_marker = None
-                                for m in markers:
-                                    idx = buf.find(m)
-                                    if idx != -1 and (first_idx is None or idx < first_idx):
-                                        first_idx = idx
-                                        first_marker = m
-                                return first_idx, first_marker
-
-                            processed = True
-                            while processed:
-                                processed = False
-                                if not in_thinking_block:
-                                    idx, marker = _find_first_marker(yield_buffer, open_markers)
-                                    # If buffer ends with a partial open marker, wait for more
-                                    if _ends_with_partial(yield_buffer, open_markers):
-                                        break
-
-                                    if idx is not None:
-                                        # Yield text before the marker
-                                        if idx > 0:
-                                            pre = yield_buffer[:idx]
-                                            if pre:
-                                                yield pre
-                                        # Move rest into thinking buffer
-                                        thinking_buffer = yield_buffer[idx:]
-                                        yield_buffer = ""
-                                        in_thinking_block = True
-
-                                        # If closed already in same buffer, process immediately
-                                        close_idx, close_marker = _find_first_marker(thinking_buffer, close_markers)
-                                        if close_idx is not None:
-                                            after = thinking_buffer.split(close_marker, 1)[1]
-                                            cleaned = clean_thinking_tags(thinking_buffer, binding, model)
-                                            if cleaned:
-                                                yield cleaned
-                                            thinking_buffer = ""
-                                            in_thinking_block = False
-                                            yield_buffer = after
-                                            processed = True
-                                            continue
-                                    else:
-                                        # No marker, yield whole buffer
-                                        if yield_buffer:
-                                            yield yield_buffer
-                                            yield_buffer = ""
+                            for out in _process_buffers(open_markers, close_markers, binding, model):
+                                yield out                                            yield_buffer = ""
                                 else:
                                     # inside thinking block
                                     thinking_buffer += yield_buffer
