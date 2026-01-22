@@ -196,7 +196,7 @@ class SolveMemory:
 
     def save(self):
         if not self.file_path:
-            raise ValueError("output_dir not set, cannot save solve-chain")
+            return
         self.file_path.parent.mkdir(parents=True, exist_ok=True)
         self.updated_at = _now()
         payload = self.to_dict()

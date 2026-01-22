@@ -194,7 +194,7 @@ def parse_language(language: Any) -> str:
         Standardized language code: 'zh' or 'en', defaults to 'zh'
     """
     if not language:
-        return "en"
+        return "zh"
 
     if isinstance(language, str):
         lang_lower = language.lower()

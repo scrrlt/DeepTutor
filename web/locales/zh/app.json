@@ -1,7 +1,6 @@
 {
   "language.english": "English",
   "language.chinese": "中文",
-
   "Start": "开始",
   "Learn": "学习",
   "Research": "研究",
@@ -58,7 +57,6 @@
   "Knowledge Base Name": "知识库名称",
   "Notebooks": "笔记本",
   "Settings": "设置",
-
   "Loading": "加载中...",
   "Save": "保存",
   "Cancel": "取消",
@@ -69,7 +67,6 @@
   "View All": "查看全部",
   "Refresh": "刷新",
   "Create": "创建",
-
   "Overview": "概览",
   "LLM": "LLM",
   "Embedding": "Embedding",
@@ -170,7 +167,6 @@
   "Error loading data": "加载数据出错",
   "Failed to load settings": "加载设置失败",
   "Failed to connect to backend": "连接后端失败",
-
   "Overview of your recent learning activities": "您最近的学习活动概览",
   "Recent Activity": "最近活动",
   "Loading activities...": "加载活动中...",
@@ -191,7 +187,6 @@
   "Quick Actions": "快捷操作",
   "Ask a Question": "提问问题",
   "Generate Quiz": "生成测验",
-
   "Home": "首页",
   "History": "历史记录",
   "Welcome to DeepTutor": "欢迎使用 DeepTutor",
@@ -256,7 +251,6 @@
   "Save Selected": "保存已选",
   "Generate Ideas ({n} items)": "生成创意（{n} 条）",
   "Generate Ideas (Text Only)": "生成创意（仅文字）",
-
   "Chat History": "聊天历史",
   "Solver History": "解题历史",
   "All Activities": "所有活动",
@@ -274,7 +268,6 @@
   "Close": "关闭",
   "messages": "条消息",
   "Failed to load session": "加载会话失败",
-
   "Add to Notebook": "保存到笔记本",
   "Added Successfully!": "保存成功！",
   "Record Preview": "记录预览",
@@ -290,7 +283,6 @@
   "{n} notebooks selected": "已选择 {n} 个笔记本",
   "Select at least one notebook": "请至少选择一个笔记本",
   "Saving...": "保存中…",
-
   "Import from Notebooks": "从笔记本导入",
   "Select content from your notebooks to import": "从你的笔记本中选择内容导入",
   "No notebooks found": "未找到笔记本",
@@ -298,7 +290,6 @@
   "No records": "暂无记录",
   "Selected {n} items": "已选择 {n} 项",
   "Import Selected": "导入已选",
-
   "Backend Service": "后端服务",
   "LLM Model": "LLM 模型",
   "Embeddings": "向量模型",
@@ -311,7 +302,6 @@
   "Unknown": "未知",
   "Testing...": "测试中…",
   "Test failed": "测试失败",
-
   "Link Folder": "关联文件夹",
   "Link Local Folder": "关联本地文件夹",
   "Folder Path": "文件夹路径",
@@ -320,7 +310,6 @@
   "New and modified files will be automatically detected when you sync.": "同步时将自动检测新增与修改的文件。",
   "Folder linked successfully!": "文件夹关联成功！",
   "Failed to link folder": "关联文件夹失败",
-
   "Activity Details": "活动详情",
   "Type": "类型",
   "Final Answer": "最终答案",
@@ -336,7 +325,6 @@
   "Report Preview": "报告预览",
   "N/A": "无",
   "No question content": "无题目内容",
-
   "Workspace": "工作区",
   "Learn & Research": "学习与研究",
   "✨ Your description here": "✨ 在此输入你的描述",
@@ -345,7 +333,6 @@
   "View on GitHub": "在 GitHub 查看",
   "KB": "知识库",
   "Solution image": "解题图片",
-
   "Count:": "数量：",
   "Initializing": "初始化中",
   "Generating Search Queries": "生成搜索查询",
@@ -363,7 +350,6 @@
   "Waiting for logs...": "等待日志…",
   "Mimic Exam Mode": "仿真试卷模式",
   "Generating questions based on reference exam paper": "正在基于参考试卷生成题目",
-
   "Learning Assistant": "学习助手",
   "Have any questions? Feel free to ask...": "有问题吗？欢迎随时提问…",
   "Learning Summary": "学习总结",
@@ -388,7 +374,6 @@
   "Switch to wide sidebar (3:1)": "切换为宽侧栏（3:1）",
   "Select a notebook, and the system will generate a personalized learning plan. Through interactive pages and intelligent Q&A, you'll gradually master all the content.": "请选择一个笔记本，系统将生成个性化学习计划。通过交互页面与智能问答，你将逐步掌握全部内容。",
   "Select notebook records or describe your research topic": "选择笔记记录或直接描述你的研究主题",
-
   "Manage and explore your educational content repositories.": "管理与探索你的教育内容仓库。",
   "RAG-Anything": "RAG-Anything",
   "Documents": "文档",
@@ -421,8 +406,6 @@
   "Activity Log": "活动日志",
   "Waiting for logic execution...": "等待推理执行…",
   "gpt-4o": "gpt-4o",
-  "Failed to link folder": "关联文件夹失败",
-  "Folder linked successfully!": "文件夹关联成功！",
   "Link a local folder to": "关联本地文件夹到",
   ". Documents in the folder will be processed and added to this knowledge base.": "。文件夹内的文档将被处理并添加到该知识库。",
   "C:\\Users\\name\\Documents\\papers": "C:\\Users\\name\\Documents\\papers",
@@ -464,15 +447,12 @@
   "Metadata": "元数据",
   "No records yet": "暂无记录",
   "Add records from Solver, Question, Research, or Co-Writer": "从解题、出题、研究或智能写作中添加记录",
-  "Select a notebook to view records": "请选择一个笔记本查看记录",
   "Select a record to view details": "请选择一条记录查看详情",
   "Create New Notebook": "新建笔记本",
-  "Name": "名称",
   "Description (Optional)": "描述（可选）",
   "Color": "颜色",
   "Edit Notebook": "编辑笔记本",
   "Description": "描述",
-  "Save Changes": "保存更改",
   "Delete Notebook?": "删除笔记本？",
   "Import Records": "导入记录",
   "Source Notebook": "来源笔记本",
@@ -493,7 +473,6 @@
   "Easy": "简单",
   "Medium": "中等",
   "Hard": "困难",
-  "Type": "类型",
   "Multiple Choice": "选择题",
   "Written": "主观题",
   "Upload Exam Paper (PDF)": "上传试卷（PDF）",

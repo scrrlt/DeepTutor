@@ -13,21 +13,32 @@ from src.utils.config_manager import ConfigError, ConfigManager
 def config_manager(tmp_path):
     """
     Provides a ConfigManager instance with a temporary project root.
+    Resets the singleton instance before each test.
     """
-    ConfigManager.reset_for_tests()
+    # Reset the singleton instance to ensure test isolation
+    ConfigManager._instance = None
+    ConfigManager._config_cache = {}
+
     manager = ConfigManager(project_root=tmp_path)
     (tmp_path / "config").mkdir()
     yield manager
-    ConfigManager.reset_for_tests()
+
+    # Clean up after the test
+    ConfigManager._instance = None
+    ConfigManager._config_cache = {}
 
 
 def test_config_manager_singleton(tmp_path):
     """
     Tests that the ConfigManager is a singleton.
     """
+    # Reset before test
+    ConfigManager._instance = None
     cm1 = ConfigManager(project_root=tmp_path)
     cm2 = ConfigManager(project_root=tmp_path)
     assert cm1 is cm2
+    # Reset after test
+    ConfigManager._instance = None
 
 
 def test_load_config(config_manager: ConfigManager, tmp_path):

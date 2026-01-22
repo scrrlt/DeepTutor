@@ -70,6 +70,16 @@ class ConfigManager:
             return yaml.safe_load(file) or {}
 
     def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+        """Recursively merge source mapping into target.
+
+        Args:
+            target: Mapping to mutate in place.
+            source: Mapping to merge into target.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
         for key, value in source.items():
             if isinstance(value, dict) and isinstance(target.get(key), dict):
                 self._deep_update(target[key], value)
@@ -77,6 +87,15 @@ class ConfigManager:
                 target[key] = value
 
     def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
+        """Validate and migrate raw config data.
+
+        Args:
+            raw: Raw configuration mapping from disk.
+        Returns:
+            Validated configuration mapping.
+        Raises:
+            ConfigError: When validation fails.
+        """
         merged: dict[str, Any] = {}
         self._deep_update(merged, DEFAULTS)
         self._deep_update(merged, raw)
@@ -202,7 +221,11 @@ class ConfigManager:
         parsed_env.update(self._load_env_file(local_path))
 
         def _get(key: str, default: str = "") -> str:
-            return str(parsed_env.get(key) or os.environ.get(key, default))
+            if key in parsed_env:
+                return str(parsed_env[key])
+            if key in os.environ:
+                return str(os.environ[key])
+            return str(default)
 
         return {
             "model": _get(
@@ -226,7 +249,7 @@ class ConfigManager:
         parsed_env = self._load_env_file(env_path)
         parsed_env.update(self._load_env_file(local_path))
 
-        missing = [key for key in keys if not (parsed_env.get(key) or os.environ.get(key))]
+        missing = [key for key in keys if key not in parsed_env and key not in os.environ]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})
         return {"missing": missing}

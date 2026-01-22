@@ -201,6 +201,7 @@ async def websocket_chat(websocket: WebSocket):
                 kb_name = data.get("kb_name", "")
                 enable_rag = data.get("enable_rag", False)
                 enable_web_search = data.get("enable_web_search", False)
+                send_status = data.get("send_status", True)
 
                 if not message:
                     await websocket.send_json({"type": "error", "message": "Message is required"})
@@ -243,7 +244,7 @@ async def websocket_chat(websocket: WebSocket):
                 )
 
                 # Send status updates
-                if enable_rag and kb_name:
+                if send_status and enable_rag and kb_name:
                     await websocket.send_json(
                         {
                             "type": "status",
@@ -252,7 +253,7 @@ async def websocket_chat(websocket: WebSocket):
                         }
                     )
 
-                if enable_web_search:
+                if send_status and enable_web_search:
                     await websocket.send_json(
                         {
                             "type": "status",
@@ -261,17 +262,17 @@ async def websocket_chat(websocket: WebSocket):
                         }
                     )
 
-                await websocket.send_json(
-                    {
-                        "type": "status",
-                        "stage": "generating",
-                        "message": "Generating response...",
-                    }
-                )
+                if send_status:
+                    await websocket.send_json(
+                        {
+                            "type": "status",
+                            "stage": "generating",
+                            "message": "Generating response...",
+                        }
+                    )
 
                 # Process with streaming
                 full_response = ""
-                sources: dict[str, list[Any]] = {"rag": [], "web": []}
                 sources: dict[str, list[Any]] = {"rag": [], "web": []}
 
                 stream_generator = await agent.process(
@@ -286,7 +287,8 @@ async def websocket_chat(websocket: WebSocket):
                 # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
                 if hasattr(stream_generator, "__aiter__"):
                     async for chunk_data in stream_generator:
-                        if chunk_data["type"] == "chunk":
+                        chunk_type = chunk_data.get("type")
+                        if chunk_type in ("chunk", "stream"):
                             await websocket.send_json(
                                 {
                                     "type": "stream",
@@ -294,22 +296,8 @@ async def websocket_chat(websocket: WebSocket):
                                 }
                             )
                             full_response += chunk_data["content"]
-                        elif chunk_data["type"] == "complete":
-                            full_response = chunk_data["response"]
-                            sources = chunk_data.get("sources", {"rag": [], "web": []})
-                # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
-                if hasattr(stream_generator, "__aiter__"):
-                    async for chunk_data in stream_generator:
-                        if chunk_data["type"] == "chunk":
-                            await websocket.send_json(
-                                {
-                                    "type": "stream",
-                                    "content": chunk_data["content"],
-                                }
-                            )
-                            full_response += chunk_data["content"]
-                        elif chunk_data["type"] == "complete":
-                            full_response = chunk_data["response"]
+                        elif chunk_type in ("complete", "result"):
+                            full_response = chunk_data.get("response", full_response)
                             sources = chunk_data.get("sources", {"rag": [], "web": []})
 
                 # Send sources if any

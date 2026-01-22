@@ -16,6 +16,7 @@ from .exceptions import (
     LLMAuthenticationError,
     LLMError,
     LLMRateLimitError,
+    LLMTimeoutError,
     ProviderContextWindowError,
 )
 
@@ -90,8 +91,17 @@ except ImportError:
     pass
 
 
-def map_error(exc: Exception, provider: str | None = None) -> LLMError:
+def map_error(exc: Exception, provider: str | None = None) -> Exception:
     """Map provider-specific errors to unified internal exceptions."""
+    if isinstance(exc, LLMError):
+        return exc
+
+    if isinstance(exc, (KeyError, TypeError, AttributeError, ValueError)):
+        return exc
+
+    if isinstance(exc, TimeoutError):
+        return LLMTimeoutError(str(exc), provider=provider)
+
     # Heuristic check for status codes before rules
     status_code = getattr(exc, "status_code", None)
     if status_code == 401:

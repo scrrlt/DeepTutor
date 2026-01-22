@@ -30,7 +30,7 @@ from src.config.settings import settings
 from src.logging import LLMStats, get_logger
 from src.services.config import get_agent_params
 from src.services.llm import get_token_limit_kwargs, supports_response_format
-from src.services.llm.config import LLMConfig, get_llm_config
+from src.services.llm.config import LLMConfig, get_llm_config, initialize_environment
 from src.services.llm.exceptions import LLMConfigError
 from src.services.llm.factory import LLMFactory
 from src.services.prompt import get_prompt_manager
@@ -102,9 +102,11 @@ class BaseAgent(ABC):
         self.agent_config = self.config.get("agents", {}).get(agent_name, {})
         self.enabled = self.agent_config.get("enabled", True)
 
-        # Hardened LLM config resolution
-        llm_cfg = config if isinstance(config, LLMConfig) else None
-        if llm_cfg is None:
+        initialize_environment()
+
+        if isinstance(config, LLMConfig):
+            llm_cfg = config
+        else:
             try:
                 llm_cfg = get_llm_config()
             except LLMConfigError:
@@ -138,6 +140,13 @@ class BaseAgent(ABC):
             llm_cfg = llm_cfg.model_copy(update=updates)
 
         self.llm_config = llm_config = llm_cfg
+
+        if self.llm_config.binding in {"openai", "azure_openai", "gemini"}:
+            api_key_value = self.llm_config.get_api_key()
+            if api_key_value and not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = api_key_value
+            if self.llm_config.base_url and not os.getenv("OPENAI_BASE_URL"):
+                os.environ["OPENAI_BASE_URL"] = self.llm_config.base_url
 
         # Provider instantiation via factory
         self.provider = LLMFactory.get_provider(self.llm_config)

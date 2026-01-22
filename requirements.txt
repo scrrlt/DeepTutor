@@ -1,7 +1,7 @@
 # ============================================
 # DeepTutor Python Dependencies
 # ============================================
-# Python >= 3.10 required
+# Python >= 3.12 required
 # Install: pip install -r requirements.txt
 
 # ============================================
@@ -24,6 +24,7 @@ aiohttp>=3.9.0
 redis>=5.0.0
 httpx>=0.27.0
 urllib3>=2.2.1
+json-repair>=0.35.0
 
 # ============================================
 # Async support

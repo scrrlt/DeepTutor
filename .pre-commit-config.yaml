@@ -43,7 +43,7 @@ repos:
     rev: v0.14.7
     hooks:
       - id: ruff
-        args: [--quiet]
+        args: [--fix, --quiet]
 
       - id: ruff-format
         args: [--quiet]

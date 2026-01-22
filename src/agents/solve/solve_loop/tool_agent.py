@@ -4,6 +4,7 @@ ToolAgent - Tool executor
 Responsible for reading tool calls in solve-chain, actually executing tools and producing summary
 """
 
+import importlib
 from pathlib import Path
 import re
 import sys
@@ -15,9 +16,8 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
-from src.tools.code_executor import run_code
-from src.tools.rag_tool import rag_search
-from src.tools.web_search import web_search
+import src.tools.code_executor as code_executor
+import src.tools.rag_tool as rag_tool
 
 from ..memory import CitationMemory, SolveChainStep, SolveMemory
 from ..memory.solve_memory import ToolCallRecord
@@ -245,7 +245,11 @@ Rules:
         query = record.query
 
         if tool_type == "rag_naive":
-            result = await rag_search(query=query, kb_name=kb_name, mode="naive")
+            result = await rag_tool.rag_search(
+                query=query,
+                kb_name=kb_name,
+                mode="naive",
+            )
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
             metadata = {
@@ -256,7 +260,11 @@ Rules:
             return answer, metadata
 
         if tool_type == "rag_hybrid":
-            result = await rag_search(query=query, kb_name=kb_name, mode="hybrid")
+            result = await rag_tool.rag_search(
+                query=query,
+                kb_name=kb_name,
+                mode="hybrid",
+            )
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
             metadata = {
@@ -267,7 +275,12 @@ Rules:
             return answer, metadata
 
         if tool_type == "web_search":
-            result = web_search(query=query, output_dir=output_dir, verbose=verbose)
+            web_search_module = importlib.import_module("src.tools.web_search")
+            result = web_search_module.web_search(
+                query=query,
+                output_dir=output_dir,
+                verbose=verbose,
+            )
             answer = result.get("answer") or result.get("summary") or ""
             used_citation_ids = self._extract_answer_citations(answer)
             filtered_citations = self._select_web_citations(used_citation_ids, result)
@@ -296,7 +309,7 @@ Rules:
 
             code = await self._generate_code_from_intent(query)
 
-            exec_result = await run_code(
+            exec_result = await code_executor.run_code(
                 language="python",
                 code=code,
                 timeout=self.agent_config.get("code_timeout", 20),

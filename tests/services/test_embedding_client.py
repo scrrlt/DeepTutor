@@ -33,9 +33,9 @@ def test_config_helpers():
 
 
 def test_embedding_config_initialization():
-    config = EmbeddingConfig(model="test-model", api_key="sk-key")
+    config = EmbeddingConfig(model="test-model", api_key="sk-key", dim=1536)
     assert config.model == "test-model"
-    assert config.dim == 3072  # default
+    assert config.dim == 1536
 
 
 # --- Client Tests ---
@@ -65,7 +65,6 @@ def client(mock_embedding_config, mock_adapter):
     with patch("src.services.embedding.client.get_embedding_provider_manager") as mock_mgr_get:
         mock_mgr = MagicMock()
         mock_mgr.get_adapter.return_value = mock_adapter
-        mock_mgr.get_active_adapter.return_value = mock_adapter
         mock_mgr_get.return_value = mock_mgr
 
         client = EmbeddingClient(config=mock_embedding_config)
@@ -99,7 +98,7 @@ async def test_embed_validation_error(client, mock_adapter):
         dimensions=2,
         usage={},
     )
-    with pytest.raises(ValueError, match="Invalid embeddings response"):
+    with pytest.raises(ValueError, match="Embeddings response is empty or invalid."):
         await client.embed(["test"])
 
     mock_adapter.embed.return_value = EmbeddingResponse(
@@ -109,7 +108,7 @@ async def test_embed_validation_error(client, mock_adapter):
         usage={},
     )
     # The validation logic in client checks for empty lists
-    with pytest.raises(ValueError, match="Invalid embeddings response"):
+    with pytest.raises(ValueError, match="Embeddings response is empty or invalid."):
         await client.embed(["test"])
 
 

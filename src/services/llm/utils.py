@@ -56,13 +56,13 @@ V1_SUFFIX_PORTS = {
 
 
 def is_local_llm_server(base_url: str, allow_private: bool | None = None) -> bool:
-    """
-    Determine whether a URL points to a local LLM server.
+    """Determine whether a URL points to a local LLM server.
 
     Args:
         base_url: URL to inspect.
-        allow_private: Optional override to treat private IPs as local.
-
+        allow_private: Optional override to treat private IPs as local. When
+            unset, the LLM_TRUST_PRIVATE_AS_LOCAL or LLM_TREAT_PRIVATE_AS_LOCAL
+            environment variables control this behavior.
     Returns:
         True when the URL looks local.
     """
@@ -70,7 +70,9 @@ def is_local_llm_server(base_url: str, allow_private: bool | None = None) -> boo
         return False
 
     if allow_private is None:
-        env_value = os.environ.get("LLM_TREAT_PRIVATE_AS_LOCAL")
+        env_value = os.environ.get("LLM_TRUST_PRIVATE_AS_LOCAL")
+        if env_value is None:
+            env_value = os.environ.get("LLM_TREAT_PRIVATE_AS_LOCAL")
         if env_value is not None:
             allow_private = env_value.strip().lower() in ("1", "true", "yes")
 
@@ -147,11 +149,17 @@ def clean_thinking_tags(
     binding: str | None = None,
     model: str | None = None,
 ) -> str:
-    """Remove <think> tags from model output."""
+    """Remove thinking tags from model output.
+
+    Strips <think> blocks and unicode reasoning markers (◣...◢, 꽁...꽁).
+    """
     if not content:
         return ""
 
-    pattern = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+    pattern = re.compile(
+        r"(?:<think>.*?</think>|◣.*?◢|꽁.*?꽁)",
+        re.DOTALL | re.IGNORECASE,
+    )
     cleaned = re.sub(pattern, "", content)
     return cleaned.strip()
 
@@ -211,20 +219,34 @@ def extract_response_content(message: Any) -> str:
     if isinstance(message, str):
         return message
 
+    def _extract_parts(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, Mapping):
+            for key in ("text", "content", "value"):
+                if key in value:
+                    return _extract_parts(value.get(key))
+            return []
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            parts: list[str] = []
+            for item in value:
+                parts.extend(_extract_parts(item))
+            return parts
+        return [str(value)]
+
     if isinstance(message, Mapping):
         content = message.get("content")
-        if isinstance(content, list):
-            parts: list[str] = []
-            for part in content:
-                if isinstance(part, Mapping) and "text" in part:
-                    parts.append(str(part["text"]))
-                elif isinstance(part, str):
-                    parts.append(part)
-            return "".join(parts)
-        if content is not None:
-            return str(content)
-        if "text" in message:
-            return str(message["text"])
+        if not content:
+            content = (
+                message.get("text")
+                or message.get("reasoning_content")
+                or message.get("reasoning")
+                or message.get("thought")
+            )
+        parts = _extract_parts(content)
+        return "".join(parts) if parts else ""
 
     return str(message)
 

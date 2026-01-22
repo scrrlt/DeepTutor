@@ -16,7 +16,9 @@ from typing import Any
 
 import yaml
 
+from src.config.constants import PROJECT_ROOT
 from src.logging import get_logger
+from src.services.config.loader import load_config_with_main_async
 
 from ...services.config import parse_language
 from .analysis_loop import InvestigateAgent, NoteAgent
@@ -123,8 +125,6 @@ class MainSolver:
         if config_path is None:
             project_root = Path(__file__).parent.parent.parent.parent
             # Load main.yaml (solve_config.yaml is optional and will be merged if exists)
-            from ...services.config.loader import load_config_with_main_async
-
             full_config = await load_config_with_main_async("main.yaml", project_root)
 
             # Extract solve-specific config and build validator-compatible structure
@@ -180,12 +180,6 @@ class MainSolver:
             # Note: log_dir and performance_log_dir are now in paths section from main.yaml
             # Only override if explicitly needed
 
-        # Validate config
-        validator = ConfigValidator()
-        is_valid, errors, warnings = validator.validate(self.config)
-        if not is_valid:
-            raise ValueError(f"Config validation failed: {errors}")
-
         # API config
         if api_key is None or base_url is None or "llm" not in self.config:
             try:
@@ -204,12 +198,61 @@ class MainSolver:
                     self.config["llm"] = {}
 
                 # Update config with complete details (binding, model, etc.)
-                from dataclasses import asdict
+                from dataclasses import asdict, is_dataclass
 
-                self.config["llm"].update(asdict(llm_config))
+                if is_dataclass(llm_config):
+                    self.config["llm"].update(asdict(llm_config))
+                elif isinstance(llm_config, dict):
+                    self.config["llm"].update(llm_config)
+                else:
+                    self.config["llm"].update(
+                        {
+                            "api_key": getattr(llm_config, "api_key", None),
+                            "base_url": getattr(llm_config, "base_url", None),
+                            "api_version": getattr(llm_config, "api_version", None),
+                            "binding": getattr(llm_config, "binding", None),
+                            "model": getattr(llm_config, "model", None),
+                        }
+                    )
 
             except ValueError as e:
                 raise ValueError(f"LLM config error: {e!s}")
+
+        # Ensure paths exist for validation
+        self.config.setdefault("paths", {})
+        paths_config = self.config["paths"]
+        paths_config.setdefault(
+            "user_data_dir",
+            str(PROJECT_ROOT / "data" / "user"),
+        )
+        paths_config.setdefault(
+            "knowledge_bases_dir",
+            str(PROJECT_ROOT / "data" / "knowledge_bases"),
+        )
+        paths_config.setdefault(
+            "user_log_dir",
+            str(PROJECT_ROOT / "data" / "user" / "logs"),
+        )
+
+        # Ensure LLM defaults for validation
+        self.config.setdefault("llm", {})
+        llm_section = self.config["llm"]
+        if not isinstance(llm_section.get("model"), str) or not llm_section.get("model"):
+            llm_section["model"] = "gpt-4o-mini"
+        if not llm_section.get("binding"):
+            llm_section["binding"] = "openai"
+
+        # Explicit agent config validation for common errors
+        investigate_config = self.config.get("agents", {}).get("investigate_agent", {})
+        max_iterations = investigate_config.get("max_iterations")
+        if max_iterations is not None and not isinstance(max_iterations, int):
+            raise ValueError("investigate_agent.max_iterations must be an int")
+
+        # Validate config
+        validator = ConfigValidator()
+        is_valid, errors, warnings = validator.validate(self.config)
+        if not is_valid:
+            raise ValueError(f"Config validation failed: {errors}")
 
         # Check if API key is required
         # Local LLM servers (Ollama, LM Studio, etc.) don't need API keys
@@ -611,7 +654,7 @@ class MainSolver:
         )
 
         for step_index, step in enumerate(solve_memory.solve_chains, 1):
-            if step.status in ("waiting_response", "done"):
+            if step.status == "done":
                 continue
 
             self.logger.info(f"  Step {step_index}: {step.step_id}")
@@ -830,6 +873,7 @@ class MainSolver:
 
         # Save final answer
         final_answer_file = Path(output_dir) / "final_answer.md"
+        final_answer_file.parent.mkdir(parents=True, exist_ok=True)
         with open(final_answer_file, "w", encoding="utf-8") as f:
             f.write(final_answer_content)
 

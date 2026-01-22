@@ -1,7 +1,6 @@
 {
   "language.english": "English",
   "language.chinese": "中文",
-
   "Start": "Start",
   "Learn": "Learn",
   "Research": "Research",
@@ -58,7 +57,6 @@
   "Knowledge Base Name": "Knowledge Base Name",
   "Notebooks": "Notebooks",
   "Settings": "Settings",
-
   "Loading": "Loading...",
   "Save": "Save",
   "Cancel": "Cancel",
@@ -69,7 +67,6 @@
   "View All": "View All",
   "Refresh": "Refresh",
   "Create": "Create",
-
   "Overview": "Overview",
   "LLM": "LLM",
   "Embedding": "Embedding",
@@ -170,7 +167,6 @@
   "Error loading data": "Error loading data",
   "Failed to load settings": "Failed to load settings",
   "Failed to connect to backend": "Failed to connect to backend",
-
   "Overview of your recent learning activities": "Overview of your recent learning activities",
   "Recent Activity": "Recent Activity",
   "Loading activities...": "Loading activities...",
@@ -191,7 +187,6 @@
   "Quick Actions": "Quick Actions",
   "Ask a Question": "Ask a Question",
   "Generate Quiz": "Generate Quiz",
-
   "Home": "Home",
   "History": "History",
   "Welcome to DeepTutor": "Welcome to DeepTutor",
@@ -256,7 +251,6 @@
   "Save Selected": "Save Selected",
   "Generate Ideas ({n} items)": "Generate Ideas ({n} items)",
   "Generate Ideas (Text Only)": "Generate Ideas (Text Only)",
-
   "Chat History": "Chat History",
   "Solver History": "Solver History",
   "All Activities": "All Activities",
@@ -274,7 +268,6 @@
   "Close": "Close",
   "messages": "messages",
   "Failed to load session": "Failed to load session",
-
   "Add to Notebook": "Add to Notebook",
   "Added Successfully!": "Added Successfully!",
   "Record Preview": "Record Preview",
@@ -290,7 +283,6 @@
   "{n} notebooks selected": "{n} notebooks selected",
   "Select at least one notebook": "Select at least one notebook",
   "Saving...": "Saving...",
-
   "Import from Notebooks": "Import from Notebooks",
   "Select content from your notebooks to import": "Select content from your notebooks to import",
   "No notebooks found": "No notebooks found",
@@ -298,7 +290,6 @@
   "No records": "No records",
   "Selected {n} items": "Selected {n} items",
   "Import Selected": "Import Selected",
-
   "Backend Service": "Backend Service",
   "LLM Model": "LLM Model",
   "Embeddings": "Embeddings",
@@ -311,7 +302,6 @@
   "Unknown": "Unknown",
   "Testing...": "Testing...",
   "Test failed": "Test failed",
-
   "Link Folder": "Link Folder",
   "Link Local Folder": "Link Local Folder",
   "Folder Path": "Folder Path",
@@ -320,7 +310,6 @@
   "New and modified files will be automatically detected when you sync.": "New and modified files will be automatically detected when you sync.",
   "Folder linked successfully!": "Folder linked successfully!",
   "Failed to link folder": "Failed to link folder",
-
   "Activity Details": "Activity Details",
   "Type": "Type",
   "Final Answer": "Final Answer",
@@ -336,7 +325,6 @@
   "Report Preview": "Report Preview",
   "N/A": "N/A",
   "No question content": "No question content",
-
   "Workspace": "WORKSPACE",
   "Learn & Research": "Learn & Research",
   "✨ Your description here": "✨ Your description here",
@@ -345,7 +333,6 @@
   "View on GitHub": "View on GitHub",
   "KB": "KB",
   "Solution image": "Solution image",
-
   "Count:": "Count:",
   "Initializing": "Initializing",
   "Generating Search Queries": "Generating Search Queries",
@@ -363,7 +350,6 @@
   "Waiting for logs...": "Waiting for logs...",
   "Mimic Exam Mode": "Mimic Exam Mode",
   "Generating questions based on reference exam paper": "Generating questions based on reference exam paper",
-
   "Learning Assistant": "Learning Assistant",
   "Have any questions? Feel free to ask...": "Have any questions? Feel free to ask...",
   "Learning Summary": "Learning Summary",
@@ -388,7 +374,6 @@
   "Switch to wide sidebar (3:1)": "Switch to wide sidebar (3:1)",
   "Select a notebook, and the system will generate a personalized learning plan. Through interactive pages and intelligent Q&A, you'll gradually master all the content.": "Select a notebook, and the system will generate a personalized learning plan. Through interactive pages and intelligent Q&A, you'll gradually master all the content.",
   "Select notebook records or describe your research topic": "Select notebook records or describe your research topic",
-
   "Manage and explore your educational content repositories.": "Manage and explore your educational content repositories.",
   "RAG-Anything": "RAG-Anything",
   "Documents": "Documents",
@@ -421,8 +406,6 @@
   "Activity Log": "Activity Log",
   "Waiting for logic execution...": "Waiting for logic execution...",
   "gpt-4o": "gpt-4o",
-  "Failed to link folder": "Failed to link folder",
-  "Folder linked successfully!": "Folder linked successfully!",
   "Link a local folder to": "Link a local folder to",
   ". Documents in the folder will be processed and added to this knowledge base.": ". Documents in the folder will be processed and added to this knowledge base.",
   "C:\\Users\\name\\Documents\\papers": "C:\\Users\\name\\Documents\\papers",
@@ -464,15 +447,12 @@
   "Metadata": "Metadata",
   "No records yet": "No records yet",
   "Add records from Solver, Question, Research, or Co-Writer": "Add records from Solver, Question, Research, or Co-Writer",
-  "Select a notebook to view records": "Select a notebook to view records",
   "Select a record to view details": "Select a record to view details",
   "Create New Notebook": "Create New Notebook",
-  "Name": "Name",
   "Description (Optional)": "Description (Optional)",
   "Color": "Color",
   "Edit Notebook": "Edit Notebook",
   "Description": "Description",
-  "Save Changes": "Save Changes",
   "Delete Notebook?": "Delete Notebook?",
   "Import Records": "Import Records",
   "Source Notebook": "Source Notebook",
@@ -493,7 +473,6 @@
   "Easy": "Easy",
   "Medium": "Medium",
   "Hard": "Hard",
-  "Type": "Type",
   "Multiple Choice": "Multiple Choice",
   "Written": "Written",
   "Upload Exam Paper (PDF)": "Upload Exam Paper (PDF)",

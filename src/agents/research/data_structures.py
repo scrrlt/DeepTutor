@@ -270,7 +270,7 @@ class DynamicTopicQueue:
     def _normalize_topic(text: str) -> str:
         return (text or "").strip().lower()
 
-    def add_block(self, sub_topic: str, overview: str) -> TopicBlock:
+    def add_block(self, sub_topic: str, overview: str = "") -> TopicBlock:
         """
         Add new topic block to the end of queue
 

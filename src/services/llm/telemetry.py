@@ -34,6 +34,7 @@ def track_llm_call(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            result: object | None = None
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
                     "LLM_START provider=%s func=%s",
@@ -54,17 +55,18 @@ def track_llm_call(
                 )
                 llm_stats.record_error(provider_name, type(exc).__name__)
                 raise
+            finally:
+                if result is not None:
+                    duration = time.perf_counter() - start_time
+                    llm_stats.record_latency(provider_name, duration)
+                    _record_usage(provider_name, result)
 
-            duration = time.perf_counter() - start_time
-            llm_stats.record_latency(provider_name, duration)
-            _record_usage(provider_name, result)
-
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "LLM_SUCCESS provider=%s duration_ms=%.2f",
-                    provider_name,
-                    duration * 1000,
-                )
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "LLM_SUCCESS provider=%s duration_ms=%.2f",
+                            provider_name,
+                            duration * 1000,
+                        )
             return result
 
         return wrapper

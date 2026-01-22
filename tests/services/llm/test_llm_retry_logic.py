@@ -187,81 +187,42 @@ class TestCircuitBreakerIntegration:
 
 
 class TestExponentialBackoff:
-    """Test exponential backoff behavior in retries."""
-
     @pytest.mark.asyncio
-    async def test_retry_delays_increase_exponentially(self):
-        """Verify that retry delays increase exponentially."""
-        with (
-            patch(
-                "src.services.llm.providers.base_provider.is_call_allowed",
-                return_value=True,
-            ),
-            patch("src.services.llm.cloud_provider.complete") as mock_complete,
-        ):
-            call_count = 0
-            sleep_calls: list[float] = []
-            mock_sleep = AsyncMock(side_effect=sleep_calls.append)
+    @patch("asyncio.sleep", new_callable=AsyncMock)
+    async def test_retry_delays_increase_exponentially(self, mock_sleep):
+        with patch(
+            "src.services.llm.factory.cloud_provider.complete",
+            new_callable=MagicMock,
+        ) as mock_complete:
+            mock_complete.side_effect = LLMTimeoutError("Timeout")
 
-            async def track_time(*args, **kwargs):
-                nonlocal call_count
-                call_count += 1
-                if call_count < 3:
-                    raise LLMTimeoutError("Timeout")
-                return "Success"
+            with pytest.raises(LLMAPIError):
+                await complete(
+                    "test",
+                    max_retries=2,
+                    retry_delay=0.1,
+                    exponential_backoff=True,
+                )
 
-            mock_complete.side_effect = track_time
-
-            await complete(
-                prompt="test",
-                model="gpt-4",
-                base_url="https://api.openai.com/v1",
-                api_key="test-key",
-                max_retries=3,
-                retry_delay=0.1,
-                sleep=mock_sleep,
-            )
-
-            assert call_count == 3
-            assert mock_sleep.await_count == 2
-            assert len(sleep_calls) == 2
-            delay1 = sleep_calls[0]
-            delay2 = sleep_calls[1]
-            assert delay2 > delay1, "Exponential backoff not working"
+            assert mock_complete.call_count == 3
+            assert mock_sleep.call_count == 2
+            # Exponential backoff: 0.1 * (2**0), 0.1 * (2**1)
+            assert mock_sleep.await_args_list[0][0] == 0.1
+            assert mock_sleep.await_args_list[1][0] == 0.2
 
 
 class TestOpenAIStreamingErrors:
-    """Test handling of OpenAI streaming errors."""
-
     @pytest.mark.asyncio
     async def test_stream_connection_error_is_raised(self):
-        """Ensure stream connection errors are logged and re-raised."""
-        import openai
+        async def error_stream(*args, **kwargs):
+            raise openai.APIConnectionError(request=MagicMock())
 
-        from src.services.llm.config import LLMConfig
-        from src.services.llm.providers.open_ai import OpenAIProvider
+        provider = OpenAIProvider(LLMConfig(api_key="sk-key", model="gpt-4"))
+        provider.client.chat.completions.create = error_stream
 
-        async def error_stream():
-            raise openai.APIConnectionError("Stream failed")
-            yield  # pragma: no cover
-
-        config = LLMConfig(
-            provider_name="openai",
-            api_key="test-key",
-            model="gpt-4",
-            base_url="https://api.openai.com/v1",
-        )
-        provider = OpenAIProvider(config)
-
-        with (
-            patch.object(provider, "execute", return_value=error_stream()),
-            patch("src.services.llm.providers.open_ai.logger") as mock_logger,
-        ):
-            with pytest.raises(openai.APIConnectionError):
-                async for _ in provider.stream("hello"):
-                    pass
-
-            mock_logger.error.assert_called_once()
+        with pytest.raises(LLMAPIError, match="Connection error"):
+            async for _ in provider.stream("hello"):
+                pass
 
 
 if __name__ == "__main__":

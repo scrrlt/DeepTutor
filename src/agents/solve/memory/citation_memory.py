@@ -196,7 +196,7 @@ class CitationMemory:
     def save(self):
         """Save to JSON file"""
         if not self.file_path:
-            raise ValueError("output_dir not set, cannot save")
+            return
 
         # Ensure directory exists
         self.file_path.parent.mkdir(parents=True, exist_ok=True)

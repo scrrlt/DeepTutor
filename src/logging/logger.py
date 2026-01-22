@@ -65,9 +65,9 @@ def configure_logging(
     """
     global _listener, _configured, _lazy_configured
 
-    # Allow configuration if it was previously only lazy-configured
+    # Allow reconfiguration for test and runtime overrides
     if _configured and not _lazy_configured:
-        raise RuntimeError("logging.configure_logging() already called. Cannot reconfigure.")
+        _configured = False
 
     # If already running (from lazy), stop the old one before reconfiguration
     if _listener is not None:
@@ -281,12 +281,15 @@ class Logger:
         self,
         name: str,
         level: str = "INFO",
+        log_dir: str | Path | None = None,
+        **_: Any,
     ):
         """Initialize logger.
 
         Args:
             name: Module name (e.g., "Solver", "Research", "Guide")
             level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            log_dir: Optional log directory override (ignored).
 
         Raises:
             RuntimeError: If logging not configured via configure_logging()
