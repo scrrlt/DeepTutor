@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LLM Provider Registry
 ====================
@@ -6,11 +5,11 @@ LLM Provider Registry
 Simple provider registration system for LLM providers.
 """
 
-from typing import Any, Dict, Type
+from typing import Any
 
 # Global registry for LLM providers
-_provider_registry: Dict[str, Type] = {}
-_active_instances: Dict[str, Any] = {}
+_provider_registry: dict[str, type] = {}
+_active_instances: dict[str, Any] = {}
 
 # Centralized alias mapping
 _PROVIDER_ALIASES = {
@@ -81,8 +80,9 @@ def get_provider(name: str) -> Any:
     provider_cls = get_provider_class(provider_key)
 
     # Lazy load config to avoid import cycles
-    from .config import get_llm_config
     import copy
+
+    from .config import get_llm_config
 
     config = copy.copy(get_llm_config())
     # Ensure provider name matches what the class expects if it's an alias

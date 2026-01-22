@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Pipeline Factory
 ================
@@ -9,11 +8,11 @@ Note: Pipeline imports are lazy to avoid importing heavy dependencies (lightrag,
 at module load time. This allows the core services to be imported without RAG dependencies.
 """
 
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 import warnings
 
 # Pipeline registry - populated lazily
-_PIPELINES: Dict[str, Callable] = {}
+_PIPELINES: dict[str, Callable] = {}
 _PIPELINES_INITIALIZED = False
 
 
@@ -29,10 +28,9 @@ def _init_pipelines():
     if _PIPELINES_INITIALIZED:
         return
 
-    from .pipelines import lightrag, llamaindex
+    from .pipelines import AcademicPipeline, lightrag, llamaindex
     from .pipelines.raganything import RAGAnythingPipeline
     from .pipelines.raganything_docling import RAGAnythingDoclingPipeline
-    from .pipelines import AcademicPipeline
 
     _PIPELINES.update(
         {
@@ -46,7 +44,7 @@ def _init_pipelines():
     _PIPELINES_INITIALIZED = True
 
 
-def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, **kwargs):
+def get_pipeline(name: str = "raganything", kb_base_dir: str | None = None, **kwargs):
     """
     Get a pre-configured pipeline by name.
 
@@ -147,6 +145,9 @@ def has_pipeline(name: str) -> bool:
     Returns:
         True if pipeline exists
     """
+    if not name:
+        return False
+
     _init_pipelines()
     return name in _PIPELINES
 

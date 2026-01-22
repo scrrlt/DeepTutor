@@ -20,8 +20,8 @@ interface FileSystemDirectoryEntry extends FileSystemEntry {
 interface FileSystemDirectoryReader {
   readEntries(
     successCallback: (entries: FileSystemEntry[]) => void,
-    errorCallback?: (error: Error) => void,
-  ): void;
+    errorCallback?: (error: Error) => void
+  ): void
 }
 
 import {
@@ -41,36 +41,36 @@ import {
   CheckCircle2,
   AlertCircle,
   Star,
-} from "lucide-react";
-import { apiUrl, wsUrl } from "@/lib/api";
-import { useGlobal } from "@/context/GlobalContext";
-import { useTranslation } from "react-i18next";
+} from 'lucide-react'
+import { apiUrl, wsUrl } from '@/lib/api'
+import { useGlobal } from '@/context/GlobalContext'
+import { useTranslation } from 'react-i18next'
 
 interface ProgressInfo {
-  stage: string;
-  message: string;
-  percent?: number;
-  progress_percent?: number; // Legacy field from WebSocket
-  current: number;
-  total: number;
-  file_name?: string;
-  error?: string;
-  timestamp?: string;
+  stage: string
+  message: string
+  percent?: number
+  progress_percent?: number // Legacy field from WebSocket
+  current: number
+  total: number
+  file_name?: string
+  error?: string
+  timestamp?: string
 }
 
 interface KnowledgeBase {
-  name: string;
-  is_default: boolean;
-  status?: string; // "initializing", "processing", "ready", "error"
-  progress?: ProgressInfo;
+  name: string
+  is_default: boolean
+  status?: string // "initializing", "processing", "ready", "error"
+  progress?: ProgressInfo
   statistics: {
-    raw_documents: number;
-    images: number;
-    content_lists: number;
-    rag_initialized: boolean;
-    rag_provider?: string;
-    status?: string;
-    progress?: ProgressInfo;
+    raw_documents: number
+    images: number
+    content_lists: number
+    rag_initialized: boolean
+    rag_provider?: string
+    status?: string
+    progress?: ProgressInfo
     rag?: {
       chunks?: number
       entities?: number
@@ -88,18 +88,18 @@ interface UploadFile {
 }
 
 export default function KnowledgePage() {
-  const { t } = useTranslation();
-  const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [targetKb, setTargetKb] = useState<string>("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-  const [newKbName, setNewKbName] = useState("");
-  const [dragActive, setDragActive] = useState(false);
-  const [ragProvider, setRagProvider] = useState<string>("llamaindex");
+  const { t } = useTranslation()
+  const [kbs, setKbs] = useState<KnowledgeBase[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [targetKb, setTargetKb] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([])
+  const [newKbName, setNewKbName] = useState('')
+  const [dragActive, setDragActive] = useState(false)
+  const [ragProvider, setRagProvider] = useState<string>('llamaindex')
   const [ragProviders, setRagProviders] = useState<
     Array<{ id: string; name: string; description: string }>
   >([])
@@ -124,101 +124,98 @@ export default function KnowledgePage() {
   const PROVIDER_SUPPORTED_EXTENSIONS: Record<string, string[]> = {
     // LlamaIndex: PDF + plain text files only (uses PyMuPDF for PDF, direct read for text)
     llamaindex: [
-      "pdf",
-      "txt",
-      "md",
-      "markdown",
-      "json",
-      "csv",
-      "html",
-      "htm",
-      "xml",
-      "yaml",
-      "yml",
-      "toml",
-      "tex",
-      "rst",
-      "log",
+      'pdf',
+      'txt',
+      'md',
+      'markdown',
+      'json',
+      'csv',
+      'html',
+      'htm',
+      'xml',
+      'yaml',
+      'yml',
+      'toml',
+      'tex',
+      'rst',
+      'log',
     ],
     // LightRAG: Same as LlamaIndex - PDF + plain text files (uses FileTypeRouter + PDFParser)
     lightrag: [
-      "pdf",
-      "txt",
-      "md",
-      "markdown",
-      "json",
-      "csv",
-      "html",
-      "htm",
-      "xml",
-      "yaml",
-      "yml",
-      "toml",
-      "tex",
-      "rst",
-      "log",
+      'pdf',
+      'txt',
+      'md',
+      'markdown',
+      'json',
+      'csv',
+      'html',
+      'htm',
+      'xml',
+      'yaml',
+      'yml',
+      'toml',
+      'tex',
+      'rst',
+      'log',
     ],
     // RAGAnything: Full multimodal support - PDF, Word, Images, and plain text (uses MinerU)
     raganything: [
-      "pdf",
-      "doc",
-      "docx",
-      "txt",
-      "md",
-      "markdown",
-      "json",
-      "csv",
-      "html",
-      "htm",
-      "xml",
-      "yaml",
-      "yml",
-      "toml",
-      "tex",
-      "rst",
-      "log",
-      "png",
-      "jpg",
-      "jpeg",
-      "gif",
-      "webp",
-      "bmp",
-      "tiff",
-      "tif",
+      'pdf',
+      'doc',
+      'docx',
+      'txt',
+      'md',
+      'markdown',
+      'json',
+      'csv',
+      'html',
+      'htm',
+      'xml',
+      'yaml',
+      'yml',
+      'toml',
+      'tex',
+      'rst',
+      'log',
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'webp',
+      'bmp',
+      'tiff',
+      'tif',
     ],
-  };
+  }
 
   // Human-readable file type hints for each provider
   const PROVIDER_FILE_HINTS: Record<string, string> = {
-    llamaindex: "PDF, TXT, MD, JSON, CSV, HTML, XML...",
-    lightrag: "PDF, TXT, MD, JSON, CSV, HTML, XML...",
-    raganything: "PDF, Word, 图片, TXT, MD, JSON, CSV, HTML...",
-  };
+    llamaindex: 'PDF, TXT, MD, JSON, CSV, HTML, XML...',
+    lightrag: 'PDF, TXT, MD, JSON, CSV, HTML, XML...',
+    raganything: 'PDF, Word, 图片, TXT, MD, JSON, CSV, HTML...',
+  }
 
   // Get supported extensions for current provider
   const getSupportedExtensions = (provider: string): string[] => {
-    return (
-      PROVIDER_SUPPORTED_EXTENSIONS[provider] ||
-      PROVIDER_SUPPORTED_EXTENSIONS.llamaindex
-    );
-  };
+    return PROVIDER_SUPPORTED_EXTENSIONS[provider] || PROVIDER_SUPPORTED_EXTENSIONS.llamaindex
+  }
 
   // Get file type hint for current provider
   const getFileTypeHint = (provider: string): string => {
-    return PROVIDER_FILE_HINTS[provider] || PROVIDER_FILE_HINTS.llamaindex;
-  };
+    return PROVIDER_FILE_HINTS[provider] || PROVIDER_FILE_HINTS.llamaindex
+  }
 
   // Get accept attribute for file input based on provider
   const getAcceptAttribute = (provider: string): string => {
-    const extensions = getSupportedExtensions(provider);
-    return extensions.map((ext) => `.${ext}`).join(",");
-  };
+    const extensions = getSupportedExtensions(provider)
+    return extensions.map(ext => `.${ext}`).join(',')
+  }
 
   const isSupportedFile = (filename: string): boolean => {
-    const ext = getFileExtension(filename);
-    const supportedExtensions = getSupportedExtensions(ragProvider);
-    return supportedExtensions.includes(ext);
-  };
+    const ext = getFileExtension(filename)
+    const supportedExtensions = getSupportedExtensions(ragProvider)
+    return supportedExtensions.includes(ext)
+  }
 
   // Helper function to convert File to UploadFile
   const fileToUploadFile = (file: File): UploadFile => ({
@@ -302,9 +299,9 @@ export default function KnowledgePage() {
       }
 
       if (entry.isFile) {
-        return new Promise((resolve) => {
-          (entry as unknown as FileSystemFileEntry).file(
-            (file) => {
+        return new Promise(resolve => {
+          ;(entry as unknown as FileSystemFileEntry).file(
+            file => {
               if (isSupportedFile(file.name)) {
                 resolve([file])
               } else {
@@ -315,9 +312,7 @@ export default function KnowledgePage() {
           )
         })
       } else if (entry.isDirectory) {
-        return readDirectoryRecursively(
-          entry as unknown as FileSystemDirectoryEntry,
-        );
+        return readDirectoryRecursively(entry as unknown as FileSystemDirectoryEntry)
       }
       return []
     }
@@ -540,28 +535,28 @@ export default function KnowledgePage() {
   }, [])
 
   useEffect(() => {
-    fetchKnowledgeBases();
-  }, [fetchKnowledgeBases]);
+    fetchKnowledgeBases()
+  }, [fetchKnowledgeBases])
 
   // Auto-poll when any KB is processing/initializing
   useEffect(() => {
     // Check if any KB is in processing/initializing state
-    const hasProcessingKb = kbs.some((kb) => {
-      const status = kb.statistics.status || kb.status;
-      return status === "initializing" || status === "processing";
-    });
+    const hasProcessingKb = kbs.some(kb => {
+      const status = kb.statistics.status || kb.status
+      return status === 'initializing' || status === 'processing'
+    })
 
     if (!hasProcessingKb) {
-      return;
+      return
     }
 
     // Poll every 3 seconds while processing
     const intervalId = setInterval(() => {
-      fetchKnowledgeBases();
-    }, 3000);
+      fetchKnowledgeBases()
+    }, 3000)
 
-    return () => clearInterval(intervalId);
-  }, [kbs, fetchKnowledgeBases]);
+    return () => clearInterval(intervalId)
+  }, [kbs, fetchKnowledgeBases])
 
   // Fetch RAG providers
   useEffect(() => {
@@ -700,9 +695,8 @@ export default function KnowledgePage() {
       wsConnectionsRef.current[kb.name] = ws
     })
 
-    kbsNamesRef.current = kbs.map((kb) => kb.name);
-
-  }, [kbs, loading]);
+    kbsNamesRef.current = kbs.map(kb => kb.name)
+  }, [kbs, loading])
 
   // Cleanup all connections on component unmount
   useEffect(() => {
@@ -801,8 +795,8 @@ export default function KnowledgePage() {
       const res = await fetch(apiUrl(`/api/v1/knowledge/${targetKb}/upload`), {
         method: 'POST',
         body: formData,
-      });
-      if (!res.ok) throw new Error(t("Upload failed"));
+      })
+      if (!res.ok) throw new Error(t('Upload failed'))
 
       setUploadModalOpen(false)
       clearAllFiles()
@@ -835,13 +829,13 @@ export default function KnowledgePage() {
         body: formData,
       })
       if (!res.ok) {
-        const errorData = await res.json();
-        showToast(errorData.detail || "Creation failed", "error");
-        setUploading(false);
-        return;
+        const errorData = await res.json()
+        showToast(errorData.detail || 'Creation failed', 'error')
+        setUploading(false)
+        return
       }
 
-      const result = await res.json();
+      const result = await res.json()
 
       setCreateModalOpen(false)
       clearAllFiles()
@@ -850,7 +844,7 @@ export default function KnowledgePage() {
 
       // Immediately refresh to get the new KB from backend
       // (Backend now registers KB to kb_config.json immediately with status)
-      await fetchKnowledgeBases();
+      await fetchKnowledgeBases()
 
       showToast('Knowledge base created successfully!', 'success')
     } catch (err: any) {
@@ -890,7 +884,7 @@ export default function KnowledgePage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Helper functions are stable
-  }, []);
+  }, [])
 
   return (
     <div className="animate-fade-in h-screen overflow-y-auto p-6">
@@ -899,10 +893,10 @@ export default function KnowledgePage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            {t("Knowledge Bases")}
+            {t('Knowledge Bases')}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2">
-            {t("Manage and explore your educational content repositories.")}
+            {t('Manage and explore your educational content repositories.')}
           </p>
         </div>
         <div className="flex gap-3">
@@ -912,10 +906,10 @@ export default function KnowledgePage() {
               await fetchKnowledgeBases()
             }}
             className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow"
-            title={t("Refresh knowledge bases")}
+            title={t('Refresh knowledge bases')}
           >
             <RefreshCw className="w-4 h-4" />
-            {t("Refresh")}
+            {t('Refresh')}
           </button>
           <button
             onClick={() => {
@@ -927,7 +921,7 @@ export default function KnowledgePage() {
             className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors flex items-center gap-2 shadow-lg shadow-slate-900/20"
           >
             <Plus className="w-4 h-4" />
-            {t("New Knowledge Base")}
+            {t('New Knowledge Base')}
           </button>
         </div>
       </div>
@@ -971,7 +965,7 @@ export default function KnowledgePage() {
                     <div className="flex items-center gap-1.5 mt-1">
                       {kb.is_default && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wide border border-blue-100 dark:border-blue-800">
-                          {t("Default")}
+                          {t('Default')}
                         </span>
                       )}
                       {kb.statistics.rag_provider && (
@@ -984,12 +978,12 @@ export default function KnowledgePage() {
                                 : 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800'
                           }`}
                         >
-                          {kb.statistics.rag_provider === "raganything"
-                            ? t("RAG-Anything")
-                            : kb.statistics.rag_provider === "lightrag"
-                              ? t("LightRAG")
-                              : kb.statistics.rag_provider === "llamaindex"
-                                ? t("LlamaIndex")
+                          {kb.statistics.rag_provider === 'raganything'
+                            ? t('RAG-Anything')
+                            : kb.statistics.rag_provider === 'lightrag'
+                              ? t('LightRAG')
+                              : kb.statistics.rag_provider === 'llamaindex'
+                                ? t('LlamaIndex')
                                 : kb.statistics.rag_provider}
                         </span>
                       )}
@@ -1013,7 +1007,7 @@ export default function KnowledgePage() {
                         }
                       }}
                       className="p-2 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-                      title={t("Set as Default")}
+                      title={t('Set as Default')}
                     >
                       <Star className="w-4 h-4" />
                     </button>
@@ -1027,14 +1021,14 @@ export default function KnowledgePage() {
                       setUploadModalOpen(true)
                     }}
                     className="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    title={t("Upload Documents")}
+                    title={t('Upload Documents')}
                   >
                     <Upload className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(kb.name)}
                     className="p-2 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    title={t("Delete Knowledge Base")}
+                    title={t('Delete Knowledge Base')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1046,7 +1040,7 @@ export default function KnowledgePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1 flex items-center gap-1.5">
-                      <FileText className="w-3 h-3" /> {t("Documents")}
+                      <FileText className="w-3 h-3" /> {t('Documents')}
                     </p>
                     <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
                       {kb.statistics.raw_documents}
@@ -1054,7 +1048,7 @@ export default function KnowledgePage() {
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1 flex items-center gap-1.5">
-                      <ImageIcon className="w-3 h-3" /> {t("Images")}
+                      <ImageIcon className="w-3 h-3" /> {t('Images')}
                     </p>
                     <p className="text-lg font-bold text-slate-700 dark:text-slate-200">
                       {kb.statistics.images}
@@ -1065,56 +1059,44 @@ export default function KnowledgePage() {
                 <div className="pt-2">
                   <div className="flex items-center justify-between text-xs mb-2">
                     <span className="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
-                      <Layers className="w-3 h-3" /> {t("Status")}
+                      <Layers className="w-3 h-3" /> {t('Status')}
                     </span>
                     {(() => {
                       // Priority: API progress > WebSocket progressMap > rag_initialized
-                      const apiProgress = kb.statistics.progress || kb.progress;
-                      const wsProgress = progressMap[kb.name];
-                      const progress = apiProgress || wsProgress;
-                      const status = kb.statistics.status || kb.status;
+                      const apiProgress = kb.statistics.progress || kb.progress
+                      const wsProgress = progressMap[kb.name]
+                      const progress = apiProgress || wsProgress
+                      const status = kb.statistics.status || kb.status
 
-                      if (
-                        status === "ready" ||
-                        progress?.stage === "completed"
-                      ) {
+                      if (status === 'ready' || progress?.stage === 'completed') {
                         return (
                           <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                            {t("Ready")}
+                            {t('Ready')}
                           </span>
-                        );
-                      } else if (
-                        status === "error" ||
-                        progress?.stage === "error"
-                      ) {
+                        )
+                      } else if (status === 'error' || progress?.stage === 'error') {
                         return (
                           <span className="text-red-600 dark:text-red-400 font-bold">
-                            {t("Error")}
+                            {t('Error')}
                           </span>
-                        );
-                      } else if (
-                        status === "initializing" ||
-                        status === "processing" ||
-                        progress
-                      ) {
+                        )
+                      } else if (status === 'initializing' || status === 'processing' || progress) {
                         // Display current stage and progress
                         const stageLabels: Record<string, string> = {
-                          initializing: t("Initializing"),
-                          processing_documents: t("Processing"),
-                          processing_file: t("Processing File"),
-                          extracting_items: t("Extracting Items"),
-                        };
-                        const stage =
-                          progress?.stage || status || "initializing";
-                        const stageLabel = stageLabels[stage] || stage;
-                        const percent =
-                          progress?.percent ?? progress?.progress_percent ?? 0;
+                          initializing: t('Initializing'),
+                          processing_documents: t('Processing'),
+                          processing_file: t('Processing File'),
+                          extracting_items: t('Extracting Items'),
+                        }
+                        const stage = progress?.stage || status || 'initializing'
+                        const stageLabel = stageLabels[stage] || stage
+                        const percent = progress?.percent ?? progress?.progress_percent ?? 0
                         return (
                           <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
                             <Loader2 className="w-3 h-3 animate-spin" />
                             {stageLabel} {percent}%
                           </span>
-                        );
+                        )
                       }
                       return (
                         <span
@@ -1124,44 +1106,31 @@ export default function KnowledgePage() {
                               : 'text-slate-400 dark:text-slate-500'
                           }
                         >
-                          {kb.statistics.rag_initialized
-                            ? t("Ready")
-                            : t("Not Indexed")}
+                          {kb.statistics.rag_initialized ? t('Ready') : t('Not Indexed')}
                         </span>
                       )
                     })()}
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                     {(() => {
-                      const apiProgress = kb.statistics.progress || kb.progress;
-                      const wsProgress = progressMap[kb.name];
-                      const progress = apiProgress || wsProgress;
-                      const status = kb.statistics.status || kb.status;
+                      const apiProgress = kb.statistics.progress || kb.progress
+                      const wsProgress = progressMap[kb.name]
+                      const progress = apiProgress || wsProgress
+                      const status = kb.statistics.status || kb.status
 
-                      if (
-                        progress ||
-                        status === "initializing" ||
-                        status === "processing"
-                      ) {
-                        const percent =
-                          progress?.percent ?? progress?.progress_percent ?? 0;
-                        let bgColor = "bg-blue-500";
-                        if (
-                          status === "ready" ||
-                          progress?.stage === "completed"
-                        ) {
-                          bgColor = "bg-emerald-500";
-                        } else if (
-                          status === "error" ||
-                          progress?.stage === "error"
-                        ) {
-                          bgColor = "bg-red-500";
+                      if (progress || status === 'initializing' || status === 'processing') {
+                        const percent = progress?.percent ?? progress?.progress_percent ?? 0
+                        let bgColor = 'bg-blue-500'
+                        if (status === 'ready' || progress?.stage === 'completed') {
+                          bgColor = 'bg-emerald-500'
+                        } else if (status === 'error' || progress?.stage === 'error') {
+                          bgColor = 'bg-red-500'
                         }
                         return (
                           <div
                             className={`h-full rounded-full ${bgColor} transition-all duration-300`}
                             style={{
-                              width: `${Math.max(percent, status === "initializing" ? 5 : 0)}%`,
+                              width: `${Math.max(percent, status === 'initializing' ? 5 : 0)}%`,
                             }}
                           />
                         )
@@ -1174,37 +1143,34 @@ export default function KnowledgePage() {
                     })()}
                   </div>
                   {(() => {
-                    const apiProgress = kb.statistics.progress || kb.progress;
-                    const wsProgress = progressMap[kb.name];
-                    const progress = apiProgress || wsProgress;
-                    const status = kb.statistics.status || kb.status;
+                    const apiProgress = kb.statistics.progress || kb.progress
+                    const wsProgress = progressMap[kb.name]
+                    const progress = apiProgress || wsProgress
+                    const status = kb.statistics.status || kb.status
 
                     if (
                       progress?.message ||
-                      (status && status !== "ready" && status !== "unknown")
+                      (status && status !== 'ready' && status !== 'unknown')
                     ) {
                       return (
                         <div className="mt-2 space-y-1">
                           <div className="text-[10px] text-slate-600 dark:text-slate-400 font-medium flex items-center justify-between">
-                            <span>
-                              {progress?.message || `Status: ${status}`}
-                            </span>
+                            <span>{progress?.message || `Status: ${status}`}</span>
                             {/* Clear button for stuck states */}
-                            {progress?.stage !== "completed" &&
-                              status !== "ready" && (
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    await clearProgress(kb.name);
-                                    // Refresh KB list to show correct status
-                                    fetchKnowledgeBases();
-                                  }}
-                                  className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                  title={t("Clear progress status")}
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              )}
+                            {progress?.stage !== 'completed' && status !== 'ready' && (
+                              <button
+                                onClick={async e => {
+                                  e.stopPropagation()
+                                  await clearProgress(kb.name)
+                                  // Refresh KB list to show correct status
+                                  fetchKnowledgeBases()
+                                }}
+                                className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                title={t('Clear progress status')}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                           {progress?.file_name && (
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
@@ -1212,13 +1178,11 @@ export default function KnowledgePage() {
                               <span className="truncate">{progress.file_name}</span>
                             </div>
                           )}
-                          {progress &&
-                            progress.current > 0 &&
-                            progress.total > 0 && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                                File {progress.current} of {progress.total}
-                              </div>
-                            )}
+                          {progress && progress.current > 0 && progress.total > 0 && (
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                              File {progress.current} of {progress.total}
+                            </div>
+                          )}
                           {progress?.error && (
                             <div className="text-[10px] text-red-600 dark:text-red-400 mt-1">
                               Error: {progress.error}
@@ -1267,7 +1231,7 @@ export default function KnowledgePage() {
           {kbs.length === 0 && (
             <div className="col-span-full text-center py-12 text-slate-400 dark:text-slate-500">
               <Database className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>{t("No knowledge bases found. Create one to get started.")}</p>
+              <p>{t('No knowledge bases found. Create one to get started.')}</p>
             </div>
           )}
         </div>
@@ -1279,7 +1243,7 @@ export default function KnowledgePage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {t("Create Knowledge Base")}
+                {t('Create Knowledge Base')}
               </h3>
               <button
                 onClick={() => setCreateModalOpen(false)}
@@ -1292,21 +1256,21 @@ export default function KnowledgePage() {
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {t("Knowledge Base Name")}
+                  {t('Knowledge Base Name')}
                 </label>
                 <input
                   type="text"
                   required
                   value={newKbName}
-                  onChange={(e) => setNewKbName(e.target.value)}
-                  placeholder={t("e.g., Math101")}
+                  onChange={e => setNewKbName(e.target.value)}
+                  placeholder={t('e.g., Math101')}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {t("RAG Provider")}
+                  {t('RAG Provider')}
                 </label>
                 <select
                   value={ragProvider}
@@ -1321,9 +1285,9 @@ export default function KnowledgePage() {
                     ))
                   ) : (
                     <>
-                      <option value="llamaindex">{t("LlamaIndex")}</option>
-                      <option value="lightrag">{t("LightRAG")}</option>
-                      <option value="raganything">{t("RAG-Anything")}</option>
+                      <option value="llamaindex">{t('LlamaIndex')}</option>
+                      <option value="lightrag">{t('LightRAG')}</option>
+                      <option value="raganything">{t('RAG-Anything')}</option>
                     </>
                   )}
                 </select>
@@ -1337,21 +1301,18 @@ export default function KnowledgePage() {
                       }
                       // Fallback descriptions
                       const fallbackDescriptions: Record<string, string> = {
-                        llamaindex:
-                          t("Pure vector retrieval, fastest processing speed."),
-                        lightrag:
-                          t(
-                            "Lightweight knowledge graph retrieval, fast processing of text documents.",
-                          ),
-                        raganything:
-                          t(
-                            "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
-                          ),
-                      };
+                        llamaindex: t('Pure vector retrieval, fastest processing speed.'),
+                        lightrag: t(
+                          'Lightweight knowledge graph retrieval, fast processing of text documents.'
+                        ),
+                        raganything: t(
+                          'Multimodal document processing with chart and formula extraction, builds knowledge graphs.'
+                        ),
+                      }
                       return (
                         fallbackDescriptions[ragProvider] ||
-                        t("Select a RAG pipeline suitable for your document type")
-                      );
+                        t('Select a RAG pipeline suitable for your document type')
+                      )
                     })()}
                   </p>
                 </div>
@@ -1359,7 +1320,7 @@ export default function KnowledgePage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {t("Upload Documents")}
+                  {t('Upload Documents')}
                 </label>
                 <div
                   className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
@@ -1399,8 +1360,8 @@ export default function KnowledgePage() {
                     />
                     <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                       {uploadFiles.length > 0
-                        ? t("Click or drop to add more files")
-                        : t("Drag & drop files or folders here")}
+                        ? t('Click or drop to add more files')
+                        : t('Drag & drop files or folders here')}
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
                       {getFileTypeHint(ragProvider)}
@@ -1413,14 +1374,8 @@ export default function KnowledgePage() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                           {uploadFiles.length === 1
-                            ? t("{n} file selected").replace(
-                                "{n}",
-                                String(uploadFiles.length),
-                              )
-                            : t("{n} files selected").replace(
-                                "{n}",
-                                String(uploadFiles.length),
-                              )}
+                            ? t('{n} file selected').replace('{n}', String(uploadFiles.length))
+                            : t('{n} files selected').replace('{n}', String(uploadFiles.length))}
                         </span>
                         <button
                           type="button"
@@ -1430,7 +1385,7 @@ export default function KnowledgePage() {
                           }}
                           className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                         >
-                          {t("Clear all")}
+                          {t('Clear all')}
                         </button>
                       </div>
                       <div className="space-y-1">
@@ -1460,7 +1415,7 @@ export default function KnowledgePage() {
                                 removeFile(file.id)
                               }}
                               className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                              title={t("Remove file")}
+                              title={t('Remove file')}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -1478,7 +1433,7 @@ export default function KnowledgePage() {
                   onClick={() => setCreateModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
-                  {t("Cancel")}
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
@@ -1488,7 +1443,7 @@ export default function KnowledgePage() {
                   {uploading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    t("Create & Initialize")
+                    t('Create & Initialize')
                   )}
                 </button>
               </div>
@@ -1503,7 +1458,7 @@ export default function KnowledgePage() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {t("Upload Documents")}
+                {t('Upload Documents')}
               </h3>
               <button
                 onClick={() => setUploadModalOpen(false)}
@@ -1513,16 +1468,14 @@ export default function KnowledgePage() {
               </button>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              {t("Upload documents to")}{" "}
-              <strong className="text-slate-700 dark:text-slate-200">
-                {targetKb}
-              </strong>
+              {t('Upload documents to')}{' '}
+              <strong className="text-slate-700 dark:text-slate-200">{targetKb}</strong>
             </p>
 
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  {t("RAG Provider (Optional)")}
+                  {t('RAG Provider (Optional)')}
                 </label>
                 <select
                   value={ragProvider}
@@ -1537,9 +1490,9 @@ export default function KnowledgePage() {
                     ))
                   ) : (
                     <>
-                      <option value="llamaindex">{t("LlamaIndex")}</option>
-                      <option value="lightrag">{t("LightRAG")}</option>
-                      <option value="raganything">{t("RAG-Anything")}</option>
+                      <option value="llamaindex">{t('LlamaIndex')}</option>
+                      <option value="lightrag">{t('LightRAG')}</option>
+                      <option value="raganything">{t('RAG-Anything')}</option>
                     </>
                   )}
                 </select>
@@ -1552,21 +1505,18 @@ export default function KnowledgePage() {
                         return selectedProvider.description
                       }
                       const fallbackDescriptions: Record<string, string> = {
-                        llamaindex:
-                          t("Pure vector retrieval, fastest processing speed."),
-                        lightrag:
-                          t(
-                            "Lightweight knowledge graph retrieval, fast processing of text documents.",
-                          ),
-                        raganything:
-                          t(
-                            "Multimodal document processing with chart and formula extraction, builds knowledge graphs.",
-                          ),
-                      };
+                        llamaindex: t('Pure vector retrieval, fastest processing speed.'),
+                        lightrag: t(
+                          'Lightweight knowledge graph retrieval, fast processing of text documents.'
+                        ),
+                        raganything: t(
+                          'Multimodal document processing with chart and formula extraction, builds knowledge graphs.'
+                        ),
+                      }
                       return (
                         fallbackDescriptions[ragProvider] ||
-                        t("Select a RAG pipeline suitable for your document type")
-                      );
+                        t('Select a RAG pipeline suitable for your document type')
+                      )
                     })()}
                   </p>
                 </div>
@@ -1613,8 +1563,8 @@ export default function KnowledgePage() {
                   />
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                     {uploadFiles.length > 0
-                      ? t("Click or drop to add more files")
-                      : t("Drag & drop files or folders here")}
+                      ? t('Click or drop to add more files')
+                      : t('Drag & drop files or folders here')}
                   </span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">
                     {getFileTypeHint(ragProvider)}
@@ -1637,7 +1587,7 @@ export default function KnowledgePage() {
                         }}
                         className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                       >
-                          {t("Clear all")}
+                        {t('Clear all')}
                       </button>
                     </div>
                     <div className="space-y-1">
@@ -1667,7 +1617,7 @@ export default function KnowledgePage() {
                               removeFile(file.id)
                             }}
                             className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title={t("Remove file")}
+                            title={t('Remove file')}
                           >
                             <X className="w-4 h-4" />
                           </button>

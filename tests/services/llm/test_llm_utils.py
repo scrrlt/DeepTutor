@@ -27,9 +27,7 @@ def test_is_local_llm_server() -> None:
     )  # default: private LAN is not treated as local
 
     # Explicitly allow private prefixts via parameter
-    assert utils.is_local_llm_server(
-        "http://192.168.1.1:1234", allow_private=True
-    )
+    assert utils.is_local_llm_server("http://192.168.1.1:1234", allow_private=True)
     # Or via environment variable
     import os
 
@@ -41,8 +39,7 @@ def test_is_local_llm_server() -> None:
 def test_sanitize_url() -> None:
     # sanitize_url only strips specific suffixes, not arbitrary paths
     assert (
-        utils.sanitize_url("localhost:11434/api/chat")
-        == "http://localhost:11434/api"
+        utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api"
     )
     # But it adds http
     assert utils.sanitize_url("localhost:11434/v1") == "http://localhost:11434"
@@ -68,8 +65,7 @@ def test_clean_thinking_tags() -> None:
     # For now test basic tag removal.
     content_with_binding = "<think>thought</think> answer"
     assert (
-        utils.clean_thinking_tags(content_with_binding, binding="deepseek")
-        == "answer"
+        utils.clean_thinking_tags(content_with_binding, binding="deepseek") == "answer"
     )
     assert (
         utils.clean_thinking_tags(content_with_binding, binding="openai")
@@ -79,9 +75,7 @@ def test_clean_thinking_tags() -> None:
 
 def test_build_chat_url() -> None:
     base = "http://localhost:11434"
-    assert (
-        utils.build_chat_url(base) == "http://localhost:11434/chat/completions"
-    )
+    assert utils.build_chat_url(base) == "http://localhost:11434/chat/completions"
 
     assert (
         utils.build_chat_url(base, binding="anthropic")
@@ -103,27 +97,16 @@ def test_build_chat_url() -> None:
 
 def test_extract_response_content() -> None:
     assert utils.extract_response_content({"content": "hello"}) == "hello"
-    assert (
-        utils.extract_response_content({"reasoning_content": "thought"})
-        == "thought"
-    )
-    assert (
-        utils.extract_response_content({"tool_calls": ["call"]})
-        == "<tool_call>"
-    )
-    assert (
-        utils.extract_response_content({"reasoning": "reasoning"})
-        == "reasoning"
-    )
+    assert utils.extract_response_content({"reasoning_content": "thought"}) == "thought"
+    assert utils.extract_response_content({"tool_calls": ["call"]}) == "<tool_call>"
+    assert utils.extract_response_content({"reasoning": "reasoning"}) == "reasoning"
     assert utils.extract_response_content({"thought": "thought"}) == "thought"
     assert utils.extract_response_content({}) == ""
     assert utils.extract_response_content(None) == ""
 
 
 def test_build_auth_headers() -> None:
-    assert (
-        utils.build_auth_headers("sk-key")["Authorization"] == "Bearer sk-key"
-    )
+    assert utils.build_auth_headers("sk-key")["Authorization"] == "Bearer sk-key"
 
     headers = utils.build_auth_headers("sk-key", binding="anthropic")
     assert headers["x-api-key"] == "sk-key"
@@ -132,6 +115,4 @@ def test_build_auth_headers() -> None:
     headers = utils.build_auth_headers("sk-key", binding="azure_openai")
     assert headers["api-key"] == "sk-key"
 
-    assert utils.build_auth_headers(None) == {
-        "Content-Type": "application/json"
-    }
+    assert utils.build_auth_headers(None) == {"Content-Type": "application/json"}

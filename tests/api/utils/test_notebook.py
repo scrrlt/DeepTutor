@@ -77,9 +77,7 @@ class TestNotebookManager:
     """Test high-level manager API and backward compatibility."""
 
     @pytest.mark.asyncio
-    async def test_create_notebook(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_create_notebook(self, notebook_manager: NotebookManager) -> None:
         """Verify notebook creation through manager."""
         await notebook_manager.ensure_initialized()
 
@@ -96,9 +94,7 @@ class TestNotebookManager:
         assert len(result["id"]) == 8  # UUID_LENGTH
 
     @pytest.mark.asyncio
-    async def test_list_notebooks(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_list_notebooks(self, notebook_manager: NotebookManager) -> None:
         """Verify listing notebooks."""
         await notebook_manager.ensure_initialized()
 
@@ -137,9 +133,7 @@ class TestNotebookManager:
         assert updated_nb["records"][0]["title"] == "Solution"
 
     @pytest.mark.asyncio
-    async def test_remove_record(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_remove_record(self, notebook_manager: NotebookManager) -> None:
         """Verify record removal."""
         await notebook_manager.ensure_initialized()
 
@@ -165,9 +159,7 @@ class TestNotebookManager:
         assert len(updated_nb["records"]) == 0
 
     @pytest.mark.asyncio
-    async def test_get_statistics(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_get_statistics(self, notebook_manager: NotebookManager) -> None:
         """Verify statistics aggregation."""
         await notebook_manager.ensure_initialized()
 
@@ -197,15 +189,11 @@ class TestNotebookManager:
         assert stats["records_by_type"]["question"] == 1
 
     @pytest.mark.asyncio
-    async def test_update_notebook(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_update_notebook(self, notebook_manager: NotebookManager) -> None:
         """Verify notebook metadata updates."""
         await notebook_manager.ensure_initialized()
 
-        nb = await notebook_manager.create_notebook(
-            "Original", color="#0000FF"
-        )
+        nb = await notebook_manager.create_notebook("Original", color="#0000FF")
         nb_id = nb["id"]
 
         updated = await notebook_manager.update_notebook(
@@ -222,9 +210,7 @@ class TestNotebookManager:
         assert reloaded["name"] == "Updated"
 
     @pytest.mark.asyncio
-    async def test_delete_notebook(
-        self, notebook_manager: NotebookManager
-    ) -> None:
+    async def test_delete_notebook(self, notebook_manager: NotebookManager) -> None:
         """Verify notebook deletion."""
         await notebook_manager.ensure_initialized()
 

@@ -31,9 +31,7 @@ def _get_default_cache_ttl() -> int:
     try:
         return int(raw_ttl)
     except ValueError:
-        logger.warning(
-            f"Invalid LLM_CACHE_TTL '{raw_ttl}', defaulting to 3600s"
-        )
+        logger.warning(f"Invalid LLM_CACHE_TTL '{raw_ttl}', defaulting to 3600s")
         return 3600
 
 

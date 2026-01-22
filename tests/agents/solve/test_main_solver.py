@@ -77,10 +77,7 @@ async def test_main_solver_custom_config_initialization():
             await solver.ainit()
 
             assert solver.config is not None
-            assert (
-                solver.config["system"]["output_base_dir"]
-                == "/tmp/test_output"
-            )
+            assert solver.config["system"]["output_base_dir"] == "/tmp/test_output"
 
 
 @pytest.mark.asyncio
@@ -92,9 +89,7 @@ async def test_main_solver_ainit_invalid_config():
     ) as mock_load_config:
         mock_load_config.return_value = {
             "solve": {
-                "agents": {
-                    "investigate_agent": {"max_iterations": "not_an_integer"}
-                }
+                "agents": {"investigate_agent": {"max_iterations": "not_an_integer"}}
             }
         }
 
@@ -237,9 +232,7 @@ async def test_main_solver_dual_loop_pipeline():
         }
         solver.manager_agent.process.return_value = {"num_steps": 1}
         solver.solve_agent.process.return_value = {"finish_requested": True}
-        solver.response_agent.process.return_value = {
-            "step_response": "response"
-        }
+        solver.response_agent.process.return_value = {"step_response": "response"}
         solver.precision_answer_agent.process.return_value = {
             "needs_precision": True,
             "precision_answer": "precise answer",
@@ -250,9 +243,7 @@ async def test_main_solver_dual_loop_pipeline():
             patch(
                 "src.agents.solve.main_solver.InvestigateMemory"
             ) as mock_investigate_memory,
-            patch(
-                "src.agents.solve.main_solver.SolveMemory"
-            ) as mock_solve_memory,
+            patch("src.agents.solve.main_solver.SolveMemory") as mock_solve_memory,
             patch("src.agents.solve.main_solver.CitationMemory"),
         ):
             mock_investigate_memory.load_or_create.return_value = MagicMock(

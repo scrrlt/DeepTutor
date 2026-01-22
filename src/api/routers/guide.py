@@ -29,9 +29,9 @@ router = APIRouter()
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("guide_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-    "logging", {}
-).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+    "log_dir"
+)
 logger = get_logger("Guide", level="INFO", log_dir=log_dir)
 
 
@@ -81,7 +81,9 @@ def get_guide_manager():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM config error: {e!s}")
 
-    ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
+    ui_language = get_ui_language(
+        default=config.get("system", {}).get("language", "en")
+    )
     return GuideManager(
         api_key=api_key,
         base_url=base_url,
@@ -116,9 +118,7 @@ async def create_session(request: CreateSessionRequest):
         elif request.notebook_id:
             notebook = await notebook_manager.get_notebook(request.notebook_id)
             if not notebook:
-                raise HTTPException(
-                    status_code=404, detail="Notebook not found"
-                )
+                raise HTTPException(status_code=404, detail="Notebook not found")
 
             records = notebook.get("records", [])
             notebook_name = notebook.get("name", "Unknown")
@@ -208,9 +208,7 @@ async def fix_html(request: FixHtmlRequest):
     """
     try:
         manager = get_guide_manager()
-        result = await manager.fix_html(
-            request.session_id, request.bug_description
-        )
+        result = await manager.fix_html(request.session_id, request.bug_description)
         return result
     except Exception as e:
         logger.error(f"Fix HTML failed: {e}")
@@ -285,9 +283,7 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
 
         session = manager.get_session(session_id)
         if not session:
-            await websocket.send_json(
-                {"type": "error", "content": "Session not found"}
-            )
+            await websocket.send_json({"type": "error", "content": "Session not found"})
             await websocket.close()
             return
 
@@ -303,23 +299,17 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
                 if msg_type == "start":
                     logger.debug(f"[{task_id}] Start learning")
                     result = await manager.start_learning(session_id)
-                    await websocket.send_json(
-                        {"type": "start_result", "data": result}
-                    )
+                    await websocket.send_json({"type": "start_result", "data": result})
 
                 elif msg_type == "next":
                     logger.debug(f"[{task_id}] Next knowledge point")
                     result = await manager.next_knowledge(session_id)
-                    await websocket.send_json(
-                        {"type": "next_result", "data": result}
-                    )
+                    await websocket.send_json({"type": "next_result", "data": result})
 
                 elif msg_type == "chat":
                     message = data.get("message", "")
                     if message:
-                        logger.debug(
-                            f"[{task_id}] User message: {message[:50]}..."
-                        )
+                        logger.debug(f"[{task_id}] User message: {message[:50]}...")
                         result = await manager.chat(session_id, message)
                         await websocket.send_json(
                             {"type": "chat_result", "data": result}
@@ -329,15 +319,11 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
                     bug_desc = data.get("bug_description", "")
                     logger.debug(f"[{task_id}] Fix HTML: {bug_desc[:50]}...")
                     result = await manager.fix_html(session_id, bug_desc)
-                    await websocket.send_json(
-                        {"type": "fix_result", "data": result}
-                    )
+                    await websocket.send_json({"type": "fix_result", "data": result})
 
                 elif msg_type == "get_session":
                     session = manager.get_session(session_id)
-                    await websocket.send_json(
-                        {"type": "session_info", "data": session}
-                    )
+                    await websocket.send_json({"type": "session_info", "data": session})
 
                 else:
                     await websocket.send_json(

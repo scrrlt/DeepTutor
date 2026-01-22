@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
 interface LayoutWrapperProps {
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 /**
@@ -11,5 +11,5 @@ interface LayoutWrapperProps {
  * Now just a simple wrapper for children.
  */
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
-  return <>{children}</>;
+  return <>{children}</>
 }

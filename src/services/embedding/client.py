@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Embedding Client
 ================
@@ -8,7 +7,6 @@ Now supports multiple providers through adapters.
 """
 
 import asyncio
-from typing import List, Optional
 
 from src.logging import get_logger
 
@@ -105,14 +103,6 @@ class EmbeddingClient:
         Executes the async embed call on the loop where the client was initialized
         to avoid event loop affinity issues.
         """
-
-    def embed_sync(self, texts: List[str]) -> List[List[float]]:
-        """
-        Thread-safe synchronous wrapper for embed().
-
-        Executes the async embed call on the loop where the client was initialized
-        to avoid event loop affinity issues.
-        """
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -131,7 +121,9 @@ class EmbeddingClient:
 
         if self._init_loop and self._init_loop.is_running():
             # Different loop context, dispatch to init loop for adapter affinity
-            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
+            future = asyncio.run_coroutine_threadsafe(
+                self.embed(texts), self._init_loop
+            )
             return future.result(timeout=self.config.request_timeout or 30)
 
         # Init loop is dead but we're in a different running loop - can't safely proceed

@@ -1,24 +1,24 @@
 'use client'
 
-import { useState, useEffect, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-import { X, FileText, HelpCircle, Search, Clock, Database } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { processLatexContent } from "@/lib/latex";
+import { useState, useEffect, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
+import { X, FileText, HelpCircle, Search, Clock, Database } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
+import { processLatexContent } from '@/lib/latex'
 
 // Hook to safely detect client-side rendering
-const emptySubscribe = () => () => {};
+const emptySubscribe = () => () => {}
 function useIsClient() {
   return useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false
-  );
+  )
 }
 
 interface ActivityDetailProps {
@@ -26,12 +26,9 @@ interface ActivityDetailProps {
   onClose: () => void
 }
 
-export default function ActivityDetail({
-  activity,
-  onClose,
-}: ActivityDetailProps) {
-  const mounted = useIsClient();
-  const { t } = useTranslation();
+export default function ActivityDetail({ activity, onClose }: ActivityDetailProps) {
+  const mounted = useIsClient()
+  const { t } = useTranslation()
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -74,7 +71,7 @@ export default function ActivityDetail({
             </div>
             <div>
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
-                {t("Activity Details")}
+                {t('Activity Details')}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Clock className="w-3 h-3" />
@@ -96,7 +93,7 @@ export default function ActivityDetail({
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                {t("Type")}
+                {t('Type')}
               </div>
               <div className="font-medium text-slate-900 dark:text-slate-100 capitalize">
                 {activity.type}
@@ -104,11 +101,11 @@ export default function ActivityDetail({
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-1">
-                {t("Knowledge Base")}
+                {t('Knowledge Base')}
               </div>
               <div className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Database className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                {activity.content?.kb_name || t("Unknown")}
+                {activity.content?.kb_name || t('Unknown')}
               </div>
             </div>
           </div>
@@ -119,16 +116,14 @@ export default function ActivityDetail({
           {activity.type === 'solve' && (
             <>
               <div className="space-y-2">
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Question")}
-                </h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100">{t('Question')}</h3>
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 leading-relaxed">
                   {activity.content.question}
                 </div>
               </div>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Final Answer")}
+                  {t('Final Answer')}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                   <div className="prose prose-slate dark:prose-invert max-w-none prose-sm">
@@ -148,36 +143,34 @@ export default function ActivityDetail({
           {activity.type === 'question' && (
             <>
               <div className="space-y-2">
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Parameters")}
-                </h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100">{t('Parameters')}</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">{t("Topic:")}</span>{" "}
-                    {activity.content?.requirement?.knowledge_point || t("N/A")}
+                    <span className="font-bold">{t('Topic:')}</span>{' '}
+                    {activity.content?.requirement?.knowledge_point || t('N/A')}
                   </div>
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">{t("Difficulty:")}</span>{" "}
-                    {activity.content?.requirement?.difficulty || t("N/A")}
+                    <span className="font-bold">{t('Difficulty:')}</span>{' '}
+                    {activity.content?.requirement?.difficulty || t('N/A')}
                   </div>
                   <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50">
-                    <span className="font-bold">{t("Type:")}</span>{" "}
+                    <span className="font-bold">{t('Type:')}</span>{' '}
                     {activity.content?.requirement?.question_type ||
                       activity.content?.question?.question_type ||
-                      t("N/A")}
+                      t('N/A')}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Generated Question")}
+                  {t('Generated Question')}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
                   <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
                     {activity.content?.question?.content ||
                       activity.content?.question?.question ||
-                      t("No question content")}
+                      t('No question content')}
                   </p>
 
                   {/* Handle options as object (A, B, C, D format) or array */}
@@ -215,18 +208,17 @@ export default function ActivityDetail({
 
               <div className="space-y-2">
                 <h3 className="font-bold text-green-700 dark:text-green-400">
-                  {t("Correct Answer & Explanation")}
+                  {t('Correct Answer & Explanation')}
                 </h3>
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 text-green-800 dark:text-green-300 space-y-2">
                   <p className="font-bold">
-                    {t("Answer:")}{" "}
+                    {t('Answer:')}{' '}
                     {activity.content?.question?.answer ||
                       activity.content?.question?.correct_answer ||
-                      t("N/A")}
+                      t('N/A')}
                   </p>
                   <p className="text-sm leading-relaxed">
-                    {activity.content?.question?.explanation ||
-                      t("No explanation provided")}
+                    {activity.content?.question?.explanation || t('No explanation provided')}
                   </p>
                 </div>
               </div>
@@ -237,16 +229,14 @@ export default function ActivityDetail({
           {activity.type === 'research' && (
             <>
               <div className="space-y-2">
-                <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Topic")}
-                </h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100">{t('Topic')}</h3>
                 <div className="text-lg font-medium text-slate-800 dark:text-slate-200">
                   {activity.content.topic}
                 </div>
               </div>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                  {t("Report Preview")}
+                  {t('Report Preview')}
                 </h3>
                 <div className="p-6 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-h-96 overflow-y-auto font-mono text-xs text-slate-600 dark:text-slate-300">
                   {activity.content.report}
@@ -262,7 +252,7 @@ export default function ActivityDetail({
             onClick={onClose}
             className="px-6 py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
           >
-            {t("Close")}
+            {t('Close')}
           </button>
         </div>
       </div>

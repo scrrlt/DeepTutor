@@ -62,9 +62,7 @@ def init_user_directories(project_root: Path | None = None) -> None:
     # Get user data directory from config
     try:
         config = load_config_with_main("solve_config.yaml", project_root)
-        user_data_dir = config.get("paths", {}).get(
-            "user_data_dir", "./data/user"
-        )
+        user_data_dir = config.get("paths", {}).get("user_data_dir", "./data/user")
 
         # Convert relative path to absolute
         if not Path(user_data_dir).is_absolute():
@@ -120,9 +118,7 @@ def init_user_directories(project_root: Path | None = None) -> None:
         if not user_dir_exists:
             logger.info(f"Creating user data directory: {user_data_dir}")
         else:
-            logger.info(
-                f"User data directory is empty, initializing: {user_data_dir}"
-            )
+            logger.info(f"User data directory is empty, initializing: {user_data_dir}")
 
         # Create main user directory
         user_data_dir.mkdir(parents=True, exist_ok=True)
@@ -174,14 +170,10 @@ def init_user_directories(project_root: Path | None = None) -> None:
             }
             try:
                 with open(interface_file, "w", encoding="utf-8") as f:
-                    json.dump(
-                        initial_settings, f, indent=2, ensure_ascii=False
-                    )
+                    json.dump(initial_settings, f, indent=2, ensure_ascii=False)
                 logger.success("Created: settings/interface.json")
             except Exception as e:
-                logger.warning(
-                    f"Failed to create settings/interface.json: {e}"
-                )
+                logger.warning(f"Failed to create settings/interface.json: {e}")
 
         logger.info("=" * 80)
         logger.success("User data directory initialization complete!")
@@ -230,9 +222,7 @@ def init_user_directories(project_root: Path | None = None) -> None:
             }
             try:
                 with open(interface_file, "w", encoding="utf-8") as f:
-                    json.dump(
-                        initial_settings, f, indent=2, ensure_ascii=False
-                    )
+                    json.dump(initial_settings, f, indent=2, ensure_ascii=False)
             except Exception:
                 pass  # Silent fail if file creation fails but directory exists
 
@@ -278,9 +268,7 @@ def get_frontend_port(project_root: Path | None = None) -> int:
         return int(env_port)
     except ValueError:
         logger = _get_setup_logger()
-        logger.warning(
-            f"Invalid FRONTEND_PORT: {env_port}, using default 3782"
-        )
+        logger.warning(f"Invalid FRONTEND_PORT: {env_port}, using default 3782")
         return 3782
 
 

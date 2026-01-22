@@ -136,7 +136,9 @@ def terminate_process_tree(process, name="Process", timeout=5):
                 logger.debug(f"{name} terminated gracefully")
                 return
             except subprocess.TimeoutExpired:
-                logger.warning(f"{name} did not terminate in {timeout}s, sending SIGKILL...")
+                logger.warning(
+                    f"{name} did not terminate in {timeout}s, sending SIGKILL..."
+                )
 
             # Step 3: Force kill with SIGKILL
             try:
@@ -307,7 +309,9 @@ def start_frontend():
                     logger.error(
                         f"Failed to install frontend dependencies (exit code: {process.returncode})"
                     )
-                    raise RuntimeError(f"npm install failed with exit code {process.returncode}")
+                    raise RuntimeError(
+                        f"npm install failed with exit code {process.returncode}"
+                    )
             else:
                 logger.info("Frontend dependencies installed successfully")
         except Exception as e:
@@ -482,7 +486,9 @@ if __name__ == "__main__":
                 pass
 
         if backend.poll() is not None:
-            logger.error("Backend failed to start. Please check the error messages above.")
+            logger.error(
+                "Backend failed to start. Please check the error messages above."
+            )
             sys.exit(1)
 
         frontend = start_frontend()
@@ -512,7 +518,9 @@ if __name__ == "__main__":
                 logger.info("\nCtrl+C detected, stopping services...")
                 break
             if backend.poll() is not None:
-                logger.error(f"\nBackend process exited unexpectedly (code: {backend.returncode})")
+                logger.error(
+                    f"\nBackend process exited unexpectedly (code: {backend.returncode})"
+                )
                 break
             time.sleep(0.5)  # Check more frequently for responsive shutdown
 

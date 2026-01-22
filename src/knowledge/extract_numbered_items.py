@@ -239,9 +239,7 @@ async def _get_complete_content_async(
             captions = next_item.get("image_caption", [])
             if captions:
                 caption_text = (
-                    " ".join(captions)
-                    if isinstance(captions, list)
-                    else str(captions)
+                    " ".join(captions) if isinstance(captions, list) else str(captions)
                 )
                 complete_text += " " + caption_text
         # If it's regular text, use LLM to judge
@@ -327,9 +325,7 @@ def _get_complete_content(
                     )
                 except (ValueError, TypeError) as e:
                     # nest_asyncio failed, fall back to threading approach
-                    logger.debug(
-                        f"nest_asyncio failed ({e}), using threading fallback"
-                    )
+                    logger.debug(f"nest_asyncio failed ({e}), using threading fallback")
                     import concurrent.futures
 
                     def run_in_new_loop():
@@ -573,9 +569,7 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
                 "img_paths": img_paths if img_paths else [],
             }
 
-        extracted_count = len(
-            [e for e in extracted if e.get("identifier", "").strip()]
-        )
+        extracted_count = len([e for e in extracted if e.get("identifier", "").strip()])
         logger.info(
             f"  Batch {batch_idx}/{total_batches}: Extracted {extracted_count} numbered items"
         )
@@ -626,9 +620,7 @@ async def extract_numbered_items_with_llm_async(
             if captions:
                 # Create a virtual text item
                 caption_text = (
-                    " ".join(captions)
-                    if isinstance(captions, list)
-                    else str(captions)
+                    " ".join(captions) if isinstance(captions, list) else str(captions)
                 )
                 virtual_item = {
                     "type": "image",
@@ -672,9 +664,7 @@ async def extract_numbered_items_with_llm_async(
         1
         for item in content_items
         if item.get("type") == "equation"
-        and (
-            "\\tag{" in item.get("text", "") or "tag{" in item.get("text", "")
-        )
+        and ("\\tag{" in item.get("text", "") or "tag{" in item.get("text", ""))
     )
 
     logger.info(f"Total {len(text_items)} items to process")
@@ -729,9 +719,7 @@ async def extract_numbered_items_with_llm_async(
         item_type = item_data.get("type", "Unknown")
         type_stats[item_type] = type_stats.get(item_type, 0) + 1
 
-    logger.info(
-        f"\nExtraction complete, total {len(numbered_items)} numbered items"
-    )
+    logger.info(f"\nExtraction complete, total {len(numbered_items)} numbered items")
     logger.info("Statistics by type:")
     for item_type, count in sorted(type_stats.items()):
         logger.info(f"  - {item_type}: {count}")
@@ -796,9 +784,7 @@ def extract_numbered_items_with_llm(
                     )
                 except (ValueError, TypeError) as e:
                     # nest_asyncio failed, fall back to threading approach
-                    logger.debug(
-                        f"nest_asyncio failed ({e}), using threading fallback"
-                    )
+                    logger.debug(f"nest_asyncio failed ({e}), using threading fallback")
                     import concurrent.futures
 
                     def run_in_new_loop():
@@ -884,9 +870,7 @@ def process_content_list(
         try:
             with open(output_file, encoding="utf-8") as f:
                 existing_items = json.load(f)
-            logger.info(
-                f"Loaded {len(existing_items)} existing numbered items"
-            )
+            logger.info(f"Loaded {len(existing_items)} existing numbered items")
 
             # Merge (new items will override old items with same identifier)
             merged_count = 0
@@ -899,13 +883,9 @@ def process_content_list(
             logger.info(
                 f"Merge complete: Updated {merged_count} existing items, added {len(new_items) - merged_count} new items"
             )
-            logger.info(
-                f"Total {len(numbered_items)} numbered items after merge"
-            )
+            logger.info(f"Total {len(numbered_items)} numbered items after merge")
         except Exception as e:
-            logger.warning(
-                f"Could not read existing file, will create new file: {e}"
-            )
+            logger.warning(f"Could not read existing file, will create new file: {e}")
             numbered_items = new_items
     else:
         numbered_items = new_items
@@ -1015,9 +995,7 @@ def main():
 
     # Check if content_list directory exists
     if not content_list_dir.exists():
-        logger.error(
-            f"content_list directory does not exist: {content_list_dir}"
-        )
+        logger.error(f"content_list directory does not exist: {content_list_dir}")
         sys.exit(1)
 
     # Get list of files to process
@@ -1025,9 +1003,7 @@ def main():
         # If file is specified, only process that file
         content_list_files = [content_list_dir / args.content_file]
         if not content_list_files[0].exists():
-            logger.error(
-                f"content_list file does not exist: {content_list_files[0]}"
-            )
+            logger.error(f"content_list file does not exist: {content_list_files[0]}")
             sys.exit(1)
     else:
         # Otherwise automatically scan all JSON files

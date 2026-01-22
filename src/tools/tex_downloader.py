@@ -75,9 +75,7 @@ class TexDownloader:
             arxiv_id = self._extract_arxiv_id(arxiv_url)
 
         if not arxiv_id:
-            return TexDownloadResult(
-                success=False, error="Unable to extract ArXiv ID"
-            )
+            return TexDownloadResult(success=False, error="Unable to extract ArXiv ID")
 
         try:
             # Build source download URL
@@ -113,9 +111,7 @@ class TexDownloader:
             main_tex = self._find_main_tex(extract_dir)
 
             if not main_tex:
-                return TexDownloadResult(
-                    success=False, error="Main tex file not found"
-                )
+                return TexDownloadResult(success=False, error="Main tex file not found")
 
             # Read tex content
             tex_content = self._read_tex_file(main_tex)
@@ -137,13 +133,9 @@ class TexDownloader:
             )
 
         except (httpx.RequestError, httpx.HTTPStatusError) as e:
-            return TexDownloadResult(
-                success=False, error=f"Download failed: {e!s}"
-            )
+            return TexDownloadResult(success=False, error=f"Download failed: {e!s}")
         except Exception as e:
-            return TexDownloadResult(
-                success=False, error=f"Processing failed: {e!s}"
-            )
+            return TexDownloadResult(success=False, error=f"Processing failed: {e!s}")
 
     def _extract_arxiv_id(self, url: str) -> str | None:
         """Extract ArXiv ID from URL"""
@@ -213,12 +205,8 @@ class TexDownloader:
         with zipfile.ZipFile(zip_path, "r") as zip_file:
             for member in zip_file.namelist():
                 member_path = os.path.join(extract_dir, member)
-                if not self._is_within_directory(
-                    str(extract_dir), member_path
-                ):
-                    logger.warning(
-                        f"Suspicious file path in zip: {member}. Skipping."
-                    )
+                if not self._is_within_directory(str(extract_dir), member_path):
+                    logger.warning(f"Suspicious file path in zip: {member}. Skipping.")
                     continue
                 zip_file.extract(member, extract_dir)
 
@@ -279,9 +267,7 @@ class TexDownloader:
                 continue
 
         # Last resort: replace errors to get *something*
-        logger.warning(
-            f"Could not decode {tex_path.name} cleanly. Forcing decode."
-        )
+        logger.warning(f"Could not decode {tex_path.name} cleanly. Forcing decode.")
         return raw_content.decode("utf-8", errors="replace")
 
 

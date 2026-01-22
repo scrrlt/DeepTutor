@@ -74,24 +74,18 @@ class AgentCoordinator:
         self._api_version = api_version
 
         # Load configuration
-        self.config = load_config_with_main(
-            "question_config.yaml", project_root
-        )
+        self.config = load_config_with_main("question_config.yaml", project_root)
 
         # Initialize logger
-        log_dir = self.config.get("paths", {}).get(
-            "user_log_dir"
-        ) or self.config.get("logging", {}).get("log_dir")
-        self.logger: Logger = get_logger(
-            "QuestionCoordinator", log_dir=log_dir
-        )
+        log_dir = self.config.get("paths", {}).get("user_log_dir") or self.config.get(
+            "logging", {}
+        ).get("log_dir")
+        self.logger: Logger = get_logger("QuestionCoordinator", log_dir=log_dir)
 
         # Get config values
         question_cfg = self.config.get("question", {})
         self.rag_query_count = question_cfg.get("rag_query_count", 3)
-        self.max_parallel_questions = question_cfg.get(
-            "max_parallel_questions", 1
-        )
+        self.max_parallel_questions = question_cfg.get("max_parallel_questions", 1)
         self.rag_mode = question_cfg.get("rag_mode", "naive")
 
         # Token tracking - will be updated from BaseAgent shared stats
@@ -230,9 +224,7 @@ class AgentCoordinator:
         )
 
         if not gen_result.get("success"):
-            self.logger.error(
-                f"Question generation failed: {gen_result.get('error')}"
-            )
+            self.logger.error(f"Question generation failed: {gen_result.get('error')}")
             return {
                 "success": False,
                 "error": gen_result.get("error", "Generation failed"),
@@ -296,16 +288,12 @@ class AgentCoordinator:
         if num_questions <= 0:
             raise ValueError("num_questions must be greater than zero")
 
-        self.logger.section(
-            f"Custom Mode Generation: {num_questions} question(s)"
-        )
+        self.logger.section(f"Custom Mode Generation: {num_questions} question(s)")
 
         # Create batch directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         batch_dir = (
-            Path(self.output_dir) / f"batch_{timestamp}"
-            if self.output_dir
-            else None
+            Path(self.output_dir) / f"batch_{timestamp}" if self.output_dir else None
         )
         if batch_dir:
             batch_dir.mkdir(parents=True, exist_ok=True)
@@ -365,9 +353,7 @@ class AgentCoordinator:
         if batch_dir:
             self._save_plan_json(batch_dir, plan)
 
-        await self._send_ws_update(
-            "plan_ready", {"plan": plan, "focuses": focuses}
-        )
+        await self._send_ws_update("plan_ready", {"plan": plan, "focuses": focuses})
 
         # =====================================================================
         # Stage 3: Generating
@@ -566,9 +552,7 @@ class AgentCoordinator:
             if len(knowledge_context) > 4000
             else knowledge_context
         )
-        truncation_suffix = (
-            "...[truncated]" if len(knowledge_context) > 4000 else ""
-        )
+        truncation_suffix = "...[truncated]" if len(knowledge_context) > 4000 else ""
 
         user_prompt = (
             f"Topic: {requirement.get('knowledge_point', '')}\n"
@@ -675,7 +659,9 @@ class AgentCoordinator:
 **KB Coverage**: {validation.get("kb_coverage", "")}
 """
             if validation.get("extension_points"):
-                md_content += f"\n**Extension Points**: {validation.get('extension_points', '')}"
+                md_content += (
+                    f"\n**Extension Points**: {validation.get('extension_points', '')}"
+                )
 
             with open(output_path / "question.md", "w", encoding="utf-8") as f:
                 f.write(md_content)
@@ -762,7 +748,9 @@ class AgentCoordinator:
 **KB Coverage**: {analysis.get("kb_coverage", "")}
 """
         if analysis.get("extension_points"):
-            md_content += f"\n**Extension Points**: {analysis.get('extension_points', '')}"
+            md_content += (
+                f"\n**Extension Points**: {analysis.get('extension_points', '')}"
+            )
 
         with open(question_dir / "question.md", "w", encoding="utf-8") as f:
             f.write(md_content)

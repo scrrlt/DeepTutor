@@ -36,8 +36,8 @@ class SummaryAgent(BaseAgent):
             formatted.append(
                 f"""
 ### Knowledge Point {i}: {point.get("knowledge_title", "Unnamed")}
-**Content Summary**: {point.get("knowledge_summary", "")}
-**Potential Difficulty**: {point.get("user_difficulty", "")}
+Content Summary: {point.get("knowledge_summary", "")}
+Potential Difficulty: {point.get("user_difficulty", "")}
 """
             )
         return "\n".join(formatted)
@@ -55,10 +55,7 @@ class SummaryAgent(BaseAgent):
             content = msg.get("content", "")
             knowledge_index = msg.get("knowledge_index")
 
-            if (
-                knowledge_index is not None
-                and knowledge_index != current_knowledge
-            ):
+            if knowledge_index is not None and knowledge_index != current_knowledge:
                 current_knowledge = knowledge_index
                 formatted.append(
                     f"\n--- During learning knowledge point {knowledge_index + 1} ---\n"

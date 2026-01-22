@@ -38,9 +38,7 @@ class TestLogger:
         Args:
             tmp_path (Path): Pytest fixture for a temporary directory.
         """
-        logger = Logger(
-            "TestModule", log_dir=str(tmp_path), console_output=False
-        )
+        logger = Logger("TestModule", log_dir=str(tmp_path), console_output=False)
 
         with patch.object(logger.logger, "log") as mock_log:
             logger.info("Info message")
@@ -78,12 +76,8 @@ class TestLogger:
         logger.info("Task message")
 
         logger.remove_task_log_handlers()
-        assert len(logger._task_handlers) == 0, (
-            "Task handler should be removed."
-        )
+        assert len(logger._task_handlers) == 0, "Task handler should be removed."
 
         assert task_log_path.exists(), "Log file should be created."
         content = task_log_path.read_text(encoding="utf-8")
-        assert "Task message" in content, (
-            "Log file should contain the task message."
-        )
+        assert "Task message" in content, "Log file should contain the task message."

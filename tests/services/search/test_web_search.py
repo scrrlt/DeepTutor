@@ -54,9 +54,7 @@ def test_web_search_passes_args_to_provider(mock_get_provider):
 
 @patch("src.services.search.get_provider")
 @patch("src.services.search._save_results")
-def test_web_search_saves_results_to_output_dir(
-    mock_save_results, mock_get_provider
-):
+def test_web_search_saves_results_to_output_dir(mock_save_results, mock_get_provider):
     """
     Tests that the web_search function correctly handles the output_dir argument and saves the results to a file.
     """
@@ -65,13 +63,9 @@ def test_web_search_saves_results_to_output_dir(
     mock_provider.search.return_value = WebSearchResponse(query="test query")
     mock_get_provider.return_value = mock_provider
 
-    web_search(
-        "test query", provider="test_provider", output_dir="/tmp/test_output"
-    )
+    web_search("test query", provider="test_provider", output_dir="/tmp/test_output")
 
-    mock_save_results.assert_called_once_with(
-        ANY, "/tmp/test_output", "test_provider"
-    )
+    mock_save_results.assert_called_once_with(ANY, "/tmp/test_output", "test_provider")
 
 
 @patch("src.services.search.get_provider")

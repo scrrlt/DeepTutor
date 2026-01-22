@@ -54,9 +54,7 @@ async def test_resource_limits_passed_to_subprocess(tmp_path, monkeypatch):
 
     _sys.modules["resource"] = fake_resource
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(
         timeout=5, assets_dir=None, cpu_time_limit=1, memory_limit_bytes=1024
@@ -86,9 +84,7 @@ async def test_resource_limits_not_supported_on_windows(tmp_path, monkeypatch):
     if "resource" in _sys.modules:
         del _sys.modules["resource"]
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(
         timeout=5, assets_dir=None, cpu_time_limit=1, memory_limit_bytes=1024

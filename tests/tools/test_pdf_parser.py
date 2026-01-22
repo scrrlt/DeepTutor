@@ -30,23 +30,17 @@ def test_get_mineru_command_finds_magic_pdf():
 
 def test_get_mineru_command_finds_mineru():
     with patch("src.tools.question.pdf_parser.shutil.which") as mock_which:
-        mock_which.side_effect = (
-            lambda cmd: "/bin/mineru" if cmd == "mineru" else None
-        )
+        mock_which.side_effect = lambda cmd: "/bin/mineru" if cmd == "mineru" else None
         assert pdf_parser._get_mineru_command() == "mineru"
 
 
 def test_get_mineru_command_fails():
-    with patch(
-        "src.tools.question.pdf_parser.shutil.which", return_value=None
-    ):
+    with patch("src.tools.question.pdf_parser.shutil.which", return_value=None):
         assert pdf_parser._get_mineru_command() is None
 
 
 def test_parse_pdf_mineru_missing(tmp_path):
-    with patch(
-        "src.tools.question.pdf_parser._get_mineru_command", return_value=None
-    ):
+    with patch("src.tools.question.pdf_parser._get_mineru_command", return_value=None):
         assert pdf_parser.parse_pdf_with_mineru("test.pdf") is False
 
 
@@ -85,9 +79,7 @@ def test_parse_pdf_success(tmp_path, mock_mineru_check, mock_subprocess):
     mock_subprocess.side_effect = side_effect
 
     assert (
-        pdf_parser.parse_pdf_with_mineru(
-            str(pdf), output_base_dir=str(output_dir)
-        )
+        pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_dir))
         is True
     )
 
@@ -99,9 +91,7 @@ def test_parse_pdf_success(tmp_path, mock_mineru_check, mock_subprocess):
     assert str(pdf) in cmd
 
 
-def test_parse_pdf_backup_rotation(
-    tmp_path, mock_mineru_check, mock_subprocess
-):
+def test_parse_pdf_backup_rotation(tmp_path, mock_mineru_check, mock_subprocess):
     pdf = tmp_path / "doc.pdf"
     pdf.touch()
     output_base = tmp_path / "output"
@@ -122,9 +112,7 @@ def test_parse_pdf_backup_rotation(
 
     with patch("src.tools.question.pdf_parser.shutil.move") as mock_move:
         assert (
-            pdf_parser.parse_pdf_with_mineru(
-                str(pdf), output_base_dir=str(output_base)
-            )
+            pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_base))
             is True
         )
         # Called twice: once for backup, once for moving result

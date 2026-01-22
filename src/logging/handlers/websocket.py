@@ -5,9 +5,12 @@ WebSocket Log Handler
 Handlers for streaming logs to WebSocket clients.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
-from typing import Optional
+
+from .._stdlib_logging import stdlib_logging
 
 
 class WebSocketLogHandler(stdlib_logging.Handler):
@@ -29,7 +32,7 @@ class WebSocketLogHandler(stdlib_logging.Handler):
         self,
         queue: asyncio.Queue,
         include_module: bool = True,
-        service_prefix: Optional[str] = None,
+        service_prefix: str | None = None,
     ):
         """
         Initialize WebSocket log handler.

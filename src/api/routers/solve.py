@@ -28,9 +28,9 @@ from src.services.settings.interface_settings import get_ui_language
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("solve_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-    "logging", {}
-).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+    "log_dir"
+)
 logger = get_logger("SolveAPI", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
@@ -133,9 +133,7 @@ async def websocket_solve(websocket: WebSocket):
                     ConnectionError,
                 ) as e:
                     # Connection closed, stop pushing
-                    logger.debug(
-                        f"WebSocket connection closed in log_pusher: {e}"
-                    )
+                    logger.debug(f"WebSocket connection closed in log_pusher: {e}")
                     connection_closed.set()
                     log_queue.task_done()
                     break
@@ -214,7 +212,9 @@ async def websocket_solve(websocket: WebSocket):
             )
             return
 
-        ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
+        ui_language = get_ui_language(
+            default=config.get("system", {}).get("language", "en")
+        )
         solver = MainSolver(
             kb_name=kb_name,
             output_base_dir=str(output_base),
@@ -239,10 +239,7 @@ async def websocket_solve(websocket: WebSocket):
 
         # 4. Setup status update mechanism
         display_manager = None
-        if (
-            hasattr(solver.logger, "display_manager")
-            and solver.logger.display_manager
-        ):
+        if hasattr(solver.logger, "display_manager") and solver.logger.display_manager:
             display_manager = solver.logger.display_manager
 
             original_set_status = display_manager.set_agent_status
@@ -272,9 +269,7 @@ async def websocket_solve(websocket: WebSocket):
                     logger.debug(
                         f"Sending token_stats: model={stats_copy.get('model')}, calls={stats_copy.get('calls')}, cost={stats_copy.get('cost')}"
                     )
-                    log_queue.put_nowait(
-                        {"type": "token_stats", "stats": stats_copy}
-                    )
+                    log_queue.put_nowait({"type": "token_stats", "stats": stats_copy})
                 except Exception as e:
                     logger.debug(f"Failed to send token_stats: {e}")
 
@@ -283,9 +278,7 @@ async def websocket_solve(websocket: WebSocket):
             # Re-register the callback to use the wrapped method
             # (The callback was set before wrapping in main_solver.py)
             if hasattr(solver, "token_tracker") and solver.token_tracker:
-                solver.token_tracker.set_on_usage_added_callback(
-                    wrapped_update_stats
-                )
+                solver.token_tracker.set_on_usage_added_callback(wrapped_update_stats)
 
         def send_progress_update(stage: str, progress: dict[str, Any]):
             """Send progress update to frontend"""
@@ -350,9 +343,7 @@ async def websocket_solve(websocket: WebSocket):
 
                         pattern = r"\]\(artifacts/([^)]+)\)"
                         replacement = rf"]({base_url}/artifacts/\1)"
-                        final_answer = re.sub(
-                            pattern, replacement, final_answer
-                        )
+                        final_answer = re.sub(pattern, replacement, final_answer)
                 except Exception as e:
                     logger.debug(f"Error processing image paths: {e}")
 
@@ -405,9 +396,7 @@ async def websocket_solve(websocket: WebSocket):
             # Save to history
             history_manager.add_entry(
                 activity_type=ActivityType.SOLVE,
-                title=question[:50] + "..."
-                if len(question) > 50
-                else question,
+                title=question[:50] + "..." if len(question) > 50 else question,
                 content={
                     "question": question,
                     "answer": result.get("final_answer"),

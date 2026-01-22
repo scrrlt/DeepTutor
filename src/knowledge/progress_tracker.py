@@ -17,11 +17,7 @@ sys.path.insert(0, str(project_root))
 # Use unified logging system
 from src.logging import get_logger
 
-_logger = get_logger("KnowledgeInit")
-
-
-def _get_logger():
-    return _logger
+logger = get_logger("KnowledgeInit")
 
 
 class ProgressStage(Enum):
@@ -76,11 +72,15 @@ class ProgressTracker:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         # If loop is running, create task
-                        asyncio.create_task(broadcaster.broadcast(self.kb_name, progress))
+                        asyncio.create_task(
+                            broadcaster.broadcast(self.kb_name, progress)
+                        )
                     else:
                         # If loop exists but not running, try to run (may fail, but doesn't affect main flow)
                         try:
-                            loop.run_until_complete(broadcaster.broadcast(self.kb_name, progress))
+                            loop.run_until_complete(
+                                broadcaster.broadcast(self.kb_name, progress)
+                            )
                         except RuntimeError:
                             # Cannot run, ignore
                             pass
@@ -96,7 +96,7 @@ class ProgressTracker:
             try:
                 callback(progress)
             except Exception as e:
-                logger.error(f"[ProgressTracker] Callback error: {e}")
+                logger.error("[ProgressTracker] Callback error: %s", e)
 
     def _save_progress(self, progress: dict):
         """Save progress to kb_config.json and local .progress.json file"""
@@ -138,7 +138,10 @@ class ProgressTracker:
                 },
             )
         except Exception as e:
-            print(f"[ProgressTracker] Failed to save progress to kb_config.json: {e}")
+            logger.error(
+                "[ProgressTracker] Failed to save progress to kb_config.json: %s",
+                e,
+            )
 
         # Also save to local .progress.json file (for backward compatibility)
         try:
@@ -146,7 +149,7 @@ class ProgressTracker:
             with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            logger.error(f"[ProgressTracker] Failed to save progress: {e}")
+            logger.error("[ProgressTracker] Failed to save progress: %s", e)
 
     def update(
         self,
@@ -175,7 +178,6 @@ class ProgressTracker:
 
         # Output to logger (terminal and log file)
         try:
-            logger = _get_logger()
             prefix = f"[{self.task_id}]" if self.task_id else ""
 
             if total > 0:
@@ -213,7 +215,7 @@ class ProgressTracker:
             with open(self.progress_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            logger.error(f"[ProgressTracker] Failed to read progress: {e}")
+            logger.error("[ProgressTracker] Failed to read progress: %s", e)
             return None
 
     def clear(self):
@@ -222,4 +224,7 @@ class ProgressTracker:
             try:
                 self.progress_file.unlink()
             except Exception as e:
-                logger.error(f"[ProgressTracker] Failed to clear progress: {e}")
+                logger.error(
+                    "[ProgressTracker] Failed to clear progress: %s",
+                    e,
+                )

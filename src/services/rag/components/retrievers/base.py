@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Base Retriever
 ==============
+"""
 
 from typing import Any
 
@@ -18,7 +18,10 @@ class BaseRetriever(BaseComponent):
     name = "base_retriever"
 
     async def process(
-        self, query: str, kb_name: str, **kwargs
+        self,
+        query: str,
+        kb_name: str,
+        **kwargs: object,
     ) -> dict[str, Any]:
         """
         Search for documents matching a query.

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Cohere Embedding Adapter for v1 and v2 API."""
 
 import logging
@@ -166,7 +165,9 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
             data = response.json()
 
         if "embeddings" not in data or not data["embeddings"]:
-            raise ValueError("Invalid API response: missing or empty 'embeddings' field")
+            raise ValueError(
+                "Invalid API response: missing or empty 'embeddings' field"
+            )
 
         if api_version == "v1":
             embeddings = cast(list[list[float]], data["embeddings"])

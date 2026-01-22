@@ -42,8 +42,16 @@ from src.logging import get_logger
 logger = get_logger("StartKB")
 
 
-def list_knowledge_bases():
-    """List all knowledge bases"""
+def list_knowledge_bases() -> None:
+    """List all knowledge bases.
+
+    Args:
+        None.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
     kb_list = manager.list_knowledge_bases()
     default_kb = manager.get_default()
@@ -62,20 +70,37 @@ def list_knowledge_bases():
             try:
                 info = manager.get_info(kb_name)
                 stats = info.get("statistics", {})
-                logger.info("    - Documents: %d files", stats.get("raw_documents", 0))
-                logger.info("    - Images: %d files", stats.get("images", 0))
+                logger.info(
+                    "    - Documents: %d files",
+                    stats.get("raw_documents", 0),
+                )
+                logger.info(
+                    "    - Images: %d files",
+                    stats.get("images", 0),
+                )
                 logger.info(
                     "    - RAG: %s",
-                    "Initialized" if stats.get("rag_initialized") else "Not initialized",
+                    "Initialized"
+                    if stats.get("rag_initialized")
+                    else "Not initialized",
                 )
             except Exception:
                 pass
 
-    print("=" * 60 + "\n")
+    logger.separator()
 
 
-def show_kb_info(kb_name=None):
-    """Display detailed knowledge base information"""
+def show_kb_info(kb_name: str | None = None) -> None:
+    """Display detailed knowledge base information.
+
+    Args:
+        kb_name: Optional knowledge base name; defaults to the configured
+            default knowledge base.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
 
     try:
@@ -101,18 +126,26 @@ def show_kb_info(kb_name=None):
         )
 
         if "rag" in stats:
-            print("\n[RAG Statistics]")
+            logger.info("RAG Statistics:")
             for key, value in stats["rag"].items():
-                print(f"  {key}: {value}")
+                logger.info("  %s: %s", key, value)
 
-        print("=" * 60 + "\n")
+        logger.separator()
 
     except Exception as e:
         logger.error("Error: %s", e)
 
 
-def set_default_kb(kb_name):
-    """Set default knowledge base"""
+def set_default_kb(kb_name: str) -> None:
+    """Set the default knowledge base.
+
+    Args:
+        kb_name: Knowledge base name to set as default.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
 
     try:
@@ -122,8 +155,16 @@ def set_default_kb(kb_name):
         logger.error("Error: %s", e)
 
 
-async def init_knowledge_base(args):
-    """Initialize new knowledge base"""
+async def init_knowledge_base(args: argparse.Namespace) -> None:
+    """Initialize a new knowledge base.
+
+    Args:
+        args: Parsed CLI arguments.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     # Get API configuration
     env_config = get_env_config()
     api_key = args.api_key or env_config["api_key"]
@@ -131,7 +172,9 @@ async def init_knowledge_base(args):
 
     if not api_key and not args.skip_processing:
         logger.error("API Key not set")
-        logger.info("Please set environment variable LLM_API_KEY or use --api-key parameter")
+        logger.info(
+            "Please set environment variable LLM_API_KEY or use --api-key parameter"
+        )
         return
 
     # Collect document files
@@ -194,16 +237,26 @@ async def init_knowledge_base(args):
     logger.info("=" * 60)
 
 
-def extract_items(args):
-    """Extract numbered items"""
+def extract_items(args: argparse.Namespace) -> None:
+    """Extract numbered items for a knowledge base.
+
+    Args:
+        args: Parsed CLI arguments.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     # Get API configuration
     env_config = get_env_config()
     api_key = args.api_key or env_config["api_key"]
     base_url = args.base_url or env_config["base_url"]
 
     if not api_key:
-        print("✗ Error: API Key not set")
-        print("Please set environment variable LLM_API_KEY or use --api-key parameter\n")
+        logger.error("API Key not set")
+        logger.info(
+            "Please set environment variable LLM_API_KEY or use --api-key parameter"
+        )
         return
 
     # Build paths
@@ -263,8 +316,16 @@ def extract_items(args):
         logger.error("Extraction failed: %s", e)
 
 
-def delete_knowledge_base(args):
-    """Delete knowledge base"""
+def delete_knowledge_base(args: argparse.Namespace) -> None:
+    """Delete a knowledge base.
+
+    Args:
+        args: Parsed CLI arguments.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
 
     try:
@@ -275,8 +336,16 @@ def delete_knowledge_base(args):
         logger.error("Error deleting knowledge base: %s", e)
 
 
-def clean_rag_storage(args):
-    """Clean RAG storage"""
+def clean_rag_storage(args: argparse.Namespace) -> None:
+    """Clean RAG storage for a knowledge base.
+
+    Args:
+        args: Parsed CLI arguments.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
 
     logger.section("Cleaning RAG storage")
@@ -290,8 +359,16 @@ def clean_rag_storage(args):
         logger.error("Error cleaning RAG storage: %s", e)
 
 
-async def refresh_knowledge_base(args):
-    """Refresh knowledge base (reprocess all documents)"""
+async def refresh_knowledge_base(args: argparse.Namespace) -> None:
+    """Refresh a knowledge base by reprocessing all documents.
+
+    Args:
+        args: Parsed CLI arguments.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
     manager = KnowledgeBaseManager(str(KNOWLEDGE_BASES_DIR))
 
     # Get API configuration
@@ -300,8 +377,10 @@ async def refresh_knowledge_base(args):
     base_url = args.base_url or env_config["base_url"]
 
     if not api_key:
-        print("✗ Error: API Key not set")
-        print("Please set environment variable LLM_API_KEY or use --api-key parameter\n")
+        logger.error("API Key not set")
+        logger.info(
+            "Please set environment variable LLM_API_KEY or use --api-key parameter"
+        )
         return
 
     try:
@@ -310,22 +389,23 @@ async def refresh_knowledge_base(args):
         raw_dir = kb_dir / "raw"
 
         if not raw_dir.exists() or not list(raw_dir.glob("*")):
-            print(f"✗ Error: No raw documents found in knowledge base '{kb_name}'\n")
+            logger.error(
+                "No raw documents found in knowledge base '%s'",
+                kb_name,
+            )
             return
 
-        print("\n" + "=" * 60)
-        print(f"🔄 Refreshing knowledge base: {kb_name}")
-        print("=" * 60)
-        print(f"Path: {kb_dir}")
-        print("=" * 60 + "\n")
+        logger.section("Refreshing knowledge base")
+        logger.info("Name: %s", kb_name)
+        logger.info("Path: %s", kb_dir)
 
         # Step 1: Clean RAG storage
-        print("Step 1/3: Cleaning RAG storage...")
+        logger.info("Step 1/3: Cleaning RAG storage...")
         manager.clean_rag_storage(kb_name, backup=not args.no_backup)
 
         # Step 2: Clean content_list and images (optional)
         if args.full:
-            print("\nStep 2/3: Cleaning extracted content and images...")
+            logger.info("Step 2/3: Cleaning extracted content and images...")
             content_list_dir = kb_dir / "content_list"
             images_dir = kb_dir / "images"
 
@@ -334,19 +414,21 @@ async def refresh_knowledge_base(args):
 
                 shutil.rmtree(content_list_dir)
                 content_list_dir.mkdir(parents=True, exist_ok=True)
-                print("  ✓ Cleaned content_list")
+                logger.info("  ✓ Cleaned content_list")
 
             if images_dir.exists():
                 import shutil
 
                 shutil.rmtree(images_dir)
                 images_dir.mkdir(parents=True, exist_ok=True)
-                print("  ✓ Cleaned images")
+                logger.info("  ✓ Cleaned images")
         else:
-            print("\nStep 2/3: Skipping content cleanup (use --full for complete refresh)")
+            logger.info(
+                "Step 2/3: Skipping content cleanup (use --full for complete refresh)"
+            )
 
         # Step 3: Reprocess all documents
-        print("\nStep 3/3: Reprocessing documents...")
+        logger.info("Step 3/3: Reprocessing documents...")
 
         from src.knowledge.initializer import KnowledgeBaseInitializer
 
@@ -362,7 +444,7 @@ async def refresh_knowledge_base(args):
 
         # Extract numbered items
         if not args.skip_extract:
-            print("\nExtracting numbered items...")
+            logger.info("Extracting numbered items...")
             initializer.extract_numbered_items(batch_size=args.batch_size)
 
         logger.info("Knowledge base '%s' refresh complete!", kb_name)
@@ -373,8 +455,16 @@ async def refresh_knowledge_base(args):
         raise
 
 
-def main():
-    """Main function"""
+def main() -> None:
+    """Run the knowledge base CLI entrypoint.
+
+    Args:
+        None.
+    Returns:
+        None.
+    Raises:
+        SystemExit: Raised when argument parsing exits.
+    """
     parser = argparse.ArgumentParser(
         description="Knowledge Base Management Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -420,7 +510,9 @@ Usage Examples:
     )
 
     # set-default command
-    default_parser = subparsers.add_parser("set-default", help="Set default knowledge base")
+    default_parser = subparsers.add_parser(
+        "set-default", help="Set default knowledge base"
+    )
     default_parser.add_argument("name", help="Knowledge base name")
 
     # init command
@@ -440,12 +532,16 @@ Usage Examples:
         action="store_true",
         help="Skip numbered items extraction",
     )
-    init_parser.add_argument("--batch-size", type=int, default=20, help="Batch size (default 20)")
+    init_parser.add_argument(
+        "--batch-size", type=int, default=20, help="Batch size (default 20)"
+    )
 
     # extract command
     extract_parser = subparsers.add_parser("extract", help="Extract numbered items")
     extract_parser.add_argument("--kb", required=True, help="Knowledge base name")
-    extract_parser.add_argument("--content-file", help="Specify content_list file (optional)")
+    extract_parser.add_argument(
+        "--content-file", help="Specify content_list file (optional)"
+    )
     extract_parser.add_argument(
         "--batch-size", type=int, default=20, help="Batch size (default 20)"
     )
@@ -466,7 +562,9 @@ Usage Examples:
     # delete command
     delete_parser = subparsers.add_parser("delete", help="Delete knowledge base")
     delete_parser.add_argument("name", help="Knowledge base name")
-    delete_parser.add_argument("--force", action="store_true", help="Skip confirmation (dangerous)")
+    delete_parser.add_argument(
+        "--force", action="store_true", help="Skip confirmation (dangerous)"
+    )
 
     # clean-rag command
     clean_parser = subparsers.add_parser(
@@ -527,13 +625,13 @@ Usage Examples:
         try:
             asyncio.run(init_knowledge_base(args))
         except (KeyboardInterrupt, SystemExit):
-            print("\n\n⚠️  Operation cancelled")
+            logger.warning("Operation cancelled")
         except IndexError as e:
             # Ignore IndexError during asyncio cleanup (doesn't affect functionality)
             if "pop from an empty deque" not in str(e):
                 raise
         except Exception as e:
-            print(f"\n✗ Error: {e}")
+            logger.error("Error: %s", e)
             raise
 
     elif args.command == "extract":
@@ -549,13 +647,13 @@ Usage Examples:
         try:
             asyncio.run(refresh_knowledge_base(args))
         except (KeyboardInterrupt, SystemExit):
-            print("\n\n⚠️  Operation cancelled")
+            logger.warning("Operation cancelled")
         except IndexError as e:
             # Ignore IndexError during asyncio cleanup
             if "pop from an empty deque" not in str(e):
                 raise
         except Exception as e:
-            print(f"\n✗ Error: {e}")
+            logger.error("Error: %s", e)
             raise
 
     else:

@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """Tests for LLM API key environment configuration."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import os
 import re
-from typing import Iterable, Mapping
 
 import pytest
 
@@ -96,7 +95,9 @@ def _get_keys_for_binding(binding: str) -> list[str]:
     normalized = binding.strip().lower()
     if not normalized or normalized not in PROVIDER_KEY_MAP:
         valid = ", ".join(sorted(PROVIDER_KEY_MAP.keys()))
-        raise ValueError(f"Unknown LLM provider binding {binding!r}. Expected one of: {valid}.")
+        raise ValueError(
+            f"Unknown LLM provider binding {binding!r}. Expected one of: {valid}."
+        )
     return PROVIDER_KEY_MAP[normalized]
 
 
@@ -108,7 +109,9 @@ def test_required_llm_api_keys_present() -> None:
     keys_to_check = _get_keys_for_binding(binding)
     missing = _missing_keys(keys_to_check)
 
-    assert not missing, "Missing required API keys in environment: " f"{', '.join(missing)}."
+    assert not missing, (
+        f"Missing required API keys in environment: {', '.join(missing)}."
+    )
 
 
 def test_llm_api_keys_have_expected_format() -> None:
@@ -120,4 +123,6 @@ def test_llm_api_keys_have_expected_format() -> None:
     patterns = {key: KEY_PATTERNS[key] for key in keys_to_check if key in KEY_PATTERNS}
     invalid = _invalid_key_formats(patterns)
 
-    assert not invalid, "API keys did not match expected formats: " f"{', '.join(invalid)}."
+    assert not invalid, (
+        f"API keys did not match expected formats: {', '.join(invalid)}."
+    )

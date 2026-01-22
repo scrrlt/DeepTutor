@@ -111,9 +111,7 @@ class SolveAgent(BaseAgent):
             if tool_type == "finish":
                 continue
 
-            normalized_query = self._prepare_query(
-                tool_type, query, current_step
-            )
+            normalized_query = self._prepare_query(tool_type, query, current_step)
 
             cite_id = None
             if tool_type != "none":
@@ -197,9 +195,7 @@ class SolveAgent(BaseAgent):
             "available_cite_text": self._format_available_cite(
                 current_step, investigate_memory
             ),
-            "previous_steps": self._format_previous_steps(
-                current_step, solve_memory
-            ),
+            "previous_steps": self._format_previous_steps(current_step, solve_memory),
             "current_tool_history": self._format_tool_history(current_step),
         }
 
@@ -212,9 +208,7 @@ class SolveAgent(BaseAgent):
         return prompt
 
     def _build_user_prompt(self, context: dict[str, Any]) -> str:
-        template = (
-            self.get_prompt("user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "SolveAgent missing user_template prompt, please configure user_template in prompts/zh/solve_loop/solve_agent.yaml."
@@ -235,11 +229,7 @@ class SolveAgent(BaseAgent):
         lines: list[str] = []
         for cite_id in current_step.available_cite:
             knowledge = next(
-                (
-                    k
-                    for k in investigate_memory.knowledge_chain
-                    if k.cite_id == cite_id
-                ),
+                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite_id),
                 None,
             )
             if not knowledge:
@@ -269,11 +259,7 @@ class SolveAgent(BaseAgent):
                 snippets.append(
                     f"[{step.step_id}] {step.step_target}\n{step.step_response[:300]}..."
                 )
-        return (
-            "\n\n".join(snippets[-3:])
-            if snippets
-            else "(No completed steps yet)"
-        )
+        return "\n\n".join(snippets[-3:]) if snippets else "(No completed steps yet)"
 
     def _format_tool_history(self, current_step: SolveChainStep) -> str:
         if not current_step.tool_calls:
@@ -338,9 +324,7 @@ class SolveAgent(BaseAgent):
         if not text or not text.strip():
             return ""
         cleaned = text.strip()
-        cleaned = (
-            cleaned.replace("\\{", "{").replace("\\}", "}").replace("$", "")
-        )
+        cleaned = cleaned.replace("\\{", "{").replace("\\}", "}").replace("$", "")
         pattern = re.compile(
             r"(?P<var>[A-Za-z_][A-Za-z0-9_\[\]]*)\s*=\s*\{(?P<values>[^\}]+)\}"
         )

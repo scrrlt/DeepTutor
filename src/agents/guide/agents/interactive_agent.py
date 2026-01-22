@@ -44,9 +44,9 @@ class InteractiveAgent(BaseAgent):
             if content.startswith("<!DOCTYPE") or content.startswith("<html"):
                 return content
 
-        if response.strip().startswith(
-            "<!DOCTYPE"
-        ) or response.strip().startswith("<html"):
+        if response.strip().startswith("<!DOCTYPE") or response.strip().startswith(
+            "<html"
+        ):
             return response.strip()
 
         return response.strip()

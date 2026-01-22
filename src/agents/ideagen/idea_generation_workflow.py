@@ -29,8 +29,7 @@ class IdeaGenerationWorkflow(BaseAgent):
         base_url: str | None = None,
         api_version: str | None = None,
         model: str | None = None,
-        progress_callback: Callable[[str, Any], None | Awaitable[None]]
-        | None = None,
+        progress_callback: Callable[[str, Any], None | Awaitable[None]] | None = None,
         output_dir: Path | None = None,
         language: str = "en",
     ):
@@ -91,7 +90,10 @@ class IdeaGenerationWorkflow(BaseAgent):
 
         points_text = ""
         for i, point in enumerate(knowledge_points, 1):
-            points_text += f"\n{i}. {point['knowledge_point']}\n   Description: {point['description']}\n"
+            description = point.get("description", "")
+            points_text += (
+                f"\n{i}. {point['knowledge_point']}\n   Description: {description}\n"
+            )
 
         user_prompt = user_template.format(points_text=points_text)
 
@@ -117,9 +119,7 @@ class IdeaGenerationWorkflow(BaseAgent):
 
             # If filtered is empty but original list is not, filter is too strict, return original list
             if not filtered and knowledge_points:
-                self.logger.warning(
-                    "All points filtered out! Returning original list."
-                )
+                self.logger.warning("All points filtered out! Returning original list.")
                 filtered = knowledge_points
 
             # Save filtered results
@@ -153,9 +153,7 @@ class IdeaGenerationWorkflow(BaseAgent):
             await self._emit_progress("loose_filter", {"status": "error"})
             return knowledge_points  # If parsing fails, return original list
 
-    async def explore_ideas(
-        self, knowledge_point: dict[str, Any]
-    ) -> list[str]:
+    async def explore_ideas(self, knowledge_point: dict[str, Any]) -> list[str]:
         """
         3.2 Explore knowledge points - Generate at least 5 research ideas for each knowledge point
 
@@ -256,7 +254,7 @@ class IdeaGenerationWorkflow(BaseAgent):
 
         user_prompt = user_template.format(
             knowledge_point=knowledge_point["knowledge_point"],
-            description=knowledge_point["description"],
+            description=knowledge_point.get("description", ""),
             ideas_text=ideas_text,
         )
 
@@ -345,9 +343,7 @@ class IdeaGenerationWorkflow(BaseAgent):
             Markdown-formatted statement
         """
         system_prompt = self._prompts.get("generate_statement_system", "")
-        user_template = self._prompts.get(
-            "generate_statement_user_template", ""
-        )
+        user_template = self._prompts.get("generate_statement_user_template", "")
 
         ideas_text = ""
         for i, idea in enumerate(research_ideas, 1):
@@ -446,10 +442,7 @@ class IdeaGenerationWorkflow(BaseAgent):
                         [
                             p
                             for p in filtered_points
-                            if any(
-                                p["knowledge_point"] in s
-                                for s in final_statements
-                            )
+                            if any(p["knowledge_point"] in s for s in final_statements)
                         ],
                         final_statements,
                     )

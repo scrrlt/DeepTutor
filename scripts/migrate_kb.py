@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Knowledge Base Migration Script
 ===============================
@@ -87,11 +86,15 @@ def detect_provider(kb_path: Path) -> str | None:
 
     if has_llamaindex:
         # Check if LlamaIndex has required files
-        llamaindex_valid = all((llamaindex_dir / f).exists() for f in LLAMAINDEX_REQUIRED_FILES)
+        llamaindex_valid = all(
+            (llamaindex_dir / f).exists() for f in LLAMAINDEX_REQUIRED_FILES
+        )
 
     if has_lightrag:
         # Check if LightRAG has required files
-        lightrag_valid = all((lightrag_dir / f).exists() for f in LIGHTRAG_REQUIRED_FILES)
+        lightrag_valid = all(
+            (lightrag_dir / f).exists() for f in LIGHTRAG_REQUIRED_FILES
+        )
 
     # Return based on which has valid files
     if llamaindex_valid and lightrag_valid:
@@ -111,7 +114,9 @@ def detect_provider(kb_path: Path) -> str | None:
         return None
 
 
-def validate_llamaindex_files(storage_dir: Path) -> tuple[bool, list[str], list[str]]:
+def validate_llamaindex_files(
+    storage_dir: Path,
+) -> tuple[bool, list[str], list[str]]:
     """
     Validate LlamaIndex storage has required files.
 
@@ -134,7 +139,9 @@ def validate_llamaindex_files(storage_dir: Path) -> tuple[bool, list[str], list[
     return len(missing) == 0, missing, found
 
 
-def validate_lightrag_files(storage_dir: Path) -> tuple[bool, list[str], list[str]]:
+def validate_lightrag_files(
+    storage_dir: Path,
+) -> tuple[bool, list[str], list[str]]:
     """
     Validate LightRAG storage has required files.
 
@@ -214,7 +221,9 @@ def validate_kb(kb_path: Path) -> dict:
 
     # Check optional directories
     content_list_dir = kb_path / "content_list"
-    result["has_content_list"] = content_list_dir.exists() and any(content_list_dir.glob("*.json"))
+    result["has_content_list"] = content_list_dir.exists() and any(
+        content_list_dir.glob("*.json")
+    )
 
     raw_dir = kb_path / "raw"
     result["has_raw_docs"] = raw_dir.exists() and any(raw_dir.iterdir())
@@ -233,7 +242,9 @@ def validate_kb(kb_path: Path) -> dict:
 # =============================================================================
 
 
-def copy_kb_directory(source_path: Path, target_path: Path, verbose: bool = True) -> bool:
+def copy_kb_directory(
+    source_path: Path, target_path: Path, verbose: bool = True
+) -> bool:
     """
     Copy knowledge base directory to target location.
 
@@ -262,7 +273,10 @@ def copy_kb_directory(source_path: Path, target_path: Path, verbose: bool = True
 
 
 def register_kb(
-    kb_name: str, kb_base_dir: Path, description: str = "", provider: str | None = None
+    kb_name: str,
+    kb_base_dir: Path,
+    description: str = "",
+    provider: str | None = None,
 ) -> bool:
     """
     Register knowledge base in kb_config.json.
@@ -412,7 +426,9 @@ async def extract_numbered_items(kb_name: str, kb_base_dir: Path) -> bool:
         return False
 
 
-async def test_kb_search(kb_name: str, query: str = "What is this knowledge base about?") -> bool:
+async def test_kb_search(
+    kb_name: str, query: str = "What is this knowledge base about?"
+) -> bool:
     """
     Test knowledge base with a simple search query.
 
@@ -608,14 +624,18 @@ Examples:
     parser.add_argument("source", help="Path to source knowledge base directory")
 
     parser.add_argument(
-        "--name", help="Name for the migrated knowledge base (default: source directory name)"
+        "--name",
+        help="Name for the migrated knowledge base (default: source directory name)",
     )
 
     parser.add_argument(
-        "--target-dir", help=f"Target base directory (default: {DEFAULT_KB_BASE_DIR})"
+        "--target-dir",
+        help=f"Target base directory (default: {DEFAULT_KB_BASE_DIR})",
     )
 
-    parser.add_argument("--test", action="store_true", help="Run a test query after migration")
+    parser.add_argument(
+        "--test", action="store_true", help="Run a test query after migration"
+    )
 
     parser.add_argument(
         "--extract-items",
@@ -630,7 +650,9 @@ Examples:
     )
 
     parser.add_argument(
-        "--force", action="store_true", help="Overwrite existing knowledge base if exists"
+        "--force",
+        action="store_true",
+        help="Overwrite existing knowledge base if exists",
     )
 
     args = parser.parse_args()

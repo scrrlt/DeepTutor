@@ -60,9 +60,7 @@ def test_update_session(session_manager: SessionManager):
         session_manager (SessionManager): The SessionManager instance.
     """
     session = session_manager.create_session(title="Test Session")
-    session_manager.update_session(
-        session["session_id"], title="Updated Title"
-    )
+    session_manager.update_session(session["session_id"], title="Updated Title")
     updated_session = session_manager.get_session(session["session_id"])
     assert updated_session["title"] == "Updated Title"
 
@@ -74,9 +72,7 @@ def test_add_message(session_manager: SessionManager):
         session_manager (SessionManager): The SessionManager instance.
     """
     session = session_manager.create_session(title="Test Session")
-    session_manager.add_message(
-        session["session_id"], role="user", content="Hello"
-    )
+    session_manager.add_message(session["session_id"], role="user", content="Hello")
     updated_session = session_manager.get_session(session["session_id"])
     assert len(updated_session["messages"]) == 1
     assert updated_session["messages"][0]["content"] == "Hello"

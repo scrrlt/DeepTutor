@@ -141,9 +141,7 @@ class TestPromptManager:
         assert simple == "Simple value"
 
         # Test fallback
-        missing = pm.get_prompt(
-            test_prompts, "nonexistent", "field", "fallback_value"
-        )
+        missing = pm.get_prompt(test_prompts, "nonexistent", "field", "fallback_value")
         assert missing == "fallback_value"
 
     def test_language_fallback(self):

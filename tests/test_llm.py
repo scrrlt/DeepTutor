@@ -22,9 +22,7 @@ class TestLLMService:
         assert isinstance(result, str)
 
     @pytest.mark.asyncio
-    async def test_complete_calls_provider(
-        self, mock_openai_client: MagicMock
-    ) -> None:
+    async def test_complete_calls_provider(self, mock_openai_client: MagicMock) -> None:
         """Test that complete function delegates to the LLM provider."""
         # Mock the return value of the client
         mock_openai_client.chat.completions.create = AsyncMock(

@@ -77,10 +77,7 @@ class DocumentValidator:
             ValueError: If validation fails
         """
         # Check file size (skip if size is None)
-        if (
-            file_size is not None
-            and file_size > DocumentValidator.MAX_FILE_SIZE
-        ):
+        if file_size is not None and file_size > DocumentValidator.MAX_FILE_SIZE:
             raise ValueError(
                 f"File too large: {file_size} bytes. Maximum allowed: {DocumentValidator.MAX_FILE_SIZE} bytes"
             )
@@ -104,17 +101,11 @@ class DocumentValidator:
         # Replace problematic characters
         safe_name = re.sub(r'[<>:"/\\|?*]', "_", safe_name)
 
-        if (
-            not safe_name
-            or safe_name in (".", "..")
-            or safe_name.strip("_") == ""
-        ):
+        if not safe_name or safe_name in (".", "..") or safe_name.strip("_") == "":
             raise ValueError("Invalid filename")
 
         # Check file extension
-        exts_to_check = (
-            allowed_extensions or DocumentValidator.ALLOWED_EXTENSIONS
-        )
+        exts_to_check = allowed_extensions or DocumentValidator.ALLOWED_EXTENSIONS
         if ext not in exts_to_check:
             raise ValueError(
                 f"Unsupported file type: {ext}. Allowed types: {', '.join(exts_to_check)}"
@@ -122,10 +113,7 @@ class DocumentValidator:
 
         # Additional MIME type validation for security
         guessed_mime, _ = mimetypes.guess_type(filename)
-        if (
-            guessed_mime
-            and guessed_mime not in DocumentValidator.ALLOWED_MIME_TYPES
-        ):
+        if guessed_mime and guessed_mime not in DocumentValidator.ALLOWED_MIME_TYPES:
             raise ValueError(
                 f"MIME type validation failed: {guessed_mime}. File may be malicious or corrupted."
             )

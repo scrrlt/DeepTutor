@@ -64,9 +64,7 @@ class NotebookStorage:
             content = json.dumps(
                 {"notebooks": []}, indent=JSON_INDENT, ensure_ascii=False
             )
-            async with aiofiles.open(
-                self.index_file, "w", encoding="utf-8"
-            ) as f:
+            async with aiofiles.open(self.index_file, "w", encoding="utf-8") as f:
                 await f.write(content)
         except OSError as e:
             msg = f"Failed to create index file: {e}"
@@ -114,14 +112,10 @@ class NotebookStorage:
             loop = asyncio.get_running_loop()
             content: str = await loop.run_in_executor(
                 None,
-                lambda: json.dumps(
-                    index, indent=JSON_INDENT, ensure_ascii=False
-                ),
+                lambda: json.dumps(index, indent=JSON_INDENT, ensure_ascii=False),
             )
 
-            async with aiofiles.open(
-                self.index_file, "w", encoding="utf-8"
-            ) as f:
+            async with aiofiles.open(self.index_file, "w", encoding="utf-8") as f:
                 await f.write(content)
         except OSError as e:
             msg = f"Failed to save index file: {e}"
@@ -164,9 +158,7 @@ class NotebookStorage:
 
             # Offload JSON parsing to thread pool
             loop = asyncio.get_running_loop()
-            notebook: dict = await loop.run_in_executor(
-                None, json.loads, content
-            )
+            notebook: dict = await loop.run_in_executor(None, json.loads, content)
             return notebook
         except json.JSONDecodeError as e:
             msg = f"Failed to parse notebook {notebook_id}: {e}"
@@ -195,9 +187,7 @@ class NotebookStorage:
             loop = asyncio.get_running_loop()
             content: str = await loop.run_in_executor(
                 None,
-                lambda: json.dumps(
-                    notebook, indent=JSON_INDENT, ensure_ascii=False
-                ),
+                lambda: json.dumps(notebook, indent=JSON_INDENT, ensure_ascii=False),
             )
 
             async with aiofiles.open(filepath, "w", encoding="utf-8") as f:

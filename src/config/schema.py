@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 

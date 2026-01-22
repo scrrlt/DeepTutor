@@ -1,16 +1,14 @@
-# -*- coding: utf-8 -*-
 """Integration tests for LLM and Embedding providers."""
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 
-import logging
-
 logger = logging.getLogger(__name__)
 
-import pytest
 from dotenv import load_dotenv
+import pytest
 
 # Load environment variables from .env.local if it exists
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -19,8 +17,6 @@ if env_local.exists():
     load_dotenv(env_local, override=True)
 
 from src.services.llm import complete as llm_complete
-from src.services.embedding import get_embedding_client
-
 
 RUN_NETWORK_TESTS = os.getenv("RUN_LLM_NETWORK_TESTS") == "1"
 
@@ -35,7 +31,9 @@ async def test_llm_provider_integration():
     """Verify the active LLM provider works as intended."""
     api_key = os.getenv("LLM_API_KEY")
     if not api_key and "localhost" not in os.getenv("LLM_HOST", ""):
-        pytest.skip("LLM_API_KEY not set and not using local host, skipping integration test")
+        pytest.skip(
+            "LLM_API_KEY not set and not using local host, skipping integration test"
+        )
 
     # Bare call letting pytest report failures naturally
     response = await asyncio.wait_for(

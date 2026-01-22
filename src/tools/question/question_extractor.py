@@ -257,9 +257,7 @@ Please analyze the above exam paper content, extract all question information, a
     try:
         if not result_text:
             raise ValueError("LLM returned empty or None response")
-        result = parse_json_response(
-            result_text, logger_instance=None, fallback={}
-        )
+        result = parse_json_response(result_text, logger_instance=None, fallback={})
         if result is None:
             raise ValueError("JSON parsing returned None")
     except Exception as e:
@@ -314,9 +312,7 @@ def save_questions_json(
     return output_file
 
 
-def extract_questions_from_paper(
-    paper_dir: str, output_dir: str | None = None
-) -> bool:
+def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) -> bool:
     """
     Extract questions from parsed exam paper
 

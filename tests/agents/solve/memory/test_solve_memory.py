@@ -47,9 +47,7 @@ def test_get_steps(solve_memory: SolveMemory):
     """
     chains = [
         SolveChainStep(step_id="step1", step_target="target1", status="done"),
-        SolveChainStep(
-            step_id="step2", step_target="target2", status="in_progress"
-        ),
+        SolveChainStep(step_id="step2", step_target="target2", status="in_progress"),
     ]
     solve_memory.create_chains(chains)
 
@@ -68,9 +66,7 @@ def test_tool_calls(solve_memory: SolveMemory):
     assert len(solve_memory.solve_chains[0].tool_calls) == 1
 
     # Use explicit step id since ToolCallRecord does not include step_id
-    solve_memory.update_tool_call_result(
-        "step1", record.call_id, "raw", "summary"
-    )
+    solve_memory.update_tool_call_result("step1", record.call_id, "raw", "summary")
     assert solve_memory.solve_chains[0].tool_calls[0].status == "success"
 
 

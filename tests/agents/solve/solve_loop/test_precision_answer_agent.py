@@ -43,9 +43,7 @@ async def test_precision_answer_agent_process_workflow(
         return_value="precision_answer"
     )
 
-    result = await precision_answer_agent.process(
-        "question", "detailed_answer"
-    )
+    result = await precision_answer_agent.process("question", "detailed_answer")
 
     precision_answer_agent._should_generate.assert_called_once()
     precision_answer_agent._generate_precision_answer.assert_called_once()
@@ -77,9 +75,7 @@ async def test_generate_precision_answer(
     Tests the _generate_precision_answer method.
     """
     precision_answer_agent.get_prompt = MagicMock(return_value="prompt")
-    precision_answer_agent.call_llm = AsyncMock(
-        return_value="precision_answer"
-    )
+    precision_answer_agent.call_llm = AsyncMock(return_value="precision_answer")
 
     result = await precision_answer_agent._generate_precision_answer(
         "question", "detailed_answer", True

@@ -62,9 +62,7 @@ def query_numbered_item(
             project_root = Path(__file__).parent.parent.parent
             config = load_config_with_main("main.yaml", project_root)
             max_results = (
-                config.get("tools", {})
-                .get("query_item", {})
-                .get("max_results", 5)
+                config.get("tools", {}).get("query_item", {}).get("max_results", 5)
             )
         except Exception:
             max_results = 5  # Default value
@@ -74,9 +72,7 @@ def query_numbered_item(
         # __file__ = DeepTutor/tools/query_item_tool.py
         # .parent = DeepTutor/tools
         # .parent = DeepTutor
-        kb_base_dir = (
-            Path(__file__).parent.parent.parent / "data/knowledge_bases"
-        )
+        kb_base_dir = Path(__file__).parent.parent.parent / "data/knowledge_bases"
     else:
         kb_base_dir = Path(kb_base_dir)
 
@@ -172,9 +168,7 @@ def query_numbered_item(
         item_type = "example"
     elif "remark" in identifier_lower:
         item_type = "remark"
-    elif identifier.strip().startswith("(") and identifier.strip().endswith(
-        ")"
-    ):
+    elif identifier.strip().startswith("(") and identifier.strip().endswith(")"):
         item_type = "formula"
 
     # 1. Exact match (highest priority)
@@ -211,10 +205,7 @@ def query_numbered_item(
             exact_matches[0]["content"]
             if len(exact_matches) == 1
             else "\n\n".join(
-                [
-                    f"[{item['identifier']}]\n{item['content']}"
-                    for item in exact_matches
-                ]
+                [f"[{item['identifier']}]\n{item['content']}" for item in exact_matches]
             )
         )
 
@@ -308,9 +299,7 @@ def query_numbered_item(
     suggestions = [k for k in items if identifier_lower in k.lower()][:5]
     error_msg = f"Numbered item '{identifier}' not found"
     if suggestions:
-        error_msg += "\n\nSimilar items:\n" + "\n".join(
-            f"  • {s}" for s in suggestions
-        )
+        error_msg += "\n\nSimilar items:\n" + "\n".join(f"  • {s}" for s in suggestions)
 
     return {
         "identifier": identifier,
@@ -339,8 +328,6 @@ if __name__ == "__main__":
     result = query_numbered_item("(1.2.1)", kb_name="ai_textbook")
     logger.info("Status: %s", result["status"])
     logger.info("Type: %s", result["type"])
-    logger.info(
-        "Content: %s...", result.get("content", result.get("error"))[:200]
-    )
+    logger.info("Content: %s...", result.get("content", result.get("error"))[:200])
 
     logger.info("%s", "=" * 60)

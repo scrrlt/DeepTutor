@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from "react";
-import { Loader2, FolderOpen, Link as LinkIcon, X } from "lucide-react";
-import { apiUrl } from "@/lib/api";
-import { useTranslation } from "react-i18next";
+import { useState } from 'react'
+import { Loader2, FolderOpen, Link as LinkIcon, X } from 'lucide-react'
+import { apiUrl } from '@/lib/api'
+import { useTranslation } from 'react-i18next'
 
 interface FolderSyncManagerProps {
   kbName: string
@@ -27,10 +27,10 @@ export default function FolderSyncManager({
   onFolderUnlinked,
   onSyncComplete,
 }: FolderSyncManagerProps) {
-  const { t } = useTranslation();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [folderPath, setFolderPath] = useState("");
-  const [linking, setLinking] = useState(false);
+  const { t } = useTranslation()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [folderPath, setFolderPath] = useState('')
+  const [linking, setLinking] = useState(false)
 
   const handleLinkFolder = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,14 +44,14 @@ export default function FolderSyncManager({
         body: JSON.stringify({ folder_path: folderPath }),
       })
 
-      if (!res.ok) throw new Error(t("Failed to link folder"));
+      if (!res.ok) throw new Error(t('Failed to link folder'))
 
-      showToast(t("Folder linked successfully!"), "success");
-      setModalOpen(false);
-      setFolderPath("");
-      onFolderLinked?.();
+      showToast(t('Folder linked successfully!'), 'success')
+      setModalOpen(false)
+      setFolderPath('')
+      onFolderLinked?.()
     } catch (err: any) {
-      showToast(err.message || t("Failed to link folder"), "error");
+      showToast(err.message || t('Failed to link folder'), 'error')
     } finally {
       setLinking(false)
     }
@@ -64,7 +64,7 @@ export default function FolderSyncManager({
         className="flex items-center gap-1 px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-colors"
       >
         <FolderOpen className="w-3 h-3" />
-        {t("Link Folder")}
+        {t('Link Folder')}
       </button>
 
       {modalOpen && (
@@ -73,7 +73,7 @@ export default function FolderSyncManager({
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <FolderOpen className="w-5 h-5 text-emerald-500" />
-                {t("Link Local Folder")}
+                {t('Link Local Folder')}
               </h2>
               <button
                 onClick={() => setModalOpen(false)}
@@ -84,11 +84,9 @@ export default function FolderSyncManager({
             </div>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              {t("Link a local folder to")}{" "}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">
-                {kbName}
-              </span>
-              {t(". Documents in the folder will be processed and added to this knowledge base.")}
+              {t('Link a local folder to')}{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{kbName}</span>
+              {t('. Documents in the folder will be processed and added to this knowledge base.')}
             </p>
 
             <form onSubmit={handleLinkFolder} className="space-y-4">
@@ -97,41 +95,41 @@ export default function FolderSyncManager({
                   htmlFor="folder-path"
                   className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
                 >
-                  {t("Folder Path")}
+                  {t('Folder Path')}
                 </label>
                 <input
                   type="text"
                   id="folder-path"
                   value={folderPath}
-                  onChange={(e) => setFolderPath(e.target.value)}
-                  placeholder={t("Paste or type the full folder path")}
+                  onChange={e => setFolderPath(e.target.value)}
+                  placeholder={t('Paste or type the full folder path')}
                   className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    <strong>{t("macOS/Linux:")}</strong> ~/Documents/papers or
-                    /Users/name/folder
+                    <strong>{t('macOS/Linux:')}</strong> ~/Documents/papers or /Users/name/folder
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    <strong>{t("Windows:")}</strong>{" "}
-                    {t("C:\\Users\\name\\Documents\\papers")}
+                    <strong>{t('Windows:')}</strong> {t('C:\\Users\\name\\Documents\\papers')}
                   </p>
                 </div>
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                  {t("📄 Supported files: PDF, DOCX, TXT, MD")}
+                  {t('📄 Supported files: PDF, DOCX, TXT, MD')}
                 </p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                  {t("New and modified files will be automatically detected when you sync.")}
+                  {t('New and modified files will be automatically detected when you sync.')}
                 </p>
               </div>
 
               <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-100 dark:border-emerald-800">
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  <strong>{t("💡 Tip:")}</strong>{" "}
-                  {t("Use folders synced with Google Drive, OneDrive, SharePoint, or Dropbox for automatic cloud integration.")}
+                  <strong>{t('💡 Tip:')}</strong>{' '}
+                  {t(
+                    'Use folders synced with Google Drive, OneDrive, SharePoint, or Dropbox for automatic cloud integration.'
+                  )}
                 </p>
               </div>
 
@@ -141,7 +139,7 @@ export default function FolderSyncManager({
                   onClick={() => setModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700"
                 >
-                  {t("Cancel")}
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
@@ -153,7 +151,7 @@ export default function FolderSyncManager({
                   ) : (
                     <>
                       <LinkIcon className="w-4 h-4" />
-                      {t("Link Folder")}
+                      {t('Link Folder')}
                     </>
                   )}
                 </button>

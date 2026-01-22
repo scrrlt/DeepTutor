@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 RAG Pipeline
 ============
@@ -19,9 +18,7 @@ from .types import Document
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "data"
-    / "knowledge_bases"
+    Path(__file__).resolve().parent.parent.parent.parent / "data" / "knowledge_bases"
 )
 
 
@@ -87,9 +84,7 @@ class RAGPipeline:
         self._retriever = r
         return self
 
-    async def initialize(
-        self, kb_name: str, file_paths: list[str], **kwargs
-    ) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs) -> bool:
         """
         Run full initialization pipeline.
 
@@ -105,9 +100,7 @@ class RAGPipeline:
         Returns:
             True if successful
         """
-        self.logger.info(
-            f"Initializing KB '{kb_name}' with {len(file_paths)} files"
-        )
+        self.logger.info(f"Initializing KB '{kb_name}' with {len(file_paths)} files")
 
         if not self._parser:
             raise ValueError("No parser configured. Use .parser() to set one")
@@ -176,9 +169,7 @@ class RAGPipeline:
         self.logger.info(f"KB '{kb_name}' initialized successfully")
         return True
 
-    async def search(
-        self, query: str, kb_name: str, **kwargs
-    ) -> dict[str, Any]:
+    async def search(self, query: str, kb_name: str, **kwargs) -> dict[str, Any]:
         """
         Search the knowledge base.
 
@@ -191,9 +182,7 @@ class RAGPipeline:
             Search results dictionary
         """
         if not self._retriever:
-            raise ValueError(
-                "No retriever configured. Use .retriever() to set one"
-            )
+            raise ValueError("No retriever configured. Use .retriever() to set one")
 
         return await self._retriever.process(query, kb_name=kb_name, **kwargs)
 
@@ -208,12 +197,7 @@ class RAGPipeline:
             True if successful
         """
         # Validate kb_name to prevent path traversal
-        if (
-            not kb_name
-            or kb_name in (".", "..")
-            or "/" in kb_name
-            or "\\" in kb_name
-        ):
+        if not kb_name or kb_name in (".", "..") or "/" in kb_name or "\\" in kb_name:
             raise ValueError(f"Invalid knowledge base name: {kb_name}")
 
         self.logger.info(f"Deleting KB '{kb_name}'")

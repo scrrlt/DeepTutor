@@ -18,16 +18,12 @@ def rag_service():
     Provides a RAGService instance with mocked dependencies.
     """
     with patch("src.services.rag.service.get_logger"):
-        service = RAGService(
-            kb_base_dir="/tmp/test_kb", provider="test_provider"
-        )
+        service = RAGService(kb_base_dir="/tmp/test_kb", provider="test_provider")
         yield service
 
 
 @patch("src.services.rag.factory.get_pipeline")
-def test_rag_service_initialization(
-    mock_get_pipeline, rag_service: RAGService
-):
+def test_rag_service_initialization(mock_get_pipeline, rag_service: RAGService):
     """
     Tests that the RAGService can be initialized correctly.
     """
@@ -44,9 +40,7 @@ def test_rag_service_initialization(
 
 @pytest.mark.asyncio
 @patch("src.services.rag.factory.get_pipeline")
-async def test_rag_service_initialize(
-    mock_get_pipeline, rag_service: RAGService
-):
+async def test_rag_service_initialize(mock_get_pipeline, rag_service: RAGService):
     """
     Tests that the initialize method calls the pipeline's initialize method.
     """

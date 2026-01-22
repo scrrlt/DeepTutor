@@ -75,9 +75,7 @@ async def test_retrieve_context(chat_agent: ChatAgent):
         "test_message", "test_kb", True, True
     )
 
-    chat_agent._rag_search.assert_called_once_with(
-        "test_message", kb_name="test_kb"
-    )
+    chat_agent._rag_search.assert_called_once_with("test_message", kb_name="test_kb")
     chat_agent._web_search.assert_called_once_with("test_message")
     assert "rag_answer" in context
     assert "web_answer" in context
@@ -93,9 +91,7 @@ async def test_retrieve_context_exceptions(chat_agent: ChatAgent):
         chat_agent (ChatAgent): The ChatAgent instance.
     """
     chat_agent._rag_search = AsyncMock(side_effect=Exception("RAG Error"))
-    chat_agent._web_search = AsyncMock(
-        side_effect=Exception("Web Search Error")
-    )
+    chat_agent._web_search = AsyncMock(side_effect=Exception("Web Search Error"))
 
     context, sources = await chat_agent._retrieve_context(
         "test_message", "test_kb", True, True

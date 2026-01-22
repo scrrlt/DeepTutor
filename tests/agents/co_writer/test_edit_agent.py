@@ -55,9 +55,7 @@ async def test_edit_agent_process_with_source(
     mock_web_search.return_value = {"answer": "web_context"}
 
     # Test RAG
-    await edit_agent.process(
-        "text", "instruction", source="rag", kb_name="test_kb"
-    )
+    await edit_agent.process("text", "instruction", source="rag", kb_name="test_kb")
     mock_rag_search.assert_called_once()
 
     # Test Web Search

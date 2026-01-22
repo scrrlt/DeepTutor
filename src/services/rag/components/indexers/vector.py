@@ -60,7 +60,9 @@ class VectorIndexer(BaseComponent):
         Returns:
             True if successful
         """
-        self.logger.info(f"Indexing {len(documents)} documents into vector store for {kb_name}")
+        self.logger.info(
+            f"Indexing {len(documents)} documents into vector store for {kb_name}"
+        )
 
         # Collect all chunks with embeddings
         all_chunks = []
@@ -83,7 +85,9 @@ class VectorIndexer(BaseComponent):
         # Convert embeddings to numpy array
         embeddings = np.array(
             [
-                chunk.embedding if isinstance(chunk.embedding, list) else chunk.embedding.tolist()
+                chunk.embedding
+                if isinstance(chunk.embedding, list)
+                else chunk.embedding.tolist()
                 for chunk in all_chunks
             ],
             dtype=np.float32,
@@ -108,7 +112,9 @@ class VectorIndexer(BaseComponent):
         if self.use_faiss:
             # Create FAISS index for inner product (cosine similarity with normalized vectors)
             dimension = embeddings.shape[1]
-            index = self.faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
+            index = self.faiss.IndexFlatIP(
+                dimension
+            )  # Inner product for cosine similarity
 
             # Normalize vectors for cosine similarity (inner product of normalized vectors = cosine similarity)
             self.faiss.normalize_L2(embeddings)

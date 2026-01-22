@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LightRAG Pipeline
 =================
@@ -7,11 +6,11 @@ Pure LightRAG pipeline (text-only, no multimodal processing).
 Faster than RAGAnything for text-heavy documents.
 """
 
+from ..components.chunkers import FixedSizeChunker
+from ..components.embedders.openai import OpenAIEmbedder
 from ..components.indexers import LightRAGIndexer
 from ..components.parsers import PDFParser
 from ..components.retrievers import LightRAGRetriever
-from ..components.chunkers import FixedSizeChunker
-from ..components.embedders.openai import OpenAIEmbedder
 from ..pipeline import RAGPipeline
 
 

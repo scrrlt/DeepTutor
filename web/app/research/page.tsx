@@ -15,22 +15,22 @@ import {
   Book,
   Download,
   FileDown,
-} from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import "katex/dist/katex.min.css";
-import { Mermaid } from "@/components/Mermaid";
-import { useGlobal } from "@/context/GlobalContext";
-import { apiUrl, wsUrl } from "@/lib/api";
-import AddToNotebookModal from "@/components/AddToNotebookModal";
-import { exportToPdf, preprocessMarkdownForPdf } from "@/lib/pdfExport";
-import { useResearchReducer } from "@/hooks/useResearchReducer";
-import { ResearchDashboard } from "@/components/research/ResearchDashboard";
-import { ResearchEvent } from "@/types/research";
-import { useTranslation } from "react-i18next";
+} from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import rehypeRaw from 'rehype-raw'
+import 'katex/dist/katex.min.css'
+import { Mermaid } from '@/components/Mermaid'
+import { useGlobal } from '@/context/GlobalContext'
+import { apiUrl, wsUrl } from '@/lib/api'
+import AddToNotebookModal from '@/components/AddToNotebookModal'
+import { exportToPdf, preprocessMarkdownForPdf } from '@/lib/pdfExport'
+import { useResearchReducer } from '@/hooks/useResearchReducer'
+import { ResearchDashboard } from '@/components/research/ResearchDashboard'
+import { ResearchEvent } from '@/types/research'
+import { useTranslation } from 'react-i18next'
 
 interface ChatMsg {
   id: string
@@ -48,8 +48,8 @@ export default function ResearchPage() {
     researchState: globalResearchState,
     setResearchState: setGlobalResearchState,
     uiSettings,
-  } = useGlobal();
-  const { t } = useTranslation();
+  } = useGlobal()
+  const { t } = useTranslation()
 
   // Local Reducer State for Deep Research Dashboard
   const [state, dispatch] = useResearchReducer()
@@ -93,9 +93,9 @@ export default function ResearchPage() {
           }
         }
       })
-      .catch((err) => console.error("Failed to fetch KBs:", err));
+      .catch(err => console.error('Failed to fetch KBs:', err))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount
-  }, []);
+  }, [])
 
   // Auto-scroll Chat
   useEffect(() => {
@@ -114,15 +114,14 @@ export default function ResearchPage() {
         {
           id: 'welcome',
           role: 'assistant',
-          content:
-            t(
-              "Welcome to Deep Research Lab. \n\nPlease configure your settings above, then enter a research topic below.",
-            ),
+          content: t(
+            'Welcome to Deep Research Lab. \n\nPlease configure your settings above, then enter a research topic below.'
+          ),
         },
       ])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only run on mount to set initial greeting
-  }, []);
+  }, [])
 
   // Select latest active task automatically if none selected
   useEffect(() => {
@@ -232,9 +231,9 @@ export default function ResearchPage() {
     setChatHistory(prev => [
       ...prev,
       {
-        id: "optimizing",
-        role: "assistant",
-        content: t("Optimizing topic..."),
+        id: 'optimizing',
+        role: 'assistant',
+        content: t('Optimizing topic...'),
         isOptimizing: true,
       },
     ])
@@ -312,7 +311,7 @@ export default function ResearchPage() {
         scale: 2,
       })
     } catch (err) {
-      console.error(t("PDF Export failed"), err);
+      console.error(t('PDF Export failed'), err)
     } finally {
       setIsExportingPdf(false)
     }
@@ -327,7 +326,7 @@ export default function ResearchPage() {
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Settings className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-              {t("Configuration")}
+              {t('Configuration')}
             </h2>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <div
@@ -345,15 +344,15 @@ export default function ResearchPage() {
             {/* KB Selection */}
             <div>
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">
-                {t("Knowledge Base")}
+                {t('Knowledge Base')}
               </label>
               <select
                 value={selectedKb}
                 onChange={e => setSelectedKb(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/20"
               >
-                {kbs.length === 0 && <option value="">{t("Loading...")}</option>}
-                {kbs.map((kb) => (
+                {kbs.length === 0 && <option value="">{t('Loading...')}</option>}
+                {kbs.map(kb => (
                   <option key={kb} value={kb}>
                     {kb}
                   </option>
@@ -364,7 +363,7 @@ export default function ResearchPage() {
             {/* Plan Mode */}
             <div>
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">
-                {t("Plan Mode")}
+                {t('Plan Mode')}
               </label>
               <div className="flex bg-slate-50 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
                 {['quick', 'medium', 'deep', 'auto'].map(mode => (
@@ -386,7 +385,7 @@ export default function ResearchPage() {
             {/* Tools */}
             <div>
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">
-                {t("Research Tools")}
+                {t('Research Tools')}
               </label>
               <div className="flex gap-2">
                 {[
@@ -426,7 +425,7 @@ export default function ResearchPage() {
                   className={`w-4 h-4 ${enableOptimization ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}
                 />
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {t("Topic Optimization")}
+                  {t('Topic Optimization')}
                 </span>
               </div>
               <button
@@ -445,7 +444,7 @@ export default function ResearchPage() {
         <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
           <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
-            {t("Topic Assistant")}
+            {t('Topic Assistant')}
           </div>
           <div
             ref={chatContainerRef}
@@ -462,7 +461,7 @@ export default function ResearchPage() {
                   {msg.isOptimizing ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-indigo-500 dark:text-indigo-400" />
-                      <span>{t("Optimizing topic...")}</span>
+                      <span>{t('Optimizing topic...')}</span>
                     </div>
                   ) : (
                     <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -475,18 +474,16 @@ export default function ResearchPage() {
                     </div>
                   )}
                 </div>
-                {msg.type === "topic_proposal" &&
-                  msg.proposal &&
-                  state.global.stage === "idle" && (
-                    <div className="mt-2 flex gap-2 animate-fade-in">
-                      <button
-                        onClick={() => startResearchLocal(msg.proposal!)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-                      >
-                        <Play className="w-3 h-3" /> {t("Start Research")}
-                      </button>
-                    </div>
-                  )}
+                {msg.type === 'topic_proposal' && msg.proposal && state.global.stage === 'idle' && (
+                  <div className="mt-2 flex gap-2 animate-fade-in">
+                    <button
+                      onClick={() => startResearchLocal(msg.proposal!)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                    >
+                      <Play className="w-3 h-3" /> {t('Start Research')}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -498,15 +495,11 @@ export default function ResearchPage() {
                 onChange={e => setInputTopic(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                 placeholder={
-                  state.global.stage !== "idle" &&
-                  state.global.stage !== "completed"
-                    ? t("Research in progress...")
-                    : "Enter research topic..."
+                  state.global.stage !== 'idle' && state.global.stage !== 'completed'
+                    ? t('Research in progress...')
+                    : 'Enter research topic...'
                 }
-                disabled={
-                  state.global.stage !== "idle" &&
-                  state.global.stage !== "completed"
-                }
+                disabled={state.global.stage !== 'idle' && state.global.stage !== 'completed'}
                 disabled={state.global.stage !== 'idle' && state.global.stage !== 'completed'}
                 className="flex-1 pl-4 pr-10 py-2.5 bg-slate-100 dark:bg-slate-700 border-transparent focus:bg-white dark:focus:bg-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all outline-none disabled:opacity-50"
               />

@@ -34,15 +34,9 @@ async def test_generate_question(coordinator: AgentCoordinator):
         coordinator (AgentCoordinator): The AgentCoordinator instance.
     """
     with (
-        patch.object(
-            coordinator, "_create_retrieve_agent"
-        ) as mock_create_retrieve,
-        patch.object(
-            coordinator, "_create_generate_agent"
-        ) as mock_create_generate,
-        patch.object(
-            coordinator, "_create_relevance_analyzer"
-        ) as mock_create_analyzer,
+        patch.object(coordinator, "_create_retrieve_agent") as mock_create_retrieve,
+        patch.object(coordinator, "_create_generate_agent") as mock_create_generate,
+        patch.object(coordinator, "_create_relevance_analyzer") as mock_create_analyzer,
     ):
         mock_retrieve_agent = AsyncMock()
         mock_retrieve_agent.process.return_value = {
@@ -65,9 +59,7 @@ async def test_generate_question(coordinator: AgentCoordinator):
         }
         mock_create_analyzer.return_value = mock_analyzer
 
-        result = await coordinator.generate_question(
-            {"knowledge_point": "kp1"}
-        )
+        result = await coordinator.generate_question({"knowledge_point": "kp1"})
 
         assert result["success"] is True
         assert "question" in result
@@ -82,15 +74,9 @@ async def test_generate_questions_custom(coordinator: AgentCoordinator):
         coordinator (AgentCoordinator): The AgentCoordinator instance.
     """
     with (
-        patch.object(
-            coordinator, "_create_retrieve_agent"
-        ) as mock_create_retrieve,
-        patch.object(
-            coordinator, "_create_generate_agent"
-        ) as mock_create_generate,
-        patch.object(
-            coordinator, "_create_relevance_analyzer"
-        ) as mock_create_analyzer,
+        patch.object(coordinator, "_create_retrieve_agent") as mock_create_retrieve,
+        patch.object(coordinator, "_create_generate_agent") as mock_create_generate,
+        patch.object(coordinator, "_create_relevance_analyzer") as mock_create_analyzer,
         patch.object(
             coordinator, "_generate_question_plan", new_callable=AsyncMock
         ) as mock_generate_plan,
@@ -103,9 +89,7 @@ async def test_generate_questions_custom(coordinator: AgentCoordinator):
         }
         mock_create_retrieve.return_value = mock_retrieve_agent
 
-        mock_generate_plan.return_value = {
-            "focuses": [{"id": "q_1", "focus": "f1"}]
-        }
+        mock_generate_plan.return_value = {"focuses": [{"id": "q_1", "focus": "f1"}]}
 
         mock_generate_agent = AsyncMock()
         mock_generate_agent.process.return_value = {
@@ -139,9 +123,7 @@ async def test_generate_question_plan(coordinator: AgentCoordinator):
     with patch(
         "src.agents.question.coordinator.llm_complete", new_callable=AsyncMock
     ) as mock_llm_complete:
-        mock_llm_complete.return_value = (
-            '{"focuses": [{"id": "q_1", "focus": "f1"}]}'
-        )
+        mock_llm_complete.return_value = '{"focuses": [{"id": "q_1", "focus": "f1"}]}'
 
         plan = await coordinator._generate_question_plan({}, "context", 1)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 RAGAnything Docling Pipeline
 ============================
@@ -9,7 +8,7 @@ Uses Docling instead of MinerU for better Office document and HTML support.
 
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.logging import get_logger
 from src.logging.adapters import LightRAGLogContext
@@ -43,7 +42,7 @@ class RAGAnythingDoclingPipeline:
 
     def __init__(
         self,
-        kb_base_dir: Optional[str] = None,
+        kb_base_dir: str | None = None,
         enable_image_processing: bool = True,
         enable_table_processing: bool = True,
         enable_equation_processing: bool = True,
@@ -59,12 +58,14 @@ class RAGAnythingDoclingPipeline:
         """
         self.logger = get_logger("RAGAnythingDoclingPipeline")
         self.kb_base_dir = kb_base_dir or str(
-            Path(__file__).resolve().parent.parent.parent.parent.parent / "data" / "knowledge_bases"
+            Path(__file__).resolve().parent.parent.parent.parent.parent
+            / "data"
+            / "knowledge_bases"
         )
         self.enable_image = enable_image_processing
         self.enable_table = enable_table_processing
         self.enable_equation = enable_equation_processing
-        self._instances: Dict[str, Any] = {}
+        self._instances: dict[str, Any] = {}
 
     def _setup_raganything_path(self):
         """Add RAG-Anything to sys.path if available."""
@@ -122,7 +123,7 @@ class RAGAnythingDoclingPipeline:
     async def initialize(
         self,
         kb_name: str,
-        file_paths: List[str],
+        file_paths: list[str],
         extract_numbered_items: bool = True,
         **kwargs,
     ) -> bool:
@@ -183,7 +184,9 @@ class RAGAnythingDoclingPipeline:
             rag = self._get_rag_instance(kb_name)
             await rag._ensure_lightrag_initialized()
 
-            total_files = len(classification.needs_mineru) + len(classification.text_files)
+            total_files = len(classification.needs_mineru) + len(
+                classification.text_files
+            )
             idx = 0
             total_images_migrated = 0
 
@@ -191,7 +194,9 @@ class RAGAnythingDoclingPipeline:
             for file_path in classification.needs_mineru:
                 idx += 1
                 file_name = Path(file_path).name
-                self.logger.info(f"Processing [{idx}/{total_files}] (Docling): {file_name}")
+                self.logger.info(
+                    f"Processing [{idx}/{total_files}] (Docling): {file_name}"
+                )
 
                 # Step 1: Parse document (without RAG insertion)
                 self.logger.info("  Step 1/3: Parsing document...")
@@ -202,8 +207,13 @@ class RAGAnythingDoclingPipeline:
                 )
 
                 # Step 2: Migrate images and update paths
-                self.logger.info("  Step 2/3: Migrating images to canonical location...")
-                updated_content_list, num_migrated = await migrate_images_and_update_paths(
+                self.logger.info(
+                    "  Step 2/3: Migrating images to canonical location..."
+                )
+                (
+                    updated_content_list,
+                    num_migrated,
+                ) = await migrate_images_and_update_paths(
                     content_list=content_list,
                     source_base_dir=content_list_dir,
                     target_images_dir=images_dir,
@@ -269,13 +279,15 @@ class RAGAnythingDoclingPipeline:
             content_list_dir = kb_dir / "content_list"
 
             if not content_list_dir.exists():
-                self.logger.warning("No content_list directory found, skipping extraction")
+                self.logger.warning(
+                    "No content_list directory found, skipping extraction"
+                )
                 return
 
             # Load all content list files
             all_content_items = []
             for json_file in content_list_dir.glob("*.json"):
-                with open(json_file, "r", encoding="utf-8") as f:
+                with open(json_file, encoding="utf-8") as f:
                     content_items = json.load(f)
                     all_content_items.extend(content_items)
 
@@ -313,7 +325,7 @@ class RAGAnythingDoclingPipeline:
         mode: str = "hybrid",
         only_need_context: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using RAG-Anything's aquery().
 
@@ -331,7 +343,9 @@ class RAGAnythingDoclingPipeline:
             rag = self._get_rag_instance(kb_name)
             await rag._ensure_lightrag_initialized()
 
-            answer = await rag.aquery(query, mode=mode, only_need_context=only_need_context)
+            answer = await rag.aquery(
+                query, mode=mode, only_need_context=only_need_context
+            )
             answer_str = answer if isinstance(answer, str) else str(answer)
 
             return {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tests for LLM utility helpers."""
 
 from src.services.llm.utils import (
@@ -20,7 +19,10 @@ def test_sanitize_url_adds_protocol_and_v1() -> None:
 
 
 def test_sanitize_url_strips_chat_suffix() -> None:
-    assert sanitize_url("https://api.openai.com/v1/chat/completions") == "https://api.openai.com/v1"
+    assert (
+        sanitize_url("https://api.openai.com/v1/chat/completions")
+        == "https://api.openai.com/v1"
+    )
 
 
 def test_build_chat_url_anthropic() -> None:
@@ -44,7 +46,10 @@ def test_build_chat_url_openai_default() -> None:
 
 def test_clean_thinking_tags() -> None:
     content = "<think>skip</think>answer"
-    assert clean_thinking_tags(content, binding="deepseek", model="deepseek-reasoner") == "answer"
+    assert (
+        clean_thinking_tags(content, binding="deepseek", model="deepseek-reasoner")
+        == "answer"
+    )
     assert clean_thinking_tags(content, binding="openai", model="gpt-4") == content
 
 
@@ -66,10 +71,12 @@ def test_extract_response_content_falls_back_to_reasoning() -> None:
 def test_extract_response_content_reasoning_fallback() -> None:
     """Verify fallback to reasoning if content is missing or empty."""
     assert (
-        extract_response_content({"content": "", "reasoning": "Only Thinking"}) == "Only Thinking"
+        extract_response_content({"content": "", "reasoning": "Only Thinking"})
+        == "Only Thinking"
     )
     assert (
-        extract_response_content({"content": None, "reasoning": "Only Thinking"}) == "Only Thinking"
+        extract_response_content({"content": None, "reasoning": "Only Thinking"})
+        == "Only Thinking"
     )
 
 

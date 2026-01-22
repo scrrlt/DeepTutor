@@ -23,9 +23,7 @@ def mock_config_dir(tmp_path: Path) -> Generator[Path, None, None]:
 class TestConfigLoader:
     """Test suite for configuration loading logic."""
 
-    def test_load_config_with_main_success(
-        self, mock_config_dir: Path
-    ) -> None:
+    def test_load_config_with_main_success(self, mock_config_dir: Path) -> None:
         """Test loading configuration from a valid directory."""
         # We need to patch where the loader looks for config
         # Assuming it takes a path or we patch an internal constant/env

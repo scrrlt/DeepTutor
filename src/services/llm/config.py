@@ -1,18 +1,19 @@
 """
-LLM Configuration Management.
-Uses Pydantic Settings for validation and type safety.
+LLM Configuration
+=================
+
+Configuration management for LLM services.
+Simplified version - loads from unified config service or falls back to .env.
 """
 
-from __future__ import annotations
+from dataclasses import dataclass
+import logging
+import os
+from pathlib import Path
+import re
+from typing import Any
 
-from pydantic import (
-    AliasChoices,
-    Field,
-    SecretStr,
-    ValidationError,
-    computed_field,
-)
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
 
 from .exceptions import LLMConfigError
 
@@ -31,11 +32,46 @@ class LLMConfig:
 
     model: str
     api_key: str
-    base_url: Optional[str] = None
+    base_url: str | None = None
+    effective_url: str | None = None
     binding: str = "openai"
-    api_version: Optional[str] = None
+    provider_name: str = "routing"
+    api_version: str | None = None
     max_tokens: int = 4096
     temperature: float = 0.7
+    max_concurrency: int = 20
+    requests_per_minute: int = 600
+    traffic_controller: Any | None = None
+
+    def __post_init__(self) -> None:
+        if self.effective_url is None:
+            self.effective_url = self.base_url
+
+    def model_copy(self, update: dict[str, Any] | None = None) -> "LLMConfig":
+        """Return a copy of the config with optional updates."""
+        data = {
+            "model": self.model,
+            "api_key": self.api_key,
+            "base_url": self.base_url,
+            "binding": self.binding,
+            "provider_name": self.provider_name,
+            "api_version": self.api_version,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "max_concurrency": self.max_concurrency,
+            "requests_per_minute": self.requests_per_minute,
+            "traffic_controller": self.traffic_controller,
+        }
+        if update:
+            data.update(update)
+        return LLMConfig(**data)
+
+    def get_api_key(self) -> str:
+        """Return the API key string for provider consumers."""
+        return self.api_key
+
+
+_LLM_CONFIG_CACHE: LLMConfig | None = None
 
 
 def initialize_environment():
@@ -63,7 +99,7 @@ def initialize_environment():
             logger.debug(f"Set OPENAI_BASE_URL env var to {base_url}")
 
 
-def _strip_value(value: Optional[str]) -> Optional[str]:
+def _strip_value(value: str | None) -> str | None:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
         return None
@@ -99,27 +135,38 @@ def _get_llm_config_from_env() -> LLMConfig:
 
 def get_llm_config() -> LLMConfig:
     """
-    Singleton access to LLM Settings.
+    Load LLM configuration.
+
+    Priority:
+    1. Active configuration from unified config service
+    2. Environment variables (.env)
 
     Returns:
-        The valid LLM configuration instance.
+        LLMConfig: Configuration dataclass
 
     Raises:
         LLMConfigError: If required configuration is missing
     """
+    global _LLM_CONFIG_CACHE
+
+    if _LLM_CONFIG_CACHE is not None:
+        return _LLM_CONFIG_CACHE
+
     # 1. Try to get active config from unified config service
     try:
         from src.services.config import get_active_llm_config
 
         config = get_active_llm_config()
         if config:
-            return LLMConfig(
+            _LLM_CONFIG_CACHE = LLMConfig(
                 binding=config.get("provider") or "openai",
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
                 api_version=config.get("api_version"),
             )
+            return _LLM_CONFIG_CACHE
+
     except ImportError:
         # Unified config service not yet available, fall back to env
         pass
@@ -127,7 +174,8 @@ def get_llm_config() -> LLMConfig:
         logger.warning(f"Failed to load from unified config: {e}")
 
     # 2. Fallback to environment variables
-    return _get_llm_config_from_env()
+    _LLM_CONFIG_CACHE = _get_llm_config_from_env()
+    return _LLM_CONFIG_CACHE
 
 
 async def get_llm_config_async() -> LLMConfig:
@@ -139,6 +187,19 @@ async def get_llm_config_async() -> LLMConfig:
     Returns:
         LLMConfig: Configuration dataclass
     """
+    return get_llm_config()
+
+
+def clear_llm_config_cache() -> None:
+    """Clear cached LLM configuration."""
+    global _LLM_CONFIG_CACHE
+
+    _LLM_CONFIG_CACHE = None
+
+
+def reload_config() -> LLMConfig:
+    """Reload and return the LLM configuration."""
+    clear_llm_config_cache()
     return get_llm_config()
 
 
@@ -194,6 +255,9 @@ def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
 __all__ = [
     "LLMConfig",
     "get_llm_config",
-    "reload_config",
+    "get_llm_config_async",
     "clear_llm_config_cache",
+    "reload_config",
+    "uses_max_completion_tokens",
+    "get_token_limit_kwargs",
 ]

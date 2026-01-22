@@ -140,9 +140,7 @@ class ManagerAgent(BaseAgent):
             knowledge_text += f"  Summary: {info['summary']}\n"
 
         remaining_questions = []
-        if investigate_memory and getattr(
-            investigate_memory, "reflections", None
-        ):
+        if investigate_memory and getattr(investigate_memory, "reflections", None):
             remaining_questions = (
                 investigate_memory.reflections.remaining_questions or []
             )
@@ -176,9 +174,7 @@ class ManagerAgent(BaseAgent):
 
     def _build_user_prompt(self, context: dict[str, Any]) -> str:
         """Build user prompt"""
-        template = (
-            self.get_prompt("user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "ManagerAgent missing user prompt template, please configure user_template in prompts/zh/solve_loop/manager_agent.yaml."
@@ -207,9 +203,7 @@ class ManagerAgent(BaseAgent):
             )
 
         if not steps_data:
-            raise ValueError(
-                "'steps' array in JSON is empty, please check LLM output"
-            )
+            raise ValueError("'steps' array in JSON is empty, please check LLM output")
 
         # Parse each step
         for idx, step_data in enumerate(steps_data, 1):

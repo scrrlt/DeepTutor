@@ -59,7 +59,9 @@ class KnowledgeBaseInitializer:
         self.api_key = api_key
         self.base_url = base_url
         self.embedding_cfg = get_embedding_config()
-        self.progress_tracker = progress_tracker or ProgressTracker(kb_name, self.base_dir)
+        self.progress_tracker = progress_tracker or ProgressTracker(
+            kb_name, self.base_dir
+        )
         self.rag_provider = rag_provider
 
     def _register_to_config(self):
@@ -249,7 +251,9 @@ class KnowledgeBaseInitializer:
         except TimeoutError:
             error_msg = "Processing timeout (>10 minutes)"
             logger.error("✗ Timeout processing documents")
-            logger.error("Possible causes: Large files, slow embedding API, network issues")
+            logger.error(
+                "Possible causes: Large files, slow embedding API, network issues"
+            )
             self.progress_tracker.update(
                 ProgressStage.ERROR,
                 "Timeout processing documents",
@@ -355,7 +359,9 @@ class KnowledgeBaseInitializer:
         content_list_files = sorted(self.content_list_dir.glob("*.json"))
 
         if not content_list_files:
-            logger.warning("No content_list files found, skipping numbered items extraction")
+            logger.warning(
+                "No content_list files found, skipping numbered items extraction"
+            )
             return
 
         logger.info(f"Found {len(content_list_files)} content_list files")
@@ -478,8 +484,12 @@ class KnowledgeBaseInitializer:
                 if metadata_file.exists():
                     with open(metadata_file, encoding="utf-8") as f:
                         metadata = json.load(f)
-                        logger.info(f"Vector embeddings: {metadata.get('num_embeddings', 0)}")
-                        logger.info(f"Embedding dimension: {metadata.get('dimension', 0)}")
+                        logger.info(
+                            f"Vector embeddings: {metadata.get('num_embeddings', 0)}"
+                        )
+                        logger.info(
+                            f"Embedding dimension: {metadata.get('dimension', 0)}"
+                        )
         except Exception as e:
             logger.warning(f"Could not retrieve statistics: {e!s}")
 
@@ -516,8 +526,12 @@ Example usage:
         default="./knowledge_bases",
         help="Base directory for knowledge bases (default: ./knowledge_bases)",
     )
-    parser.add_argument("--api-key", default=os.getenv("LLM_API_KEY"), help="OpenAI API key")
-    parser.add_argument("--base-url", default=os.getenv("LLM_HOST"), help="API base URL")
+    parser.add_argument(
+        "--api-key", default=os.getenv("LLM_API_KEY"), help="OpenAI API key"
+    )
+    parser.add_argument(
+        "--base-url", default=os.getenv("LLM_HOST"), help="API base URL"
+    )
     parser.add_argument(
         "--skip-processing",
         action="store_true",

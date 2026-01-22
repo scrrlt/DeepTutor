@@ -5,6 +5,7 @@ Inherits from unified BaseAgent with special TTS configuration.
 """
 
 from datetime import datetime
+import inspect
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Any
 from urllib.parse import urlparse
 import uuid
 
-from openai import AsyncAzureOpenAI, AsyncOpenAI
+import openai
 
 from src.agents.base_agent import BaseAgent
 from src.services.tts import get_tts_config
@@ -22,11 +23,7 @@ from src.services.tts import get_tts_config
 
 # Define storage path (unified under user/co-writer/ directory)
 USER_DIR = (
-    Path(__file__).parent.parent.parent.parent
-    / "data"
-    / "user"
-    / "co-writer"
-    / "audio"
+    Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
 )
 
 
@@ -75,9 +72,7 @@ class NarratorAgent(BaseAgent):
             self.tts_config = get_tts_config()
             # Get voice from unified config (defaults to "alloy")
             self.default_voice = self.tts_config.get("voice", "alloy")
-            self.logger.info(
-                f"TTS settings loaded: voice={self.default_voice}"
-            )
+            self.logger.info(f"TTS settings loaded: voice={self.default_voice}")
             # Validate TTS configuration
             self._validate_tts_config()
         except Exception as e:
@@ -92,13 +87,9 @@ class NarratorAgent(BaseAgent):
 
         # Check required keys
         required_keys = ["model", "api_key", "base_url"]
-        missing_keys = [
-            key for key in required_keys if key not in self.tts_config
-        ]
+        missing_keys = [key for key in required_keys if key not in self.tts_config]
         if missing_keys:
-            raise ValueError(
-                f"TTS config missing required keys: {missing_keys}"
-            )
+            raise ValueError(f"TTS config missing required keys: {missing_keys}")
 
         # Validate base_url format
         base_url = self.tts_config["base_url"]
@@ -140,9 +131,7 @@ class NarratorAgent(BaseAgent):
 
         # Log configuration info (hide sensitive information)
         api_key_preview = (
-            f"{api_key[:8]}...{api_key[-4:]}"
-            if len(api_key) > 12
-            else "*" * 10
+            f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "*" * 10
         )
         self.logger.info("TTS Configuration Loaded (OpenAI API):")
         self.logger.info(f"  Model: {model}")
@@ -201,9 +190,7 @@ class NarratorAgent(BaseAgent):
             else self.get_prompt("length_instruction_short", "")
         )
 
-        system_template = self.get_prompt(
-            "generate_script_system_template", ""
-        )
+        system_template = self.get_prompt("generate_script_system_template", "")
         system_prompt = system_template.format(
             style_prompt=style_prompts.get(style, style_prompts["friendly"]),
             length_instruction=length_instruction,
@@ -334,11 +321,7 @@ class NarratorAgent(BaseAgent):
                 f"Script truncated from {original_script_length} to {len(script)} characters"
             )
 
-        audio_id = (
-            datetime.now().strftime("%Y%m%d_%H%M%S")
-            + "_"
-            + uuid.uuid4().hex[:6]
-        )
+        audio_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
         audio_filename = f"narration_{audio_id}.mp3"
         audio_path = USER_DIR / audio_filename
 
@@ -352,25 +335,38 @@ class NarratorAgent(BaseAgent):
 
             # Only use Azure client if binding is explicitly Azure,
             # OR if binding is generic 'openai' but an Azure-specific api_version is present.
-            if binding == "azure_openai" or (
-                binding == "openai" and api_version
-            ):
-                client = AsyncAzureOpenAI(
+            if binding == "azure_openai" or (binding == "openai" and api_version):
+                client = openai.AsyncAzureOpenAI(
                     api_key=self.tts_config["api_key"],
                     azure_endpoint=self.tts_config["base_url"],
                     api_version=api_version,
                 )
             else:
                 # Create OpenAI client with custom base_url
-                client = AsyncOpenAI(
+                client = openai.AsyncOpenAI(
                     base_url=self.tts_config["base_url"],
                     api_key=self.tts_config["api_key"],
                 )
 
             # Call OpenAI TTS API
-            response = await client.audio.speech.create(
-                model=self.tts_config["model"], voice=voice, input=script
-            )
+            speech_client = getattr(client, "speech", None)
+            if speech_client and hasattr(speech_client, "create"):
+                create_result = speech_client.create(
+                    model=self.tts_config["model"],
+                    voice=voice,
+                    input=script,
+                )
+            else:
+                create_result = client.audio.speech.create(
+                    model=self.tts_config["model"],
+                    voice=voice,
+                    input=script,
+                )
+
+            if inspect.isawaitable(create_result):
+                response = await create_result
+            else:
+                response = create_result
 
             # Save audio to file
             await response.stream_to_file(audio_path)

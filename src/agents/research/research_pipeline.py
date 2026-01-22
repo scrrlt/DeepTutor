@@ -98,9 +98,7 @@ class ResearchPipeline:
             self.config["rag"]["kb_name"] = kb_name
         self.api_key = api_key
         self.base_url = base_url
-        self.api_version = api_version or config.get("llm", {}).get(
-            "api_version"
-        )
+        self.api_version = api_version or config.get("llm", {}).get("api_version")
         self.input_topic: str | None = None
         self.optimized_topic: str | None = None
 
@@ -114,8 +112,7 @@ class ResearchPipeline:
         # Set directories
         system_config = config.get("system", {})
         self.cache_dir = (
-            Path(system_config.get("output_base_dir", "./cache"))
-            / self.research_id
+            Path(system_config.get("output_base_dir", "./cache")) / self.research_id
         )
         self.reports_dir = Path(system_config.get("reports_dir", "./reports"))
 
@@ -149,9 +146,7 @@ class ResearchPipeline:
         self._paper_tool: PaperSearchTool | None = None
 
         # Citation manager
-        self.citation_manager = CitationManager(
-            self.research_id, self.cache_dir
-        )
+        self.citation_manager = CitationManager(self.research_id, self.cache_dir)
 
         # Lock for thread-safe progress file writing in parallel mode
         import threading
@@ -161,9 +156,9 @@ class ResearchPipeline:
     def _init_logger(self):
         """Initialize unified logging system"""
         # Get log_dir from config paths (user_log_dir from main.yaml)
-        log_dir = self.config.get("paths", {}).get(
-            "user_log_dir"
-        ) or self.config.get("logging", {}).get("log_dir")
+        log_dir = self.config.get("paths", {}).get("user_log_dir") or self.config.get(
+            "logging", {}
+        ).get("log_dir")
 
         self.logger = get_logger(name="Research", log_dir=log_dir)
         self.logger.success("Logger initialized")
@@ -363,9 +358,7 @@ class ResearchPipeline:
                 return json.dumps(res, ensure_ascii=False)
 
             if tool_type == "query_item":
-                kb_name = self.config.get("rag", {}).get(
-                    "kb_name", "ai_textbook"
-                )
+                kb_name = self.config.get("rag", {}).get("kb_name", "ai_textbook")
                 res = await self._call_tool_with_retry(
                     query_numbered_item,
                     identifier=query,
@@ -449,9 +442,7 @@ class ResearchPipeline:
         try:
             # ========== Phase 1: Planning (Planning and Initialization) ==========
             self.logger.info("\n" + "═" * 70)
-            self.logger.info(
-                "▶ Phase 1: Planning - Planning and Initialization"
-            )
+            self.logger.info("▶ Phase 1: Planning - Planning and Initialization")
             self.logger.info("═" * 70)
 
             optimized_topic = await self._phase1_planning(topic)
@@ -507,9 +498,7 @@ class ResearchPipeline:
                 "completed_at": datetime.now().isoformat(),
             }
 
-            metadata_file = (
-                self.reports_dir / f"{self.research_id}_metadata.json"
-            )
+            metadata_file = self.reports_dir / f"{self.research_id}_metadata.json"
             with open(metadata_file, "w", encoding="utf-8") as f:
                 json.dump(metadata, f, ensure_ascii=False, indent=2)
             self.logger.success(f"Metadata: {metadata_file}")
@@ -535,9 +524,7 @@ class ResearchPipeline:
             self.logger.info(f"Research ID: {self.research_id}")
             self.logger.info(f"Topic: {topic}")
             self.logger.info(f"Final Report: {report_file}")
-            self.logger.info(
-                f"Report Word Count: {report_result['word_count']}"
-            )
+            self.logger.info(f"Report Word Count: {report_result['word_count']}")
             self.logger.info(f"Topic Blocks: {len(self.queue.blocks)}")
             self.logger.info("=" * 70 + "\n")
 
@@ -640,9 +627,7 @@ class ResearchPipeline:
                     self.logger.info(
                         "   - Enter specific modification suggestions, will continue optimizing based on your feedback"
                     )
-                    self.logger.info(
-                        "   - Press Enter directly to use current result"
-                    )
+                    self.logger.info("   - Press Enter directly to use current result")
 
                     user_input = input("\nYour choice: ").strip()
 
@@ -658,9 +643,7 @@ class ResearchPipeline:
                     ].check_user_satisfaction(rephrase_result, user_input)
 
                     if satisfaction.get("user_satisfied", False):
-                        self.logger.success(
-                            "User satisfied, proceeding to next stage"
-                        )
+                        self.logger.success("User satisfied, proceeding to next stage")
                         break
 
                     if not satisfaction.get("should_continue", True):
@@ -682,9 +665,7 @@ class ResearchPipeline:
                 iterations=iteration,
             )
         else:
-            self.logger.info(
-                "\n【Step 1】Topic Rephrasing (disabled, skipping)..."
-            )
+            self.logger.info("\n【Step 1】Topic Rephrasing (disabled, skipping)...")
             optimized_topic = topic
             self._log_progress(
                 "planning",
@@ -707,9 +688,7 @@ class ResearchPipeline:
                 "auto_max_subtopics",
                 decompose_config.get("initial_subtopics", 5),
             )
-            self.logger.info(
-                f"📌 Using Auto mode, max subtopics: {num_subtopics}"
-            )
+            self.logger.info(f"📌 Using Auto mode, max subtopics: {num_subtopics}")
         else:
             # Manual mode: use initial_subtopics
             num_subtopics = decompose_config.get("initial_subtopics", 5)
@@ -734,9 +713,7 @@ class ResearchPipeline:
             "planning",
             "decompose_completed",
             generated_subtopics=decompose_result.get("total_subtopics", 0),
-            rag_context_length=len(
-                decompose_result.get("rag_context", "") or ""
-            ),
+            rag_context_length=len(decompose_result.get("rag_context", "") or ""),
         )
 
         # Save Planning stage results (includes sub_queries / rag_context / sub_topics)
@@ -749,9 +726,7 @@ class ResearchPipeline:
                         "sub_queries": decompose_result.get("sub_queries", []),
                         "rag_context": decompose_result.get("rag_context", ""),
                         "sub_topics": decompose_result.get("sub_topics", []),
-                        "total_subtopics": decompose_result.get(
-                            "total_subtopics", 0
-                        ),
+                        "total_subtopics": decompose_result.get("total_subtopics", 0),
                         "timestamp": datetime.now().isoformat(),
                     },
                     f,
@@ -770,9 +745,7 @@ class ResearchPipeline:
             if not title:
                 continue
             try:
-                block = self.queue.add_block(
-                    sub_topic=title, overview=overview
-                )
+                block = self.queue.add_block(sub_topic=title, overview=overview)
                 self._log_progress(
                     "planning",
                     "queue_seeded",
@@ -919,9 +892,7 @@ class ResearchPipeline:
         research = self.agents["research"]
 
         # Get configuration
-        max_parallel = self.config.get("researching", {}).get(
-            "max_parallel_topics", 5
-        )
+        max_parallel = self.config.get("researching", {}).get("max_parallel_topics", 5)
         semaphore = asyncio.Semaphore(max_parallel)
 
         # Get all pending blocks at the start
@@ -979,18 +950,14 @@ class ResearchPipeline:
                 # Forward other attributes to original manager_agent
                 return getattr(self._ma, name)
 
-        async_citation_manager = AsyncCitationManagerWrapper(
-            self.citation_manager
-        )
+        async_citation_manager = AsyncCitationManagerWrapper(self.citation_manager)
         async_manager_agent = AsyncManagerAgentWrapper(manager)
 
         # Track active tasks for parallel progress display
         active_tasks: dict[str, dict[str, Any]] = {}  # block_id -> task info
         active_tasks_lock = asyncio.Lock()
 
-        async def update_active_task(
-            block_id: str, info: dict[str, Any] | None
-        ):
+        async def update_active_task(block_id: str, info: dict[str, Any] | None):
             """Update active task info (thread-safe)"""
             async with active_tasks_lock:
                 if info is None:
@@ -1021,9 +988,7 @@ class ResearchPipeline:
                     # Mark as researching (thread-safe)
                     async with manager._lock:
                         # Refresh block status from queue
-                        current_block = self.queue.get_block_by_id(
-                            block.block_id
-                        )
+                        current_block = self.queue.get_block_by_id(block.block_id)
                         if (
                             current_block
                             and current_block.status == TopicStatus.PENDING
@@ -1057,9 +1022,9 @@ class ResearchPipeline:
                         )
 
                     # Get max_iterations from config for this closure
-                    config_max_iterations = self.config.get(
-                        "researching", {}
-                    ).get("max_iterations", 5)
+                    config_max_iterations = self.config.get("researching", {}).get(
+                        "max_iterations", 5
+                    )
 
                     # Create iteration callback for parallel mode
                     def parallel_iteration_callback(event_type: str, **data):
@@ -1161,9 +1126,7 @@ class ResearchPipeline:
                 block = pending_blocks[i]
                 await manager.fail_task_async(block.block_id, str(result))
                 if self.logger:
-                    self.logger.error(
-                        f"[{block.block_id}] ✗ Exception: {result}"
-                    )
+                    self.logger.error(f"[{block.block_id}] ✗ Exception: {result}")
 
         # Wait for any dynamically added topics (if manager adds new topics during research)
         # Continue until all tasks are processed (completed or failed)
@@ -1201,9 +1164,7 @@ class ResearchPipeline:
 
             # Research newly added blocks
             new_tasks = [research_single_block(block) for block in new_pending]
-            new_results = await asyncio.gather(
-                *new_tasks, return_exceptions=True
-            )
+            new_results = await asyncio.gather(*new_tasks, return_exceptions=True)
 
             for i, result in enumerate(new_results):
                 if isinstance(result, Exception):
@@ -1235,9 +1196,7 @@ class ResearchPipeline:
             self._stage_events["researching"].append(event)
 
             # Save to file
-            research_progress_file = (
-                self.cache_dir / "researching_progress.json"
-            )
+            research_progress_file = self.cache_dir / "researching_progress.json"
             context = {
                 "research_id": self.research_id,
                 "stage": "researching",
@@ -1322,9 +1281,7 @@ class ResearchPipeline:
         )
 
         self.logger.success("\nPhase 3 Completed:")
-        self.logger.info(
-            f"  - Report Word Count: {report_result['word_count']}"
-        )
+        self.logger.info(f"  - Report Word Count: {report_result['word_count']}")
         self.logger.info(f"  - Sections: {report_result['sections']}")
         self.logger.info(f"  - Citations: {report_result['citations']}")
 
@@ -1385,12 +1342,8 @@ async def main():
     load_dotenv()
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="DR-in-KG 2.0 - Deep Research System"
-    )
-    parser.add_argument(
-        "--topic", type=str, required=True, help="Research topic"
-    )
+    parser = argparse.ArgumentParser(description="DR-in-KG 2.0 - Deep Research System")
+    parser.add_argument("--topic", type=str, required=True, help="Research topic")
     parser.add_argument(
         "--config", type=str, default="config.yaml", help="Configuration file"
     )
@@ -1414,11 +1367,7 @@ async def main():
         config = yaml.safe_load(f)
 
     # Apply preset
-    if (
-        args.preset
-        and "presets" in config
-        and args.preset in config["presets"]
-    ):
+    if args.preset and "presets" in config and args.preset in config["presets"]:
         preset = config["presets"][args.preset]
         # Merge preset configuration
         for key, value in preset.items():

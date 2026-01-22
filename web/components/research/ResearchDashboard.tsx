@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, startTransition } from "react";
-import { ResearchState } from "../../types/research";
-import { TaskGrid } from "./TaskGrid";
-import { ActiveTaskDetail } from "./ActiveTaskDetail";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import "katex/dist/katex.min.css";
-import { Mermaid } from "../Mermaid";
-import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useRef, useMemo, startTransition } from 'react'
+import { ResearchState } from '../../types/research'
+import { TaskGrid } from './TaskGrid'
+import { ActiveTaskDetail } from './ActiveTaskDetail'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import rehypeRaw from 'rehype-raw'
+import 'katex/dist/katex.min.css'
+import { Mermaid } from '../Mermaid'
+import { useTranslation } from 'react-i18next'
 import {
   GitBranch,
   Zap,
@@ -30,14 +30,14 @@ import {
   FileDown,
 } from 'lucide-react'
 
-type ProcessTab = "planning" | "researching" | "reporting";
+type ProcessTab = 'planning' | 'researching' | 'reporting'
 
 // Steps configuration - moved outside component to avoid recreation
 const steps: { id: ProcessTab; labelKey: string; icon: React.ElementType }[] = [
-  { id: "planning", labelKey: "Planning", icon: GitBranch },
-  { id: "researching", labelKey: "Researching", icon: Zap },
-  { id: "reporting", labelKey: "Reporting", icon: PenTool },
-];
+  { id: 'planning', labelKey: 'Planning', icon: GitBranch },
+  { id: 'researching', labelKey: 'Researching', icon: Zap },
+  { id: 'reporting', labelKey: 'Reporting', icon: PenTool },
+]
 
 const stageOrder: Record<string, number> = {
   idle: -1,
@@ -45,7 +45,7 @@ const stageOrder: Record<string, number> = {
   researching: 1,
   reporting: 2,
   completed: 3,
-};
+}
 
 interface ResearchDashboardProps {
   state: ResearchState
@@ -66,40 +66,40 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
   onExportPdf,
   isExportingPdf = false,
 }) => {
-  const { t } = useTranslation();
-  const { global, tasks, activeTaskIds, planning, reporting } = state;
+  const { t } = useTranslation()
+  const { global, tasks, activeTaskIds, planning, reporting } = state
 
   // Track previous stage to detect changes and reset user selection
-  const [prevStage, setPrevStage] = useState(global.stage);
+  const [prevStage, setPrevStage] = useState(global.stage)
 
   // Ref to track previous stage for useEffect (needed because state updates synchronously)
-  const prevStageRef = useRef(global.stage);
+  const prevStageRef = useRef(global.stage)
 
   // User can override the auto-selected tab
-  const [userSelectedTab, setUserSelectedTab] = useState<ProcessTab | null>(null);
+  const [userSelectedTab, setUserSelectedTab] = useState<ProcessTab | null>(null)
 
   // Compute derived tab based on current stage
   const derivedProcessTab: ProcessTab =
-    global.stage === "planning" || global.stage === "researching" || global.stage === "reporting"
+    global.stage === 'planning' || global.stage === 'researching' || global.stage === 'reporting'
       ? global.stage
-      : "reporting";
+      : 'reporting'
 
   // Detect stage changes and reset user selection
   if (prevStage !== global.stage) {
-    setPrevStage(global.stage);
-    setUserSelectedTab(null);
+    setPrevStage(global.stage)
+    setUserSelectedTab(null)
   }
 
   // Active tab is user selection or derived
-  const activeProcessTab = userSelectedTab ?? derivedProcessTab;
+  const activeProcessTab = userSelectedTab ?? derivedProcessTab
 
   // Handler for user tab selection
   const setActiveProcessTab = (tab: ProcessTab) => {
-    setUserSelectedTab(tab);
-  };
+    setUserSelectedTab(tab)
+  }
 
   // View state
-  const [activeView, setActiveView] = useState<"process" | "report">("process");
+  const [activeView, setActiveView] = useState<'process' | 'report'>('process')
 
   const currentStageIndex = stageOrder[global.stage] ?? -1
   const isCompleted = global.stage === 'completed'
@@ -112,30 +112,30 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
 
   // Check if a tab is currently active (the system is in this stage)
   const isTabCurrentlyActive = (tabId: ProcessTab): boolean => {
-    return global.stage === tabId;
-  };
+    return global.stage === tabId
+  }
 
   // Auto-switch to report view when research completes and report is available
   useEffect(() => {
     if (global.stage === 'completed' && reporting.generatedReport && activeView === 'process') {
       const timer = setTimeout(() => {
         startTransition(() => {
-          setActiveView("report");
-        });
-      }, 1500);
-      return () => clearTimeout(timer);
+          setActiveView('report')
+        })
+      }, 1500)
+      return () => clearTimeout(timer)
     }
-  }, [global.stage, reporting.generatedReport, activeView]);
+  }, [global.stage, reporting.generatedReport, activeView])
 
   // Reset to process view when a new research starts
   useEffect(() => {
-    if (global.stage === "planning" && prevStageRef.current !== "planning") {
+    if (global.stage === 'planning' && prevStageRef.current !== 'planning') {
       startTransition(() => {
-        setActiveView("process");
-      });
+        setActiveView('process')
+      })
     }
-    prevStageRef.current = global.stage;
-  }, [global.stage]);
+    prevStageRef.current = global.stage
+  }, [global.stage])
 
   // Clickable Step Tabs - rendered as JSX variable instead of component function
   const stepTabsContent = (
@@ -188,25 +188,23 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
   )
 
   // Planning Content - rendered as JSX variable
-  const isPlanningActive = global.stage === "planning";
+  const isPlanningActive = global.stage === 'planning'
   const planningContent = (
     <div className="flex-1 flex items-center justify-center">
       <div
         className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm p-8 flex flex-col items-center justify-center text-center max-w-2xl w-full ${
           isPlanningActive
-            ? "border-blue-200 dark:border-blue-800"
-            : "border-slate-200 dark:border-slate-700"
+            ? 'border-blue-200 dark:border-blue-800'
+            : 'border-slate-200 dark:border-slate-700'
         }`}
       >
         <div
           className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-            isPlanningActive
-              ? "bg-blue-50 dark:bg-blue-900/40"
-              : "bg-slate-50 dark:bg-slate-700"
+            isPlanningActive ? 'bg-blue-50 dark:bg-blue-900/40' : 'bg-slate-50 dark:bg-slate-700'
           }`}
         >
           <GitBranch
-            className={`w-8 h-8 ${isPlanningActive ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
+            className={`w-8 h-8 ${isPlanningActive ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}
           />
         </div>
 
@@ -218,12 +216,12 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         )}
 
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-          {isPlanningActive ? t("Planning Research Strategy") : t("Research Plan")}
+          {isPlanningActive ? t('Planning Research Strategy') : t('Research Plan')}
         </h3>
 
         {isPlanningActive && (
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-            {planning.progress || t("Initializing...")}
+            {planning.progress || t('Initializing...')}
           </p>
         )}
 
@@ -233,24 +231,23 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             {planning.originalTopic && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  {t("Original Topic")}
+                  {t('Original Topic')}
                 </p>
                 <p className="text-sm text-slate-700 dark:text-slate-200">
                   {planning.originalTopic}
                 </p>
               </div>
             )}
-            {planning.optimizedTopic &&
-              planning.optimizedTopic !== planning.originalTopic && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                    {t("Optimized Topic")}
-                  </p>
-                  <p className="text-sm text-slate-700 dark:text-slate-200">
-                    {planning.optimizedTopic}
-                  </p>
-                </div>
-              )}
+            {planning.optimizedTopic && planning.optimizedTopic !== planning.originalTopic && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  {t('Optimized Topic')}
+                </p>
+                <p className="text-sm text-slate-700 dark:text-slate-200">
+                  {planning.optimizedTopic}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -274,16 +271,16 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         )}
       </div>
     </div>
-  );
+  )
 
   // Researching Content - rendered as JSX variable
-  const isResearchingActive = global.stage === "researching";
-  const hasResearchContent = Object.keys(tasks).length > 0;
+  const isResearchingActive = global.stage === 'researching'
+  const hasResearchContent = Object.keys(tasks).length > 0
   const researchingContent = !hasResearchContent ? (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center text-slate-400 dark:text-slate-500">
         <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p>{t("No research data yet")}</p>
+        <p>{t('No research data yet')}</p>
       </div>
     </div>
   ) : (
@@ -296,7 +293,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             Research Tasks
             {!isResearchingActive && (
               <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-2">
-                {t("(History)")}
+                {t('(History)')}
               </span>
             )}
           </h3>
@@ -326,45 +323,43 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
       <div className="flex-[2] min-w-[280px] flex flex-col gap-4 overflow-hidden">
         <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 shrink-0">
           <Activity className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-          {isResearchingActive ? "Live Execution" : "Execution History"}
+          {isResearchingActive ? 'Live Execution' : 'Execution History'}
         </h3>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ActiveTaskDetail
-            task={selectedTaskId ? tasks[selectedTaskId] : null}
-          />
+          <ActiveTaskDetail task={selectedTaskId ? tasks[selectedTaskId] : null} />
         </div>
       </div>
     </div>
-  );
+  )
 
   // Reporting Content
   // Reporting Content - rendered as JSX variable
-  const isReportingActive = global.stage === "reporting";
+  const isReportingActive = global.stage === 'reporting'
   const reportingContent = (
     <div className="flex-1 flex items-center justify-center">
       <div
         className={`bg-white dark:bg-slate-800 rounded-xl border shadow-sm p-8 flex flex-col items-center justify-center text-center max-w-lg w-full ${
           isReportingActive
-            ? "border-purple-200 dark:border-purple-800"
+            ? 'border-purple-200 dark:border-purple-800'
             : isCompleted
-              ? "border-emerald-200 dark:border-emerald-800"
-              : "border-slate-200 dark:border-slate-700"
+              ? 'border-emerald-200 dark:border-emerald-800'
+              : 'border-slate-200 dark:border-slate-700'
         }`}
       >
         <div
           className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
             isReportingActive
-              ? "bg-purple-50 dark:bg-purple-900/40"
+              ? 'bg-purple-50 dark:bg-purple-900/40'
               : isCompleted
-                ? "bg-emerald-50 dark:bg-emerald-900/40"
-                : "bg-slate-50 dark:bg-slate-700"
+                ? 'bg-emerald-50 dark:bg-emerald-900/40'
+                : 'bg-slate-50 dark:bg-slate-700'
           }`}
         >
           {isCompleted ? (
             <Sparkles className="w-8 h-8 text-emerald-500 dark:text-emerald-400" />
           ) : (
             <PenTool
-              className={`w-8 h-8 ${isReportingActive ? "text-purple-500 dark:text-purple-400" : "text-slate-400 dark:text-slate-500"}`}
+              className={`w-8 h-8 ${isReportingActive ? 'text-purple-500 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
             />
           )}
         </div>
@@ -378,57 +373,49 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
 
         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
           {isCompleted
-            ? t("Report Generated!")
+            ? t('Report Generated!')
             : isReportingActive
-              ? t("Generating Report")
-              : t("Report Generation")}
+              ? t('Generating Report')
+              : t('Report Generation')}
         </h3>
 
         {/* Current Section Being Written */}
         {isReportingActive && reporting.currentSection && (
           <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-100 dark:border-purple-800 rounded-lg px-4 py-2 mb-4 w-full">
             <p className="text-xs text-purple-600 dark:text-purple-400 font-medium uppercase tracking-wider mb-1">
-              {t("Currently Writing")}
+              {t('Currently Writing')}
             </p>
             <p className="text-purple-800 dark:text-purple-200 font-semibold">
               {reporting.currentSection}
             </p>
-            {reporting.totalSections &&
-              reporting.sectionIndex !== undefined && (
-                <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
-                  Section {reporting.sectionIndex + 1} of{" "}
-                  {reporting.totalSections}
-                </p>
-              )}
+            {reporting.totalSections && reporting.sectionIndex !== undefined && (
+              <p className="text-xs text-purple-500 dark:text-purple-400 mt-1">
+                Section {reporting.sectionIndex + 1} of {reporting.totalSections}
+              </p>
+            )}
           </div>
         )}
 
         {/* Progress Bar */}
-        {isReportingActive &&
-          reporting.totalSections &&
-          reporting.sectionIndex !== undefined && (
-            <div className="w-full mb-4">
-              <div className="h-2 bg-purple-100 dark:bg-purple-900/40 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${((reporting.sectionIndex + 1) / reporting.totalSections) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                {Math.round(
-                  ((reporting.sectionIndex + 1) / reporting.totalSections) *
-                    100,
-                )}
-                % complete
-              </p>
+        {isReportingActive && reporting.totalSections && reporting.sectionIndex !== undefined && (
+          <div className="w-full mb-4">
+            <div className="h-2 bg-purple-100 dark:bg-purple-900/40 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                style={{
+                  width: `${((reporting.sectionIndex + 1) / reporting.totalSections) * 100}%`,
+                }}
+              />
             </div>
-          )}
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+              {Math.round(((reporting.sectionIndex + 1) / reporting.totalSections) * 100)}% complete
+            </p>
+          </div>
+        )}
 
         {isReportingActive && (
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-            {reporting.progress || "Processing research findings..."}
+            {reporting.progress || 'Processing research findings...'}
           </p>
         )}
 
@@ -437,7 +424,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
           {global.totalBlocks > 0 && (
             <div className="flex items-center gap-1.5">
               <ListTree
-                className={`w-4 h-4 ${isCompleted ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}
+                className={`w-4 h-4 ${isCompleted ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
               />
               <span>{global.totalBlocks} topics</span>
             </div>
@@ -445,7 +432,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
           {reporting.wordCount && (
             <div className="flex items-center gap-1.5">
               <FileText
-                className={`w-4 h-4 ${isCompleted ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}
+                className={`w-4 h-4 ${isCompleted ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
               />
               <span>{reporting.wordCount.toLocaleString()} words</span>
             </div>
@@ -462,7 +449,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         {reporting.outline && reporting.outline.sections.length > 0 && (
           <div className="mt-6 w-full text-left bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-100 dark:border-slate-600 max-h-[200px] overflow-y-auto">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-              {t("Report Outline")}
+              {t('Report Outline')}
             </p>
             <ul className="space-y-2">
               {reporting.outline.sections.map((section, i) => (
@@ -475,18 +462,16 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                       isReportingActive &&
                       reporting.sectionIndex !== undefined &&
                       i + 1 === reporting.sectionIndex
-                        ? "bg-purple-500 text-white animate-pulse"
+                        ? 'bg-purple-500 text-white animate-pulse'
                         : isCompleted ||
-                            (reporting.sectionIndex !== undefined &&
-                              i + 1 < reporting.sectionIndex)
-                          ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400"
-                          : "bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400"
+                            (reporting.sectionIndex !== undefined && i + 1 < reporting.sectionIndex)
+                          ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
                     }`}
                   >
                     {isCompleted ||
-                    (reporting.sectionIndex !== undefined &&
-                      i + 1 < reporting.sectionIndex)
-                      ? "✓"
+                    (reporting.sectionIndex !== undefined && i + 1 < reporting.sectionIndex)
+                      ? '✓'
                       : i + 1}
                   </span>
                   <span
@@ -494,11 +479,11 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                       isReportingActive &&
                       reporting.sectionIndex !== undefined &&
                       i + 1 === reporting.sectionIndex
-                        ? "text-purple-700 dark:text-purple-300 font-medium"
-                        : ""
+                        ? 'text-purple-700 dark:text-purple-300 font-medium'
+                        : ''
                     }`}
                   >
-                    {section.title.replace(/^##\s*\d*\.?\s*/, "")}
+                    {section.title.replace(/^##\s*\d*\.?\s*/, '')}
                   </span>
                 </li>
               ))}
@@ -509,16 +494,16 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         {/* View Report Button (when completed) */}
         {isCompleted && reporting.generatedReport && (
           <button
-            onClick={() => setActiveView("report")}
+            onClick={() => setActiveView('report')}
             className="mt-6 flex items-center justify-center gap-2 w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-sm"
           >
             <FileText className="w-4 h-4" />
-            {t("View Full Report")}
+            {t('View Full Report')}
           </button>
         )}
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50">
@@ -542,13 +527,11 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-              {global.stage === "idle"
-                ? t("Ready to Research")
-                : global.stage === "completed"
-                  ? "Research Complete"
-                  : planning.optimizedTopic ||
-                    planning.originalTopic ||
-                    "Research Dashboard"}
+              {global.stage === 'idle'
+                ? t('Ready to Research')
+                : global.stage === 'completed'
+                  ? 'Research Complete'
+                  : planning.optimizedTopic || planning.originalTopic || 'Research Dashboard'}
             </h2>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               <span
@@ -568,7 +551,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                 <>
                   <span>•</span>
                   <span className="text-violet-600 dark:text-violet-400 font-medium">
-                    {t("Parallel Mode")}
+                    {t('Parallel Mode')}
                   </span>
                 </>
               )}
@@ -587,7 +570,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            {t("Process")}
+            {t('Process')}
           </button>
           <button
             onClick={() => setActiveView('report')}
@@ -601,7 +584,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             }`}
           >
             <FileOutput className="w-4 h-4" />
-            {t("Report")}
+            {t('Report')}
           </button>
         </div>
       </div>
@@ -617,25 +600,23 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   <Search className="w-8 h-8 text-slate-400 dark:text-slate-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                  {t("Ready to Research")}
+                  {t('Ready to Research')}
                 </h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  {t("Enter a topic in the left panel to start deep research.")}
+                  {t('Enter a topic in the left panel to start deep research.')}
                 </p>
               </div>
             </div>
           ) : (
             <>
               {/* Step Tabs */}
-              <div className="px-6 pt-4 pb-2 flex justify-center shrink-0">
-                {stepTabsContent}
-              </div>
+              <div className="px-6 pt-4 pb-2 flex justify-center shrink-0">{stepTabsContent}</div>
 
               {/* Tab Content */}
               <div className="flex-1 overflow-hidden p-6 flex flex-col">
-                {activeProcessTab === "planning" && planningContent}
-                {activeProcessTab === "researching" && researchingContent}
-                {activeProcessTab === "reporting" && reportingContent}
+                {activeProcessTab === 'planning' && planningContent}
+                {activeProcessTab === 'researching' && researchingContent}
+                {activeProcessTab === 'reporting' && reportingContent}
               </div>
             </>
           )}
@@ -650,7 +631,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   onClick={onAddToNotebook}
                   className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all"
                 >
-                  <Book className="w-4 h-4" /> {t("Add to Notebook")}
+                  <Book className="w-4 h-4" /> {t('Add to Notebook')}
                 </button>
               )}
               {onExportMarkdown && (
@@ -658,7 +639,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                   onClick={onExportMarkdown}
                   className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
                 >
-                  <Download className="w-4 h-4" /> {t("Markdown")}
+                  <Download className="w-4 h-4" /> {t('Markdown')}
                 </button>
               )}
               {onExportPdf && (
@@ -829,7 +810,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
               ) : (
                 <div className="flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500">
                   <Loader2 className="w-8 h-8 mb-4 animate-spin opacity-50" />
-                  <p>{t("Generating report preview...")}</p>
+                  <p>{t('Generating report preview...')}</p>
                 </div>
               )}
             </div>

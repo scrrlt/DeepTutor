@@ -97,8 +97,7 @@ export default function CoWriterEditor({
       isHydrated.current = true;
       return;
     }
-    
-    const persistedContent = loadFromStorage<string>(
+
       STORAGE_KEYS.COWRITER_CONTENT,
       DEFAULT_COWRITER_CONTENT
     );

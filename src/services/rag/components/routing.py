@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 File Type Router
 ================
@@ -331,7 +330,10 @@ class FileTypeRouter:
         elif provider in ("raganything", "raganything_docling"):
             # RAGAnything: PDF + Word + Images + all text files (full multimodal via MinerU)
             return (
-                cls.MINERU_EXTENSIONS | cls.DOCX_EXTENSIONS | cls.IMAGE_EXTENSIONS | text_extensions
+                cls.MINERU_EXTENSIONS
+                | cls.DOCX_EXTENSIONS
+                | cls.IMAGE_EXTENSIONS
+                | text_extensions
             )
 
         else:

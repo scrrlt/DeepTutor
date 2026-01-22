@@ -23,21 +23,21 @@ import argparse
 import asyncio
 import os
 from pathlib import Path
-from pathlib import Path
 import shutil
 import sys
 import tempfile
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.services.rag import RAGService
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
-
 
 load_dotenv(project_root / "DeepTutor.env", override=False)
 load_dotenv(project_root / ".env", override=False)
@@ -94,19 +94,19 @@ class PipelineIntegrationTest:
     def __init__(self, pipeline_name: str, test_file: Path = TEST_FILE):
         self.pipeline_name: str = pipeline_name
         self.test_file: Path = test_file
-        self.temp_dir: Optional[str] = None
+        self.temp_dir: str | None = None
         self.kb_name: str = f"test_kb_{pipeline_name}"
 
         # FIX: Use string forward reference or Optional to avoid circular/runtime import issues
-        self.service: Optional["RAGService"] = None
+        self.service: RAGService | None = None
 
         self.pipeline_name: str = pipeline_name
         self.test_file: Path = test_file
-        self.temp_dir: Optional[str] = None
+        self.temp_dir: str | None = None
         self.kb_name: str = f"test_kb_{pipeline_name}"
 
         # FIX: Use string forward reference or Optional to avoid circular/runtime import issues
-        self.service: Optional["RAGService"] = None
+        self.service: RAGService | None = None
 
     async def setup(self):
         """Setup test environment"""
@@ -117,7 +117,9 @@ class PipelineIntegrationTest:
         # Initialize service with temp directory
         from src.services.rag import RAGService
 
-        self.service = RAGService(kb_base_dir=self.temp_dir, provider=self.pipeline_name)
+        self.service = RAGService(
+            kb_base_dir=self.temp_dir, provider=self.pipeline_name
+        )
 
         # Verify test file exists
         if not self.test_file.exists():
@@ -396,14 +398,13 @@ async def main():
     parser.add_argument(
         "--pipeline",
         "-p",
-        "--pipeline",
-        "-p",
         type=str,
         default="llamaindex",
         help="Pipeline to test (or 'all' for all pipelines). Default: llamaindex",
-        help="Pipeline to test (or 'all' for all pipelines). Default: llamaindex",
     )
-    parser.add_argument("--list", "-l", action="store_true", help="List available pipelines")
+    parser.add_argument(
+        "--list", "-l", action="store_true", help="List available pipelines"
+    )
 
     args = parser.parse_args()
 
@@ -435,7 +436,12 @@ async def main():
 # Pytest support
 def pytest_addoption(parser):
     """Add pytest command line options"""
-    parser.addoption("--pipeline", action="store", default="llamaindex", help="Pipeline to test")
+    parser.addoption(
+        "--pipeline",
+        action="store",
+        default="llamaindex",
+        help="Pipeline to test",
+    )
 
 
 class TestPipelineIntegration:

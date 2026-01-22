@@ -18,9 +18,7 @@ def summary_agent():
         patch("src.agents.base_agent.get_prompt_manager"),
         patch("src.agents.base_agent.get_logger"),
     ):
-        agent = SummaryAgent(
-            api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = SummaryAgent(api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 

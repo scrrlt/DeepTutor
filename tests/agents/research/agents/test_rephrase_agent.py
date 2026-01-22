@@ -59,9 +59,7 @@ def test_conversation_history(rephrase_agent: RephraseAgent):
     rephrase_agent.reset_history()
     assert len(rephrase_agent.conversation_history) == 0
 
-    rephrase_agent.conversation_history.append(
-        {"role": "user", "content": "hi"}
-    )
+    rephrase_agent.conversation_history.append({"role": "user", "content": "hi"})
     formatted = rephrase_agent._format_conversation_history()
 
     assert "[User - Initial Input]" in formatted

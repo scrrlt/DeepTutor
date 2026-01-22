@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 
 import pytest
@@ -30,7 +29,9 @@ async def test_openai_adapter_real():
         "model": "text-embedding-3-small",
     }
     adapter = OpenAICompatibleEmbeddingAdapter(config)
-    request = EmbeddingRequest(texts=["DeepTutor test case"], model="text-embedding-3-small")
+    request = EmbeddingRequest(
+        texts=["DeepTutor test case"], model="text-embedding-3-small"
+    )
 
     response = await adapter.embed(request)
     assert len(response.embeddings) == 1
@@ -49,7 +50,9 @@ async def test_jina_adapter_real():
         "model": "jina-embeddings-v3",
     }
     adapter = JinaEmbeddingAdapter(config)
-    request = EmbeddingRequest(texts=["DeepTutor test case"], model="jina-embeddings-v3")
+    request = EmbeddingRequest(
+        texts=["DeepTutor test case"], model="jina-embeddings-v3"
+    )
 
     response = await adapter.embed(request)
     assert len(response.embeddings) == 1

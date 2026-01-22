@@ -47,9 +47,7 @@ class ToolTrace:
     """
 
     tool_id: str  # Unique identifier (e.g., "tool_1", "tool_2")
-    citation_id: (
-        str  # Citation ID (for report citations and anchors, e.g., CIT-1-01)
-    )
+    citation_id: str  # Citation ID (for report citations and anchors, e.g., CIT-1-01)
     tool_type: str  # Tool type (rag_naive, web_search, etc.)
     query: str  # Query statement issued
     raw_answer: str  # Raw detailed result returned by tool (may be truncated)
@@ -58,9 +56,7 @@ class ToolTrace:
     raw_answer_truncated: bool = field(
         default=False
     )  # Whether raw_answer was truncated
-    raw_answer_original_size: int = field(
-        default=0
-    )  # Original size before truncation
+    raw_answer_original_size: int = field(default=0)  # Original size before truncation
 
     def __post_init__(self):
         """Post-initialization to handle raw_answer size limit"""
@@ -110,8 +106,7 @@ class ToolTrace:
                             and len(data[field_name]) > max_size // 2
                         ):
                             data[field_name] = (
-                                data[field_name][: max_size // 2]
-                                + "... [truncated]"
+                                data[field_name][: max_size // 2] + "... [truncated]"
                             )
                         elif isinstance(data[field_name], list):
                             # Keep only first few items
@@ -128,10 +123,10 @@ class ToolTrace:
             pass
 
         # Fallback: simple truncation with marker
-        truncation_marker = f"\n... [content truncated, original size: {len(raw_answer)} bytes]"
-        return (
-            raw_answer[: max_size - len(truncation_marker)] + truncation_marker
+        truncation_marker = (
+            f"\n... [content truncated, original size: {len(raw_answer)} bytes]"
         )
+        return raw_answer[: max_size - len(truncation_marker)] + truncation_marker
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
@@ -201,15 +196,11 @@ class TopicBlock:
     sub_topic: str  # Sub-topic name
     overview: str  # Topic overview/background
     status: TopicStatus = TopicStatus.PENDING  # Topic status
-    tool_traces: list[ToolTrace] = field(
-        default_factory=list
-    )  # Tool call trace list
+    tool_traces: list[ToolTrace] = field(default_factory=list)  # Tool call trace list
     iteration_count: int = 0  # Current iteration count
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    metadata: dict[str, Any] = field(
-        default_factory=dict
-    )  # Additional metadata
+    metadata: dict[str, Any] = field(default_factory=dict)  # Additional metadata
 
     def add_tool_trace(self, trace: ToolTrace) -> None:
         """Add tool trace"""
@@ -225,10 +216,7 @@ class TopicBlock:
         if not self.tool_traces:
             return ""
         return "\n".join(
-            [
-                f"[{trace.tool_type}] {trace.summary}"
-                for trace in self.tool_traces
-            ]
+            [f"[{trace.tool_type}] {trace.summary}" for trace in self.tool_traces]
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -276,9 +264,7 @@ class DynamicTopicQueue:
         self.block_counter = 0
         self.created_at = datetime.now().isoformat()
         self.max_length = (
-            max_length
-            if isinstance(max_length, int) and max_length > 0
-            else None
+            max_length if isinstance(max_length, int) and max_length > 0 else None
         )
         self.state_file = state_file
 
@@ -308,9 +294,7 @@ class DynamicTopicQueue:
             )
         self.block_counter += 1
         block_id = f"block_{self.block_counter}"
-        block = TopicBlock(
-            block_id=block_id, sub_topic=sub_topic, overview=overview
-        )
+        block = TopicBlock(block_id=block_id, sub_topic=sub_topic, overview=overview)
         self.blocks.append(block)
         self._auto_save()
         return block
@@ -320,9 +304,7 @@ class DynamicTopicQueue:
         target = self._normalize_topic(sub_topic)
         if not target:
             return False
-        return any(
-            self._normalize_topic(b.sub_topic) == target for b in self.blocks
-        )
+        return any(self._normalize_topic(b.sub_topic) == target for b in self.blocks)
 
     def list_topics(self) -> list[str]:
         """List all current topic titles"""
@@ -432,9 +414,7 @@ class DynamicTopicQueue:
                 [b for b in self.blocks if b.status == TopicStatus.RESEARCHING]
             ),
             "completed": len(self.get_all_completed_blocks()),
-            "failed": len(
-                [b for b in self.blocks if b.status == TopicStatus.FAILED]
-            ),
+            "failed": len([b for b in self.blocks if b.status == TopicStatus.FAILED]),
             "total_tool_calls": sum(len(b.tool_traces) for b in self.blocks),
         }
 

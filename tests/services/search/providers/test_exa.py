@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 """Integration tests for newly added search providers."""
+
 import os
 
 import pytest

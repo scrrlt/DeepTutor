@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Web Search Service - Pluggable search provider architecture
 
@@ -81,9 +80,7 @@ def _get_web_search_config() -> dict[str, Any]:
     return {}
 
 
-def _save_results(
-    result: dict[str, Any], output_dir: str, provider: str
-) -> str:
+def _save_results(result: dict[str, Any], output_dir: str, provider: str) -> str:
     """Save search results to a JSON file."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -177,19 +174,13 @@ def web_search(
 
     # Determine custom template from config if not provided
     if consolidation_custom_template is None:
-        consolidation_custom_template = (
-            config.get("consolidation_template") or None
-        )
+        consolidation_custom_template = config.get("consolidation_template") or None
 
     # Handle legacy Baidu params
     if provider_name == "baidu":
         provider_kwargs.setdefault("model", baidu_model)
-        provider_kwargs.setdefault(
-            "enable_deep_search", baidu_enable_deep_search
-        )
-        provider_kwargs.setdefault(
-            "search_recency_filter", baidu_search_recency_filter
-        )
+        provider_kwargs.setdefault("enable_deep_search", baidu_enable_deep_search)
+        provider_kwargs.setdefault("search_recency_filter", baidu_search_recency_filter)
 
     # Serper expects a 'num' parameter by default
     if provider_name == "serper":
@@ -263,9 +254,7 @@ def get_current_config() -> dict[str, Any]:
 
     # Determine effective provider
     provider = (
-        os.environ.get("SEARCH_PROVIDER")
-        or config.get("provider")
-        or "perplexity"
+        os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity"
     ).lower()
 
     return {

@@ -249,9 +249,7 @@ class SessionManager:
         # Update title from first user message if still default
         if session.get("title") == "New Chat" and role == "user":
             new_title = content[:50] + ("..." if len(content) > 50 else "")
-            return self.update_session(
-                session_id, messages=messages, title=new_title
-            )
+            return self.update_session(session_id, messages=messages, title=new_title)
 
         return self.update_session(session_id, messages=messages)
 
@@ -360,7 +358,8 @@ class RedisSessionManager(SessionManager):
         pipe = self.redis.pipeline()
         pipe.delete(self._session_key(session_id))
         pipe.zrem(self._index_key(), session_id)
-        deleted, _ = pipe.execute()
+        results = pipe.execute()
+        deleted = results[0] if results else 0
         return bool(deleted)
 
     def _list_session_ids(self, limit: int) -> list[str]:

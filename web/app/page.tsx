@@ -20,18 +20,18 @@ import {
   GraduationCap,
   PenTool,
   Save,
-} from "lucide-react";
-import Link from "next/link";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { useGlobal } from "@/context/GlobalContext";
-import { apiUrl } from "@/lib/api";
-import { processLatexContent } from "@/lib/latex";
-import AddToNotebookModal from "@/components/AddToNotebookModal";
-import { useTranslation } from "react-i18next";
+} from 'lucide-react'
+import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
+import { useGlobal } from '@/context/GlobalContext'
+import { apiUrl } from '@/lib/api'
+import { processLatexContent } from '@/lib/latex'
+import AddToNotebookModal from '@/components/AddToNotebookModal'
+import { useTranslation } from 'react-i18next'
 
 interface KnowledgeBase {
   name: string
@@ -39,14 +39,8 @@ interface KnowledgeBase {
 }
 
 export default function HomePage() {
-  const {
-    chatState,
-    setChatState,
-    sendChatMessage,
-    clearChatHistory,
-    newChatSession,
-  } = useGlobal();
-  const { t } = useTranslation();
+  const { chatState, setChatState, sendChatMessage, clearChatHistory, newChatSession } = useGlobal()
+  const { t } = useTranslation()
 
   const [inputMessage, setInputMessage] = useState('')
   const [kbs, setKbs] = useState<KnowledgeBase[]>([])
@@ -62,17 +56,13 @@ export default function HomePage() {
     const firstUserMsg = chatState.messages.find(m => m.role === 'user')
     const title =
       firstUserMsg?.content.slice(0, 50) +
-        (firstUserMsg && firstUserMsg.content.length > 50 ? "..." : "") ||
-      t("Chat Session");
+        (firstUserMsg && firstUserMsg.content.length > 50 ? '...' : '') || t('Chat Session')
 
     // Format all messages as markdown
     const formattedMessages = chatState.messages
       .map((msg, idx) => {
-        const roleLabel =
-          msg.role === "user"
-            ? `👤 **${t("User")}**`
-            : `🤖 **${t("Assistant")}**`;
-        return `### ${roleLabel}\n\n${msg.content}`;
+        const roleLabel = msg.role === 'user' ? `👤 **${t('User')}**` : `🤖 **${t('Assistant')}**`
+        return `### ${roleLabel}\n\n${msg.content}`
       })
       .join('\n\n---\n\n')
 
@@ -91,18 +81,18 @@ export default function HomePage() {
 
   // Fetch knowledge bases
   useEffect(() => {
-    fetch(apiUrl("/api/v1/knowledge/list"))
-      .then((res) => res.json())
-      .then((data) => {
+    fetch(apiUrl('/api/v1/knowledge/list'))
+      .then(res => res.json())
+      .then(data => {
         // Ensure data is an array before processing
-        const kbList = Array.isArray(data) ? data : [];
-        setKbs(kbList);
+        const kbList = Array.isArray(data) ? data : []
+        setKbs(kbList)
         if (!chatState.selectedKb && kbList.length > 0) {
-          const defaultKb = kbList.find((kb: KnowledgeBase) => kb.is_default);
+          const defaultKb = kbList.find((kb: KnowledgeBase) => kb.is_default)
           if (defaultKb) {
-            setChatState((prev) => ({ ...prev, selectedKb: defaultKb.name }));
+            setChatState(prev => ({ ...prev, selectedKb: defaultKb.name }))
           } else {
-            setChatState((prev) => ({ ...prev, selectedKb: kbList[0].name }));
+            setChatState(prev => ({ ...prev, selectedKb: kbList[0].name }))
           }
         }
       })
@@ -133,45 +123,45 @@ export default function HomePage() {
   const quickActions = [
     {
       icon: Calculator,
-      label: t("Smart Problem Solving"),
-      href: "/solver",
-      color: "blue",
-      description: t("Multi-agent reasoning"),
+      label: t('Smart Problem Solving'),
+      href: '/solver',
+      color: 'blue',
+      description: t('Multi-agent reasoning'),
     },
     {
       icon: PenTool,
-      label: t("Generate Practice Questions"),
-      href: "/question",
-      color: "purple",
-      description: t("Auto-validated quizzes"),
+      label: t('Generate Practice Questions'),
+      href: '/question',
+      color: 'purple',
+      description: t('Auto-validated quizzes'),
     },
     {
       icon: Microscope,
-      label: t("Deep Research Reports"),
-      href: "/research",
-      color: "emerald",
-      description: t("Comprehensive analysis"),
+      label: t('Deep Research Reports'),
+      href: '/research',
+      color: 'emerald',
+      description: t('Comprehensive analysis'),
     },
     {
       icon: Lightbulb,
-      label: t("Generate Novel Ideas"),
-      href: "/ideagen",
-      color: "amber",
-      description: t("Brainstorm & synthesize"),
+      label: t('Generate Novel Ideas'),
+      href: '/ideagen',
+      color: 'amber',
+      description: t('Brainstorm & synthesize'),
     },
     {
       icon: GraduationCap,
-      label: t("Guided Learning"),
-      href: "/guide",
-      color: "indigo",
-      description: t("Step-by-step tutoring"),
+      label: t('Guided Learning'),
+      href: '/guide',
+      color: 'indigo',
+      description: t('Step-by-step tutoring'),
     },
     {
       icon: Edit3,
-      label: t("Co-Writer"),
-      href: "/co_writer",
-      color: "pink",
-      description: t("Collaborative writing"),
+      label: t('Co-Writer'),
+      href: '/co_writer',
+      color: 'pink',
+      description: t('Collaborative writing'),
     },
   ]
 

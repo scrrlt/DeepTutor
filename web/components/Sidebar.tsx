@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useTranslation } from "react-i18next";
+import { useState, useRef, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { usePathname } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   Home,
   History,
@@ -25,8 +25,8 @@ import {
   Check,
   X,
   LucideIcon,
-} from "lucide-react";
-import { useGlobal } from "@/context/GlobalContext";
+} from 'lucide-react'
+import { useGlobal } from '@/context/GlobalContext'
 
 const SIDEBAR_EXPANDED_WIDTH = 256
 const SIDEBAR_COLLAPSED_WIDTH = 64
@@ -61,8 +61,8 @@ export default function Sidebar() {
     setSidebarDescription,
     sidebarNavOrder,
     setSidebarNavOrder,
-  } = useGlobal();
-  const { t } = useTranslation();
+  } = useGlobal()
+  const { t } = useTranslation()
 
   const [showTooltip, setShowTooltip] = useState<string | null>(null)
 
@@ -80,27 +80,27 @@ export default function Sidebar() {
   const navGroups = useMemo(() => {
     const buildNavItems = (hrefs: string[]): NavItem[] => {
       return hrefs
-        .filter((href) => ALL_NAV_ITEMS[href])
-        .map((href) => ({
+        .filter(href => ALL_NAV_ITEMS[href])
+        .map(href => ({
           name: t(ALL_NAV_ITEMS[href].nameKey),
           href,
           icon: ALL_NAV_ITEMS[href].icon,
-        }));
-    };
+        }))
+    }
 
     return [
       {
-        id: "start" as const,
-        name: t("Workspace"),
+        id: 'start' as const,
+        name: t('Workspace'),
         items: buildNavItems(sidebarNavOrder.start),
       },
       {
-        id: "learnResearch" as const,
-        name: t("Learn & Research"),
+        id: 'learnResearch' as const,
+        name: t('Learn & Research'),
         items: buildNavItems(sidebarNavOrder.learnResearch),
       },
-    ];
-  }, [sidebarNavOrder, t]);
+    ]
+  }, [sidebarNavOrder, t])
 
   // Handle description edit
   const handleDescriptionEdit = () => {
@@ -109,11 +109,9 @@ export default function Sidebar() {
   }
 
   const handleDescriptionSave = () => {
-    setSidebarDescription(
-      editingDescriptionValue.trim() || t("✨ Your description here"),
-    );
-    setIsEditingDescription(false);
-  };
+    setSidebarDescription(editingDescriptionValue.trim() || t('✨ Your description here'))
+    setIsEditingDescription(false)
+  }
 
   const handleDescriptionCancel = () => {
     setEditingDescriptionValue(sidebarDescription)
@@ -216,7 +214,7 @@ export default function Sidebar() {
               <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                 <Image
                   src="/logo.png"
-                  alt={t("DeepTutor Logo")}
+                  alt={t('DeepTutor Logo')}
                   width={32}
                   height={32}
                   className="object-contain"
@@ -249,7 +247,7 @@ export default function Sidebar() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
-                title={t("Visit DeepTutor Homepage")}
+                title={t('Visit DeepTutor Homepage')}
               >
                 <Globe className="w-4 h-4" />
               </a>
@@ -258,7 +256,7 @@ export default function Sidebar() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
-                title={t("View on GitHub")}
+                title={t('View on GitHub')}
               >
                 <Github className="w-4 h-4" />
               </a>
@@ -280,19 +278,19 @@ export default function Sidebar() {
                   onChange={e => setEditingDescriptionValue(e.target.value)}
                   onKeyDown={handleDescriptionKeyDown}
                   className="flex-1 text-[10px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-600 px-2 py-1.5 rounded-md border border-blue-300 dark:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  placeholder={t("Enter your description...")}
+                  placeholder={t('Enter your description...')}
                 />
                 <button
                   onClick={handleDescriptionSave}
                   className="p-1 text-green-500 hover:text-green-600 dark:text-green-400 dark:hover:text-green-300"
-                  title={t("Save")}
+                  title={t('Save')}
                 >
                   <Check className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={handleDescriptionCancel}
                   className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                  title={t("Cancel")}
+                  title={t('Cancel')}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -301,7 +299,7 @@ export default function Sidebar() {
               <div
                 onClick={handleDescriptionEdit}
                 className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-700/50 px-2 py-1.5 rounded-md border border-slate-100 dark:border-slate-600 truncate cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-500 transition-colors group"
-                title={t("Click to edit")}
+                title={t('Click to edit')}
               >
                 <span className="group-hover:hidden">{sidebarDescription}</span>
                 <span className="hidden group-hover:inline text-blue-500 dark:text-blue-400">

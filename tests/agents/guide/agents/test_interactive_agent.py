@@ -20,9 +20,7 @@ def interactive_agent():
         patch("src.agents.base_agent.get_prompt_manager"),
         patch("src.agents.base_agent.get_logger"),
     ):
-        agent = InteractiveAgent(
-            api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = InteractiveAgent(api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Numbered Item Extractor
 =======================
@@ -44,9 +43,7 @@ class NumberedItemExtractor(BaseComponent):
             List of Chunks representing numbered items
         """
         if not doc.content_items:
-            self.logger.warning(
-                "No content_items in document, skipping extraction"
-            )
+            self.logger.warning("No content_items in document, skipping extraction")
             return []
 
         self.logger.info(

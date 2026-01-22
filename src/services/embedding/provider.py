@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Embedding Provider Manager
 ===========================
@@ -46,7 +45,11 @@ class EmbeddingProviderManager:
         """Initialize the provider manager."""
         self.adapter: BaseEmbeddingAdapter | None = None
 
-    def get_adapter(self, binding: str, config: Dict[str, Any]) -> BaseEmbeddingAdapter:
+    def get_adapter(
+        self,
+        binding: str,
+        config: dict[str, Any],
+    ) -> BaseEmbeddingAdapter:
         """
         Get and instantiate an adapter for the specified binding.
 

@@ -23,9 +23,7 @@ class CitationItem:
     content: str = ""  # Citation content summary (usually summary)
     stage: str = "solve"  # Stage: analysis | solve
     step_id: str | None = None  # Belonging step (applicable to Solve stage)
-    metadata: dict[str, Any] = field(
-        default_factory=dict
-    )  # Additional metadata
+    metadata: dict[str, Any] = field(default_factory=dict)  # Additional metadata
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -40,9 +38,7 @@ class CitationItem:
         if "metadata" not in data:
             data["metadata"] = {}
         if "updated_at" not in data:
-            data["updated_at"] = data.get(
-                "created_at", datetime.now().isoformat()
-            )
+            data["updated_at"] = data.get("created_at", datetime.now().isoformat())
         return cls(**data)
 
 
@@ -63,9 +59,7 @@ class CitationMemory:
 
         # File path
         if output_dir:
-            self.file_path: Path | None = (
-                Path(output_dir) / "citation_memory.json"
-            )
+            self.file_path: Path | None = Path(output_dir) / "citation_memory.json"
         else:
             self.file_path = None
 
@@ -86,9 +80,7 @@ class CitationMemory:
 
             # Load citation list
             citations_data = data.get("citations", [])
-            memory.citations = [
-                CitationItem.from_dict(item) for item in citations_data
-            ]
+            memory.citations = [CitationItem.from_dict(item) for item in citations_data]
 
             # Restore counters
             memory.tool_counters = data.get("tool_counters", {})

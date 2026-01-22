@@ -88,7 +88,6 @@ cache/
 **/cache/
 .cache/
 .ruff_cache
-.hypothesis/
 
 # Log files
 *.log
@@ -275,4 +274,3 @@ celerybeat.pid
 *.wav
 *.ogg
 !demo/*.mp4
-

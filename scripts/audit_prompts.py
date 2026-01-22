@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Audit prompt parity between prompts/en and prompts/zh|prompts/cn.
@@ -16,14 +15,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
-import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+import re
+import sys
+from typing import Any
 
 import yaml
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = PROJECT_ROOT / "src" / "agents"
@@ -103,7 +102,9 @@ def _diff(en_obj: Any, zh_obj: Any) -> Diff:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fail", action="store_true", help="exit non-zero on any issue")
+    parser.add_argument(
+        "--fail", action="store_true", help="exit non-zero on any issue"
+    )
     args = parser.parse_args()
 
     if not AGENTS_DIR.exists():
@@ -144,7 +145,12 @@ def main() -> int:
                 zh_obj = _load_yaml(zh_file)
                 d = _diff(en_obj, zh_obj)
 
-                if d.missing_zh or d.extra_zh or d.placeholder_missing_zh or d.placeholder_extra_zh:
+                if (
+                    d.missing_zh
+                    or d.extra_zh
+                    or d.placeholder_missing_zh
+                    or d.placeholder_extra_zh
+                ):
                     issues += 1
                     print(f"[DIFF {lang_name}] {module_dir.name}: {rel.as_posix()}")
                     if d.missing_zh:
@@ -178,4 +184,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

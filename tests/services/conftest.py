@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shared fixtures for service tests."""
 
 from pathlib import Path

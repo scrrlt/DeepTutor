@@ -96,9 +96,7 @@ class GuideManager:
             # Get language config (unified in config/main.yaml system.language)
             lang_config = config.get("system", {}).get("language", "en")
             self.language = parse_language(lang_config)
-            self.logger.info(
-                f"Language setting loaded from config: {self.language}"
-            )
+            self.logger.info(f"Language setting loaded from config: {self.language}")
         else:
             # If explicitly specified, also parse it to ensure consistency
             self.language = parse_language(language)
@@ -154,12 +152,48 @@ class GuideManager:
         """Get session file path"""
         return self.output_dir / f"session_{session_id}.json"
 
-    def _save_session(self, session: GuidedSession):
-        """Save session to file"""
-        filepath = self._get_session_file(session.session_id)
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(session.to_dict(), f, indent=2, ensure_ascii=False)
-        self._sessions[session.session_id] = session
+    def _save_session(
+        self,
+        session: GuidedSession,
+        session_id: str | None = None,
+    ) -> None:
+        """Save session to file."""
+        resolved_session_id = session_id
+        if not resolved_session_id:
+            resolved_session_id = getattr(session, "session_id", None)
+        if not isinstance(resolved_session_id, str) or not resolved_session_id:
+            self.logger.warning("Skipping session save: missing session_id")
+            return
+
+        if not hasattr(session, "to_dict"):
+            self.logger.warning(
+                "Skipping session serialization for %s", resolved_session_id
+            )
+            self._sessions[resolved_session_id] = session
+            return
+
+        try:
+            payload = session.to_dict()
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning(
+                "Skipping session serialization for %s: %s",
+                resolved_session_id,
+                exc,
+            )
+            self._sessions[resolved_session_id] = session
+            return
+
+        try:
+            filepath = self._get_session_file(resolved_session_id)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        except TypeError as exc:
+            self.logger.warning(
+                "Skipping session serialization for %s: %s",
+                resolved_session_id,
+                exc,
+            )
+        self._sessions[resolved_session_id] = session
 
     def _load_session(self, session_id: str) -> GuidedSession | None:
         """Load session from file"""
@@ -228,7 +262,7 @@ class GuideManager:
             status="initialized",
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -325,7 +359,7 @@ class GuideManager:
             }
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -410,7 +444,7 @@ class GuideManager:
             }
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -474,7 +508,7 @@ class GuideManager:
         }
         session.chat_history.append(assistant_msg)
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -482,9 +516,7 @@ class GuideManager:
             "knowledge_index": session.current_index,
         }
 
-    async def fix_html(
-        self, session_id: str, bug_description: str
-    ) -> dict[str, Any]:
+    async def fix_html(self, session_id: str, bug_description: str) -> dict[str, Any]:
         """
         Fix HTML page bug
 
@@ -507,7 +539,7 @@ class GuideManager:
 
         if result.get("success"):
             session.current_html = result.get("html", "")
-            self._save_session(session)
+            self._save_session(session, session_id=session_id)
 
         return result
 

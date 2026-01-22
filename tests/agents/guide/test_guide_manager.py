@@ -59,9 +59,7 @@ async def test_start_learning(guide_manager: GuideManager):
     session.knowledge_points = [{"title": "kp1"}]
     session.current_index = 0
     guide_manager._load_session = MagicMock(return_value=session)
-    guide_manager.interactive_agent.process = AsyncMock(
-        return_value={"html": "<html>"}
-    )
+    guide_manager.interactive_agent.process = AsyncMock(return_value={"html": "<html>"})
 
     result = await guide_manager.start_learning("sid")
 
@@ -81,9 +79,7 @@ async def test_next_knowledge(guide_manager: GuideManager):
     session.knowledge_points = [{"title": "kp1"}, {"title": "kp2"}]
     session.current_index = 0
     guide_manager._load_session = MagicMock(return_value=session)
-    guide_manager.interactive_agent.process = AsyncMock(
-        return_value={"html": "<html>"}
-    )
+    guide_manager.interactive_agent.process = AsyncMock(return_value={"html": "<html>"})
 
     result = await guide_manager.next_knowledge("sid")
 

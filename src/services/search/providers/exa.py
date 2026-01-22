@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Exa Neural Search Provider
 
@@ -78,7 +77,9 @@ class ExaProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(f"Calling Exa API type={search_type}, num_results={num_results}")
+        self.logger.debug(
+            f"Calling Exa API type={search_type}, num_results={num_results}"
+        )
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,
@@ -87,7 +88,9 @@ class ExaProvider(BaseSearchProvider):
         # Build contents configuration
         contents: dict[str, Any] = {}
         if include_text:
-            contents["text"] = {"maxCharacters": max_characters} if max_characters else True
+            contents["text"] = (
+                {"maxCharacters": max_characters} if max_characters else True
+            )
         if include_highlights:
             contents["highlights"] = True
         if include_summary:
@@ -114,7 +117,10 @@ class ExaProvider(BaseSearchProvider):
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
-                    self.BASE_URL, headers=headers, json=payload, timeout=timeout
+                    self.BASE_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout,
                 )
             except httpx.RequestError as e:
                 self.logger.error(f"Exa request failed: {e}")

@@ -40,9 +40,7 @@ def _load_config() -> dict[str, Any]:
 
         # Fallback to question_config
         try:
-            config = load_config_with_main(
-                "question_config.yaml", PROJECT_ROOT
-            )
+            config = load_config_with_main("question_config.yaml", PROJECT_ROOT)
             run_code_config = config.get("tools", {}).get("run_code", {})
             if run_code_config:
                 logger.debug(
@@ -105,9 +103,7 @@ class OperationLogger:
         self._history.append(entry)
         if len(self._history) > self._max_entries:
             self._history.pop(0)
-        logger.debug(
-            f"Operation logged: {action} | details={details.get('status')}"
-        )
+        logger.debug(f"Operation logged: {action} | details={details.get('status')}")
 
     @property
     def history(self) -> list[OperationEntry]:
@@ -143,9 +139,7 @@ class ImportGuard:
                 if node.module:
                     imported.append(node.module.split(".")[0])
 
-        unauthorized = sorted(
-            {name for name in imported if name not in allowed}
-        )
+        unauthorized = sorted({name for name in imported if name not in allowed})
         if unauthorized:
             raise CodeExecutionError(
                 f"The following modules are not in the allowed list: {', '.join(unauthorized)}"
@@ -193,9 +187,7 @@ async def run_code(
     run_result = await runner.run(code, options)
 
     # Convert RunResult into legacy-compatible dict
-    artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(
-        assets_path
-    )
+    artifacts, artifact_paths = WORKSPACE_MANAGER.collect_artifacts(assets_path)
 
     OPERATION_LOGGER.log(
         "execute_python",

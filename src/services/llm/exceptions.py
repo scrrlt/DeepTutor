@@ -1,9 +1,11 @@
-"""LLM service exceptions.
-
-Custom exception hierarchy for the LLM service.
 """
+LLM Service Exceptions
+======================
 
-from __future__ import annotations
+Custom exception classes for the LLM service.
+Provides a consistent exception hierarchy for better error handling.
+Maintains parity with upstream dev branch.
+"""
 
 from typing import Any
 
@@ -16,31 +18,17 @@ class LLMError(Exception):
         message: str,
         details: dict[str, Any] | None = None,
         provider: str | None = None,
-        request_id: str | None = None,
     ):
-        """Initialize an LLMError with optional details and provider."""
         super().__init__(message)
         self.message = message
         self.details = details or {}
         self.provider = provider
-        self.request_id = request_id
-
-    @property
-    def is_retryable(self) -> bool:
-        """Whether the caller should retry this error."""
-        return False
 
     def __str__(self) -> str:
-        """Return a formatted error string with provider and details when set."""
-        parts: list[str] = []
-        if self.provider:
-            parts.append(f"[{self.provider}]")
-        parts.append(self.message)
-        if self.request_id:
-            parts.append(f"(req_id: {self.request_id})")
+        provider_prefix = f"[{self.provider}] " if self.provider else ""
         if self.details:
-            parts.append(f"(details: {self.details})")
-        return " ".join(parts)
+            return f"{provider_prefix}{self.message} (details: {self.details})"
+        return f"{provider_prefix}{self.message}"
 
 
 class LLMConfigError(LLMError):
@@ -55,10 +43,15 @@ class LLMProviderError(LLMError):
     pass
 
 
+class LLMCircuitBreakerError(LLMError):
+    """Raised when circuit breaker blocks LLM execution."""
+
+    pass
+
+
 class LLMAPIError(LLMError):
     """
     Raised when an API call to an LLM provider fails.
-
     Standardizes status_code and provider name.
     """
 
@@ -68,24 +61,18 @@ class LLMAPIError(LLMError):
         status_code: int | None = None,
         provider: str | None = None,
         details: dict[str, Any] | None = None,
-        request_id: str | None = None,
     ):
-        """Initialize API error with status code and provider context."""
-        super().__init__(message, details, provider, request_id)
+        super().__init__(message, details, provider)
         self.status_code = status_code
 
-    @property
-    def is_retryable(self) -> bool:
-        if self.status_code is None:
-            return False
-        return self.status_code >= 500
-
     def __str__(self) -> str:
-        """Return formatted string including provider and status code."""
-        base_str = super().__str__()
-        if self.status_code is not None:
-            return f"HTTP {self.status_code} {base_str}"
-        return base_str
+        parts = []
+        if self.provider:
+            parts.append(f"[{self.provider}]")
+        if self.status_code:
+            parts.append(f"HTTP {self.status_code}")
+        parts.append(self.message)
+        return " ".join(parts)
 
 
 class LLMTimeoutError(LLMAPIError):
@@ -96,20 +83,9 @@ class LLMTimeoutError(LLMAPIError):
         message: str = "Request timed out",
         timeout: float | None = None,
         provider: str | None = None,
-        request_id: str | None = None,
     ):
-        """Initialize timeout error with optional timeout value."""
-        super().__init__(
-            message,
-            status_code=408,
-            provider=provider,
-            request_id=request_id,
-        )
+        super().__init__(message, status_code=408, provider=provider)
         self.timeout = timeout
-
-    @property
-    def is_retryable(self) -> bool:
-        return True
 
 
 class LLMRateLimitError(LLMAPIError):
@@ -120,45 +96,9 @@ class LLMRateLimitError(LLMAPIError):
         message: str = "Rate limit exceeded",
         retry_after: float | None = None,
         provider: str | None = None,
-        details: dict[str, Any] | None = None,
-        request_id: str | None = None,
     ):
-        """Initialize rate limit error with optional retry_after value."""
-        super().__init__(
-            message,
-            status_code=429,
-            provider=provider,
-            details=details,
-            request_id=request_id,
-        )
+        super().__init__(message, status_code=429, provider=provider)
         self.retry_after = retry_after
-
-    @property
-    def is_retryable(self) -> bool:
-        return True
-
-
-class LLMServiceUnavailableError(LLMAPIError):
-    """Raised when the service is overloaded or down (HTTP 503)."""
-
-    def __init__(
-        self,
-        message: str = "Service unavailable",
-        provider: str | None = None,
-        details: dict[str, Any] | None = None,
-        request_id: str | None = None,
-    ):
-        super().__init__(
-            message,
-            status_code=503,
-            provider=provider,
-            details=details,
-            request_id=request_id,
-        )
-
-    @property
-    def is_retryable(self) -> bool:
-        return True
 
 
 class LLMAuthenticationError(LLMAPIError):
@@ -168,21 +108,8 @@ class LLMAuthenticationError(LLMAPIError):
         self,
         message: str = "Authentication failed",
         provider: str | None = None,
-        details: dict[str, Any] | None = None,
-        request_id: str | None = None,
     ):
-        """Initialize authentication error."""
-        super().__init__(
-            message,
-            status_code=401,
-            provider=provider,
-            details=details,
-            request_id=request_id,
-        )
-
-    @property
-    def is_retryable(self) -> bool:
-        return False
+        super().__init__(message, status_code=401, provider=provider)
 
 
 class LLMModelNotFoundError(LLMAPIError):
@@ -194,7 +121,6 @@ class LLMModelNotFoundError(LLMAPIError):
         model: str | None = None,
         provider: str | None = None,
     ):
-        """Initialize model-not-found error with optional model name."""
         super().__init__(message, status_code=404, provider=provider)
         self.model = model
 
@@ -208,55 +134,29 @@ class LLMParseError(LLMError):
         provider: str | None = None,
         details: dict[str, Any] | None = None,
     ):
-        """Initialize parse error with optional details payload."""
         super().__init__(message, details=details, provider=provider)
-
-
-class LLMClientError(LLMError):
-    """General error raised by the LLM client wrapper."""
-
-    pass
 
 
 # Multi-provider specific aliases for mapping rules
 class ProviderQuotaExceededError(LLMRateLimitError):
-    """Alias for provider-specific quota exceeded errors."""
+    pass
 
 
 class ProviderContextWindowError(LLMAPIError):
-    """Alias for provider-specific context window errors."""
-
-
-class LLMCircuitBreakerError(LLMError):
-    """Raised when the circuit breaker is open and calls are blocked."""
-
-    def __init__(
-        self,
-        message: str = "Circuit breaker open",
-        provider: str | None = None,
-        details: dict[str, Any] | None = None,
-        request_id: str | None = None,
-    ):
-        super().__init__(message, details=details, provider=provider, request_id=request_id)
-
-    @property
-    def is_retryable(self) -> bool:
-        return False
+    pass
 
 
 __all__ = [
     "LLMError",
     "LLMConfigError",
     "LLMProviderError",
+    "LLMCircuitBreakerError",
     "LLMAPIError",
     "LLMTimeoutError",
     "LLMRateLimitError",
-    "LLMServiceUnavailableError",
     "LLMAuthenticationError",
     "LLMModelNotFoundError",
     "LLMParseError",
-    "LLMClientError",
     "ProviderQuotaExceededError",
     "ProviderContextWindowError",
-    "LLMCircuitBreakerError",
 ]

@@ -103,9 +103,7 @@ class RelevanceAnalyzer(BaseAgent):
 
             result = self._parse_analysis_response(response)
 
-            self.logger.info(
-                f"Relevance analysis completed: {result['relevance']}"
-            )
+            self.logger.info(f"Relevance analysis completed: {result['relevance']}")
 
             return result
 

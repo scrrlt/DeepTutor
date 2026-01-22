@@ -51,9 +51,9 @@ class DecomposeAgent(BaseAgent):
 
         # Check if RAG is enabled (from researching config)
         researching_cfg = config.get("researching", {})
-        self.enable_rag = researching_cfg.get("enable_rag_hybrid", True) or researching_cfg.get(
-            "enable_rag_naive", True
-        )
+        self.enable_rag = researching_cfg.get(
+            "enable_rag_hybrid", True
+        ) or researching_cfg.get("enable_rag_naive", True)
 
         # Citation manager (will be set during process)
         self.citation_manager = None
@@ -101,7 +101,9 @@ class DecomposeAgent(BaseAgent):
 
         # If RAG is disabled, use direct LLM generation without RAG context
         if not self.enable_rag:
-            self.logger.info("⚠️ RAG is disabled, generating subtopics directly from LLM...")
+            self.logger.info(
+                "⚠️ RAG is disabled, generating subtopics directly from LLM..."
+            )
             return await self._process_without_rag(topic, num_subtopics, mode)
 
         if mode == "auto":
@@ -183,7 +185,10 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             for it in subs[:num_subtopics]:
                 if isinstance(it, dict):
                     cleaned.append(
-                        {"title": it.get("title", ""), "overview": it.get("overview", "")}
+                        {
+                            "title": it.get("title", ""),
+                            "overview": it.get("overview", ""),
+                        }
                     )
             sub_topics = cleaned
         except Exception:
@@ -201,7 +206,9 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             "rag_context_summary": "RAG disabled - subtopics generated directly from LLM",
         }
 
-    async def _process_manual_mode(self, topic: str, num_subtopics: int) -> dict[str, Any]:
+    async def _process_manual_mode(
+        self, topic: str, num_subtopics: int
+    ) -> dict[str, Any]:
         """Manual mode: generate subtopics based on specified count"""
         # Step 1: Generate sub-queries
         logger.info("\n🔍 Step 1: Generating sub-queries...")
@@ -213,7 +220,9 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         rag_contexts = {}
         for i, query in enumerate(sub_queries, 1):
             try:
-                result = await rag_search(query=query, kb_name=self.kb_name, mode=self.rag_mode)
+                result = await rag_search(
+                    query=query, kb_name=self.kb_name, mode=self.rag_mode
+                )
                 rag_answer = result.get("answer", "")
                 rag_contexts[query] = rag_answer
                 self.logger.info(f"  ✓ Query {i}/{len(sub_queries)}: {query[:50]}...")
@@ -221,8 +230,12 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
                 # Record citation (if citation manager is enabled)
                 if self.citation_manager:
                     # Get citation ID from CitationManager (unified ID generation)
-                    citation_id = self.citation_manager.get_next_citation_id(stage="planning")
-                    tool_type = f"rag_{self.rag_mode}" if self.rag_mode else "rag_hybrid"
+                    citation_id = self.citation_manager.get_next_citation_id(
+                        stage="planning"
+                    )
+                    tool_type = (
+                        f"rag_{self.rag_mode}" if self.rag_mode else "rag_hybrid"
+                    )
 
                     # Create ToolTrace
                     import time
@@ -253,13 +266,19 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
 
         # Merge all RAG contexts
         combined_rag_context = "\n\n".join(
-            [f"【{query}】\n{context}" for query, context in rag_contexts.items() if context]
+            [
+                f"【{query}】\n{context}"
+                for query, context in rag_contexts.items()
+                if context
+            ]
         )
 
         # Step 3: Generate subtopics based on RAG background
         logger.info("\n🎯 Step 3: Generating subtopics...")
         sub_topics = await self._generate_sub_topics(
-            topic=topic, rag_context=combined_rag_context, num_subtopics=num_subtopics
+            topic=topic,
+            rag_context=combined_rag_context,
+            num_subtopics=num_subtopics,
         )
 
         self.logger.info(f"✓ Generated {len(sub_topics)} subtopics")
@@ -274,20 +293,30 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             "rag_context_summary": f"Used RAG background from {len(rag_contexts)} queries",
         }
 
-    async def _process_auto_mode(self, topic: str, max_subtopics: int) -> dict[str, Any]:
+    async def _process_auto_mode(
+        self, topic: str, max_subtopics: int
+    ) -> dict[str, Any]:
         """Auto mode: autonomously generate subtopics based on topic and RAG context"""
         # Step 1: First perform a broad RAG retrieval to get topic-related background knowledge
-        logger.info("\n🔍 Step 1: Executing RAG retrieval to get background knowledge...")
+        logger.info(
+            "\n🔍 Step 1: Executing RAG retrieval to get background knowledge..."
+        )
         try:
             # Use topic itself as query to get related background
-            result = await rag_search(query=topic, kb_name=self.kb_name, mode=self.rag_mode)
+            result = await rag_search(
+                query=topic, kb_name=self.kb_name, mode=self.rag_mode
+            )
             rag_context = result.get("answer", "")
-            self.logger.info(f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)")
+            self.logger.info(
+                f"  ✓ Retrieved background knowledge ({len(rag_context)} characters)"
+            )
 
             # Record citation (if citation manager is enabled)
             if self.citation_manager:
                 # Get citation ID from CitationManager (unified ID generation)
-                citation_id = self.citation_manager.get_next_citation_id(stage="planning")
+                citation_id = self.citation_manager.get_next_citation_id(
+                    stage="planning"
+                )
                 tool_type = f"rag_{self.rag_mode}" if self.rag_mode else "rag_hybrid"
 
                 # Create ToolTrace
@@ -371,11 +400,15 @@ Dynamically generate no more than {max_subtopics} subtopics. Please carefully an
 """
 
         user_prompt = user_prompt_template.format(
-            topic=topic, rag_context=rag_context, decompose_requirement=decompose_requirement
+            topic=topic,
+            rag_context=rag_context,
+            decompose_requirement=decompose_requirement,
         )
 
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, stage="decompose"
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            stage="decompose",
         )
 
         # Parse JSON output (strict validation)
@@ -397,7 +430,10 @@ Dynamically generate no more than {max_subtopics} subtopics. Please carefully an
             for it in subs[:max_subtopics]:
                 if isinstance(it, dict):
                     cleaned.append(
-                        {"title": it.get("title", ""), "overview": it.get("overview", "")}
+                        {
+                            "title": it.get("title", ""),
+                            "overview": it.get("overview", ""),
+                        }
                     )
             return cleaned
         except Exception:
@@ -448,7 +484,9 @@ Dynamically generate no more than {max_subtopics} subtopics. Please carefully an
         except Exception:
             # Fallback: extract queries from text
             lines = response.split("\n")
-            queries = [line.strip() for line in lines if line.strip() and len(line.strip()) > 3]
+            queries = [
+                line.strip() for line in lines if line.strip() and len(line.strip()) > 3
+            ]
             return queries[:num_queries]
 
     async def _generate_sub_topics(
@@ -484,11 +522,15 @@ Explicitly generate {num_subtopics} subtopics. Please ensure exactly {num_subtop
 """
 
         user_prompt = user_prompt_template.format(
-            topic=topic, rag_context=rag_context, decompose_requirement=decompose_requirement
+            topic=topic,
+            rag_context=rag_context,
+            decompose_requirement=decompose_requirement,
         )
 
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, stage="decompose"
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            stage="decompose",
         )
 
         # Parse JSON output (strict validation)
@@ -510,7 +552,10 @@ Explicitly generate {num_subtopics} subtopics. Please ensure exactly {num_subtop
             for it in subs[:num_subtopics]:
                 if isinstance(it, dict):
                     cleaned.append(
-                        {"title": it.get("title", ""), "overview": it.get("overview", "")}
+                        {
+                            "title": it.get("title", ""),
+                            "overview": it.get("overview", ""),
+                        }
                     )
             return cleaned
         except Exception:

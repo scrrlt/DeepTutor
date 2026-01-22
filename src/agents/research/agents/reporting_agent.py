@@ -86,8 +86,12 @@ class ReportingAgent(BaseAgent):
         self.citation_manager = None  # Will be set during process
 
         # Citation configuration: read from config, default off
-        self.enable_citation_list = self.reporting_config.get("enable_citation_list", False)
-        self.enable_inline_citations = self.reporting_config.get("enable_inline_citations", False)
+        self.enable_citation_list = self.reporting_config.get(
+            "enable_citation_list", False
+        )
+        self.enable_inline_citations = self.reporting_config.get(
+            "enable_inline_citations", False
+        )
 
     def set_citation_manager(self, citation_manager):
         """Set citation manager"""
@@ -119,7 +123,10 @@ class ReportingAgent(BaseAgent):
         self._progress_callback = progress_callback
 
         self._notify_progress(
-            progress_callback, "reporting_started", topic=topic, total_blocks=len(queue.blocks)
+            progress_callback,
+            "reporting_started",
+            topic=topic,
+            total_blocks=len(queue.blocks),
         )
 
         # 1) Deduplication
@@ -127,7 +134,9 @@ class ReportingAgent(BaseAgent):
         cleaned_blocks = await self._deduplicate_blocks(queue.blocks)
         self.logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
         self._notify_progress(
-            progress_callback, "deduplicate_completed", kept_blocks=len(cleaned_blocks)
+            progress_callback,
+            "deduplicate_completed",
+            kept_blocks=len(cleaned_blocks),
         )
 
         # 2) Outline
@@ -135,7 +144,9 @@ class ReportingAgent(BaseAgent):
         outline = await self._generate_outline(topic, cleaned_blocks)
         self.logger.info("✓ Outline generation completed")
         self._notify_progress(
-            progress_callback, "outline_completed", sections=len(outline.get("sections", []))
+            progress_callback,
+            "outline_completed",
+            sections=len(outline.get("sections", [])),
         )
 
         # Save outline for later use
@@ -191,20 +202,33 @@ class ReportingAgent(BaseAgent):
                 "ReportingAgent missing deduplicate prompt, please configure process.deduplicate in prompts/{lang}/reporting_agent.yaml"
             )
         topics_text = "\n".join(
-            [f"{i + 1}. {b.sub_topic}: {b.overview[:200]}" for i, b in enumerate(blocks)]
+            [
+                f"{i + 1}. {b.sub_topic}: {b.overview[:200]}"
+                for i, b in enumerate(blocks)
+            ]
         )
-        filled = self._safe_format(user_prompt, topics=topics_text, total_topics=len(blocks))
-        resp = await self.call_llm(filled, system_prompt, stage="deduplicate", verbose=False)
+        filled = self._safe_format(
+            user_prompt, topics=topics_text, total_topics=len(blocks)
+        )
+        resp = await self.call_llm(
+            filled, system_prompt, stage="deduplicate", verbose=False
+        )
         data = extract_json_from_text(resp)
         try:
             obj = ensure_json_dict(data)
             ensure_keys(obj, ["keep_indices"])
             keep_indices = obj.get("keep_indices", [])
-            return [blocks[i] for i in keep_indices if isinstance(i, int) and i < len(blocks)]
+            return [
+                blocks[i]
+                for i in keep_indices
+                if isinstance(i, int) and i < len(blocks)
+            ]
         except Exception:
             return blocks
 
-    async def _generate_outline(self, topic: str, blocks: list[TopicBlock]) -> dict[str, Any]:
+    async def _generate_outline(
+        self, topic: str, blocks: list[TopicBlock]
+    ) -> dict[str, Any]:
         """Generate report outline based on complete subtopic, overview and all tool_trace summaries
 
         Supports three-level heading system:
@@ -232,7 +256,9 @@ class ReportingAgent(BaseAgent):
                 "sub_topic": block.sub_topic,
                 "overview": block.overview,
                 "tool_summaries": (
-                    [trace.summary for trace in block.tool_traces] if block.tool_traces else []
+                    [trace.summary for trace in block.tool_traces]
+                    if block.tool_traces
+                    else []
                 ),
             }
             topics_data.append(topic_info)
@@ -242,10 +268,15 @@ class ReportingAgent(BaseAgent):
         topics_json = _json.dumps(topics_data, ensure_ascii=False, indent=2)
         # Use safe_format to avoid conflicts with LaTeX braces like {\rho}, {L}
         filled = self._safe_format(
-            user_prompt, topic=topic, topics_json=topics_json, total_topics=len(blocks)
+            user_prompt,
+            topic=topic,
+            topics_json=topics_json,
+            total_topics=len(blocks),
         )
 
-        resp = await self.call_llm(filled, system_prompt, stage="generate_outline", verbose=False)
+        resp = await self.call_llm(
+            filled, system_prompt, stage="generate_outline", verbose=False
+        )
         data = extract_json_from_text(resp)
         try:
             obj = ensure_json_dict(data)
@@ -266,7 +297,9 @@ class ReportingAgent(BaseAgent):
                     section["title"] = f"## {section['title']}"
                 # Process subsections if present
                 for subsection in section.get("subsections", []):
-                    if subsection.get("title") and not subsection["title"].startswith("###"):
+                    if subsection.get("title") and not subsection["title"].startswith(
+                        "###"
+                    ):
                         subsection["title"] = f"### {subsection['title']}"
 
             return obj
@@ -274,7 +307,9 @@ class ReportingAgent(BaseAgent):
             # Fallback to default outline with subsections
             return self._create_default_outline(topic, blocks)
 
-    def _create_default_outline(self, topic: str, blocks: list[TopicBlock]) -> dict[str, Any]:
+    def _create_default_outline(
+        self, topic: str, blocks: list[TopicBlock]
+    ) -> dict[str, Any]:
         """Create a default outline with three-level heading structure"""
         sections = []
         for i, b in enumerate(blocks, 1):
@@ -312,7 +347,9 @@ class ReportingAgent(BaseAgent):
         """
         traces = []
         for t in b.tool_traces:
-            cid = getattr(t, "citation_id", None) or f"CIT-{b.block_id.split('_')[-1]}-01"
+            cid = (
+                getattr(t, "citation_id", None) or f"CIT-{b.block_id.split('_')[-1]}-01"
+            )
             trace_data = {
                 "citation_id": cid,
                 "tool_type": t.tool_type,
@@ -356,12 +393,16 @@ class ReportingAgent(BaseAgent):
             if not cid:
                 continue
 
-            ref_num = self._citation_map.get(cid, 0) if hasattr(self, "_citation_map") else 0
+            ref_num = (
+                self._citation_map.get(cid, 0) if hasattr(self, "_citation_map") else 0
+            )
             if ref_num <= 0:
                 continue
 
             # Truncate query for readability
-            query_preview = trace.query[:60] + "..." if len(trace.query) > 60 else trace.query
+            query_preview = (
+                trace.query[:60] + "..." if len(trace.query) > 60 else trace.query
+            )
             tool_display = {
                 "rag_naive": "RAG",
                 "rag_hybrid": "Hybrid RAG",
@@ -400,7 +441,11 @@ class ReportingAgent(BaseAgent):
         topics_summary = []
         for b in blocks:
             topics_summary.append(
-                {"sub_topic": b.sub_topic, "overview": b.overview, "tool_count": len(b.tool_traces)}
+                {
+                    "sub_topic": b.sub_topic,
+                    "overview": b.overview,
+                    "tool_count": len(b.tool_traces),
+                }
             )
 
         # Use introduction_instruction if available, otherwise fall back to introduction title
@@ -418,7 +463,9 @@ class ReportingAgent(BaseAgent):
             total_topics=len(blocks),
         )
 
-        resp = await self.call_llm(filled, system_prompt, stage="write_introduction", verbose=False)
+        resp = await self.call_llm(
+            filled, system_prompt, stage="write_introduction", verbose=False
+        )
         data = extract_json_from_text(resp)
 
         try:
@@ -444,7 +491,9 @@ class ReportingAgent(BaseAgent):
         )
         tmpl = self.get_prompt("process", "write_section_body", "")
         if not tmpl:
-            raise ValueError("Cannot get section writing prompt template, report generation failed")
+            raise ValueError(
+                "Cannot get section writing prompt template, report generation failed"
+            )
 
         import json as _json
 
@@ -455,17 +504,23 @@ class ReportingAgent(BaseAgent):
             # Build clear citation reference table for this block
             citation_table = self._build_citation_table(block)
 
-            citation_instruction_template = self.get_prompt("citation", "enabled_instruction")
+            citation_instruction_template = self.get_prompt(
+                "citation", "enabled_instruction"
+            )
             if citation_instruction_template:
                 citation_instruction = citation_instruction_template.format(
                     citation_table=citation_table
                 )
             else:
                 # Fallback if YAML not configured
-                citation_instruction = f"**Citation Reference Table**:\n{citation_table}"
+                citation_instruction = (
+                    f"**Citation Reference Table**:\n{citation_table}"
+                )
             citation_output_hint = ", citations"
         else:
-            citation_instruction = self.get_prompt("citation", "disabled_instruction") or ""
+            citation_instruction = (
+                self.get_prompt("citation", "disabled_instruction") or ""
+            )
             citation_output_hint = ""
 
         # Use safe_format to avoid conflicts with LaTeX braces like {\rho}, {L}
@@ -481,7 +536,9 @@ class ReportingAgent(BaseAgent):
             citation_output_hint=citation_output_hint,
         )
 
-        resp = await self.call_llm(filled, system_prompt, stage="write_section_body", verbose=False)
+        resp = await self.call_llm(
+            filled, system_prompt, stage="write_section_body", verbose=False
+        )
         data = extract_json_from_text(resp)
 
         try:
@@ -526,12 +583,14 @@ class ReportingAgent(BaseAgent):
             topics_findings.append(findings)
 
         # Use conclusion_instruction if available, otherwise fall back to conclusion title
-        conclusion_instruction = outline.get("conclusion_instruction", "") or outline.get(
-            "conclusion", ""
-        )
+        conclusion_instruction = outline.get(
+            "conclusion_instruction", ""
+        ) or outline.get("conclusion", "")
 
         # Use safe_format to avoid conflicts with LaTeX braces like {\rho}, {L}
-        topics_findings_json = _json.dumps(topics_findings, ensure_ascii=False, indent=2)
+        topics_findings_json = _json.dumps(
+            topics_findings, ensure_ascii=False, indent=2
+        )
         filled = self._safe_format(
             tmpl,
             topic=topic,
@@ -540,7 +599,9 @@ class ReportingAgent(BaseAgent):
             total_topics=len(blocks),
         )
 
-        resp = await self.call_llm(filled, system_prompt, stage="write_conclusion", verbose=False)
+        resp = await self.call_llm(
+            filled, system_prompt, stage="write_conclusion", verbose=False
+        )
         data = extract_json_from_text(resp)
 
         try:
@@ -588,7 +649,9 @@ class ReportingAgent(BaseAgent):
             if block.tool_traces:
                 for trace in block.tool_traces:
                     citation_id = getattr(trace, "citation_id", None)
-                    if citation_id and citation_id not in [c["citation_id"] for c in all_citations]:
+                    if citation_id and citation_id not in [
+                        c["citation_id"] for c in all_citations
+                    ]:
                         all_citations.append({"citation_id": citation_id})
 
         all_citations.sort(key=lambda x: extract_citation_number(x["citation_id"]))
@@ -676,11 +739,15 @@ class ReportingAgent(BaseAgent):
                     for paper_idx, paper in enumerate(papers):
                         # Check if this paper has a ref_number
                         paper_ref_key = f"{citation_id}-{paper_idx + 1}"
-                        ref_num = ref_map.get(paper_ref_key) or ref_map.get(citation_id, 0)
+                        ref_num = ref_map.get(paper_ref_key) or ref_map.get(
+                            citation_id, 0
+                        )
                         if ref_num > 0:
                             if ref_num not in ref_to_citations:
                                 ref_to_citations[ref_num] = []
-                            ref_to_citations[ref_num].append((citation_id, citation, paper))
+                            ref_to_citations[ref_num].append(
+                                (citation_id, citation, paper)
+                            )
                 else:
                     ref_num = ref_map.get(citation_id, 0)
                     if ref_num > 0:
@@ -800,7 +867,9 @@ class ReportingAgent(BaseAgent):
         if summary:
             # Clean summary to avoid markdown rendering issues
             clean_summary = self._strip_markdown(summary)
-            summary_text = clean_summary[:300] + ("..." if len(clean_summary) > 300 else "")
+            summary_text = clean_summary[:300] + (
+                "..." if len(clean_summary) > 300 else ""
+            )
             result += f"- **Summary**: {summary_text}\n"
 
         # Add collapsible links section
@@ -843,16 +912,18 @@ class ReportingAgent(BaseAgent):
         if summary:
             # Clean summary: remove markdown formatting to avoid rendering issues
             clean_summary = self._strip_markdown(summary)
-            summary_text = clean_summary[:300] + ("..." if len(clean_summary) > 300 else "")
+            summary_text = clean_summary[:300] + (
+                "..." if len(clean_summary) > 300 else ""
+            )
             result += f"- **Summary**: {summary_text}\n"
 
         # Add source documents if available
         if sources:
-            result += "\n<details>\n<summary>📄 Source Documents ({} docs)</summary>\n\n".format(
-                len(sources)
-            )
+            result += f"\n<details>\n<summary>📄 Source Documents ({len(sources)} docs)</summary>\n\n"
             for i, source in enumerate(sources, 1):
-                title = source.get("title", "") or source.get("source_file", f"Document {i}")
+                title = source.get("title", "") or source.get(
+                    "source_file", f"Document {i}"
+                )
                 content = source.get("content_preview", "")
                 page = source.get("page", "")
                 result += f"{i}. **{title}**"
@@ -860,9 +931,7 @@ class ReportingAgent(BaseAgent):
                     result += f" (Page {page})"
                 if content:
                     clean_content = self._strip_markdown(content)
-                    result += (
-                        f"\n   > {clean_content[:150]}{'...' if len(clean_content) > 150 else ''}"
-                    )
+                    result += f"\n   > {clean_content[:150]}{'...' if len(clean_content) > 150 else ''}"
                 result += "\n\n"
             result += "</details>"
 
@@ -935,7 +1004,11 @@ class ReportingAgent(BaseAgent):
                         or f"CIT-{block.block_id.split('_')[-1]}-01"
                     )
                     all_citations.append(
-                        {"citation_id": citation_id, "block": block, "trace": trace}
+                        {
+                            "citation_id": citation_id,
+                            "block": block,
+                            "trace": trace,
+                        }
                     )
 
         if not all_citations:
@@ -980,7 +1053,9 @@ class ReportingAgent(BaseAgent):
             parts.append(f'<a id="{anchor}"></a>**[{idx}]** **{tool_display}**\n\n')
             parts.append(f"- **Query**: {trace.query}\n")
             if trace.summary:
-                summary_text = trace.summary[:500] + ("..." if len(trace.summary) > 500 else "")
+                summary_text = trace.summary[:500] + (
+                    "..." if len(trace.summary) > 500 else ""
+                )
                 parts.append(f"- **Summary**: {summary_text}\n")
             parts.append("\n")
 
@@ -1102,7 +1177,9 @@ class ReportingAgent(BaseAgent):
         # Build citation number map before writing (for consistent ref_number in traces)
         if self.enable_inline_citations:
             self._citation_map = self._build_citation_number_map(blocks)
-            logger.info(f"  📋 Built citation map with {len(self._citation_map)} entries")
+            logger.info(
+                f"  📋 Built citation map with {len(self._citation_map)} entries"
+            )
         else:
             self._citation_map = {}
 
@@ -1119,7 +1196,8 @@ class ReportingAgent(BaseAgent):
             "writing_section",
             current_section="Introduction",
             section_index=0,
-            total_sections=len(outline.get("sections", [])) + 2,  # +2 for intro and conclusion
+            total_sections=len(outline.get("sections", []))
+            + 2,  # +2 for intro and conclusion
         )
         introduction = await self._write_introduction(topic, blocks, outline)
         # Get introduction title from outline, or use default if not available
@@ -1259,7 +1337,9 @@ class ReportingAgent(BaseAgent):
         )
         tmpl = self.get_prompt("process", "write_section_body", "")
         if not tmpl:
-            raise ValueError("Cannot get section writing prompt template, report generation failed")
+            raise ValueError(
+                "Cannot get section writing prompt template, report generation failed"
+            )
 
         # Build enhanced instruction including subsection structure
         section_instruction = section.get("instruction", "")
@@ -1274,17 +1354,23 @@ class ReportingAgent(BaseAgent):
             # Build clear citation reference table for this block
             citation_table = self._build_citation_table(block)
 
-            citation_instruction_template = self.get_prompt("citation", "enabled_instruction")
+            citation_instruction_template = self.get_prompt(
+                "citation", "enabled_instruction"
+            )
             if citation_instruction_template:
                 citation_instruction = citation_instruction_template.format(
                     citation_table=citation_table
                 )
             else:
                 # Fallback if YAML not configured
-                citation_instruction = f"**Citation Reference Table**:\n{citation_table}"
+                citation_instruction = (
+                    f"**Citation Reference Table**:\n{citation_table}"
+                )
             citation_output_hint = ", citations"
         else:
-            citation_instruction = self.get_prompt("citation", "disabled_instruction") or ""
+            citation_instruction = (
+                self.get_prompt("citation", "disabled_instruction") or ""
+            )
             citation_output_hint = ""
 
         # Use safe_format to avoid conflicts with LaTeX braces like {\rho}, {L}
@@ -1322,7 +1408,10 @@ class ReportingAgent(BaseAgent):
             )
 
     def _notify_progress(
-        self, callback: Callable[[dict[str, Any]], None] | None, status: str, **payload: Any
+        self,
+        callback: Callable[[dict[str, Any]], None] | None,
+        status: str,
+        **payload: Any,
     ) -> None:
         if not callback:
             return

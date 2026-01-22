@@ -11,9 +11,9 @@ import {
   Check,
   FileText,
   Calendar,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { apiUrl } from "@/lib/api";
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { apiUrl } from '@/lib/api'
 
 interface Notebook {
   id: string
@@ -46,23 +46,15 @@ export default function NotebookImportModal({
   onImport,
   title,
 }: NotebookImportModalProps) {
-  const { t } = useTranslation();
-  const dialogTitle = title ?? t("Import from Notebooks");
-  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(
-    new Set(),
-  );
-  const [notebookRecords, setNotebookRecords] = useState<
-    Map<string, NotebookRecord[]>
-  >(new Map());
-  const [loadingRecords, setLoadingRecords] = useState<Set<string>>(new Set());
-  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(
-    new Set(),
-  ); // Record IDs
-  const [selectedRecordsData, setSelectedRecordsData] = useState<
-    NotebookRecord[]
-  >([]);
+  const { t } = useTranslation()
+  const dialogTitle = title ?? t('Import from Notebooks')
+  const [notebooks, setNotebooks] = useState<Notebook[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedNotebooks, setExpandedNotebooks] = useState<Set<string>>(new Set())
+  const [notebookRecords, setNotebookRecords] = useState<Map<string, NotebookRecord[]>>(new Map())
+  const [loadingRecords, setLoadingRecords] = useState<Set<string>>(new Set())
+  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set()) // Record IDs
+  const [selectedRecordsData, setSelectedRecordsData] = useState<NotebookRecord[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -164,7 +156,7 @@ export default function NotebookImportModal({
             <div>
               <h2 className="font-bold text-slate-900">{dialogTitle}</h2>
               <p className="text-xs text-slate-500">
-                {t("Select content from your notebooks to import")}
+                {t('Select content from your notebooks to import')}
               </p>
             </div>
           </div>
@@ -186,7 +178,7 @@ export default function NotebookImportModal({
               </div>
             ) : notebooks.length === 0 ? (
               <div className="text-center py-8 text-slate-400 text-sm">
-                {t("No notebooks found")}
+                {t('No notebooks found')}
               </div>
             ) : (
               notebooks.map(nb => (
@@ -226,7 +218,7 @@ export default function NotebookImportModal({
             {expandedNotebooks.size === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <BookOpen className="w-12 h-12 mb-3 opacity-20" />
-                <p>{t("Select a notebook to view records")}</p>
+                <p>{t('Select a notebook to view records')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -253,7 +245,7 @@ export default function NotebookImportModal({
                         </div>
                       ) : !records || records.length === 0 ? (
                         <div className="py-4 text-center text-xs text-slate-400 italic">
-                          {t("No records")}
+                          {t('No records')}
                         </div>
                       ) : (
                         <div className="grid gap-2">
@@ -314,14 +306,14 @@ export default function NotebookImportModal({
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
           <div className="text-sm text-slate-500">
-            {t("Selected {n} items").replace("{n}", String(selectedRecords.size))}
+            {t('Selected {n} items').replace('{n}', String(selectedRecords.size))}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              {t("Cancel")}
+              {t('Cancel')}
             </button>
             <button
               onClick={handleImport}
@@ -329,7 +321,7 @@ export default function NotebookImportModal({
               className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Check className="w-4 h-4" />
-              {t("Import Selected")}
+              {t('Import Selected')}
             </button>
           </div>
         </div>

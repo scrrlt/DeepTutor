@@ -1,9 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 LLM Utilities
 =============
 
-URL handling, response extraction, and thinking-tag cleanup helpers.
+Utility functions for LLM service:
+- URL handling for local and cloud servers
+- Response content extraction
+- Thinking tags cleaning
 """
 
 from collections.abc import Mapping, Sequence
@@ -55,9 +57,7 @@ V1_SUFFIX_PORTS = {
 }
 
 
-def is_local_llm_server(
-    base_url: str, allow_private: bool | None = None
-) -> bool:
+def is_local_llm_server(base_url: str) -> bool:
     """
     Check if the given URL points to a local LLM server.
 
@@ -69,9 +69,6 @@ def is_local_llm_server(
 
     Args:
         base_url: The base URL to check
-        allow_private: Optional override to treat private network IPs as local.
-                       If None, reads the LLM_TREAT_PRIVATE_AS_LOCAL env var
-                       ("1", "true", "yes" => True).
 
     Returns:
         True if the URL appears to be a local LLM server
@@ -79,21 +76,17 @@ def is_local_llm_server(
     if not base_url:
         return False
 
-    # Resolve allow_private from env if not explicitly provided
-    if allow_private is None:
-        val = os.environ.get("LLM_TREAT_PRIVATE_AS_LOCAL")
-        if val is not None:
-            allow_private = val.strip().lower() in ("1", "true", "yes")
+    base_url_lower = base_url.lower()
 
-    try:
-        parsed = urlparse(base_url)
-        hostname = parsed.hostname
-        if not hostname:
+    # First, exclude known cloud providers
+    for domain in CLOUD_DOMAINS:
+        if domain in base_url_lower:
             return False
 
     # Extract hostname/IP from URL
     try:
         from urllib.parse import urlparse
+
         parsed = urlparse(base_url)
         hostname = parsed.hostname or parsed.netloc
         if not hostname:
@@ -109,6 +102,7 @@ def is_local_llm_server(
 
     # Check for private IP ranges
     import ipaddress
+
     try:
         # Try to parse as IP address
         ip = ipaddress.ip_address(hostname)
@@ -127,15 +121,54 @@ def is_local_llm_server(
         if port in base_url_lower:
             return True
 
+    return False
+
+
+def _needs_v1_suffix(url: str) -> bool:
+    """
+    Check if the URL needs /v1 suffix for OpenAI compatibility.
+
+    Most local LLM servers (Ollama, LM Studio, vLLM, llama.cpp) expose
+    OpenAI-compatible endpoints at /v1.
+
+    Args:
+        url: The URL to check
+
+    Returns:
+        True if /v1 should be appended
+    """
+    if not url:
         return False
 
-    except Exception:
+    url_lower = url.lower()
+
+    # Skip if already has /v1
+    if url_lower.endswith("/v1"):
         return False
+
+    # Only add /v1 for local servers with known ports that need it
+    if not is_local_llm_server(url):
+        return False
+
+    # Check if URL contains any port that needs /v1 suffix
+    # Also check for "ollama" in URL (but not ollama.com cloud service)
+    is_ollama = "ollama" in url_lower and "ollama.com" not in url_lower
+    if is_ollama:
+        return True
+
+    return any(port in url_lower for port in V1_SUFFIX_PORTS)
 
 
 def sanitize_url(base_url: str, model: str = "") -> str:
     """
-    Normalize URL without guessing based on ports.
+    Sanitize base URL for OpenAI-compatible APIs, with special handling for local LLM servers.
+
+    Handles:
+    - Ollama (port 11434)
+    - LM Studio (port 1234)
+    - vLLM (port 8000)
+    - llama.cpp (port 8080)
+    - Other localhost OpenAI-compatible servers
 
     Args:
         base_url: The base URL to sanitize
@@ -145,11 +178,7 @@ def sanitize_url(base_url: str, model: str = "") -> str:
         Sanitized URL string
     """
     if not base_url:
-        return ""
-
-    # Force protocol
-    if not re.match(r"^[a-zA-Z]+://", base_url):
-        base_url = f"http://{base_url}"
+        return base_url
 
     url = base_url.rstrip("/")
 
@@ -196,9 +225,9 @@ def clean_thinking_tags(
 
     Returns:
         Cleaned content without thinking tags
-    """
-    if not content:
         return ""
+    if not content:
+        return content
 
     # Check if model produces thinking tags (if binding/model provided)
     if binding:
@@ -208,23 +237,12 @@ def clean_thinking_tags(
         if not has_thinking_tags(binding, model):
             return content
 
-    # Remove <think>...</think> blocks
-    # Note: This regex is simple and doesn't handle streaming well.
-    # Future improvements should use a streaming-aware parser.
-    if "<think>" in content:
-        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
-
-    # Remove unicode thinking delimiters often used by local/reasoning models
-    # e.g., ◣ ... ◢  (U+25E3 / U+25E2) or repeated marker like 꽁...꽁
-    # Use non-greedy matching and DOTALL to span multiple lines
-    if "◣" in content and "◢" in content:
-        content = re.sub(r"\u25E3.*?\u25E2", "", content, flags=re.DOTALL)
-
-    if "꽁" in content:
-        # 꽁 is sometimes used as both open+close marker, remove paired blocks
-        content = re.sub(r"꽁.*?꽁", "", content, flags=re.DOTALL)
-
-    return content.strip()
+    pattern = re.compile(
+        r"(?:<think>.*?</think>|◣.*?◢|꽁.*?꽁)",
+        re.DOTALL | re.IGNORECASE,
+    )
+    cleaned = re.sub(pattern, "", content)
+    return cleaned.strip()
 
 
 def build_chat_url(
@@ -341,9 +359,24 @@ def extract_response_content(message: Any) -> str:
     if not isinstance(message, (dict, Mapping)):
         return str(message)
 
-    content = message.get("content", "")
+    def _extract_parts(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, Mapping):
+            for key in ("text", "content", "value"):
+                if key in value:
+                    return _extract_parts(value.get(key))
+            return []
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            parts: list[str] = []
+            for item in value:
+                parts.extend(_extract_parts(item))
+            return parts
+        return [str(value)]
 
-    # Handle reasoning models that return content in different fields
+    content = message.get("content", "")
     if not content:
         content = (
             message.get("reasoning_content")
@@ -352,7 +385,11 @@ def extract_response_content(message: Any) -> str:
             or ""
         )
 
-    return str(content)
+    parts = _extract_parts(content)
+    if parts:
+        return "".join(parts)
+
+    return ""
 
 
 def _normalize_model_name(entry: object) -> str | None:

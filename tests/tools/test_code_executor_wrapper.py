@@ -21,12 +21,8 @@ async def test_run_code_delegates(monkeypatch):
     async def fake_run(self, code, options):
         return fake_result
 
-    with patch(
-        "src.tools.code_runner.runner.LocalProcessRunner.run", new=fake_run
-    ):
-        result = await run_code(
-            "python", "print('hi')", timeout=2, assets_dir=None
-        )
+    with patch("src.tools.code_runner.runner.LocalProcessRunner.run", new=fake_run):
+        result = await run_code("python", "print('hi')", timeout=2, assets_dir=None)
 
     assert result["stdout"] == "ok\n"
     assert result["exit_code"] == 0

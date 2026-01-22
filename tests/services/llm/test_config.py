@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tests for LLM configuration helpers."""
 
 from src.services.llm.config import (

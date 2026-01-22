@@ -19,9 +19,7 @@ def mock_config_dir(tmp_path: Path):
     (config_dir / "main.yaml").write_text(
         "app_name: DeepTutorTest\nsystem:\n  language: en", encoding="utf-8"
     )
-    (config_dir / "agents.yaml").write_text(
-        "agent_1: default", encoding="utf-8"
-    )
+    (config_dir / "agents.yaml").write_text("agent_1: default", encoding="utf-8")
 
     yield config_dir
 
@@ -38,9 +36,7 @@ class TestConfigLoader:
 
         # We need to patch where the loader looks for config
         project_root = mock_config_dir.parent
-        config = load_config_with_main(
-            "test_module.yaml", project_root=project_root
-        )
+        config = load_config_with_main("test_module.yaml", project_root=project_root)
 
         assert config is not None
         assert config["app_name"] == "DeepTutorTest"
@@ -62,9 +58,7 @@ class TestConfigLoader:
     def test_get_agent_params_defaults(self):
         """Test getting agent params when file doesn't exist or agent not found."""
         # Mock PROJECT_ROOT to point to a place without agents.yaml
-        with patch(
-            "src.services.config.loader.PROJECT_ROOT", Path("/non/existent")
-        ):
+        with patch("src.services.config.loader.PROJECT_ROOT", Path("/non/existent")):
             params = get_agent_params("unknown_agent")
             assert params["temperature"] == 0.5
             assert params["max_tokens"] == 4096
@@ -76,9 +70,7 @@ class TestConfigLoader:
             temperature: 0.7
             max_tokens: 2048
         """
-        (mock_config_dir / "agents.yaml").write_text(
-            agents_yaml, encoding="utf-8"
-        )
+        (mock_config_dir / "agents.yaml").write_text(agents_yaml, encoding="utf-8")
 
         project_root = mock_config_dir.parent
         with patch("src.services.config.loader.PROJECT_ROOT", project_root):

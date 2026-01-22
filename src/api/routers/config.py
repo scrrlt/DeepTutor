@@ -167,9 +167,7 @@ async def get_config_status():
                     "model" if config_type != ConfigType.SEARCH else "provider"
                 )
             ),
-            "active_config_id": active_config.get("id")
-            if active_config
-            else "default",
+            "active_config_id": active_config.get("id") if active_config else "default",
             "active_config_name": active_config.get("name")
             if active_config
             else "Default",
@@ -314,9 +312,7 @@ async def test_llm_config_by_id(config_id: str):
         else:
             # Find config by ID
             configs = manager.list_configs(ConfigType.LLM)
-            config = next(
-                (c for c in configs if c.get("id") == config_id), None
-            )
+            config = next((c for c in configs if c.get("id") == config_id), None)
             if not config:
                 return {
                     "success": False,
@@ -473,9 +469,7 @@ async def test_embedding_config_by_id(config_id: str):
             config = manager.get_default_config(ConfigType.EMBEDDING)
         else:
             configs = manager.list_configs(ConfigType.EMBEDDING)
-            config = next(
-                (c for c in configs if c.get("id") == config_id), None
-            )
+            config = next((c for c in configs if c.get("id") == config_id), None)
             if not config:
                 return {
                     "success": False,
@@ -612,9 +606,7 @@ async def test_tts_config_by_id(config_id: str):
             config = manager.get_default_config(ConfigType.TTS)
         else:
             configs = manager.list_configs(ConfigType.TTS)
-            config = next(
-                (c for c in configs if c.get("id") == config_id), None
-            )
+            config = next((c for c in configs if c.get("id") == config_id), None)
             if not config:
                 return {
                     "success": False,

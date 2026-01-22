@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Anthropic LLM provider implementation.
 """
 
+import asyncio
+
 import anthropic
 
-from src.logging import get_logger
-
-from ..config import LLMConfig
-from ..exceptions import LLMConfigError
 from ..http_client import get_shared_http_client
 from ..registry import register_provider
 from ..telemetry import track_llm_call
@@ -49,7 +46,8 @@ def _sanitize_kwargs(kwargs: dict[str, object]) -> dict[str, object]:
 
     if removed_keys:
         logging.getLogger("AnthropicProvider").warning(
-            "Ignoring unsupported Anthropic kwargs (handled upstream): %s", removed_keys
+            "Ignoring unsupported Anthropic kwargs (handled upstream): %s",
+            removed_keys,
         )
 
     return sanitized
@@ -103,7 +101,11 @@ class AnthropicProvider(BaseLLMProvider):
             Exception: Propagates SDK or execution errors.
         """
         self._check_deprecated_kwargs(kwargs)
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
+        model = (
+            kwargs.pop("model", None)
+            or self.config.model_name
+            or "claude-3-sonnet-20240229"
+        )
         kwargs.pop("max_retries", None)
         kwargs.pop("stream", None)
 
@@ -150,7 +152,11 @@ class AnthropicProvider(BaseLLMProvider):
             Exception: Propagates SDK or execution errors.
         """
         self._check_deprecated_kwargs(kwargs)
-        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
+        model = (
+            kwargs.pop("model", None)
+            or self.config.model_name
+            or "claude-3-sonnet-20240229"
+        )
         max_tokens = kwargs.pop("max_tokens", 1024)
         kwargs.pop("max_retries", None)
 

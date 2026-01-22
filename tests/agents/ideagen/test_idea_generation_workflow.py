@@ -126,9 +126,7 @@ async def test_process_workflow(
     )
     idea_generation_workflow.explore_ideas = AsyncMock(return_value=["idea1"])
     idea_generation_workflow.strict_filter = AsyncMock(return_value=["idea1"])
-    idea_generation_workflow.generate_statement = AsyncMock(
-        return_value="statement"
-    )
+    idea_generation_workflow.generate_statement = AsyncMock(return_value="statement")
 
     markdown = await idea_generation_workflow.process(
         [{"knowledge_point": "kp1", "description": ""}]

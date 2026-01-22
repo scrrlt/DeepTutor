@@ -43,9 +43,7 @@ class RoutingProvider(BaseLLMProvider):
         if not model:
             raise LLMConfigError("Model is required")
 
-        system_prompt = kwargs.pop(
-            "system_prompt", "You are a helpful assistant."
-        )
+        system_prompt = kwargs.pop("system_prompt", "You are a helpful assistant.")
         messages = kwargs.pop("messages", None)
         max_retries = int(kwargs.pop("max_retries", 3))
         sleep = kwargs.pop("sleep", None)
@@ -68,9 +66,7 @@ class RoutingProvider(BaseLLMProvider):
             target = local_provider.complete
         else:
             binding = kwargs.pop("binding", None) or self.config.binding
-            api_version = (
-                kwargs.pop("api_version", None) or self.config.api_version
-            )
+            api_version = kwargs.pop("api_version", None) or self.config.api_version
             call_kwargs["binding"] = binding
             call_kwargs["api_version"] = api_version
             target = cloud_provider.complete
@@ -150,9 +146,7 @@ class RoutingProvider(BaseLLMProvider):
         if not model:
             raise LLMConfigError("Model is required")
 
-        system_prompt = kwargs.pop(
-            "system_prompt", "You are a helpful assistant."
-        )
+        system_prompt = kwargs.pop("system_prompt", "You are a helpful assistant.")
         messages = kwargs.pop("messages", None)
         max_retries = int(kwargs.pop("max_retries", 3))
 
@@ -170,9 +164,7 @@ class RoutingProvider(BaseLLMProvider):
             stream_func = local_provider.stream
         else:
             binding = kwargs.pop("binding", None) or self.config.binding
-            api_version = (
-                kwargs.pop("api_version", None) or self.config.api_version
-            )
+            api_version = kwargs.pop("api_version", None) or self.config.api_version
             call_kwargs["binding"] = binding
             call_kwargs["api_version"] = api_version
             stream_func = cloud_provider.stream
@@ -212,15 +204,16 @@ class RoutingProvider(BaseLLMProvider):
                 if emitted_any:
                     raise mapped from exc
 
-                if attempt > max_retries + 1 or not self._should_retry_error(
-                    mapped
-                ):
+                if attempt > max_retries + 1 or not self._should_retry_error(mapped):
                     raise mapped from exc
 
                 delay_seconds = min(60.0, 1.5**attempt)
                 logger.warning(
-                    "Stream start failed (attempt %d/%d): %s; retrying in %.2fs"
-                    % (attempt, max_retries + 1, mapped, delay_seconds)
+                    "Stream start failed (attempt %d/%d): %s; retrying in %.2fs",
+                    attempt,
+                    max_retries + 1,
+                    mapped,
+                    delay_seconds,
                 )
                 await asyncio.sleep(delay_seconds)
                 continue

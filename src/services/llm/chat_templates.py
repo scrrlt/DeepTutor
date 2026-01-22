@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
 """Chat template resolution and rendering for local LLMs."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,9 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
     # Disable autoescape for chat templates - these contain system prompts and user messages
     # that need to preserve formatting like newlines and special characters.
     # Input validation is handled at the API layer before reaching this function.
-    env = Environment(loader=BaseLoader(), autoescape=True)  # Enable autoescaping for security
+    env = Environment(
+        loader=BaseLoader(), autoescape=True
+    )  # Enable autoescaping for security
     return env.from_string(template).render(**context)
 
 

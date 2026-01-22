@@ -66,9 +66,7 @@ def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
 # --------- Strict Validation Utilities ---------
 
 
-def ensure_json_dict(
-    data: Any, err: str = "Expected JSON object"
-) -> dict[str, Any]:
+def ensure_json_dict(data: Any, err: str = "Expected JSON object") -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(err)
     return data

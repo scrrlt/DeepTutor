@@ -4,11 +4,10 @@ Config Validator - Configuration validator
 Validates the completeness and correctness of config.yaml using Pydantic models.
 """
 
-from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
+import yaml
 
 from src.config.constants import PROJECT_ROOT
 from src.config.schema import AppConfig
@@ -55,7 +54,9 @@ class ConfigValidator:
         return is_valid, self.errors, self.warnings
 
 
-def validate_config_file(config_path: str) -> tuple[bool, list[str], list[str]]:
+def validate_config_file(
+    config_path: str,
+) -> tuple[bool, list[str], list[str]]:
     """
     Validate configuration file
 

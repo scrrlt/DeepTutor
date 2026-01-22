@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tests for capability resolution."""
 
 from src.services.llm.capabilities import (

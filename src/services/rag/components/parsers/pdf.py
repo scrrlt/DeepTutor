@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 PDF Parser
 ==========
@@ -53,9 +52,7 @@ class PDFParser(BaseComponent):
         self.logger.info(f"Parsing PDF: {file_path.name}")
 
         # Check for existing parsed content
-        output_dir = Path(
-            kwargs.get("output_dir", self.output_dir or file_path.parent)
-        )
+        output_dir = Path(kwargs.get("output_dir", self.output_dir or file_path.parent))
         content_list_file = output_dir / f"{file_path.stem}.json"
 
         content_items = []
@@ -112,9 +109,7 @@ class PDFParser(BaseComponent):
             doc.close()
             return "\n\n".join(texts)
         except ImportError:
-            self.logger.warning(
-                "PyMuPDF not installed. Cannot extract PDF text."
-            )
+            self.logger.warning("PyMuPDF not installed. Cannot extract PDF text.")
             return ""
         except Exception as e:
             self.logger.error(f"Failed to extract PDF text: {e}")

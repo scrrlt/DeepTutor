@@ -141,9 +141,7 @@ class NotebookManager:
             NotebookStorageError: If update fails.
         """
         ops = self._get_operations()
-        return await ops.update_notebook(
-            notebook_id, name, description, color, icon
-        )
+        return await ops.update_notebook(notebook_id, name, description, color, icon)
 
     async def delete_notebook(self, notebook_id: str) -> bool:
         """Delete a notebook and all its records.

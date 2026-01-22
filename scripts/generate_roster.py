@@ -45,9 +45,7 @@ def fetch_repo_stats(owner: str, repo: str, token: str | None = None) -> dict:
     req = urllib.request.Request(url, headers=headers)
 
     try:
-        with urllib.request.urlopen(
-            req, timeout=30, context=ssl_context
-        ) as response:
+        with urllib.request.urlopen(req, timeout=30, context=ssl_context) as response:
             data = json.loads(response.read().decode())
             return {
                 "stargazers_count": data.get("stargazers_count", 0),
@@ -95,12 +93,8 @@ def fetch_github_api(
                     # Continue counting total
                     while True:
                         page += 1
-                        paginated_url = (
-                            f"{url}?per_page={per_page}&page={page}"
-                        )
-                        req = urllib.request.Request(
-                            paginated_url, headers=headers
-                        )
+                        paginated_url = f"{url}?per_page={per_page}&page={page}"
+                        req = urllib.request.Request(paginated_url, headers=headers)
                         try:
                             with urllib.request.urlopen(
                                 req, timeout=30, context=ssl_context
@@ -112,9 +106,7 @@ def fetch_github_api(
                                 if len(more_data) < per_page:
                                     break
                         except Exception:
-                            logger.exception(
-                                "Error fetching %s", paginated_url
-                            )
+                            logger.exception("Error fetching %s", paginated_url)
                             break
                     break
         except Exception:
@@ -135,9 +127,7 @@ def fetch_avatar_as_base64(avatar_url: str, size: int = 48) -> str | None:
         req = urllib.request.Request(
             avatar_url, headers={"User-Agent": "Repo-Roster-Generator"}
         )
-        with urllib.request.urlopen(
-            req, timeout=10, context=ssl_context
-        ) as response:
+        with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
             data = response.read()
             content_type = response.headers.get("Content-Type", "image/png")
             base64_data = base64.b64encode(data).decode("utf-8")
@@ -295,15 +285,11 @@ No {title.lower()} yet
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate GitHub roster SVG images"
-    )
+    parser = argparse.ArgumentParser(description="Generate GitHub roster SVG images")
     parser.add_argument(
         "--repo", required=True, help="GitHub repo in format owner/repo"
     )
-    parser.add_argument(
-        "--output", default="assets/roster", help="Output directory"
-    )
+    parser.add_argument("--output", default="assets/roster", help="Output directory")
     parser.add_argument(
         "--theme",
         default="dark",
@@ -329,9 +315,7 @@ def main():
     repo_stats = fetch_repo_stats(owner, repo, args.token)
     stargazers_total = repo_stats["stargazers_count"]
     forks_total = repo_stats["forks_count"]
-    logger.info(
-        f"Repo stats: {stargazers_total:,} stars, {forks_total:,} forks"
-    )
+    logger.info(f"Repo stats: {stargazers_total:,} stars, {forks_total:,} forks")
 
     # Fetch stargazers (only need latest ones for avatars)
     logger.info(f"Fetching stargazers for {args.repo}...")

@@ -26,9 +26,7 @@ class ToolCallRecord:
     cite_id: str | None = None
     raw_answer: str | None = None
     summary: str | None = None
-    status: str = (
-        "pending"  # pending | running | success | failed | none | finish
-    )
+    status: str = "pending"  # pending | running | success | failed | none | finish
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
@@ -74,9 +72,7 @@ class SolveChainStep:
     available_cite: list[str] = field(default_factory=list)
     tool_calls: list[ToolCallRecord] = field(default_factory=list)
     step_response: str | None = None
-    status: str = (
-        "undone"  # undone | in_progress | waiting_response | done | failed
-    )
+    status: str = "undone"  # undone | in_progress | waiting_response | done | failed
     used_citations: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
@@ -88,9 +84,7 @@ class SolveChainStep:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SolveChainStep:
-        tool_calls = [
-            ToolCallRecord.from_dict(tc) for tc in data.get("tool_calls", [])
-        ]
+        tool_calls = [ToolCallRecord.from_dict(tc) for tc in data.get("tool_calls", [])]
         data.setdefault("available_cite", [])
         data.setdefault("used_citations", [])
         data.setdefault("status", "undone")
@@ -115,9 +109,7 @@ class SolveChainStep:
         if self.status == "undone":
             self.status = "in_progress"
 
-    def update_response(
-        self, response: str, used_citations: list[str] | None = None
-    ):
+    def update_response(self, response: str, used_citations: list[str] | None = None):
         self.step_response = response
         self.status = "done"
         self.used_citations = used_citations or []
@@ -137,9 +129,7 @@ class SolveMemory:
         user_question: str = "",
         output_dir: str | None = None,
     ):
-        self.task_id = (
-            task_id or f"solve_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        )
+        self.task_id = task_id or f"solve_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         self.user_question = user_question
         self.output_dir = output_dir
 
@@ -155,9 +145,7 @@ class SolveMemory:
             "total_tool_calls": 0,
         }
 
-        self.file_path = (
-            Path(output_dir) / "solve_chain.json" if output_dir else None
-        )
+        self.file_path = Path(output_dir) / "solve_chain.json" if output_dir else None
 
     # ------------------------------------------------------------------ #
     # Load/Save
@@ -201,8 +189,7 @@ class SolveMemory:
         memory.updated_at = data.get("updated_at", memory.updated_at)
         memory.metadata = data.get("metadata", memory.metadata)
         memory.solve_chains = [
-            SolveChainStep.from_dict(step)
-            for step in data.get("solve_chains", [])
+            SolveChainStep.from_dict(step) for step in data.get("solve_chains", [])
         ]
 
         return memory
@@ -233,12 +220,8 @@ class SolveMemory:
     def create_chains(self, chains: list[SolveChainStep]):
         self.solve_chains = chains
         self.metadata["total_steps"] = len(chains)
-        self.metadata["completed_steps"] = sum(
-            1 for c in chains if c.status == "done"
-        )
-        self.metadata["total_tool_calls"] = sum(
-            len(c.tool_calls) for c in chains
-        )
+        self.metadata["completed_steps"] = sum(1 for c in chains if c.status == "done")
+        self.metadata["total_tool_calls"] = sum(len(c.tool_calls) for c in chains)
         self.updated_at = _now()
 
     def get_step(self, step_id: str) -> SolveChainStep | None:
@@ -287,13 +270,9 @@ class SolveMemory:
         step = self.get_step(step_id)
         if not step:
             raise ValueError(f"Step {step_id} not found")
-        record = next(
-            (tc for tc in step.tool_calls if tc.call_id == call_id), None
-        )
+        record = next((tc for tc in step.tool_calls if tc.call_id == call_id), None)
         if not record:
-            raise ValueError(
-                f"Tool call {call_id} not found in step {step_id}"
-            )
+            raise ValueError(f"Tool call {call_id} not found in step {step_id}")
         record.mark_result(
             raw_answer=raw_answer,
             summary=summary,
@@ -318,9 +297,7 @@ class SolveMemory:
         step = self.get_step(step_id)
         if not step:
             raise ValueError(f"Step {step_id} not found")
-        step.update_response(
-            response=response, used_citations=used_citations or []
-        )
+        step.update_response(response=response, used_citations=used_citations or [])
         self.metadata["completed_steps"] = sum(
             1 for c in self.solve_chains if c.status == "done"
         )
@@ -372,9 +349,7 @@ class SolveMemory:
                     available_cite=item.get("available_citations", []),
                     tool_calls=records,
                     step_response=item.get("content"),
-                    status="done"
-                    if item.get("status") == "completed"
-                    else "undone",
+                    status="done" if item.get("status") == "completed" else "undone",
                     used_citations=item.get("used_citations", []),
                 )
             )

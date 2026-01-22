@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 """Integration tests for newly added LLM providers."""
+
 import os
 
 import pytest

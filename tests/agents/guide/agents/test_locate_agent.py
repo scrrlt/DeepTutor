@@ -20,9 +20,7 @@ def locate_agent():
         patch("src.agents.base_agent.get_prompt_manager"),
         patch("src.agents.base_agent.get_logger"),
     ):
-        agent = LocateAgent(
-            api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = LocateAgent(api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -36,9 +34,7 @@ async def test_locate_agent_process_workflow(locate_agent: LocateAgent):
     )
     locate_agent.get_prompt = MagicMock(return_value="prompt")
 
-    records = [
-        {"type": "text", "title": "t", "user_query": "q", "output": "o"}
-    ]
+    records = [{"type": "text", "title": "t", "user_query": "q", "output": "o"}]
 
     result = await locate_agent.process("nid", "nname", records)
 

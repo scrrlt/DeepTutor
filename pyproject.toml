@@ -28,7 +28,7 @@ all = [
 # Black code formatter configuration
 # ============================================
 [tool.black]
-line-length = 79
+line-length = 88
 target-version = ['py312']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -57,7 +57,7 @@ extend-exclude = '''
 [tool.ruff]
 # Target Python version
 target-version = "py312"
-line-length = 79
+line-length = 88
 
 [tool.ruff.lint]
 # 只启用最基础的规则（放宽要求）
@@ -146,6 +146,30 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 # Automatically detect the appropriate line ending
 line-ending = "auto"
+
+[tool.interrogate]
+fail-under = 90
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+omit-covered-files = false
+exclude = [
+    "tests",
+    "scripts",
+    "web",
+    "src/agents",
+    "src/api",
+    "src/tools",
+    "src/services/rag/components",
+    "src/services/llm/providers",
+    "src/services/search/providers",
+    "src/services/embedding/adapters",
+    "src/services/embedding/client.py",
+    ".venv",
+    "node_modules",
+    "build",
+    "dist",
+]
 
 # ============================================
 # Ruff import sorting (isort replacement)

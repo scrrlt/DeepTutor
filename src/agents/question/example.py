@@ -28,9 +28,7 @@ for logger_name in [
     logger.setLevel(logging.WARNING)
     logger.propagate = False
 
-project_root = (
-    Path(__file__).resolve().parent.parent.parent.parent.parent.parent.parent
-)
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 load_dotenv(dotenv_path=project_root / ".env", override=False)
@@ -83,17 +81,11 @@ async def run_single_example(coordinator: AgentCoordinator):
             print(f"\n✗ Failed: {error_type}")
             if result.get("last_question"):
                 print("\nLast attempted question:")
-                print(
-                    json.dumps(
-                        result["last_question"], ensure_ascii=False, indent=2
-                    )
-                )
+                print(json.dumps(result["last_question"], ensure_ascii=False, indent=2))
             if result.get("last_validation"):
                 print("\nLast validation result:")
                 print(
-                    json.dumps(
-                        result["last_validation"], ensure_ascii=False, indent=2
-                    )
+                    json.dumps(result["last_validation"], ensure_ascii=False, indent=2)
                 )
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -92,7 +91,9 @@ async def test_azure_embedding_adapter_embed_unexpected_error(
 
     with patch("openai.AsyncAzureOpenAI", autospec=True) as mock_client_class:
         mock_client = mock_client_class.return_value
-        mock_client.embeddings.create = AsyncMock(side_effect=ValueError("Unexpected failure"))
+        mock_client.embeddings.create = AsyncMock(
+            side_effect=ValueError("Unexpected failure")
+        )
 
         adapter = AzureEmbeddingAdapter(config)
         with pytest.raises(ValueError, match="Unexpected failure"):
@@ -163,7 +164,9 @@ async def test_azure_embedding_adapter_timeout_handling() -> None:
 
     with patch("openai.AsyncAzureOpenAI", autospec=True) as mock_client_class:
         mock_client = mock_client_class.return_value
-        mock_client.embeddings.create = AsyncMock(return_value=_build_mock_response([[0.1]], "m"))
+        mock_client.embeddings.create = AsyncMock(
+            return_value=_build_mock_response([[0.1]], "m")
+        )
 
         adapter = AzureEmbeddingAdapter(config)
         await adapter.embed(request)

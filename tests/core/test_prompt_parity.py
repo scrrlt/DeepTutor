@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+import re
+from typing import Any
 
 import yaml
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 AGENTS_DIR = PROJECT_ROOT / "src" / "agents"
@@ -114,4 +114,3 @@ def test_prompts_key_and_placeholder_parity():
                     failures.append("\n".join(msg))
 
     assert not failures, "Prompt parity failures:\n" + "\n\n".join(failures)
-

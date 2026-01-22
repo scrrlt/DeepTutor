@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OpenAI-compatible embedding adapter.
 
@@ -111,7 +110,9 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
         }
         if self.api_version:
             if not self.api_key:
-                raise ValueError("API key is required for Azure/OpenAI with api_version")
+                raise ValueError(
+                    "API key is required for Azure/OpenAI with api_version"
+                )
             headers["api-key"] = self.api_key
         elif self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -186,11 +187,15 @@ class OpenAICompatibleEmbeddingAdapter(BaseEmbeddingAdapter):
                 data = response.json()
 
                 if "data" not in data or not data["data"]:
-                    raise ValueError("Invalid API response: missing or empty 'data' field")
+                    raise ValueError(
+                        "Invalid API response: missing or empty 'data' field"
+                    )
 
                 for item in data["data"]:
                     if "embedding" not in item:
-                        raise ValueError("Invalid API response: item missing 'embedding' field")
+                        raise ValueError(
+                            "Invalid API response: item missing 'embedding' field"
+                        )
                     embeddings.append(item["embedding"])
                 response_model = data.get("model", response_model)
                 _merge_usage(usage_totals, data.get("usage", {}))

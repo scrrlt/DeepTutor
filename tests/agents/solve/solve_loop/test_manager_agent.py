@@ -64,9 +64,7 @@ async def test_manager_agent_process_invalid_json(manager_agent: ManagerAgent):
     solve_memory = SolveMemory(user_question="test question")
 
     with pytest.raises(ValueError):
-        await manager_agent.process(
-            "test question", investigate_memory, solve_memory
-        )
+        await manager_agent.process("test question", investigate_memory, solve_memory)
 
 
 @pytest.mark.asyncio

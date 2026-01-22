@@ -51,17 +51,10 @@ class LightRAGIndexer(BaseComponent):
                 return self._instances[working_dir]
 
             project_root = (
-                Path(__file__)
-                .resolve()
-                .parent.parent.parent.parent.parent.parent
+                Path(__file__).resolve().parent.parent.parent.parent.parent.parent
             )
-            raganything_path = (
-                project_root.parent / "raganything" / "RAG-Anything"
-            )
-            if (
-                raganything_path.exists()
-                and str(raganything_path) not in sys.path
-            ):
+            raganything_path = project_root.parent / "raganything" / "RAG-Anything"
+            if raganything_path.exists() and str(raganything_path) not in sys.path:
                 sys.path.insert(0, str(raganything_path))
 
             try:
@@ -70,9 +63,8 @@ class LightRAGIndexer(BaseComponent):
                 from src.services.embedding import get_embedding_client
                 from src.services.llm import get_llm_client
 
-            # Use unified LLM client from src/services/llm
-            llm_client = get_llm_client()
-            embed_client = get_embedding_client()
+                llm_client = get_llm_client()
+                embed_client = get_embedding_client()
 
                 distributed_lock = None
                 acquired = False
@@ -102,15 +94,19 @@ class LightRAGIndexer(BaseComponent):
                             await distributed_lock.release()
                         except Exception as exc:  # noqa: BLE001
                             self.logger.warning(
-                                "Failed to release LightRAG init lock: %s", exc
+                                "Failed to release LightRAG init lock: %s",
+                                exc,
                             )
 
-            except ImportError as e:
-                self.logger.error(f"Failed to import LightRAG: {e}")
+            except ImportError as exc:
+                self.logger.error("Failed to import LightRAG: %s", exc)
                 raise
 
     async def process(
-        self, kb_name: str, documents: list[Document], **kwargs
+        self,
+        kb_name: str,
+        documents: list[Document],
+        **kwargs: object,
     ) -> bool:
         """
         Build knowledge graph from documents (text-only).
@@ -123,9 +119,7 @@ class LightRAGIndexer(BaseComponent):
         Returns:
             True if successful
         """
-        self.logger.info(
-            f"Building knowledge graph for {kb_name} (text-only)..."
-        )
+        self.logger.info(f"Building knowledge graph for {kb_name} (text-only)...")
 
         from src.logging.adapters import LightRAGLogContext
 

@@ -98,9 +98,7 @@ class BaseAgent(ABC):
             self._agent_params = {"temperature": 0.7, "max_tokens": 2000}
 
         # Agent config dict (optional legacy config)
-        self.config: dict[str, Any] = (
-            config if isinstance(config, dict) else {}
-        )
+        self.config: dict[str, Any] = config if isinstance(config, dict) else {}
         self.agent_config = self.config.get("agents", {}).get(agent_name, {})
         self.enabled = self.agent_config.get("enabled", True)
 
@@ -110,9 +108,7 @@ class BaseAgent(ABC):
             try:
                 llm_cfg = get_llm_config()
             except LLMConfigError:
-                fallback_model = (
-                    model or os.getenv("LLM_MODEL") or "gpt-4o-mini"
-                )
+                fallback_model = model or os.getenv("LLM_MODEL") or "gpt-4o-mini"
                 if api_key is not None and not isinstance(api_key, SecretStr):
                     api_key = SecretStr(api_key)
 
@@ -148,9 +144,7 @@ class BaseAgent(ABC):
 
         # Compatibility attributes
         self.api_key = self.llm_config.get_api_key()
-        self.base_url = (
-            self.llm_config.base_url or self.llm_config.effective_url
-        )
+        self.base_url = self.llm_config.base_url or self.llm_config.effective_url
         self.model = self.llm_config.model
         self.api_version = self.llm_config.api_version
         self.binding = self.llm_config.binding
@@ -168,9 +162,7 @@ class BaseAgent(ABC):
             )
         except Exception as exc:
             self.prompts = None
-            self.logger.warning(
-                f"Failed to load prompts for {agent_name}: {exc}"
-            )
+            self.logger.warning(f"Failed to load prompts for {agent_name}: {exc}")
 
     # -------------------------------------------------------------------------
     # Model and Parameter Getters
@@ -411,12 +403,8 @@ class BaseAgent(ABC):
             LLM response text
         """
         model = model or self.get_model()
-        temperature = (
-            temperature if temperature is not None else self.get_temperature()
-        )
-        max_tokens = (
-            max_tokens if max_tokens is not None else self.get_max_tokens()
-        )
+        temperature = temperature if temperature is not None else self.get_temperature()
+        max_tokens = max_tokens if max_tokens is not None else self.get_max_tokens()
         max_retries = self.get_max_retries()
 
         # Record call start time
@@ -542,12 +530,8 @@ class BaseAgent(ABC):
             Response chunks as strings
         """
         model = model or self.get_model()
-        temperature = (
-            temperature if temperature is not None else self.get_temperature()
-        )
-        max_tokens = (
-            max_tokens if max_tokens is not None else self.get_max_tokens()
-        )
+        temperature = temperature if temperature is not None else self.get_temperature()
+        max_tokens = max_tokens if max_tokens is not None else self.get_max_tokens()
 
         # Build kwargs
         kwargs = {

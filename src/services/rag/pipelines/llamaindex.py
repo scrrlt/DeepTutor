@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LlamaIndex Pipeline
 ===================
@@ -22,6 +21,7 @@ from llama_index.core.bridge.pydantic import PrivateAttr
 
 from src.logging import get_logger
 from src.services.embedding import get_embedding_client, get_embedding_config
+
 from ..pipeline import RAGPipeline
 
 # Default knowledge base directory
@@ -79,9 +79,7 @@ class CustomEmbedding(BaseEmbedding):
         nest_asyncio.apply()
         return asyncio.run(self._aget_text_embedding(text))
 
-    async def _aget_text_embeddings(
-        self, texts: list[str]
-    ) -> list[list[float]]:
+    async def _aget_text_embeddings(self, texts: list[str]) -> list[list[float]]:
         """Get embeddings for multiple texts."""
         return await self._client.embed(texts)
 
@@ -110,10 +108,10 @@ class LlamaIndexPipeline(RAGPipeline):
         self._configure_settings()
 
         # Configure basic RAG components so tests that inspect components succeed
-        from ..components.parsers import TextParser
         from ..components.chunkers import FixedSizeChunker
         from ..components.embedders.openai import OpenAIEmbedder
         from ..components.indexers.vector import VectorIndexer
+        from ..components.parsers import TextParser
         from ..components.retrievers.dense import DenseRetriever
 
         # Use plain TextParser and FixedSizeChunker to provide chunking for RAG tests
@@ -130,6 +128,7 @@ class LlamaIndexPipeline(RAGPipeline):
                 "optional dependencies may be missing or misconfigured: %s",
                 exc,
             )
+
     def _configure_settings(self):
         """Configure LlamaIndex global settings."""
         # Get embedding config
@@ -147,9 +146,7 @@ class LlamaIndexPipeline(RAGPipeline):
             f"({embedding_cfg.dim}D, {embedding_cfg.binding}), chunk_size=512"
         )
 
-    async def initialize(
-        self, kb_name: str, file_paths: list[str], **kwargs
-    ) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs) -> bool:
         """
         Initialize KB using real LlamaIndex components.
 
@@ -192,13 +189,9 @@ class LlamaIndexPipeline(RAGPipeline):
                         },
                     )
                     documents.append(doc)
-                    self.logger.info(
-                        f"Loaded: {file_path.name} ({len(text)} chars)"
-                    )
+                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
                 else:
-                    self.logger.warning(
-                        f"Skipped empty document: {file_path.name}"
-                    )
+                    self.logger.warning(f"Skipped empty document: {file_path.name}")
 
             if not documents:
                 self.logger.error("No valid documents found")
@@ -213,18 +206,14 @@ class LlamaIndexPipeline(RAGPipeline):
             loop = asyncio.get_event_loop()
             index = await loop.run_in_executor(
                 None,  # Use default ThreadPoolExecutor
-                lambda: VectorStoreIndex.from_documents(
-                    documents, show_progress=True
-                ),
+                lambda: VectorStoreIndex.from_documents(documents, show_progress=True),
             )
 
             # Persist index
             index.storage_context.persist(persist_dir=str(storage_dir))
             self.logger.info(f"Index persisted to {storage_dir}")
 
-            self.logger.info(
-                f"KB '{kb_name}' initialized successfully with LlamaIndex"
-            )
+            self.logger.info(f"KB '{kb_name}' initialized successfully with LlamaIndex")
             return True
 
         except Exception as e:
@@ -246,9 +235,7 @@ class LlamaIndexPipeline(RAGPipeline):
             doc.close()
             return "\n\n".join(texts)
         except ImportError:
-            self.logger.warning(
-                "PyMuPDF not installed. Cannot extract PDF text."
-            )
+            self.logger.warning("PyMuPDF not installed. Cannot extract PDF text.")
             return ""
         except Exception as e:
             self.logger.error(f"Failed to extract PDF text: {e}")
@@ -273,17 +260,13 @@ class LlamaIndexPipeline(RAGPipeline):
         Returns:
             Search results dictionary
         """
-        self.logger.info(
-            f"Searching KB '{kb_name}' with query: {query[:50]}..."
-        )
+        self.logger.info(f"Searching KB '{kb_name}' with query: {query[:50]}...")
 
         kb_dir = Path(self.kb_base_dir) / kb_name
         storage_dir = kb_dir / "llamaindex_storage"
 
         if not storage_dir.exists():
-            self.logger.warning(
-                f"No LlamaIndex storage found at {storage_dir}"
-            )
+            self.logger.warning(f"No LlamaIndex storage found at {storage_dir}")
             return {
                 "query": query,
                 "answer": "No documents indexed. Please upload documents first.",

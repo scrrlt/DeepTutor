@@ -76,14 +76,8 @@ def test_get_available_knowledge(investigate_memory: InvestigateMemory):
     investigate_memory.add_knowledge(item1)
     investigate_memory.add_knowledge(item2)
 
-    assert (
-        len(investigate_memory.get_available_knowledge(tool_types=["tool1"]))
-        == 1
-    )
-    assert (
-        len(investigate_memory.get_available_knowledge(cite_ids=["cite2"]))
-        == 1
-    )
+    assert len(investigate_memory.get_available_knowledge(tool_types=["tool1"])) == 1
+    assert len(investigate_memory.get_available_knowledge(cite_ids=["cite2"])) == 1
 
 
 def test_save_and_load(investigate_memory: InvestigateMemory, tmp_path):
@@ -118,9 +112,7 @@ def test_load_backward_compatibility(tmp_path):
                 "answer_raw": "a1",
             }
         ],
-        "notes": [
-            {"related_knowledge_ids": ["kid1"], "summary": "note_summary"}
-        ],
+        "notes": [{"related_knowledge_ids": ["kid1"], "summary": "note_summary"}],
         "reflections": [{"action_items": ["ref1"]}],
     }
 

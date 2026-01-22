@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tavily Search Provider
 
@@ -110,9 +109,7 @@ class TavilyProvider(BaseSearchProvider):
             )
 
         data = response.json()
-        self.logger.debug(
-            f"Tavily returned {len(data.get('results', []))} results"
-        )
+        self.logger.debug(f"Tavily returned {len(data.get('results', []))} results")
 
         # Extract answer
         answer = data.get("answer", "")

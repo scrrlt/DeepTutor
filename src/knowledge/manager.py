@@ -14,7 +14,10 @@ from pathlib import Path
 import shutil
 import sys
 
+from src.logging import get_logger
 from src.services.rag.components.routing import FileTypeRouter
+
+logger = get_logger("KnowledgeCLI")
 
 
 # Cross-platform file locking
@@ -65,14 +68,14 @@ def file_lock_exclusive(file_handle):
 class KnowledgeBaseManager:
     """Manager for knowledge bases"""
 
-    def __init__(self, base_dir="./data/knowledge_bases"):
+    def __init__(self, base_dir: str = "./data/knowledge_bases") -> None:
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.logger = get_logger("Knowledge")
 
         # Config file to track knowledge bases
         self.config_file = self.base_dir / "kb_config.json"
         self.config = self._load_config()
-        self.logger = get_logger("Knowledge")
 
     def _load_config(self) -> dict:
         """Load knowledge base configuration (kb_config.json only stores KB list)"""
@@ -98,7 +101,10 @@ class KnowledgeBaseManager:
 
                 return config
             except (json.JSONDecodeError, Exception) as e:
-                print(f"[KnowledgeBaseManager] Error loading config: {e}")
+                self.logger.error(
+                    "Error loading knowledge base config: %s",
+                    e,
+                )
                 return {"knowledge_bases": {}}
         return {"knowledge_bases": {}}
 
@@ -117,20 +123,23 @@ class KnowledgeBaseManager:
         status: str,
         progress: dict | None = None,
     ):
-        """
-        Update knowledge base status and progress in kb_config.json.
+        """Update knowledge base status and progress in kb_config.json.
 
         Args:
-            name: Knowledge base name
-            status: Status string ("initializing", "processing", "ready", "error")
+            name: Knowledge base name.
+            status: Status string ("initializing", "processing", "ready", "error").
             progress: Optional progress dict with keys like:
-                - stage: Current stage name
-                - message: Human-readable message
-                - percent: Progress percentage (0-100)
-                - current: Current item number
-                - total: Total items
-                - file_name: Current file being processed
-                - error: Error message (if status is "error")
+                - stage: Current stage name.
+                - message: Human-readable message.
+                - percent: Progress percentage (0-100).
+                - current: Current item number.
+                - total: Total items.
+                - file_name: Current file being processed.
+                - error: Error message (if status is "error").
+        Returns:
+            None.
+        Raises:
+            None.
         """
         # Reload config to get latest state
         self.config = self._load_config()
@@ -195,7 +204,9 @@ class KnowledgeBaseManager:
 
         return sorted(kb_list)
 
-    def register_knowledge_base(self, name: str, description: str = "", set_default: bool = False):
+    def register_knowledge_base(
+        self, name: str, description: str = "", set_default: bool = False
+    ):
         """Register a knowledge base"""
         kb_dir = self.base_dir / name
         if not kb_dir.exists():
@@ -233,7 +244,9 @@ class KnowledgeBaseManager:
         kb_dir = self.get_knowledge_base_path(name)
         rag_storage = kb_dir / "rag_storage"
         if not rag_storage.exists():
-            raise ValueError(f"RAG storage not found for knowledge base: {name or 'default'}")
+            raise ValueError(
+                f"RAG storage not found for knowledge base: {name or 'default'}"
+            )
         return rag_storage
 
     def get_images_path(self, name: str | None = None) -> Path:
@@ -263,7 +276,10 @@ class KnowledgeBaseManager:
             kb_config_service = get_kb_config_service()
             kb_config_service.set_default_kb(name)
         except Exception as e:
-            print(f"Warning: Failed to save default to centralized config: {e}")
+            self.logger.warning(
+                "Failed to save default to centralized config: %s",
+                e,
+            )
 
     def get_default(self) -> str | None:
         """
@@ -356,7 +372,11 @@ class KnowledgeBaseManager:
                     with open(metadata_file, encoding="utf-8") as f:
                         info["metadata"] = json.load(f)
                 except Exception as e:
-                    print(f"Warning: Failed to read metadata.json for KB '{kb_name}': {e}")
+                    self.logger.warning(
+                        "Failed to read metadata.json for KB '%s': %s",
+                        kb_name,
+                        e,
+                    )
                     info["metadata"] = {}
 
         # Count files - handle errors gracefully
@@ -372,7 +392,9 @@ class KnowledgeBaseManager:
         if dir_exists:
             try:
                 raw_count = (
-                    len([f for f in raw_dir.iterdir() if f.is_file()]) if raw_dir.exists() else 0
+                    len([f for f in raw_dir.iterdir() if f.is_file()])
+                    if raw_dir.exists()
+                    else 0
                 )
             except Exception:
                 pass
@@ -388,19 +410,26 @@ class KnowledgeBaseManager:
 
             try:
                 content_lists_count = (
-                    len(list(content_list_dir.glob("*.json"))) if content_list_dir.exists() else 0
+                    len(list(content_list_dir.glob("*.json")))
+                    if content_list_dir.exists()
+                    else 0
                 )
             except Exception:
                 pass
 
         metadata = info["metadata"]
-        rag_provider = metadata.get("rag_provider") if isinstance(metadata, dict) else None
+        rag_provider = (
+            metadata.get("rag_provider") if isinstance(metadata, dict) else None
+        )
         # Also check kb_config for rag_provider (fallback)
         if not rag_provider:
             rag_provider = kb_config.get("rag_provider")
 
         rag_initialized = (
-            dir_exists and rag_storage_dir and rag_storage_dir.exists() and rag_storage_dir.is_dir()
+            dir_exists
+            and rag_storage_dir
+            and rag_storage_dir.exists()
+            and rag_storage_dir.is_dir()
         )
 
         info["statistics"] = {
@@ -427,7 +456,9 @@ class KnowledgeBaseManager:
                         with open(entities_file, encoding="utf-8") as f:
                             entities_data = json.load(f)
                             rag_stats["entities"] = (
-                                len(entities_data) if isinstance(entities_data, (list, dict)) else 0
+                                len(entities_data)
+                                if isinstance(entities_data, (list, dict))
+                                else 0
                             )
                     except Exception:
                         pass
@@ -449,7 +480,9 @@ class KnowledgeBaseManager:
                         with open(chunks_file, encoding="utf-8") as f:
                             chunks_data = json.load(f)
                             rag_stats["chunks"] = (
-                                len(chunks_data) if isinstance(chunks_data, (list, dict)) else 0
+                                len(chunks_data)
+                                if isinstance(chunks_data, (list, dict))
+                                else 0
                             )
                     except Exception:
                         pass
@@ -481,11 +514,14 @@ class KnowledgeBaseManager:
 
         if not confirm:
             # Ask for confirmation in CLI
-            print(f"⚠️  Warning: This will permanently delete the knowledge base '{name}'")
-            print(f"   Path: {kb_dir}")
+            self.logger.warning(
+                "This will permanently delete the knowledge base '%s'",
+                name,
+            )
+            self.logger.warning("Path: %s", kb_dir)
             response = input("Are you sure? Type 'yes' to confirm: ")
             if response.lower() != "yes":
-                print("Deletion cancelled.")
+                self.logger.info("Deletion cancelled.")
                 return False
 
         # Delete the directory
@@ -690,7 +726,9 @@ class KnowledgeBaseManager:
 
         return True
 
-    def scan_linked_folder(self, folder_path: str, provider: str = "raganything") -> list[str]:
+    def scan_linked_folder(
+        self, folder_path: str, provider: str = "raganything"
+    ) -> list[str]:
         """
         Scan a linked folder and return list of supported file paths.
 
@@ -794,7 +832,9 @@ class KnowledgeBaseManager:
             "modified_count": len(modified_files),
         }
 
-    def update_folder_sync_state(self, kb_name: str, folder_id: str, synced_files: list[str]):
+    def update_folder_sync_state(
+        self, kb_name: str, folder_id: str, synced_files: list[str]
+    ):
         """
         Update the sync state for a linked folder after successful sync.
 
@@ -869,7 +909,9 @@ def main():
     )
 
     # Set default command
-    default_parser = subparsers.add_parser("set-default", help="Set default knowledge base")
+    default_parser = subparsers.add_parser(
+        "set-default", help="Set default knowledge base"
+    )
     default_parser.add_argument("name", help="Knowledge base name")
 
     # Delete command
@@ -898,67 +940,74 @@ def main():
         kb_list = manager.list_knowledge_bases()
         default_kb = manager.get_default()
 
-        print("\nAvailable Knowledge Bases:")
-        print("=" * 60)
+        logger.section("Available Knowledge Bases")
         if not kb_list:
-            print("No knowledge bases found")
+            logger.info("No knowledge bases found")
         else:
             for kb_name in kb_list:
                 default_marker = " (default)" if kb_name == default_kb else ""
-                print(f"  • {kb_name}{default_marker}")
-        print()
+                logger.info(f"  • {kb_name}{default_marker}")
 
     elif args.command == "info":
         try:
             info = manager.get_info(args.name)
 
-            print("\nKnowledge Base Information:")
-            print("=" * 60)
-            print(f"Name: {info['name']}")
-            print(f"Path: {info['path']}")
-            print(f"Default: {'Yes' if info['is_default'] else 'No'}")
+            logger.section("Knowledge Base Information")
+            logger.info("Name: %s", info["name"])
+            logger.info("Path: %s", info["path"])
+            logger.info(
+                "Default: %s",
+                "Yes" if info["is_default"] else "No",
+            )
 
             if info.get("metadata"):
-                print("\nMetadata:")
+                logger.info("Metadata:")
                 for key, value in info["metadata"].items():
-                    print(f"  {key}: {value}")
+                    logger.info("  %s: %s", key, value)
 
-            print("\nStatistics:")
+            logger.info("Statistics:")
             stats = info["statistics"]
-            print(f"  Raw documents: {stats['raw_documents']}")
-            print(f"  Images: {stats['images']}")
-            print(f"  Content lists: {stats['content_lists']}")
-            print(f"  RAG initialized: {'Yes' if stats['rag_initialized'] else 'No'}")
+            logger.info("  Raw documents: %s", stats["raw_documents"])
+            logger.info("  Images: %s", stats["images"])
+            logger.info("  Content lists: %s", stats["content_lists"])
+            logger.info(
+                "  RAG initialized: %s",
+                "Yes" if stats["rag_initialized"] else "No",
+            )
 
             if "rag" in stats:
-                print("\n  RAG Statistics:")
+                logger.info("  RAG Statistics:")
                 for key, value in stats["rag"].items():
-                    print(f"    {key}: {value}")
-
-            print()
+                    logger.info("    %s: %s", key, value)
         except Exception as e:
-            print(f"Error: {e!s}")
+            logger.error("Error: %s", e)
 
     elif args.command == "set-default":
         try:
             manager.set_default(args.name)
-            print(f"✓ Set '{args.name}' as default knowledge base")
+            logger.success(
+                "Set '%s' as default knowledge base",
+                args.name,
+            )
         except Exception as e:
-            print(f"Error: {e!s}")
+            logger.error("Error: %s", e)
 
     elif args.command == "delete":
         try:
             success = manager.delete_knowledge_base(args.name, confirm=args.force)
             if success:
-                print(f"✓ Deleted knowledge base '{args.name}'")
+                logger.success(
+                    "Deleted knowledge base '%s'",
+                    args.name,
+                )
         except Exception as e:
-            print(f"Error: {e!s}")
+            logger.error("Error: %s", e)
 
     elif args.command == "clean-rag":
         try:
             manager.clean_rag_storage(args.name, backup=not args.no_backup)
         except Exception as e:
-            print(f"Error: {e!s}")
+            logger.error("Error: %s", e)
 
     else:
         parser.print_help()

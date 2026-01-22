@@ -112,7 +112,8 @@ class SolverSessionManager:
             "title": title[:100],  # Limit title length
             "messages": [],
             "kb_name": kb_name,
-            "token_stats": token_stats or {
+            "token_stats": token_stats
+            or {
                 "model": "Unknown",
                 "calls": 0,
                 "tokens": 0,

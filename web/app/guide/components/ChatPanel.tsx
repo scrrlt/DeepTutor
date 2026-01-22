@@ -1,15 +1,15 @@
 'use client'
 
-import { useRef, useEffect, useState } from "react";
-import { MessageSquare, Send, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { useTranslation } from "react-i18next";
-import { processLatexContent } from "@/lib/latex";
-import { ChatMessage } from "../types";
+import { useRef, useEffect, useState } from 'react'
+import { MessageSquare, Send, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
+import { useTranslation } from 'react-i18next'
+import { processLatexContent } from '@/lib/latex'
+import { ChatMessage } from '../types'
 
 interface ChatPanelProps {
   messages: ChatMessage[]
@@ -17,15 +17,11 @@ interface ChatPanelProps {
   onSendMessage: (message: string) => void
 }
 
-export default function ChatPanel({
-  messages,
-  isLearning,
-  onSendMessage,
-}: ChatPanelProps) {
-  const { t } = useTranslation();
-  const [inputMessage, setInputMessage] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+export default function ChatPanel({ messages, isLearning, onSendMessage }: ChatPanelProps) {
+  const { t } = useTranslation()
+  const [inputMessage, setInputMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll chat
   useEffect(() => {
@@ -80,7 +76,7 @@ export default function ChatPanel({
     <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
       <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
         <MessageSquare className="w-4 h-4" />
-        {t("Learning Assistant")}
+        {t('Learning Assistant')}
       </div>
 
       <div
@@ -128,11 +124,9 @@ export default function ChatPanel({
             <input
               type="text"
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" && !e.shiftKey && handleSendMessage()
-              }
-              placeholder={t("Have any questions? Feel free to ask...")}
+              onChange={e => setInputMessage(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+              placeholder={t('Have any questions? Feel free to ask...')}
               disabled={sendingMessage}
               className="flex-1 pl-4 pr-10 py-2.5 bg-slate-100 dark:bg-slate-700 border-transparent focus:bg-white dark:focus:bg-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />

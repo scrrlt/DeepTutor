@@ -11,11 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-INTERFACE_SETTINGS_FILE = (
-    PROJECT_ROOT / "data" / "user" / "settings" / "interface.json"
-)
+INTERFACE_SETTINGS_FILE = PROJECT_ROOT / "data" / "user" / "settings" / "interface.json"
 
 DEFAULT_UI_SETTINGS: dict[str, Any] = {
     "theme": "light",
@@ -79,4 +76,3 @@ def get_ui_language(default: str = "en") -> str:
     """
     settings = get_ui_settings()
     return _normalize_language(settings.get("language"), default)
-

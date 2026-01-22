@@ -50,13 +50,9 @@ class InvestigateAgent(BaseAgent):
 
         # Read agent-specific config from solve.agents.investigate_agent
         agent_config = (
-            config.get("solve", {})
-            .get("agents", {})
-            .get("investigate_agent", {})
+            config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
         )
-        self.max_actions_per_round = agent_config.get(
-            "max_actions_per_round", 1
-        )
+        self.max_actions_per_round = agent_config.get("max_actions_per_round", 1)
         self.max_iterations = agent_config.get("max_iterations", 3)
 
     async def process(
@@ -187,9 +183,7 @@ class InvestigateAgent(BaseAgent):
                     "tool_type": tool_type,
                     "query": query,
                     "identifier": identifier,
-                    "cite_id": knowledge_item.cite_id
-                    if knowledge_item
-                    else None,
+                    "cite_id": knowledge_item.cite_id if knowledge_item else None,
                 }
             )
 
@@ -226,9 +220,7 @@ class InvestigateAgent(BaseAgent):
 
         remaining_questions_full = []
         if memory.reflections and memory.reflections.remaining_questions:
-            remaining_questions_full = (
-                memory.reflections.remaining_questions.copy()
-            )
+            remaining_questions_full = memory.reflections.remaining_questions.copy()
         knowledge_chain_summary = (
             "\n".join(
                 f"- {item.cite_id} ({item.tool_type}): {item.summary or item.raw_result[:200]}"
@@ -265,9 +257,7 @@ class InvestigateAgent(BaseAgent):
         if not self.enable_web_search:
             # Get the web_search disabled prompt if available, otherwise filter out web_search lines
             web_search_disabled_prompt = (
-                self.get_prompt("web_search_disabled")
-                if self.has_prompts()
-                else None
+                self.get_prompt("web_search_disabled") if self.has_prompts() else None
             )
             if web_search_disabled_prompt:
                 # Replace web_search description with disabled message
@@ -304,9 +294,7 @@ class InvestigateAgent(BaseAgent):
 
     def _build_user_prompt(self, context: dict[str, Any]) -> str:
         """Build user prompt (pass full content)"""
-        template = (
-            self.get_prompt("user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "InvestigateAgent missing user prompt template. Configure in prompts/en/analysis_loop/investigate_agent.yaml"
@@ -338,9 +326,7 @@ class InvestigateAgent(BaseAgent):
                 raw_result = result.get("answer", "")
 
             elif tool_selection == "rag_hybrid":
-                result = await self._call_rag_hybrid(
-                    query, kb_name, output_dir
-                )
+                result = await self._call_rag_hybrid(query, kb_name, output_dir)
                 raw_result = result.get("answer", "")
 
             elif tool_selection == "web_search":
@@ -366,9 +352,7 @@ class InvestigateAgent(BaseAgent):
                     )
                     return None
 
-                result = await self._call_query_item(
-                    identifier_to_use, kb_name
-                )
+                result = await self._call_query_item(identifier_to_use, kb_name)
                 raw_result = result.get("content", result.get("answer", ""))
 
             else:
@@ -444,8 +428,6 @@ class InvestigateAgent(BaseAgent):
             query=query, output_dir=output_dir or "./cache", verbose=False
         )
 
-    async def _call_query_item(
-        self, identifier: str, kb_name: str
-    ) -> dict[str, Any]:
+    async def _call_query_item(self, identifier: str, kb_name: str) -> dict[str, Any]:
         """Call Query Item"""
         return query_numbered_item(identifier=identifier, kb_name=kb_name)

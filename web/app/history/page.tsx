@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   History,
   Clock,
@@ -17,12 +17,12 @@ import {
   MessageSquare,
   Loader2,
   Eye,
-} from "lucide-react";
-import { apiUrl } from "@/lib/api";
-import { getTranslation } from "@/lib/i18n";
-import { useGlobal } from "@/context/GlobalContext";
-import ActivityDetail from "@/components/ActivityDetail";
-import ChatSessionDetail from "@/components/ChatSessionDetail";
+} from 'lucide-react'
+import { apiUrl } from '@/lib/api'
+import { getTranslation } from '@/lib/i18n'
+import { useGlobal } from '@/context/GlobalContext'
+import ActivityDetail from '@/components/ActivityDetail'
+import ChatSessionDetail from '@/components/ChatSessionDetail'
 
 interface HistoryEntry {
   id: string
@@ -72,52 +72,48 @@ interface ChatSession {
 
 // Solver session interface
 interface SolverSession {
-  session_id: string;
-  title: string;
-  message_count: number;
-  kb_name: string;
-  last_message: string;
+  session_id: string
+  title: string
+  message_count: number
+  kb_name: string
+  last_message: string
   token_stats?: {
-    model: string;
-    calls: number;
-    tokens: number;
-    cost: number;
-  };
-  created_at: number;
-  updated_at: number;
+    model: string
+    calls: number
+    tokens: number
+    cost: number
+  }
+  created_at: number
+  updated_at: number
 }
 
 export default function HistoryPage() {
-  const { uiSettings, loadChatSession } = useGlobal();
-  const t = (key: string) => getTranslation(uiSettings.language, key);
-  const router = useRouter();
+  const { uiSettings, loadChatSession } = useGlobal()
+  const t = (key: string) => getTranslation(uiSettings.language, key)
+  const router = useRouter()
 
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
-  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
-  const [selectedChatSession, setSelectedChatSession] = useState<string | null>(
-    null,
-  );
-  const [filterType, setFilterType] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [entries, setEntries] = useState<HistoryEntry[]>([])
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null)
+  const [selectedChatSession, setSelectedChatSession] = useState<string | null>(null)
+  const [filterType, setFilterType] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    fetchHistory();
-  }, [filterType]);
+    fetchHistory()
+  }, [filterType])
 
   const fetchHistory = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       // Fetch regular activity history
-      if (filterType === "all" || filterType !== "chat") {
-        const typeParam = filterType !== "all" ? `&type=${filterType}` : "";
-        const res = await fetch(
-          apiUrl(`/api/v1/dashboard/recent?limit=50${typeParam}`),
-        );
-        const data = await res.json();
-        setEntries(data);
+      if (filterType === 'all' || filterType !== 'chat') {
+        const typeParam = filterType !== 'all' ? `&type=${filterType}` : ''
+        const res = await fetch(apiUrl(`/api/v1/dashboard/recent?limit=50${typeParam}`))
+        const data = await res.json()
+        setEntries(data)
       } else {
         setEntries([])
       }
@@ -137,26 +133,24 @@ export default function HistoryPage() {
       }
 
       // Fetch solver sessions
-      if (filterType === "all" || filterType === "solve") {
+      if (filterType === 'all' || filterType === 'solve') {
         try {
-          const solverRes = await fetch(
-            apiUrl("/api/v1/solve/sessions?limit=20"),
-          );
-          const solverData = await solverRes.json();
-          setSolverSessions(solverData);
+          const solverRes = await fetch(apiUrl('/api/v1/solve/sessions?limit=20'))
+          const solverData = await solverRes.json()
+          setSolverSessions(solverData)
         } catch (err) {
-          console.error("Failed to fetch solver sessions:", err);
-          setSolverSessions([]);
+          console.error('Failed to fetch solver sessions:', err)
+          setSolverSessions([])
         }
       } else {
-        setSolverSessions([]);
+        setSolverSessions([])
       }
     } catch (err) {
       console.error('Failed to fetch history:', err)
     } finally {
       setLoading(false)
     }
-  };
+  }
 
   const handleLoadChatSession = async (sessionId: string) => {
     setLoadingSessionId(sessionId)
@@ -168,7 +162,7 @@ export default function HistoryPage() {
     } finally {
       setLoadingSessionId(null)
     }
-  };
+  }
 
   const filteredEntries = entries.filter(entry => {
     // Exclude chat type - they are shown in dedicated Chat History section
@@ -190,21 +184,15 @@ export default function HistoryPage() {
 
       let dateKey: string
       if (date.toDateString() === today.toDateString()) {
-        dateKey = "Today";
+        dateKey = 'Today'
       } else if (date.toDateString() === yesterday.toDateString()) {
-        dateKey = "Yesterday";
+        dateKey = 'Yesterday'
       } else {
-        dateKey = date.toLocaleDateString(
-          uiSettings.language === "zh" ? "zh-CN" : "en-US",
-          {
-            month: "long",
-            day: "numeric",
-            year:
-              date.getFullYear() !== today.getFullYear()
-                ? "numeric"
-                : undefined,
-          },
-        );
+        dateKey = date.toLocaleDateString(uiSettings.language === 'zh' ? 'zh-CN' : 'en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+        })
       }
 
       if (!groups[dateKey]) {
@@ -291,7 +279,9 @@ export default function HistoryPage() {
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               {t('Loading')}...
             </div>
-          ) : filteredEntries.length === 0 && chatSessions.length === 0 && solverSessions.length === 0 ? (
+          ) : filteredEntries.length === 0 &&
+            chatSessions.length === 0 &&
+            solverSessions.length === 0 ? (
             <div className="p-12 text-center">
               <div className="w-16 h-16 bg-slate-50 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <History className="w-8 h-8 text-slate-300 dark:text-slate-500" />
@@ -372,104 +362,98 @@ export default function HistoryPage() {
         </div>
 
         {/* Chat Sessions Section */}
-        {chatSessions.length > 0 &&
-          (filterType === "all" || filterType === "chat") && (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-amber-500" />
-                <h2 className="font-semibold text-slate-900 dark:text-slate-100">
-                  {t("Chat History")}
-                </h2>
-                <span className="text-xs text-slate-400 ml-auto">
-                  {chatSessions.length}{" "}
-                  {chatSessions.length === 1 ? "session" : "sessions"}
-                </span>
-              </div>
-              <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                {chatSessions
-                  .filter((session) => {
-                    if (!searchQuery.trim()) return true;
-                    const query = searchQuery.toLowerCase();
-                    return (
-                      session.title.toLowerCase().includes(query) ||
-                      session.last_message?.toLowerCase().includes(query)
-                    );
-                  })
-                  .map((session) => (
-                    <div
-                      key={session.session_id}
-                      onClick={() => setSelectedChatSession(session.session_id)}
-                      className="px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group cursor-pointer"
-                    >
-                      <div className="flex gap-4">
-                        <div className="mt-0.5">
-                          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                            <MessageCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                              Chat
-                            </span>
-                            <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(
-                                session.updated_at * 1000,
-                              ).toLocaleDateString(
-                                uiSettings.language === "zh"
-                                  ? "zh-CN"
-                                  : "en-US",
-                              )}
-                            </span>
-                          </div>
-                          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate pr-4">
-                            {session.title}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-slate-400 dark:text-slate-500">
-                              {session.message_count} messages
-                            </span>
-                            {session.last_message && (
-                              <p className="text-sm text-slate-500 dark:text-slate-400 truncate flex-1">
-                                {session.last_message}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="self-center flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedChatSession(session.session_id);
-                            }}
-                            className="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-1.5"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            {t("View")}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLoadChatSession(session.session_id);
-                            }}
-                            disabled={loadingSessionId === session.session_id}
-                            className="px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                          >
-                            {loadingSessionId === session.session_id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            )}
-                            {t("Continue")}
-                          </button>
+        {chatSessions.length > 0 && (filterType === 'all' || filterType === 'chat') && (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-amber-500" />
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100">
+                {t('Chat History')}
+              </h2>
+              <span className="text-xs text-slate-400 ml-auto">
+                {chatSessions.length} {chatSessions.length === 1 ? 'session' : 'sessions'}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+              {chatSessions
+                .filter(session => {
+                  if (!searchQuery.trim()) return true
+                  const query = searchQuery.toLowerCase()
+                  return (
+                    session.title.toLowerCase().includes(query) ||
+                    session.last_message?.toLowerCase().includes(query)
+                  )
+                })
+                .map(session => (
+                  <div
+                    key={session.session_id}
+                    onClick={() => setSelectedChatSession(session.session_id)}
+                    className="px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group cursor-pointer"
+                  >
+                    <div className="flex gap-4">
+                      <div className="mt-0.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <MessageCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         </div>
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+                            Chat
+                          </span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(session.updated_at * 1000).toLocaleDateString(
+                              uiSettings.language === 'zh' ? 'zh-CN' : 'en-US'
+                            )}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate pr-4">
+                          {session.title}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
+                            {session.message_count} messages
+                          </span>
+                          {session.last_message && (
+                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate flex-1">
+                              {session.last_message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="self-center flex items-center gap-2">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setSelectedChatSession(session.session_id)
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          {t('View')}
+                        </button>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            handleLoadChatSession(session.session_id)
+                          }}
+                          disabled={loadingSessionId === session.session_id}
+                          className="px-3 py-1.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {loadingSessionId === session.session_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          )}
+                          {t('Continue')}
+                        </button>
+                      </div>
                     </div>
-                  ))}
-              </div>
+                  </div>
+                ))}
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       {/* Activity Detail Modal */}
@@ -495,8 +479,8 @@ export default function HistoryPage() {
           sessionId={selectedSolverSession}
           onClose={() => setSelectedSolverSession(null)}
           onContinue={() => {
-            handleLoadSolverSession(selectedSolverSession);
-            setSelectedSolverSession(null);
+            handleLoadSolverSession(selectedSolverSession)
+            setSelectedSolverSession(null)
           }}
         />
       )}

@@ -78,9 +78,7 @@ async def test_websocket_chat(mock_session_manager, mock_chat_agent, client):
         yield {"type": "chunk", "content": "response"}
         yield {"type": "complete", "response": "response", "sources": {}}
 
-    mock_agent_instance.process = AsyncMock(
-        return_value=mock_stream_generator()
-    )
+    mock_agent_instance.process = AsyncMock(return_value=mock_stream_generator())
     mock_chat_agent.return_value = mock_agent_instance
     mock_session_manager.get_session.return_value = {"messages": []}
 

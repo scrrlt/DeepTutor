@@ -134,12 +134,8 @@ class LocateAgent(BaseAgent):
                                     "knowledge_title",
                                     "Unnamed knowledge point",
                                 ),
-                                "knowledge_summary": point.get(
-                                    "knowledge_summary", ""
-                                ),
-                                "user_difficulty": point.get(
-                                    "user_difficulty", ""
-                                ),
+                                "knowledge_summary": point.get("knowledge_summary", ""),
+                                "user_difficulty": point.get("user_difficulty", ""),
                             }
                         )
 

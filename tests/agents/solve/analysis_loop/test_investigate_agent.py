@@ -54,9 +54,7 @@ async def test_investigate_agent_process_workflow(
     memory = InvestigateMemory(user_question="test question")
     citation_memory = CitationMemory(output_dir="/tmp/test")
 
-    result = await investigate_agent.process(
-        "test question", memory, citation_memory
-    )
+    result = await investigate_agent.process("test question", memory, citation_memory)
 
     investigate_agent.call_llm.assert_called_once()
     investigate_agent._execute_single_action.assert_called_once()
@@ -83,9 +81,7 @@ async def test_investigate_agent_process_empty_plan(
     memory = InvestigateMemory(user_question="test question")
     citation_memory = CitationMemory(output_dir="/tmp/test")
 
-    result = await investigate_agent.process(
-        "test question", memory, citation_memory
-    )
+    result = await investigate_agent.process("test question", memory, citation_memory)
 
     investigate_agent.call_llm.assert_called_once()
     assert result["should_stop"] is True

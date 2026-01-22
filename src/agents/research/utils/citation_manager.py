@@ -16,7 +16,6 @@ sys.path.insert(0, str(project_root))
 
 from src.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -42,7 +41,9 @@ class CitationManager:
 
         # Global citation ID counters
         self._plan_counter = 0  # For PLAN-XX format (planning stage)
-        self._block_counters: dict[str, int] = {}  # For CIT-X-XX format (research stage)
+        self._block_counters: dict[
+            str, int
+        ] = {}  # For CIT-X-XX format (research stage)
 
         # Reference number mapping (citation_id -> ref_number for in-text citations)
         self._ref_number_map: dict[str, int] = {}
@@ -271,10 +272,14 @@ class CitationManager:
                     citation_id, tool_type, raw_answer, tool_trace
                 )
             elif tool_type_lower == "run_code":
-                citation_info = self._extract_code_citation(citation_id, tool_type, tool_trace)
+                citation_info = self._extract_code_citation(
+                    citation_id, tool_type, tool_trace
+                )
             else:
                 # Unknown tool type, use generic format
-                citation_info = self._extract_generic_citation(citation_id, tool_type, tool_trace)
+                citation_info = self._extract_generic_citation(
+                    citation_id, tool_type, tool_trace
+                )
 
             if citation_info:
                 self._citations[citation_id] = citation_info
@@ -286,7 +291,11 @@ class CitationManager:
             return False
 
     def _extract_rag_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for RAG retrieval with source documents"""
         citation_info = {
@@ -307,23 +316,38 @@ class CitationManager:
             sources = []
 
             # Try different field names for source documents
-            for field_name in ["chunks", "documents", "sources", "context", "retrieved_docs"]:
+            for field_name in [
+                "chunks",
+                "documents",
+                "sources",
+                "context",
+                "retrieved_docs",
+            ]:
                 if field_name in answer_data:
                     source_list = answer_data[field_name]
                     if isinstance(source_list, list):
                         for i, doc in enumerate(source_list[:5]):  # Limit to 5 sources
                             source_info = {}
                             if isinstance(doc, dict):
-                                source_info["title"] = doc.get("title", doc.get("doc_title", ""))
+                                source_info["title"] = doc.get(
+                                    "title", doc.get("doc_title", "")
+                                )
                                 source_info["content_preview"] = doc.get(
                                     "content", doc.get("text", "")
                                 )[:200]
                                 source_info["source_file"] = doc.get(
-                                    "source", doc.get("file_path", doc.get("filename", ""))
+                                    "source",
+                                    doc.get("file_path", doc.get("filename", "")),
                                 )
-                                source_info["page"] = doc.get("page", doc.get("page_number", ""))
-                                source_info["chunk_id"] = doc.get("chunk_id", doc.get("id", i))
-                                source_info["score"] = doc.get("score", doc.get("similarity", ""))
+                                source_info["page"] = doc.get(
+                                    "page", doc.get("page_number", "")
+                                )
+                                source_info["chunk_id"] = doc.get(
+                                    "chunk_id", doc.get("id", i)
+                                )
+                                source_info["score"] = doc.get(
+                                    "score", doc.get("similarity", "")
+                                )
                             elif isinstance(doc, str):
                                 source_info["content_preview"] = doc[:200]
                             if source_info:
@@ -342,7 +366,11 @@ class CitationManager:
         return citation_info
 
     def _extract_web_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for web search with URLs"""
         citation_info = {
@@ -361,7 +389,12 @@ class CitationManager:
             web_sources = []
 
             # Try different field names for web results
-            for field_name in ["results", "web_results", "search_results", "urls"]:
+            for field_name in [
+                "results",
+                "web_results",
+                "search_results",
+                "urls",
+            ]:
                 if field_name in answer_data:
                     result_list = answer_data[field_name]
                     if isinstance(result_list, list):
@@ -370,9 +403,10 @@ class CitationManager:
                                 web_source = {
                                     "title": result.get("title", ""),
                                     "url": result.get("url", result.get("link", "")),
-                                    "snippet": result.get("snippet", result.get("description", ""))[
-                                        :200
-                                    ],
+                                    "snippet": result.get(
+                                        "snippet",
+                                        result.get("description", ""),
+                                    )[:200],
                                     "domain": result.get("domain", ""),
                                 }
                                 if web_source["url"]:  # Only add if URL exists
@@ -389,7 +423,11 @@ class CitationManager:
         return citation_info
 
     def _extract_paper_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for paper search - supports multiple papers"""
         citation_info = {
@@ -547,7 +585,9 @@ class CitationManager:
             if kb_name:
                 parts.append(f"[KB: {kb_name}]")
             if sources:
-                source_titles = [s.get("title", s.get("source_file", "")) for s in sources[:3] if s]
+                source_titles = [
+                    s.get("title", s.get("source_file", "")) for s in sources[:3] if s
+                ]
                 source_titles = [t for t in source_titles if t]
                 if source_titles:
                     parts.append(f"[Sources: {', '.join(source_titles)}]")
@@ -654,7 +694,9 @@ class CitationManager:
             return self._ref_number_map
 
         # Sort all citation IDs by their numeric parts
-        sorted_citation_ids = sorted(self._citations.keys(), key=self._extract_citation_sort_key)
+        sorted_citation_ids = sorted(
+            self._citations.keys(), key=self._extract_citation_sort_key
+        )
 
         # Track seen dedup keys and their assigned ref_numbers
         seen_keys: dict[str, int] = {}
@@ -763,7 +805,9 @@ class CitationManager:
         async with self._lock:
             return self.generate_research_citation_id(block_id)
 
-    async def get_next_citation_id_async(self, stage: str = "research", block_id: str = "") -> str:
+    async def get_next_citation_id_async(
+        self, stage: str = "research", block_id: str = ""
+    ) -> str:
         """
         Thread-safe async version of get_next_citation_id for parallel mode
 

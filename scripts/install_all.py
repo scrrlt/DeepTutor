@@ -179,7 +179,9 @@ def install_with_pip_staged(requirements_file: Path, project_root: Path) -> bool
         log_warning(f"llama-index installation error: {e}")
 
     # Stage 3: Install raganything (includes lightrag-hku as dependency)
-    log_info("Stage 3/4: Installing raganything (includes lightrag-hku, this may take a while)...")
+    log_info(
+        "Stage 3/4: Installing raganything (includes lightrag-hku, this may take a while)..."
+    )
     try:
         # First try normal install
         cmd = [sys.executable, "-m", "pip", "install", "raganything>=0.1.0"]
@@ -300,7 +302,9 @@ def install_backend_deps(project_root: Path) -> bool:
         if result.returncode == 0:
             log_success("Backend dependencies installed successfully")
             return True
-        log_error(f"Backend dependencies installation failed (exit code: {result.returncode})")
+        log_error(
+            f"Backend dependencies installation failed (exit code: {result.returncode})"
+        )
         return False
 
     except subprocess.TimeoutExpired:
@@ -335,7 +339,9 @@ def install_frontend_deps(project_root: Path) -> bool:
         if platform == "darwin":  # macOS
             # Try Homebrew first
             if shutil.which("brew"):
-                log_info("Detected macOS with Homebrew, installing Node.js via Homebrew...")
+                log_info(
+                    "Detected macOS with Homebrew, installing Node.js via Homebrew..."
+                )
                 try:
                     result = subprocess.run(
                         ["brew", "install", "node"],
@@ -475,7 +481,9 @@ def install_frontend_deps(project_root: Path) -> bool:
         elif platform == "win32":  # Windows
             # Try Chocolatey
             if shutil.which("choco"):
-                log_info("Detected Windows with Chocolatey, installing Node.js via Chocolatey...")
+                log_info(
+                    "Detected Windows with Chocolatey, installing Node.js via Chocolatey..."
+                )
                 try:
                     result = subprocess.run(
                         ["choco", "install", "nodejs", "-y"],
@@ -537,7 +545,9 @@ def install_frontend_deps(project_root: Path) -> bool:
                 return False
         else:
             log_error("Could not automatically install Node.js")
-            log_info("Please install Node.js manually using one of the following methods:")
+            log_info(
+                "Please install Node.js manually using one of the following methods:"
+            )
             log_info("1. Official installer: https://nodejs.org/")
             log_info("2. Using conda: conda install -c conda-forge nodejs")
             log_info("3. Using nvm: nvm install 18 && nvm use 18")
@@ -577,7 +587,9 @@ def install_frontend_deps(project_root: Path) -> bool:
         if result.returncode == 0:
             log_success("Frontend dependencies installed successfully")
             return True
-        log_error(f"Frontend dependencies installation failed (exit code: {result.returncode})")
+        log_error(
+            f"Frontend dependencies installation failed (exit code: {result.returncode})"
+        )
         return False
 
     except subprocess.TimeoutExpired:
@@ -621,7 +633,9 @@ def verify_installation(project_root: Path) -> bool:
         except ImportError:
             if package == "docling":
                 # docling is optional
-                log_warning(f"  ⚠ {package} not installed (optional, for Office/HTML parsing)")
+                log_warning(
+                    f"  ⚠ {package} not installed (optional, for Office/HTML parsing)"
+                )
             else:
                 log_error(f"  ✗ {package} not installed")
                 all_ok = False
@@ -653,7 +667,9 @@ def main():
     logger.info("\n" + "=" * 60)
     logger.info("🚀 DeepTutor One-Click Installation Script")
     logger.info("=" * 60)
-    logger.info("This script will automatically install all frontend and backend dependencies")
+    logger.info(
+        "This script will automatically install all frontend and backend dependencies"
+    )
     logger.info(
         "Execution flow: Backend dependencies -> Frontend dependencies -> Verify installation"
     )
@@ -670,12 +686,16 @@ def main():
 
     # Install backend dependencies
     if not install_backend_deps(project_root):
-        log_error("\n❌ Backend dependencies installation failed, please check error messages")
+        log_error(
+            "\n❌ Backend dependencies installation failed, please check error messages"
+        )
         sys.exit(1)
 
     # Install frontend dependencies
     if not install_frontend_deps(project_root):
-        log_error("\n❌ Frontend dependencies installation failed, please check error messages")
+        log_error(
+            "\n❌ Frontend dependencies installation failed, please check error messages"
+        )
         sys.exit(1)
 
     # Verify installation
@@ -683,7 +703,9 @@ def main():
         log_warning(
             "\n⚠️  Some issues found during verification, but installation process completed"
         )
-        log_info("If you encounter runtime errors, please check the missing packages above")
+        log_info(
+            "If you encounter runtime errors, please check the missing packages above"
+        )
     else:
         log_success("\n✅ All dependencies installed and verified successfully!")
 

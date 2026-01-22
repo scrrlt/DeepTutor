@@ -7,11 +7,10 @@ This agent is intentionally lightweight:
 - Uses a model-agnostic history truncation heuristic
 """
 
-import asyncio
-from functools import partial
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
 import sys
-from typing import Any, AsyncGenerator
+from typing import Any
 
 # Add project root to path
 _project_root = Path(__file__).parent.parent.parent.parent
@@ -55,7 +54,7 @@ class ChatAgent(BaseAgent):
 
         for msg in reversed(history):
             content_len = len(msg.get("content", ""))
-            tokens = int(content_len / 3.5)
+            tokens = max(1, int(content_len / 2))
             if estimated_tokens + tokens > self.max_history_tokens:
                 break
             truncated.insert(0, msg)
@@ -74,15 +73,10 @@ class ChatAgent(BaseAgent):
         context_parts: list[str] = []
         sources: dict[str, Any] = {"rag": [], "web": []}
 
-        # RAG retrieval
-        if enable_rag and kb_name:
+        if use_rag and kb_name and self._rag_search:
             try:
-                self.logger.info(f"RAG search: {message[:50]}...")
-                rag_result = await rag_search(
-                    query=message,
-                    kb_name=kb_name,
-                    mode="hybrid",
-                )
+                self.logger.info("RAG search: %s", message[:50])
+                rag_result = await self._rag_search(message, kb_name=kb_name)
                 rag_answer = rag_result.get("answer", "")
                 if rag_answer:
                     context_parts.append(f"[Knowledge Base: {kb_name}]\n{rag_answer}")
@@ -90,23 +84,21 @@ class ChatAgent(BaseAgent):
                         {
                             "kb_name": kb_name,
                             "content": (
-                                rag_answer[:500] + "..." if len(rag_answer) > 500 else rag_answer
+                                rag_answer[:500] + "..."
+                                if len(rag_answer) > 500
+                                else rag_answer
                             ),
                         }
                     )
-                    self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
-            except Exception as e:
-                self.logger.warning(f"RAG search failed: {e}")
+                    self.logger.info("RAG retrieved %s chars", len(rag_answer))
+            except Exception as exc:
+                self.logger.warning("RAG search failed: %s", exc)
 
         # Web search
-        if enable_web_search:
+        if use_web and self._web_search:
             try:
-                self.logger.info(f"Web search: {message[:50]}...")
-                loop = asyncio.get_running_loop()
-                web_result = await loop.run_in_executor(
-                    None,
-                    partial(web_search, query=message, verbose=False),
-                )
+                self.logger.info("Web search: %s", message[:50])
+                web_result = await self._web_search(message)
                 web_answer = web_result.get("answer", "")
                 web_citations = web_result.get("citations", [])
 
@@ -114,11 +106,12 @@ class ChatAgent(BaseAgent):
                     context_parts.append(f"[Web Search Results]\n{web_answer}")
                     sources["web"] = web_citations[:5]
                     self.logger.info(
-                        f"Web search returned {len(web_answer)} chars, "
-                        f"{len(web_citations)} citations"
+                        "Web search returned %s chars, %s citations",
+                        len(web_answer),
+                        len(web_citations),
                     )
-            except Exception as e:
-                self.logger.warning(f"Web search failed: {e}")
+            except Exception as exc:
+                self.logger.warning("Web search failed: %s", exc)
 
         context = "\n\n".join(context_parts)
         return context, sources
@@ -148,7 +141,9 @@ class ChatAgent(BaseAgent):
 
         # Add context if available
         if context:
-            context_template = self.get_prompt("context_template", "Reference context:\n{context}")
+            context_template = self.get_prompt(
+                "context_template", "Reference context:\n{context}"
+            )
             context_msg = context_template.format(context=context)
             messages.append({"role": "system", "content": context_msg})
 

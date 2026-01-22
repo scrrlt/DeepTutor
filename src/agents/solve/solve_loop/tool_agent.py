@@ -70,9 +70,7 @@ Rules:
             verbose=False,
         )
         if "```" in code:
-            raise ValueError(
-                "LLM returned markdown code fences, which is forbidden"
-            )
+            raise ValueError("LLM returned markdown code fences, which is forbidden")
         if len(code) > 8000:
             raise ValueError("Generated code too large")
 
@@ -98,9 +96,7 @@ Rules:
             return {"step_id": step.step_id, "executed": [], "status": "idle"}
 
         logs: list[dict[str, Any]] = []
-        base_dir = (
-            Path(output_dir).resolve() if output_dir else Path().resolve()
-        )
+        base_dir = Path(output_dir).resolve() if output_dir else Path().resolve()
         artifacts_dir = base_dir / "artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -250,9 +246,7 @@ Rules:
         query = record.query
 
         if tool_type == "rag_naive":
-            result = await rag_search(
-                query=query, kb_name=kb_name, mode="naive"
-            )
+            result = await rag_search(query=query, kb_name=kb_name, mode="naive")
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
             metadata = {
@@ -263,9 +257,7 @@ Rules:
             return answer, metadata
 
         if tool_type == "rag_hybrid":
-            result = await rag_search(
-                query=query, kb_name=kb_name, mode="hybrid"
-            )
+            result = await rag_search(query=query, kb_name=kb_name, mode="hybrid")
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
             metadata = {
@@ -276,14 +268,10 @@ Rules:
             return answer, metadata
 
         if tool_type == "web_search":
-            result = web_search(
-                query=query, output_dir=output_dir, verbose=verbose
-            )
+            result = web_search(query=query, output_dir=output_dir, verbose=verbose)
             answer = result.get("answer") or result.get("summary") or ""
             used_citation_ids = self._extract_answer_citations(answer)
-            filtered_citations = self._select_web_citations(
-                used_citation_ids, result
-            )
+            filtered_citations = self._select_web_citations(used_citation_ids, result)
             metadata = {
                 "result_file": result.get("result_file"),
                 "citations": filtered_citations,
@@ -326,7 +314,9 @@ Rules:
                 error_prefix = "【⚠️ Code execution failed】\n"
                 if "FileNotFoundError" in stderr and "artifacts/" in stderr:
                     error_prefix += "Path error detected: Code uses 'artifacts/xxx.png', but working directory is already the artifacts directory.\n"
-                    error_prefix += "Please use 'xxx.png' instead of 'artifacts/xxx.png'.\n\n"
+                    error_prefix += (
+                        "Please use 'xxx.png' instead of 'artifacts/xxx.png'.\n\n"
+                    )
                 raw_answer = error_prefix + raw_answer
 
             new_image_paths = self._collect_new_image_artifacts(
@@ -384,17 +374,13 @@ Rules:
     async def _summarize_tool_result(
         self, tool_type: str, query: str, raw_answer: str
     ) -> str:
-        system_prompt = (
-            self.get_prompt("system") if self.has_prompts() else None
-        )
+        system_prompt = self.get_prompt("system") if self.has_prompts() else None
         if not system_prompt:
             raise ValueError(
                 "ToolAgent missing system prompt, please configure system in prompts/{lang}/solve_loop/tool_agent.yaml"
             )
 
-        template = (
-            self.get_prompt("user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "ToolAgent missing user_template, please configure user_template in prompts/{lang}/solve_loop/tool_agent.yaml"
@@ -446,9 +432,7 @@ Rules:
         for cid in used_ids:
             matched = None
             for raw in raw_citations:
-                ref_id = (
-                    str(raw.get("id")) if raw.get("id") is not None else ""
-                )
+                ref_id = str(raw.get("id")) if raw.get("id") is not None else ""
                 ref_token = (raw.get("reference") or "").strip()
                 normalized_token = ref_token.strip("[]")
                 if cid == ref_id or cid == normalized_token:
@@ -465,8 +449,7 @@ Rules:
 
             selected.append(
                 {
-                    "id": matched.get("id")
-                    or (int(cid) if cid.isdigit() else cid),
+                    "id": matched.get("id") or (int(cid) if cid.isdigit() else cid),
                     "reference": matched.get("reference") or f"[{cid}]",
                     "url": matched.get("url"),
                     "title": matched.get("title", ""),
@@ -484,10 +467,7 @@ Rules:
             return set()
         snapshot = set()
         for file_path in artifacts_path.rglob("*"):
-            if (
-                file_path.is_file()
-                and file_path.suffix.lower() in self.IMAGE_SUFFIXES
-            ):
+            if file_path.is_file() and file_path.suffix.lower() in self.IMAGE_SUFFIXES:
                 snapshot.add(file_path.resolve())
         return snapshot
 

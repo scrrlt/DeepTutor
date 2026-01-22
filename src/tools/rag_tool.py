@@ -24,6 +24,7 @@ from src.services.rag.service import RAGService
 
 # Default provider constant used by tests and external callers
 DEFAULT_RAG_PROVIDER = os.getenv("RAG_PROVIDER", "raganything")
+logger = get_logger("RAGTool")
 
 
 async def rag_search(
@@ -32,8 +33,8 @@ async def rag_search(
     mode: str = "hybrid",
     provider: str | None = None,
     kb_base_dir: str | None = None,
-    **kwargs,
-) -> dict:
+    **kwargs: object,
+) -> dict[str, Any]:
     """
     Query knowledge base using configurable RAG pipeline.
 
@@ -82,7 +83,7 @@ async def initialize_rag(
     documents: list[str],
     provider: str | None = None,
     kb_base_dir: str | None = None,
-    **kwargs,
+    **kwargs: object,
 ) -> bool:
     """
     Initialize RAG with documents.

@@ -162,8 +162,7 @@ async def mimic_exam_questions(
             / "question"
             / "mimic_papers"
             / paper_dir,  # New primary location
-            Path("question_agents/reference_papers")
-            / paper_dir,  # Legacy location
+            Path("question_agents/reference_papers") / paper_dir,  # Legacy location
             Path("reference_papers") / paper_dir,
         ]
 
@@ -191,9 +190,7 @@ async def mimic_exam_questions(
         # Ensure auto subdirectory exists
         auto_dir = latest_dir / "auto"
         if not auto_dir.exists():
-            error_msg = (
-                f"Invalid exam directory (missing auto folder): {latest_dir}"
-            )
+            error_msg = f"Invalid exam directory (missing auto folder): {latest_dir}"
             await send_progress("error", {"content": error_msg})
             return {
                 "success": False,
@@ -232,9 +229,7 @@ async def mimic_exam_questions(
         if output_dir:
             output_base = Path(output_dir)
         else:
-            output_base = (
-                project_root / "data" / "user" / "question" / "mimic_papers"
-            )
+            output_base = project_root / "data" / "user" / "question" / "mimic_papers"
         output_base.mkdir(parents=True, exist_ok=True)
 
         success = parse_pdf_with_mineru(
@@ -242,9 +237,7 @@ async def mimic_exam_questions(
         )
 
         if not success:
-            await send_progress(
-                "error", {"content": "Failed to parse PDF with MinerU"}
-            )
+            await send_progress("error", {"content": "Failed to parse PDF with MinerU"})
             return {"success": False, "error": "Failed to parse PDF"}
 
         logger.info("")
@@ -261,9 +254,7 @@ async def mimic_exam_questions(
         )
 
         if not subdirs:
-            await send_progress(
-                "error", {"content": "No parsed outputs were found"}
-            )
+            await send_progress("error", {"content": "No parsed outputs were found"})
             return {"success": False, "error": "No parsed outputs were found"}
 
         latest_dir = subdirs[0]
@@ -305,9 +296,7 @@ async def mimic_exam_questions(
         )
 
         if not success:
-            await send_progress(
-                "error", {"content": "Question extraction failed"}
-            )
+            await send_progress("error", {"content": "Question extraction failed"})
             return {"success": False, "error": "Question extraction failed"}
 
         json_files = list(latest_dir.glob("*_questions.json"))
@@ -407,17 +396,12 @@ async def mimic_exam_questions(
                     "index": index,
                     "status": "generating",
                     "reference_number": ref_number,
-                    "reference_preview": ref_question["question_text"][:80]
-                    + "...",
+                    "reference_preview": ref_question["question_text"][:80] + "...",
                 },
             )
 
-            logger.info(
-                "[%s] Starting - Reference: %s", question_id, ref_number
-            )
-            logger.debug(
-                "Preview: %s", ref_question["question_text"][:80] + "..."
-            )
+            logger.info("[%s] Starting - Reference: %s", question_id, ref_number)
+            logger.debug("Preview: %s", ref_question["question_text"][:80] + "...")
 
             # Create a fresh coordinator for each question
             llm_config = get_llm_config()
@@ -450,9 +434,7 @@ async def mimic_exam_questions(
                         result_data = {
                             "success": True,
                             "reference_question_number": ref_number,
-                            "reference_question_text": ref_question[
-                                "question_text"
-                            ],
+                            "reference_question_text": ref_question["question_text"],
                             "reference_images": ref_question.get("images", []),
                             "generated_question": result["question"],
                             "validation": result["validation"],
@@ -469,9 +451,7 @@ async def mimic_exam_questions(
                                 "question": result["question"],
                                 "validation": result["validation"],
                                 "rounds": result["rounds"],
-                                "reference_question": ref_question[
-                                    "question_text"
-                                ],
+                                "reference_question": ref_question["question_text"],
                                 "current": current_completed,
                                 "total": len(reference_questions),
                             },
@@ -489,9 +469,7 @@ async def mimic_exam_questions(
                         error_data = {
                             "success": False,
                             "reference_question_number": ref_number,
-                            "reference_question_text": ref_question[
-                                "question_text"
-                            ],
+                            "reference_question_text": ref_question["question_text"],
                             "error": result.get("error", "Unknown error"),
                             "reason": result.get("reason", ""),
                         }
@@ -511,9 +489,7 @@ async def mimic_exam_questions(
                         return error_data
 
             except Exception as e:
-                logger.exception(
-                    "[%s] Exception during generation: %s", question_id, e
-                )
+                logger.exception("[%s] Exception during generation: %s", question_id, e)
                 async with completed_lock:
                     completed_count += 1
                     current_completed = completed_count
@@ -571,9 +547,7 @@ async def mimic_exam_questions(
         output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = (
-        output_dir / f"{latest_dir.name}_{timestamp}_generated_questions.json"
-    )
+    output_file = output_dir / f"{latest_dir.name}_{timestamp}_generated_questions.json"
 
     output_data = {
         "reference_paper": latest_dir.name,
@@ -642,9 +616,7 @@ Examples:
         help="Name of a parsed exam directory (e.g., 2211asm1) or its absolute path",
     )
 
-    parser.add_argument(
-        "--kb", type=str, required=True, help="Knowledge base name"
-    )
+    parser.add_argument("--kb", type=str, required=True, help="Knowledge base name")
 
     parser.add_argument(
         "-o",

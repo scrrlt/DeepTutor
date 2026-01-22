@@ -15,7 +15,6 @@ import yaml
 
 from src.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 # PROJECT_ROOT points to the actual project root directory (DeepTutor/)
@@ -152,7 +151,9 @@ async def load_config_with_main_async(
     return merged_config
 
 
-def get_path_from_config(config: dict[str, Any], path_key: str, default: str = None) -> str:
+def get_path_from_config(
+    config: dict[str, Any], path_key: str, default: str = None
+) -> str:
     """
     Get path from configuration, supports searching in paths and system
 
@@ -251,8 +252,12 @@ def get_agent_params(module_name: str) -> dict:
             if module_name in agents_config:
                 module_config = agents_config[module_name]
                 return {
-                    "temperature": module_config.get("temperature", defaults["temperature"]),
-                    "max_tokens": module_config.get("max_tokens", defaults["max_tokens"]),
+                    "temperature": module_config.get(
+                        "temperature", defaults["temperature"]
+                    ),
+                    "max_tokens": module_config.get(
+                        "max_tokens", defaults["max_tokens"]
+                    ),
                 }
     except Exception as e:
         logger.error(f"⚠️ Failed to load agents.yaml: {e}, using defaults")

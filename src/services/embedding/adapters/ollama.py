@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Ollama Embedding Adapter for local embeddings."""
 
 import logging
@@ -103,7 +102,9 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
                 if response.status_code == 404:
                     try:
-                        health_check = await client.get(f"{self.base_url.rstrip('/')}/api/tags")
+                        health_check = await client.get(
+                            f"{self.base_url.rstrip('/')}/api/tags"
+                        )
                         if health_check.status_code == 200:
                             available_models = [
                                 cast(str, m.get("name", ""))

@@ -1,20 +1,8 @@
 'use client'
 
-import {
-  BookOpen,
-  Loader2,
-  ChevronRight,
-  ChevronDown,
-  Sparkles,
-  Check,
-} from "lucide-react";
-import {
-  Notebook,
-  NotebookRecord,
-  SelectedRecord,
-  getTypeColor,
-} from "../types";
-import { useTranslation } from "react-i18next";
+import { BookOpen, Loader2, ChevronRight, ChevronDown, Sparkles, Check } from 'lucide-react'
+import { Notebook, NotebookRecord, SelectedRecord, getTypeColor } from '../types'
+import { useTranslation } from 'react-i18next'
 
 interface NotebookSelectorProps {
   notebooks: Notebook[]
@@ -47,13 +35,13 @@ export default function NotebookSelector({
   onClearAll,
   onCreateSession,
 }: NotebookSelectorProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
       <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
         <h2 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          {t("Select Source (Cross-Notebook)")}
+          {t('Select Source (Cross-Notebook)')}
         </h2>
         {selectedRecords.size > 0 && (
           <button
@@ -72,7 +60,7 @@ export default function NotebookSelector({
           </div>
         ) : notebooks.length === 0 ? (
           <div className="p-4 text-center text-sm text-slate-400 dark:text-slate-500">
-            {t("No notebooks with records found")}
+            {t('No notebooks with records found')}
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -122,7 +110,7 @@ export default function NotebookSelector({
                         </div>
                       ) : records.length === 0 ? (
                         <div className="py-2 text-xs text-slate-400 dark:text-slate-500 text-center">
-                          {t("No records")}
+                          {t('No records')}
                         </div>
                       ) : (
                         <>
@@ -134,7 +122,7 @@ export default function NotebookSelector({
                               }}
                               className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                             >
-                              {t("Select All")}
+                              {t('Select All')}
                             </button>
                             <button
                               onClick={e => {
@@ -143,7 +131,7 @@ export default function NotebookSelector({
                               }}
                               className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                             >
-                              {t("Deselect")}
+                              {t('Deselect')}
                             </button>
                           </div>
                           <div className="space-y-1">
@@ -207,15 +195,12 @@ export default function NotebookSelector({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {t("Generating...")}
+              {t('Generating...')}
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              {t("Generate Learning Plan ({n} items)").replace(
-                "{n}",
-                String(selectedRecords.size),
-              )}
+              {t('Generate Learning Plan ({n} items)').replace('{n}', String(selectedRecords.size))}
             </>
           )}
         </button>

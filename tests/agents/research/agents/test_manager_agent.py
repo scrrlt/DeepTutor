@@ -59,8 +59,7 @@ def test_fail_task(manager_agent: ManagerAgent):
     manager_agent.fail_task(block.block_id)
 
     assert (
-        manager_agent.queue.get_block_by_id(block.block_id).status
-        == TopicStatus.FAILED
+        manager_agent.queue.get_block_by_id(block.block_id).status == TopicStatus.FAILED
     )
 
 

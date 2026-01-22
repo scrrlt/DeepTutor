@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Provider Capabilities
 =====================
@@ -18,29 +17,17 @@ Usage:
         # use streaming
 """
 
-from typing import Any, Optional
+from typing import Any
 
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
-_OPENAI_COMPATIBLE: dict[str, Any] = {
-    "supports_response_format": True,
-    "supports_streaming": True,
-    "supports_tools": True,
-    "system_in_messages": True,
-}
-
-_LOCAL_SERVER: dict[str, Any] = {
-    "supports_response_format": True,
-    "supports_streaming": True,
-    "supports_tools": False,
-    "system_in_messages": True,
-}
-
-
 PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
     # OpenAI and OpenAI-compatible providers
     "openai": {
-        **_OPENAI_COMPATIBLE,
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,  # System prompt goes in messages array
         "newer_models_use_max_completion_tokens": True,
     },
     "azure_openai": {
@@ -69,27 +56,71 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     # DeepSeek
     "deepseek": {
-        # DeepSeek v3/r1 supports JSON mode (json_object).
-        "supports_response_format": True,
+        "supports_response_format": False,  # DeepSeek doesn't support strict JSON schema yet
         "supports_streaming": True,
         "supports_tools": True,
         "system_in_messages": True,
         "has_thinking_tags": True,  # DeepSeek reasoner has thinking tags
     },
     # OpenRouter (aggregator, generally OpenAI-compatible)
-    "openrouter": {**_OPENAI_COMPATIBLE},
+    "openrouter": {
+        "supports_response_format": True,  # Depends on underlying model
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+    },
     # Groq (fast inference)
-    "groq": {**_OPENAI_COMPATIBLE},
+    "groq": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+    },
     # Together AI
-    "together": {**_OPENAI_COMPATIBLE},
-    "together_ai": {**_OPENAI_COMPATIBLE},
+    "together": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+    },
+    "together_ai": {  # Alias
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+    },
     # Mistral
-    "mistral": {**_OPENAI_COMPATIBLE},
+    "mistral": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": True,
+        "system_in_messages": True,
+    },
     # Local providers (generally OpenAI-compatible)
-    "ollama": {**_LOCAL_SERVER},
-    "lm_studio": {**_LOCAL_SERVER},
-    "vllm": {**_LOCAL_SERVER},
-    "llama_cpp": {**_LOCAL_SERVER},
+    "ollama": {
+        "supports_response_format": True,  # Ollama supports JSON mode
+        "supports_streaming": True,
+        "supports_tools": False,  # Limited tool support
+        "system_in_messages": True,
+    },
+    "lm_studio": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": False,
+        "system_in_messages": True,
+    },
+    "vllm": {
+        "supports_response_format": True,
+        "supports_streaming": True,
+        "supports_tools": False,
+        "system_in_messages": True,
+    },
+    "llama_cpp": {
+        "supports_response_format": True,  # llama.cpp server supports JSON grammar
+        "supports_streaming": True,
+        "supports_tools": False,
+        "system_in_messages": True,
+    },
 }
 
 # Default capabilities for unknown providers (assume OpenAI-compatible)
@@ -107,11 +138,11 @@ DEFAULT_CAPABILITIES: dict[str, Any] = {
 # Patterns are matched with case-insensitive startswith
 MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
     "deepseek": {
-        "supports_response_format": True,
+        "supports_response_format": False,
         "has_thinking_tags": True,
     },
     "deepseek-reasoner": {
-        "supports_response_format": True,
+        "supports_response_format": False,
         "has_thinking_tags": True,
     },
     "qwen": {
@@ -175,8 +206,11 @@ def get_capability(
     # 1. Check model-specific overrides first
     if model:
         model_lower = model.lower()
-        for pattern, overrides in _SORTED_OVERRIDES:
-            if pattern in model_lower:
+        # Sort by pattern length descending to match most specific first
+        for pattern, overrides in sorted(
+            MODEL_OVERRIDES.items(), key=lambda x: -len(x[0])
+        ):
+            if model_lower.startswith(pattern):
                 if capability in overrides:
                     return overrides[capability]
 
@@ -224,7 +258,9 @@ def supports_streaming(binding: str, model: str | None = None) -> bool:
 
 
 def system_in_messages(binding: str, model: str | None = None) -> bool:
-    """Check if system prompt should be placed in the messages array.
+    """
+    Check if system prompt should be in messages array (OpenAI style)
+    or as a separate parameter (Anthropic style).
 
     Args:
         binding: Provider binding name
@@ -280,7 +316,7 @@ def requires_api_version(binding: str, model: str | None = None) -> bool:
 
 def get_effective_temperature(
     binding: str,
-    model: Optional[str] = None,
+    model: str | None = None,
     requested_temp: float = 0.7,
 ) -> float:
     """

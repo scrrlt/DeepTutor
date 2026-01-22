@@ -103,9 +103,7 @@ class NoteOutput(BaseModel):
 class ReflectOutput(BaseModel):
     """Model for InvestigateReflectAgent output"""
 
-    should_stop: bool = Field(
-        ..., description="Whether to stop the investigation"
-    )
+    should_stop: bool = Field(..., description="Whether to stop the investigation")
     reason: str = Field(..., description="Reason for the decision")
     remaining_questions: list[str] = Field(
         ..., description="List of remaining questions"
@@ -124,9 +122,7 @@ class PlanBlock(BaseModel):
 
     block_id: str = Field(..., description="Block identifier")
     format: str = Field(..., description="Output format")
-    steps: list[PlanStep] = Field(
-        ..., min_length=1, description="List of steps"
-    )
+    steps: list[PlanStep] = Field(..., min_length=1, description="List of steps")
 
 
 class PlanOutput(BaseModel):
@@ -148,9 +144,7 @@ class SolveToolCall(BaseModel):
     @classmethod
     def validate_tool_type(cls, v):
         if v.lower() not in VALID_SOLVE_TOOLS:
-            raise ValueError(
-                f"tool_type must be one of {VALID_SOLVE_TOOLS}, got: {v}"
-            )
+            raise ValueError(f"tool_type must be one of {VALID_SOLVE_TOOLS}, got: {v}")
         return v.lower()
 
 
@@ -188,9 +182,7 @@ def retry_on_parse_error(
     def decorator(func: Callable):
         return tenacity.retry(
             retry=tenacity.retry_if_exception_type(*exceptions),
-            wait=tenacity.wait_exponential(
-                multiplier=backoff, min=delay, max=60
-            ),
+            wait=tenacity.wait_exponential(multiplier=backoff, min=delay, max=60),
             stop=tenacity.stop_after_attempt(max_retries + 1),
             before_sleep=lambda retry_state: logger.warning(
                 f"Parse failed (attempt {retry_state.attempt_number}/{max_retries + 1}), "
@@ -221,21 +213,15 @@ def validate_output(
         LLMParseError: Raised when validation fails
     """
     # Check required fields
-    missing_fields = [
-        field for field in required_fields if field not in output
-    ]
+    missing_fields = [field for field in required_fields if field not in output]
 
     if missing_fields:
-        raise LLMParseError(
-            f"Missing required fields: {', '.join(missing_fields)}"
-        )
+        raise LLMParseError(f"Missing required fields: {', '.join(missing_fields)}")
 
     # Check field types
     if field_types:
         for field, expected_type in field_types.items():
-            if field in output and not isinstance(
-                output[field], expected_type
-            ):
+            if field in output and not isinstance(output[field], expected_type):
                 actual_type = type(output[field]).__name__
                 expected_type_name = expected_type.__name__
                 raise LLMParseError(

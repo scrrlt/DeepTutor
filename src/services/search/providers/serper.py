@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Serper Google SERP Provider
 
@@ -97,7 +96,9 @@ class SerperProvider(BaseSearchProvider):
                 error_data = response.json()
             except (json.JSONDecodeError, ValueError):
                 error_data = {"message": response.text}
-            self.logger.error(f"Serper API error: {response.status_code} - {error_data}")
+            self.logger.error(
+                f"Serper API error: {response.status_code} - {error_data}"
+            )
             raise SerperAPIError(
                 f"Serper API error: {response.status_code} - "
                 f"{error_data.get('message', response.text)}"

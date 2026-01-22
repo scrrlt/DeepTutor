@@ -35,9 +35,7 @@ try:
             "VERBOSE_DEBUG": False,
             "get_env_value": lambda key, default=None: default,
             "safe_unicode_decode": lambda t: (
-                t.decode("utf-8", errors="ignore")
-                if isinstance(t, bytes)
-                else t
+                t.decode("utf-8", errors="ignore") if isinstance(t, bytes) else t
             ),
         }.items():
             if not hasattr(_utils, _k):

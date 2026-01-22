@@ -1,8 +1,9 @@
 """OpenAI provider implementation using shared HTTP client."""
 
+from __future__ import annotations
+
 import asyncio
-import inspect
-from typing import Any, no_type_check
+from typing import Any
 
 import openai
 
@@ -17,23 +18,14 @@ from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
 from .base_provider import BaseLLMProvider
 
-from src.logging import get_logger
-
-
 logger = get_logger(__name__)
 
-from src.logging import get_logger
-
-
-
-logger = get_logger(__name__)
 
 @register_provider("openai")
 class OpenAIProvider(BaseLLMProvider):
     """Production-ready OpenAI Provider with shared HTTP client."""
 
     def __init__(self, config: LLMConfig) -> None:
-        """Initialize OpenAI provider with shared client."""
         super().__init__(config)
         self.client: openai.AsyncOpenAI | None = None
         self._client_lock = asyncio.Lock()
@@ -52,7 +44,6 @@ class OpenAIProvider(BaseLLMProvider):
 
     @track_llm_call("openai")
     async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
-        """Complete a prompt using OpenAI chat completions."""
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for OpenAI provider")
@@ -65,7 +56,7 @@ class OpenAIProvider(BaseLLMProvider):
         )
         kwargs.update(get_token_limit_kwargs(model, int(requested_max_tokens)))
 
-        async def _call_api():
+        async def _call_api() -> TutorResponse:
             client = await self._get_client()
             response = await client.chat.completions.create(
                 model=model,
@@ -76,14 +67,24 @@ class OpenAIProvider(BaseLLMProvider):
             if not response.choices:
                 raise ValueError("API returned no choices in response")
             choice = response.choices[0]
+            message = choice.message
+            content = message.content or ""
+            finish_reason = choice.finish_reason
             usage = response.usage.model_dump() if response.usage else {}
+            raw_response = (
+                response.model_dump() if hasattr(response, "model_dump") else {}
+            )
+            provider_label = (
+                "azure"
+                if isinstance(self.client, openai.AsyncAzureOpenAI)
+                else "openai"
+            )
 
             return TutorResponse(
                 content=content,
                 raw_response=raw_response,
                 usage=usage,
-                provider="azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai",
-                provider="azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai",
+                provider=provider_label,
                 model=model,
                 finish_reason=finish_reason,
                 cost_estimate=self.calculate_cost(usage),
@@ -91,13 +92,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         return await self.execute(_call_api)
 
-    @no_type_check
-    async def stream(
-        self,
-        prompt: str,
-        **kwargs: Any,
-    ) -> AsyncStreamGenerator:  # type: ignore[override]
-        """Stream chat completion deltas from OpenAI."""
+    async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:  # type: ignore[override]
         model = kwargs.pop("model", None) or self.config.model
         if not model:
             raise LLMConfigError("Model not configured for OpenAI provider")
@@ -113,29 +108,28 @@ class OpenAIProvider(BaseLLMProvider):
 
         stream = await self.execute(_create_stream)
         accumulated_content = ""
-        provider_label = "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
-        final_usage = None
-        provider_label = "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
-        final_usage = None
+        provider_label = (
+            "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
+        )
 
         try:
             async for chunk in stream:
+                delta = ""
                 if chunk.choices and chunk.choices[0].delta.content:
                     delta = chunk.choices[0].delta.content
                     accumulated_content += delta
-
-                yield TutorStreamChunk(
-                    content=accumulated_content,
-                    delta=delta,
-                    provider=provider_label,
-                    model=model,
-                    is_complete=False,
-                )
-
-        yield TutorStreamChunk(
-            content=accumulated_content,
-            delta="",
-            provider="openai",
-            model=model,
-            is_complete=True,
-        )
+                    yield TutorStreamChunk(
+                        content=accumulated_content,
+                        delta=delta,
+                        provider=provider_label,
+                        model=model,
+                        is_complete=False,
+                    )
+        finally:
+            yield TutorStreamChunk(
+                content=accumulated_content,
+                delta="",
+                provider=provider_label,
+                model=model,
+                is_complete=True,
+            )

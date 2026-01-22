@@ -82,9 +82,7 @@ def parse_pdf_with_mineru(
     if final_dest_dir.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_dir = output_root / f"{pdf_file.stem}_backup_{timestamp}"
-        logger.warning(
-            f"Output exists. Rotating old data to: {backup_dir.name}"
-        )
+        logger.warning(f"Output exists. Rotating old data to: {backup_dir.name}")
         try:
             shutil.move(str(final_dest_dir), str(backup_dir))
         except OSError as e:

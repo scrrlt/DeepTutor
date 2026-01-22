@@ -1,15 +1,15 @@
-"use client";
+'use client'
 
-import { useRef, useEffect } from "react";
-import { Bug, Loader2 } from "lucide-react";
-import { useKaTeXInjection } from "../hooks";
-import { useTranslation } from "react-i18next";
+import { useRef, useEffect } from 'react'
+import { Bug, Loader2 } from 'lucide-react'
+import { useKaTeXInjection } from '../hooks'
+import { useTranslation } from 'react-i18next'
 
 interface HTMLViewerProps {
-  html: string;
-  currentIndex: number;
-  loadingMessage: string;
-  onOpenDebugModal: () => void;
+  html: string
+  currentIndex: number
+  loadingMessage: string
+  onOpenDebugModal: () => void
 }
 
 export default function HTMLViewer({
@@ -18,72 +18,66 @@ export default function HTMLViewer({
   loadingMessage,
   onOpenDebugModal,
 }: HTMLViewerProps) {
-  const { t } = useTranslation();
-  const htmlFrameRef = useRef<HTMLIFrameElement>(null);
-  const { injectKaTeX } = useKaTeXInjection();
+  const { t } = useTranslation()
+  const htmlFrameRef = useRef<HTMLIFrameElement>(null)
+  const { injectKaTeX } = useKaTeXInjection()
 
   // Update HTML iframe
   useEffect(() => {
-    if (!html) return;
+    if (!html) return
 
     const timer = setTimeout(() => {
       if (htmlFrameRef.current) {
-        const iframe = htmlFrameRef.current;
-        console.log("Updating iframe with HTML, length:", html.length);
+        const iframe = htmlFrameRef.current
+        console.log('Updating iframe with HTML, length:', html.length)
 
         // Inject KaTeX support if needed
-        const htmlWithKaTeX = injectKaTeX(html);
+        const htmlWithKaTeX = injectKaTeX(html)
 
         // Use srcdoc attribute (most reliable method)
         try {
-          iframe.srcdoc = htmlWithKaTeX;
-          console.log("Iframe srcdoc set successfully with KaTeX support");
+          iframe.srcdoc = htmlWithKaTeX
+          console.log('Iframe srcdoc set successfully with KaTeX support')
         } catch (e) {
-          console.warn("srcdoc not supported, using contentDocument:", e);
+          console.warn('srcdoc not supported, using contentDocument:', e)
           // Fallback to contentDocument if srcdoc not supported
           const handleLoad = () => {
             try {
-              const doc =
-                iframe.contentDocument || iframe.contentWindow?.document;
+              const doc = iframe.contentDocument || iframe.contentWindow?.document
               if (doc) {
-                doc.open();
-                doc.write(htmlWithKaTeX);
-                doc.close();
-                console.log(
-                  "Iframe content written via contentDocument with KaTeX support",
-                );
+                doc.open()
+                doc.write(htmlWithKaTeX)
+                doc.close()
+                console.log('Iframe content written via contentDocument with KaTeX support')
               }
             } catch (err) {
-              console.error("Failed to write to iframe:", err);
+              console.error('Failed to write to iframe:', err)
             }
-          };
+          }
 
-          if (
-            iframe.contentDocument &&
-            iframe.contentDocument.readyState === "complete"
-          ) {
-            handleLoad();
+          if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+            handleLoad()
           } else {
-            iframe.onload = handleLoad;
+            iframe.onload = handleLoad
           }
         }
       } else {
-        console.warn("htmlFrameRef.current is null");
+        console.warn('htmlFrameRef.current is null')
       }
-    }, 100);
+    }, 100)
 
-    return () => clearTimeout(timer);
-  }, [html, currentIndex, injectKaTeX]);
+    return () => clearTimeout(timer)
+  }, [html, currentIndex, injectKaTeX])
 
   if (!html) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-indigo-400 dark:text-indigo-500 animate-spin mb-4" />
         <p className="text-slate-500 dark:text-slate-400">
-          {loadingMessage || t("Loading learning content...")}
+          {loadingMessage || t('Loading learning content...')}
         </p>
       </div>
-    );
+    )
   }
 
   return (
@@ -92,7 +86,7 @@ export default function HTMLViewer({
       <button
         onClick={onOpenDebugModal}
         className="absolute top-4 right-4 z-10 p-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors shadow-sm"
-        title={t("Fix HTML")}
+        title={t('Fix HTML')}
       >
         <Bug className="w-4 h-4 text-slate-600 dark:text-slate-300" />
       </button>
@@ -101,10 +95,10 @@ export default function HTMLViewer({
       <iframe
         ref={htmlFrameRef}
         className="w-full h-full border-0"
-        title={t("Interactive Learning Content")}
+        title={t('Interactive Learning Content')}
         sandbox="allow-scripts allow-same-origin"
         key={`html-${currentIndex}-${html.length}`}
       />
     </div>
-  );
+  )
 }

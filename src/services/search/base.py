@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Web Search Base Provider - Abstract base class for all search providers
 
@@ -40,9 +39,7 @@ class BaseSearchProvider(ABC):
             api_key: API key for the provider. If not provided, will be read from SEARCH_API_KEY.
             **kwargs: Additional configuration options.
         """
-        self.logger = get_logger(
-            f"Search.{self.__class__.__name__}", level="INFO"
-        )
+        self.logger = get_logger(f"Search.{self.__class__.__name__}", level="INFO")
         self.api_key = api_key or self._get_api_key()
         self.config = kwargs
 

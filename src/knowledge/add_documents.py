@@ -153,7 +153,9 @@ class DocumentAdder:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
-    def add_documents(self, source_files: List[str], allow_duplicates: bool = False) -> List[Path]:
+    def add_documents(
+        self, source_files: list[str], allow_duplicates: bool = False
+    ) -> list[Path]:
         """
         Synchronous phase: Validates hashes and prepares files.
         Treats 'raw/' as a Write-Ahead Log: files exist there before being canonized in metadata.
@@ -174,7 +176,9 @@ class DocumentAdder:
             # 1. Check if content is already fully ingested (Canon Check)
             # We look for value matches in the metadata hash map
             if current_hash in ingested_hashes.values() and not allow_duplicates:
-                logger.info(f"  → Skipped (content already indexed): {source_path.name}")
+                logger.info(
+                    f"  → Skipped (content already indexed): {source_path.name}"
+                )
                 continue
 
             # 2. Prepare file in raw/ (Write-Ahead Log)
@@ -186,7 +190,9 @@ class DocumentAdder:
                 dest_hash = self._get_file_hash(dest_path)
                 if dest_hash == current_hash:
                     should_copy = False
-                    logger.info(f"  ⚠ Recovering staged file (interrupted run): {source_path.name}")
+                    logger.info(
+                        f"  ⚠ Recovering staged file (interrupted run): {source_path.name}"
+                    )
                 else:
                     if not allow_duplicates:
                         # Name collision with different content
@@ -195,7 +201,9 @@ class DocumentAdder:
                         )
                         continue
                     else:
-                        logger.info(f"  → Overwriting existing raw file: {source_path.name}")
+                        logger.info(
+                            f"  → Overwriting existing raw file: {source_path.name}"
+                        )
 
             if should_copy:
                 shutil.copy2(source_path, dest_path)
@@ -384,7 +392,9 @@ class DocumentAdder:
         return [
             m
             for m in messages
-            if isinstance(m, dict) and m.get("role") is not None and m.get("content") is not None
+            if isinstance(m, dict)
+            and m.get("role") is not None
+            and m.get("content") is not None
         ]
 
     async def fix_structure(self):
@@ -476,7 +486,9 @@ class DocumentAdder:
                     kb_config_service = get_kb_config_service()
                     kb_config_service.set_rag_provider(self.kb_name, self.rag_provider)
                 except Exception as config_err:
-                    logger.warning(f"Failed to save to centralized config: {config_err}")
+                    logger.warning(
+                        f"Failed to save to centralized config: {config_err}"
+                    )
 
             history = metadata.get("update_history", [])
             history.append(
@@ -495,7 +507,9 @@ class DocumentAdder:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Incrementally add documents to RAG KB")
+    parser = argparse.ArgumentParser(
+        description="Incrementally add documents to RAG KB"
+    )
     parser.add_argument("kb_name", help="KB Name")
     parser.add_argument("--docs", nargs="+", help="Files")
     parser.add_argument("--docs-dir", help="Directory")

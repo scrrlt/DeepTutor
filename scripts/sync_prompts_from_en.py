@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Semi-automatic sync of prompt structure from prompts/en to prompts/zh|prompts/cn.
@@ -15,12 +14,11 @@ NOTE: This tool does NOT translate. It inserts TODO markers to be manually rewri
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
+import sys
 from typing import Any
 
 import yaml
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = PROJECT_ROOT / "src" / "agents"
@@ -54,7 +52,14 @@ def _merge_missing(en_obj: Any, zh_obj: Any) -> tuple[Any, int]:
                     zh_obj[k] = f"<<TODO_TRANSLATE>> {v}"
                 else:
                     # For non-string nodes, insert scaffold recursively
-                    zh_obj[k], inc = _merge_missing(v, {} if isinstance(v, dict) else [] if isinstance(v, list) else None)
+                    zh_obj[k], inc = _merge_missing(
+                        v,
+                        {}
+                        if isinstance(v, dict)
+                        else []
+                        if isinstance(v, list)
+                        else None,
+                    )
                     added += inc
             else:
                 zh_obj[k], inc = _merge_missing(v, zh_obj[k])
@@ -112,7 +117,9 @@ def main() -> int:
                 zh_file = lang_dir / rel
                 if not zh_file.exists():
                     if not args.create_missing_files:
-                        print(f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}")
+                        print(
+                            f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}"
+                        )
                         continue
                     zh_obj = {}
                 else:
@@ -124,7 +131,9 @@ def main() -> int:
 
                 total_added += added
                 total_files += 1
-                print(f"[SYNC {lang_name}] {module_dir.name}: {rel.as_posix()} (+{added} keys)")
+                print(
+                    f"[SYNC {lang_name}] {module_dir.name}: {rel.as_posix()} (+{added} keys)"
+                )
 
                 if args.write:
                     _dump_yaml(zh_file, new_obj)
@@ -136,10 +145,11 @@ def main() -> int:
     if args.write:
         print(f"Updated {total_files} file(s), added {total_added} key(s).")
     else:
-        print(f"Dry-run: would update {total_files} file(s), add {total_added} key(s). Use --write to apply.")
+        print(
+            f"Dry-run: would update {total_files} file(s), add {total_added} key(s). Use --write to apply."
+        )
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

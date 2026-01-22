@@ -1,20 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Loader2, Pencil } from "lucide-react";
-import { apiUrl } from "@/lib/api";
-import { ConfigItem, ConfigType } from "../types";
-import ConfigForm from "./ConfigForm";
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Trash2, Loader2, Pencil } from 'lucide-react'
+import { apiUrl } from '@/lib/api'
+import { ConfigItem, ConfigType } from '../types'
+import ConfigForm from './ConfigForm'
 
 interface ConfigTabProps {
-  configType: ConfigType;
-  title: string;
-  description: string;
-  onUpdate: () => void;
-  showDimensions?: boolean;
-  showVoice?: boolean;
-  isSearchConfig?: boolean;
-  t: (key: string) => string;
+  configType: ConfigType
+  title: string
+  description: string
+  onUpdate: () => void
+  showDimensions?: boolean
+  showVoice?: boolean
+  isSearchConfig?: boolean
+  t: (key: string) => string
 }
 
 export default function ConfigTab({
@@ -49,11 +49,11 @@ export default function ConfigTab({
     } finally {
       setLoading(false)
     }
-  }, [configType]);
+  }, [configType])
 
   useEffect(() => {
-    loadConfigs();
-  }, [loadConfigs]);
+    loadConfigs()
+  }, [loadConfigs])
 
   const setActive = async (configId: string) => {
     try {
@@ -70,7 +70,7 @@ export default function ConfigTab({
   }
 
   const deleteConfig = async (configId: string) => {
-    if (!confirm(t("Are you sure you want to delete this configuration?"))) return;
+    if (!confirm(t('Are you sure you want to delete this configuration?'))) return
 
     try {
       const res = await fetch(apiUrl(`/api/v1/config/${configType}/${configId}`), {
@@ -99,7 +99,7 @@ export default function ConfigTab({
       const data = await res.json()
       setTestResult(data)
     } catch (e) {
-      setTestResult({ success: false, message: t("Connection test failed") });
+      setTestResult({ success: false, message: t('Connection test failed') })
     } finally {
       setTesting(null)
     }
@@ -126,7 +126,7 @@ export default function ConfigTab({
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
-          {t("Add Configuration")}
+          {t('Add Configuration')}
         </button>
       </div>
 
@@ -186,32 +186,32 @@ export default function ConfigTab({
                     </span>
                     {config.is_default && (
                       <span className="px-2 py-0.5 text-xs bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 rounded">
-                        {t("Default")}
+                        {t('Default')}
                       </span>
                     )}
                     {config.is_active && (
                       <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded">
-                        {t("Active")}
+                        {t('Active')}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
                     <span>
-                      {t("Provider")}: {config.provider}
+                      {t('Provider')}: {config.provider}
                     </span>
                     {config.model && (
                       <span>
-                        {t("Model")}: {config.model}
+                        {t('Model')}: {config.model}
                       </span>
                     )}
                     {showDimensions && config.dimensions && (
                       <span>
-                        {t("Dimensions")}: {config.dimensions}
+                        {t('Dimensions')}: {config.dimensions}
                       </span>
                     )}
                     {showVoice && config.voice && (
                       <span>
-                        {t("Voice")}: {config.voice}
+                        {t('Voice')}: {config.voice}
                       </span>
                     )}
                   </div>
@@ -223,7 +223,7 @@ export default function ConfigTab({
                     onClick={() => setActive(config.id)}
                     className="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                   >
-                    {t("Set Active")}
+                    {t('Set Active')}
                   </button>
                 )}
                 {!isSearchConfig && (
@@ -235,7 +235,7 @@ export default function ConfigTab({
                     {testing === config.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      t("Test")
+                      t('Test')
                     )}
                   </button>
                 )}
@@ -246,7 +246,7 @@ export default function ConfigTab({
                       setShowAddForm(false)
                     }}
                     className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                    title={t("Edit")}
+                    title={t('Edit')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -255,7 +255,7 @@ export default function ConfigTab({
                   <button
                     onClick={() => deleteConfig(config.id)}
                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                    title={t("Delete")}
+                    title={t('Delete')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -267,7 +267,7 @@ export default function ConfigTab({
 
         {configs.length === 0 && (
           <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-            {t("No configurations found. Add one to get started.")}
+            {t('No configurations found. Add one to get started.')}
           </div>
         )}
       </div>

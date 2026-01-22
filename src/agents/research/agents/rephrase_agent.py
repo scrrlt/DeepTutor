@@ -99,9 +99,7 @@ class RephraseAgent(BaseAgent):
             }
         """
         logger.info(f"\n{'=' * 70}")
-        logger.info(
-            f"🔄 RephraseAgent - Topic Rephrasing (Iteration {iteration})"
-        )
+        logger.info(f"🔄 RephraseAgent - Topic Rephrasing (Iteration {iteration})")
         logger.info(f"{'=' * 70}")
 
         # Reset history for new session (iteration 0)
@@ -242,9 +240,7 @@ class RephraseAgent(BaseAgent):
 
         try:
             result = ensure_json_dict(data)
-            ensure_keys(
-                result, ["user_satisfied", "should_continue", "interpretation"]
-            )
+            ensure_keys(result, ["user_satisfied", "should_continue", "interpretation"])
         except Exception:
             # Fallback: judge based on keywords
             feedback_lower = user_feedback.lower()
@@ -290,9 +286,7 @@ class RephraseAgent(BaseAgent):
         logger.info(
             f"  Continue Rephrasing: {'Yes' if result.get('should_continue') else 'No'}"
         )
-        logger.info(
-            f"  Intent Interpretation: {result.get('interpretation', '')}"
-        )
+        logger.info(f"  Intent Interpretation: {result.get('interpretation', '')}")
 
         return result
 

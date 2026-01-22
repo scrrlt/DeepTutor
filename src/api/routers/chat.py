@@ -9,35 +9,27 @@ REST endpoints for session operations.
 from pathlib import Path
 import sys
 from typing import Any
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 _project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
+# Initialize logger
+import logging as _logging
+
 from src.agents.chat import ChatAgent
 from src.agents.chat.session_manager import get_session_manager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm.config import get_llm_config
-from src.services.settings.interface_settings import get_ui_language
-
-# Initialize logger
-import logging as _logging
 
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("solve_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
-# Ensure we have at least a basic logging configuration in environments where none exists
 if not _logging.getLogger().handlers:
     _logging.basicConfig(level=_logging.INFO, format="%(levelname)s: %(message)s")
 
-# Ensure we have at least a basic logging configuration in environments where none exists
-if not _logging.getLogger().handlers:
-    _logging.basicConfig(level=_logging.INFO, format="%(levelname)s: %(message)s")
-
-logger = get_logger("ChatAPI", level="INFO", log_dir=log_dir)
+logger = get_logger("ChatAPI", level="INFO")
 
 router = APIRouter()
 
@@ -211,7 +203,9 @@ async def websocket_chat(websocket: WebSocket):
                 enable_web_search = data.get("enable_web_search", False)
 
                 if not message:
-                    await websocket.send_json({"type": "error", "message": "Message is required"})
+                    await websocket.send_json(
+                        {"type": "error", "message": "Message is required"}
+                    )
                     continue
 
                 logger.info(
@@ -337,10 +331,14 @@ async def websocket_chat(websocket: WebSocket):
                     session_id=session_id,
                     role="assistant",
                     content=full_response,
-                    sources=sources if (sources.get("rag") or sources.get("web")) else None,
+                    sources=sources
+                    if (sources.get("rag") or sources.get("web"))
+                    else None,
                 )
 
-                logger.info(f"Chat completed: session={session_id}, {len(full_response)} chars")
+                logger.info(
+                    f"Chat completed: session={session_id}, {len(full_response)} chars"
+                )
             except Exception as exc:
                 # Log internal exception with traceback for server-side diagnostics
                 logger.warning("Chat message processing failed", exc_info=True)

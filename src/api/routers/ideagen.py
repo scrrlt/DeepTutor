@@ -32,9 +32,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main(
     "solve_config.yaml", project_root
 )  # Use any config to get main.yaml
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-    "logging", {}
-).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+    "log_dir"
+)
 logger = get_logger("IdeaGen", level="INFO", log_dir=log_dir)
 
 
@@ -49,9 +49,7 @@ class IdeaGenStage:
 
     INIT = "init"  # Initialization
     EXTRACTING = "extracting"  # Extracting knowledge points
-    KNOWLEDGE_EXTRACTED = (
-        "knowledge_extracted"  # Knowledge points extraction completed
-    )
+    KNOWLEDGE_EXTRACTED = "knowledge_extracted"  # Knowledge points extraction completed
     FILTERING = "filtering"  # Loose filtering
     FILTERED = "filtered"  # Filtering completed
     EXPLORING = "exploring"  # Exploring research ideas
@@ -157,7 +155,9 @@ async def websocket_ideagen(websocket: WebSocket):
 
         # Get LLM configuration
         llm_config = get_llm_config()
-        ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
+        ui_language = get_ui_language(
+            default=config.get("system", {}).get("language", "en")
+        )
 
         # Get records
         records = []

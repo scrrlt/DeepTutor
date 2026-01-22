@@ -32,9 +32,9 @@ def load_config():
 
 # Initialize logger with config
 config = load_config()
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-    "logging", {}
-).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+    "log_dir"
+)
 logger = get_logger("ResearchAPI", log_dir=log_dir)
 
 
@@ -63,9 +63,7 @@ async def optimize_topic(request: OptimizeRequest):
             return {"error": f"LLM config error: {e!s}"}
 
         # Init Agent
-        agent = RephraseAgent(
-            config=config, api_key=api_key, base_url=base_url
-        )
+        agent = RephraseAgent(config=config, api_key=api_key, base_url=base_url)
 
         # Process
         # If iteration > 0, topic is treated as feedback
@@ -102,9 +100,7 @@ async def websocket_research_run(websocket: WebSocket):
         topic = data.get("topic")
         kb_name = data.get("kb_name", "ai_textbook")
         # New unified parameters
-        plan_mode = data.get(
-            "plan_mode", "medium"
-        )  # quick, medium, deep, auto
+        plan_mode = data.get("plan_mode", "medium")  # quick, medium, deep, auto
         enabled_tools = data.get("enabled_tools", ["RAG"])  # RAG, Paper, Web
         skip_rephrase = data.get("skip_rephrase", False)
         # Legacy support
@@ -112,9 +108,7 @@ async def websocket_research_run(websocket: WebSocket):
         research_mode = data.get("research_mode")
 
         if not topic:
-            await websocket.send_json(
-                {"type": "error", "content": "Topic is required"}
-            )
+            await websocket.send_json({"type": "error", "content": "Topic is required"})
             return
 
         # Generate task ID
@@ -132,13 +126,11 @@ async def websocket_research_run(websocket: WebSocket):
         )
         try:
             # Get log_dir from config
-            log_dir = config.get("paths", {}).get(
-                "user_log_dir"
-            ) or config.get("logging", {}).get("log_dir")
+            log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+                "logging", {}
+            ).get("log_dir")
             research_logger = get_logger("Research", log_dir=log_dir)
-            research_logger.info(
-                f"[{task_id}] Starting research flow: {topic[:50]}..."
-            )
+            research_logger.info(f"[{task_id}] Starting research flow: {topic[:50]}...")
         except Exception as e:
             logger.warning(f"Failed to initialize research logger: {e}")
 
@@ -175,9 +167,7 @@ async def websocket_research_run(websocket: WebSocket):
         # Initialize researching config from research.researching
         # This ensures execution_mode, max_parallel_topics etc. are properly inherited
         if "researching" not in config:
-            config["researching"] = research_config.get(
-                "researching", {}
-            ).copy()
+            config["researching"] = research_config.get("researching", {}).copy()
         else:
             # Merge with research.researching defaults (research.researching has lower priority)
             default_researching = research_config.get("researching", {})
@@ -202,36 +192,28 @@ async def websocket_research_run(websocket: WebSocket):
         # - Researching: max iterations per topic and iteration_mode (fixed/flexible)
         plan_mode_config = {
             "quick": {
-                "planning": {
-                    "decompose": {"initial_subtopics": 2, "mode": "manual"}
-                },
+                "planning": {"decompose": {"initial_subtopics": 2, "mode": "manual"}},
                 "researching": {
                     "max_iterations": 2,
                     "iteration_mode": "fixed",
                 },
             },
             "medium": {
-                "planning": {
-                    "decompose": {"initial_subtopics": 5, "mode": "manual"}
-                },
+                "planning": {"decompose": {"initial_subtopics": 5, "mode": "manual"}},
                 "researching": {
                     "max_iterations": 4,
                     "iteration_mode": "fixed",
                 },
             },
             "deep": {
-                "planning": {
-                    "decompose": {"initial_subtopics": 8, "mode": "manual"}
-                },
+                "planning": {"decompose": {"initial_subtopics": 8, "mode": "manual"}},
                 "researching": {
                     "max_iterations": 7,
                     "iteration_mode": "fixed",
                 },
             },
             "auto": {
-                "planning": {
-                    "decompose": {"mode": "auto", "auto_max_subtopics": 8}
-                },
+                "planning": {"decompose": {"mode": "auto", "auto_max_subtopics": 8}},
                 "researching": {
                     "max_iterations": 6,
                     "iteration_mode": "flexible",
@@ -299,9 +281,7 @@ async def websocket_research_run(websocket: WebSocket):
             base_url = getattr(llm_config, "base_url", None)
             api_version = getattr(llm_config, "api_version", None)
         except ValueError as e:
-            await websocket.send_json(
-                {"error": f"LLM configuration error: {e!s}"}
-            )
+            await websocket.send_json({"error": f"LLM configuration error: {e!s}"})
             await websocket.close()
             return
 
@@ -372,9 +352,7 @@ async def websocket_research_run(websocket: WebSocket):
                     try:
                         # Use call_soon_threadsafe for thread safety
                         loop = asyncio.get_event_loop()
-                        loop.call_soon_threadsafe(
-                            self.queue.put_nowait, message
-                        )
+                        loop.call_soon_threadsafe(self.queue.put_nowait, message)
                     except (asyncio.QueueFull, RuntimeError, AttributeError):
                         # Queue full, event loop closed, or no event loop, ignore error, doesn't affect terminal output
                         pass
@@ -422,9 +400,9 @@ async def websocket_research_run(websocket: WebSocket):
 
             # Update task status to completed
             try:
-                log_dir = config.get("paths", {}).get(
-                    "user_log_dir"
-                ) or config.get("logging", {}).get("log_dir")
+                log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+                    "logging", {}
+                ).get("log_dir")
                 research_logger = get_logger("Research", log_dir=log_dir)
                 research_logger.success(
                     f"[{task_id}] Research flow completed: {topic[:50]}..."
@@ -434,9 +412,7 @@ async def websocket_research_run(websocket: WebSocket):
                 logger.warning(f"Failed to log completion: {e}")
 
         finally:
-            sys.stdout = (
-                original_stdout  # Safely restore using saved reference
-            )
+            sys.stdout = original_stdout  # Safely restore using saved reference
 
     except Exception as e:
         await websocket.send_json({"type": "error", "content": str(e)})
@@ -444,9 +420,9 @@ async def websocket_research_run(websocket: WebSocket):
 
         # Update task status to error
         try:
-            log_dir = config.get("paths", {}).get(
-                "user_log_dir"
-            ) or config.get("logging", {}).get("log_dir")
+            log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+                "logging", {}
+            ).get("log_dir")
             research_logger = get_logger("Research", log_dir=log_dir)
             research_logger.error(f"[{task_id}] Research flow failed: {e}")
             task_manager.update_task_status(task_id, "error", error=str(e))

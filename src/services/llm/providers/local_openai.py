@@ -82,9 +82,7 @@ class LocalLLMProvider(BaseLLMProvider):
                     raw_response = {}
 
             finish_reason = getattr(choice, "finish_reason", None)
-            if finish_reason is not None and not isinstance(
-                finish_reason, str
-            ):
+            if finish_reason is not None and not isinstance(finish_reason, str):
                 finish_reason = str(finish_reason)
 
             return TutorResponse(

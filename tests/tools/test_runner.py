@@ -35,15 +35,11 @@ async def test_local_process_runner_success(tmp_path, monkeypatch):
     ws.initialize()
 
     async def fake_create(*args, **kwargs):
-        return FakeProcess(
-            stdout=b"hello\n", stderr=b"", returncode=0, delay=0
-        )
+        return FakeProcess(stdout=b"hello\n", stderr=b"", returncode=0, delay=0)
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(timeout=5, assets_dir=None)
     result = await runner.run("print('hello')", options)
@@ -67,17 +63,13 @@ async def test_local_process_runner_artifacts(tmp_path, monkeypatch):
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(timeout=5, assets_dir=assets)
     result = await runner.run("print('hello')", options)
 
     assert result.exit_code == 0
-    assert any(
-        "out.txt" in p or p.endswith("out.txt") for p in result.artifact_paths
-    )
+    assert any("out.txt" in p or p.endswith("out.txt") for p in result.artifact_paths)
     assert any(a.name == "out.txt" for a in result.artifacts)
     # Size should match
     out = next(a for a in result.artifacts if a.name == "out.txt")
@@ -95,9 +87,7 @@ async def test_local_process_runner_timeout(tmp_path, monkeypatch):
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(timeout=0.1, assets_dir=None)
     result = await runner.run("import time\ntime.sleep(1)", options)
@@ -116,9 +106,7 @@ async def test_local_process_runner_exception(tmp_path, monkeypatch):
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create)
 
-    runner = LocalProcessRunner(
-        workspace_manager=ws, python_executable=sys.executable
-    )
+    runner = LocalProcessRunner(workspace_manager=ws, python_executable=sys.executable)
 
     options = ExecutionOptions(timeout=5, assets_dir=None)
     result = await runner.run("print('hello')", options)

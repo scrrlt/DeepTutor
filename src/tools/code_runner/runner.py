@@ -121,9 +121,7 @@ class LocalProcessRunner(Runner):
                         elapsed_ms=elapsed_ms,
                     )
 
-                exit_code = (
-                    proc.returncode if proc.returncode is not None else 0
-                )
+                exit_code = proc.returncode if proc.returncode is not None else 0
                 elapsed_ms = (time.time() - start) * 1000
 
                 stdout = (
@@ -153,8 +151,8 @@ class LocalProcessRunner(Runner):
 
         except Exception as exc:  # broad on purpose to map to RunResult
             logger.exception("LocalProcessRunner.run failed: %s", exc)
-            artifacts, artifact_paths = (
-                self.workspace_manager.collect_artifacts(assets_dir)
+            artifacts, artifact_paths = self.workspace_manager.collect_artifacts(
+                assets_dir
             )
             return RunResult(
                 stdout="",

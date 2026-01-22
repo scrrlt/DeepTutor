@@ -102,9 +102,7 @@ def count_tokens_with_tiktoken(text: str, model_name: str) -> int:
     return len(encoding.encode(text))
 
 
-def count_tokens_with_litellm(
-    messages: list[dict], model_name: str
-) -> dict[str, int]:
+def count_tokens_with_litellm(messages: list[dict], model_name: str) -> dict[str, int]:
     """
     Calculate token count using litellm (if available)
 
@@ -189,16 +187,13 @@ def get_model_pricing(model_name: str) -> dict[str, float]:
             if model_info and "input_cost_per_token" in model_info:
                 return {
                     "input": model_info.get("input_cost_per_token", 0) * 1000,
-                    "output": model_info.get("output_cost_per_token", 0)
-                    * 1000,
+                    "output": model_info.get("output_cost_per_token", 0) * 1000,
                 }
         except Exception:
             pass
 
     # Default price (use gpt-4o-mini as conservative estimate)
-    return MODEL_PRICING.get(
-        "gpt-4o-mini", {"input": 0.00015, "output": 0.0006}
-    )
+    return MODEL_PRICING.get("gpt-4o-mini", {"input": 0.00015, "output": 0.0006})
 
 
 def calculate_cost(
@@ -236,9 +231,7 @@ class TokenUsage:
     cost_usd: float = 0.0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     # New field
-    calculation_method: str = (
-        "api"  # "api", "tiktoken", "litellm", "estimated"
-    )
+    calculation_method: str = "api"  # "api", "tiktoken", "litellm", "estimated"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -250,9 +243,7 @@ class TokenTracker:
     Supports multiple token counting methods: API response > tiktoken > litellm > estimation
     """
 
-    def __init__(
-        self, prefer_tiktoken: bool = True, prefer_litellm: bool = False
-    ):
+    def __init__(self, prefer_tiktoken: bool = True, prefer_litellm: bool = False):
         """
         Initialize tracker.
 
@@ -315,9 +306,7 @@ class TokenTracker:
         # If token_counts is provided (from API response), prioritize using it
         if token_counts:
             prompt_tokens = token_counts.get("prompt_tokens", prompt_tokens)
-            completion_tokens = token_counts.get(
-                "completion_tokens", completion_tokens
-            )
+            completion_tokens = token_counts.get("completion_tokens", completion_tokens)
             calculation_method = "api"
         # If no API data, try using tiktoken for precise calculation
         elif self.prefer_tiktoken and system_prompt and user_prompt:
@@ -325,17 +314,13 @@ class TokenTracker:
                 system_prompt + "\n" + user_prompt, model
             )
             if response_text:
-                completion_tokens = count_tokens_with_tiktoken(
-                    response_text, model
-                )
+                completion_tokens = count_tokens_with_tiktoken(response_text, model)
             calculation_method = "tiktoken"
         # If litellm is available and messages are provided
         elif self.prefer_litellm and messages:
             result = count_tokens_with_litellm(messages, model)
             prompt_tokens = result["prompt_tokens"]
-            completion_tokens = result.get(
-                "completion_tokens", completion_tokens
-            )
+            completion_tokens = result.get("completion_tokens", completion_tokens)
             calculation_method = "litellm"
         # If none available, use estimation (fallback)
         elif system_prompt and user_prompt:
@@ -418,9 +403,7 @@ class TokenTracker:
                     "calls": 0,
                 }
             by_agent[usage.agent_name]["prompt_tokens"] += usage.prompt_tokens
-            by_agent[usage.agent_name]["completion_tokens"] += (
-                usage.completion_tokens
-            )
+            by_agent[usage.agent_name]["completion_tokens"] += usage.completion_tokens
             by_agent[usage.agent_name]["total_tokens"] += usage.total_tokens
             by_agent[usage.agent_name]["cost_usd"] += usage.cost_usd
             by_agent[usage.agent_name]["calls"] += 1
@@ -435,9 +418,7 @@ class TokenTracker:
                     "calls": 0,
                 }
             by_model[usage.model]["prompt_tokens"] += usage.prompt_tokens
-            by_model[usage.model]["completion_tokens"] += (
-                usage.completion_tokens
-            )
+            by_model[usage.model]["completion_tokens"] += usage.completion_tokens
             by_model[usage.model]["total_tokens"] += usage.total_tokens
             by_model[usage.model]["cost_usd"] += usage.cost_usd
             by_model[usage.model]["calls"] += 1
@@ -492,9 +473,7 @@ class TokenTracker:
         ]
 
         # If advanced features are used, show tool status and calculation method statistics
-        if summary.get("tiktoken_available") or summary.get(
-            "litellm_available"
-        ):
+        if summary.get("tiktoken_available") or summary.get("litellm_available"):
             lines.append("")
             lines.append("Calculation Tool Status:")
             lines.append(

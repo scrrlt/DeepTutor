@@ -1,5 +1,5 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
+import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   X,
   Activity,
@@ -61,17 +61,17 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
   count,
   onClearLogs,
 }) => {
-  const { t } = useTranslation();
-  const isMimicMode = mode === "mimic";
-  const isIdle = stage === "idle" || stage === null;
-  const isGenerating = stage === "generating" || stage === "validating";
-  const isComplete = stage === "complete";
+  const { t } = useTranslation()
+  const isMimicMode = mode === 'mimic'
+  const isIdle = stage === 'idle' || stage === null
+  const isGenerating = stage === 'generating' || stage === 'validating'
+  const isComplete = stage === 'complete'
 
   // Custom mode steps
   const customModeSteps = [
     {
-      id: "init",
-      label: t("Initializing"),
+      id: 'init',
+      label: t('Initializing'),
       icon: Sparkles,
       active: stage === 'planning' && !progress?.status,
       done:
@@ -84,8 +84,8 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
         isComplete,
     },
     {
-      id: "query",
-      label: t("Generating Search Queries"),
+      id: 'query',
+      label: t('Generating Search Queries'),
       icon: Search,
       active: progress?.status === 'generating_queries' || progress?.status === 'splitting_queries',
       done:
@@ -97,8 +97,8 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
         isComplete,
     },
     {
-      id: "research",
-      label: t("Retrieving Knowledge"),
+      id: 'research',
+      label: t('Retrieving Knowledge'),
       icon: Database,
       active: stage === 'researching' || progress?.status === 'retrieving',
       done:
@@ -108,8 +108,8 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
         isComplete,
     },
     {
-      id: "plan",
-      label: t("Creating Question Plan"),
+      id: 'plan',
+      label: t('Creating Question Plan'),
       icon: Target,
       active: progress?.status === 'creating_plan' || progress?.status === 'planning_focuses',
       done: progress?.status === 'plan_ready' || isGenerating || isComplete,
@@ -119,29 +119,29 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
   // Mimic mode steps
   const mimicModeSteps = [
     {
-      id: "upload",
-      label: t("Uploading PDF"),
+      id: 'upload',
+      label: t('Uploading PDF'),
       icon: Sparkles,
       active: stage === 'uploading',
       done: stage === 'parsing' || stage === 'extracting' || isGenerating || isComplete,
     },
     {
-      id: "parse",
-      label: t("Parsing PDF (MinerU)"),
+      id: 'parse',
+      label: t('Parsing PDF (MinerU)'),
       icon: RefreshCw,
       active: stage === 'parsing',
       done: stage === 'extracting' || isGenerating || isComplete,
     },
     {
-      id: "extract",
-      label: t("Extracting Questions"),
+      id: 'extract',
+      label: t('Extracting Questions'),
       icon: Search,
       active: stage === 'extracting',
       done: isGenerating || isComplete,
     },
     {
-      id: "ready",
-      label: t("Ready to Generate"),
+      id: 'ready',
+      label: t('Ready to Generate'),
       icon: Target,
       active: false,
       done: isGenerating || isComplete,
@@ -193,11 +193,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
             </div>
             <div>
               <h2 className="font-semibold text-slate-700 dark:text-slate-200 text-sm">
-                {isComplete
-                  ? t("Generation Complete")
-                  : isIdle
-                    ? t("Ready")
-                    : t("Generating")}
+                {isComplete ? t('Generation Complete') : isIdle ? t('Ready') : t('Generating')}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {stage || 'idle'}
@@ -221,27 +217,25 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
           {!isMimicMode && topic && (
             <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                {t("Configuration")}
+                {t('Configuration')}
               </p>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">{topic}</p>
               <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <span>
-                  {t("Difficulty:")}{" "}
+                  {t('Difficulty:')}{' '}
                   <strong className="capitalize text-slate-700 dark:text-slate-200">
                     {difficulty}
                   </strong>
                 </span>
                 <span>
-                  {t("Type:")}{" "}
+                  {t('Type:')}{' '}
                   <strong className="capitalize text-slate-700 dark:text-slate-200">
                     {questionType}
                   </strong>
                 </span>
                 <span>
-                  {t("Count:")}{" "}
-                  <strong className="text-slate-700 dark:text-slate-200">
-                    {count}
-                  </strong>
+                  {t('Count:')}{' '}
+                  <strong className="text-slate-700 dark:text-slate-200">{count}</strong>
                 </span>
               </div>
             </div>
@@ -253,11 +247,11 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <p className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-                  {t("Mimic Exam Mode")}
+                  {t('Mimic Exam Mode')}
                 </p>
               </div>
               <p className="text-sm text-amber-800 dark:text-amber-300">
-                {t("Generating questions based on reference exam paper")}
+                {t('Generating questions based on reference exam paper')}
               </p>
             </div>
           )}
@@ -266,7 +260,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
           {!isIdle && (
             <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-                {t("Progress")}
+                {t('Progress')}
               </p>
               <div className="space-y-3">
                 {planningSteps.map(step => (
@@ -309,7 +303,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
           {subFocuses.length > 0 && (
             <div className="px-4 py-4 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                {t("Question Focuses ({n})").replace("{n}", String(subFocuses.length))}
+                {t('Question Focuses ({n})').replace('{n}', String(subFocuses.length))}
               </p>
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {subFocuses.map(focus => (
@@ -332,23 +326,23 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
           <div className="px-4 py-4 bg-white dark:bg-slate-800">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {t("Logs ({n})").replace("{n}", String(logs.length))}
+                {t('Logs ({n})').replace('{n}', String(logs.length))}
               </p>
               {logs.length > 0 && onClearLogs && (
                 <button
                   onClick={onClearLogs}
                   className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 px-2 py-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                  title={t("Clear logs")}
+                  title={t('Clear logs')}
                 >
                   <Trash2 className="w-3 h-3" />
-                  {t("Clear")}
+                  {t('Clear')}
                 </button>
               )}
             </div>
             {logs.length === 0 ? (
               <div className="text-center py-8 text-slate-400 dark:text-slate-500">
                 <Activity className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-xs">{t("Waiting for logs...")}</p>
+                <p className="text-xs">{t('Waiting for logs...')}</p>
               </div>
             ) : (
               <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">

@@ -1,4 +1,51 @@
-"""Unified LLM service exports for DeepTutor modules."""
+"""
+LLM Service
+===========
+
+Unified LLM service for all DeepTutor modules.
+
+Architecture:
+    Agents (ChatAgent, GuideAgent, etc.)
+              ↓
+         BaseAgent.call_llm() / stream_llm()
+              ↓
+         LLM Factory (complete / stream)
+              ↓
+    ┌─────────┴─────────┐
+    ↓                   ↓
+CloudProvider      LocalProvider
+(cloud_provider)   (local_provider)
+
+Features:
+- Unified interface for all LLM providers (cloud + local)
+- Automatic retry with exponential backoff
+- Smart routing based on URL detection
+- Provider capability detection
+
+Usage:
+    # Simple completion (with automatic retry)
+    from src.services.llm import complete, stream
+    response = await complete("Hello!", system_prompt="You are helpful.")
+
+    # Streaming (with automatic retry on connection)
+    async for chunk in stream("Hello!", system_prompt="You are helpful."):
+        print(chunk, end="")
+
+    # Custom retry configuration
+    response = await complete(
+        "Hello!",
+        max_retries=5,
+        retry_delay=2.0,
+        exponential_backoff=True,
+    )
+
+    # Configuration
+    from src.services.llm import get_llm_config, LLMConfig
+    config = get_llm_config()
+
+    # URL utilities for local LLM servers
+    from src.services.llm import sanitize_url, is_local_llm_server
+"""
 
 # Note: cloud_provider and local_provider are lazy-loaded via __getattr__
 # to avoid importing lightrag at module load time
@@ -19,8 +66,9 @@ from .capabilities import (
 from .client import LLMClient, get_llm_client, reset_llm_client
 from .config import (
     LLMConfig,
-    clear_llm_config_cache,
     get_llm_config,
+    get_token_limit_kwargs,
+    uses_max_completion_tokens,
 )
 from .exceptions import (
     LLMAPIError,
@@ -43,7 +91,6 @@ from .factory import (
     get_provider_presets,
     stream,
 )
-from .model_rules import get_token_limit_kwargs, uses_max_completion_tokens
 from .utils import (
     build_auth_headers,
     build_chat_url,
@@ -64,7 +111,6 @@ __all__ = [
     # Config
     "LLMConfig",
     "get_llm_config",
-    "clear_llm_config_cache",
     "uses_max_completion_tokens",
     "get_token_limit_kwargs",
     # Capabilities

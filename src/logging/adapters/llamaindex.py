@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 LlamaIndex Log Forwarder
 ========================
@@ -8,6 +7,7 @@ Forwards LlamaIndex logs to DeepTutor's unified logging system.
 """
 
 from contextlib import contextmanager
+import logging
 from typing import Any
 
 from .._stdlib_logging import stdlib_logging

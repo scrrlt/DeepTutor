@@ -38,16 +38,12 @@ async def test_tool_agent_process_workflow(tool_agent: ToolAgent):
     """
     Tests the overall workflow of the ToolAgent's process method.
     """
-    tool_agent._execute_single_call = AsyncMock(
-        return_value=("raw_answer", {})
-    )
+    tool_agent._execute_single_call = AsyncMock(return_value=("raw_answer", {}))
     tool_agent._summarize_tool_result = AsyncMock(return_value="summary")
 
     step = SolveChainStep(step_id="step1", step_target="target1")
     step.tool_calls.append(
-        ToolCallRecord(
-            tool_type="rag_hybrid", query="test_query", cite_id="cite1"
-        )
+        ToolCallRecord(tool_type="rag_hybrid", query="test_query", cite_id="cite1")
     )
 
     solve_memory = SolveMemory()
@@ -108,8 +104,6 @@ async def test_summarize_tool_result(tool_agent: ToolAgent):
     tool_agent.call_llm = AsyncMock(return_value="summary")
     tool_agent.get_prompt = MagicMock(return_value="prompt")
 
-    summary = await tool_agent._summarize_tool_result(
-        "tool", "query", "raw_answer"
-    )
+    summary = await tool_agent._summarize_tool_result("tool", "query", "raw_answer")
 
     assert summary == "summary"

@@ -43,11 +43,19 @@ repos:
     rev: v0.14.7
     hooks:
       - id: ruff
-        # Added --quiet to suppress logs; --exit-zero makes it a "soft fail" if desired
-        args: [--fix, --quiet, --exit-zero]
+        args: [--quiet]
 
       - id: ruff-format
         args: [--quiet]
+
+  # ============================================
+  # Docstring coverage
+  # ============================================
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        args: [--config, pyproject.toml]
 
   # ============================================
   # Frontend code formatting and linting
@@ -59,9 +67,10 @@ repos:
       - id: prettier-system
         name: prettier (web, system node)
         language: system
-        entry: node
+        entry: npx
         args:
-          - web/node_modules/prettier/bin/prettier.cjs
+          - --yes
+          - prettier
           - --log-level
           - warn
           - --write

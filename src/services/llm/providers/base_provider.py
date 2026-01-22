@@ -21,6 +21,8 @@ from ..exceptions import (
     LLMAPIError,
     LLMCircuitBreakerError,
     LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
 )
 from ..traffic_control import TrafficController
 from ..types import AsyncStreamGenerator, TutorResponse

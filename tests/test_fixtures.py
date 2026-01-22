@@ -30,9 +30,7 @@ def test_mock_openai_client_is_mocked(mock_openai_client):
     assert isinstance(mock_openai_client.chat.completions.create, MagicMock)
     # Ensure that calling the mocked method does not raise an error
     mock_openai_client.chat.completions.create("test", "test")
-    mock_openai_client.chat.completions.create.assert_called_once_with(
-        "test", "test"
-    )
+    mock_openai_client.chat.completions.create.assert_called_once_with("test", "test")
 
 
 @pytest.mark.asyncio

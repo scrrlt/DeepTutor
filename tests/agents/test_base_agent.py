@@ -114,10 +114,7 @@ async def test_stream_llm(base_agent: BaseAgent):
     base_agent.provider.stream = mock_stream
 
     chunks = [
-        chunk
-        async for chunk in base_agent.stream_llm(
-            "user_prompt", "system_prompt"
-        )
+        chunk async for chunk in base_agent.stream_llm("user_prompt", "system_prompt")
     ]
 
     assert "".join(chunks) == "test response"
@@ -136,6 +133,4 @@ def test_get_prompt(base_agent: BaseAgent):
 
     assert base_agent.get_prompt("system") == "system_prompt"
     assert base_agent.get_prompt("section", "field") == "nested_prompt"
-    assert (
-        base_agent.get_prompt("non_existent", fallback="default") == "default"
-    )
+    assert base_agent.get_prompt("non_existent", fallback="default") == "default"

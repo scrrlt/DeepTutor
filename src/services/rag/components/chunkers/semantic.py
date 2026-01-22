@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Semantic Chunker
 ================
@@ -67,9 +66,7 @@ class SemanticChunker(BaseComponent):
             if end_pos < len(text):
                 for sep in self.separators:
                     # Look for separator in the last portion of the chunk
-                    search_start = max(
-                        current_pos + self.chunk_size - 200, current_pos
-                    )
+                    search_start = max(current_pos + self.chunk_size - 200, current_pos)
                     sep_pos = text.rfind(sep, search_start, end_pos)
                     if sep_pos > current_pos:
                         end_pos = sep_pos + len(sep)

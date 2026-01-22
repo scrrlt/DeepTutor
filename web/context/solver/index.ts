@@ -1,1 +1,1 @@
-export { SolverProvider, useSolver } from "./SolverContext";
+export { SolverProvider, useSolver } from './SolverContext'

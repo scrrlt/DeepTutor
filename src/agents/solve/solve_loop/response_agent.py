@@ -46,9 +46,7 @@ class ResponseAgent(BaseAgent):
             token_tracker=token_tracker,
         )
         # Store citation configuration
-        self.enable_citations = config.get("system", {}).get(
-            "enable_citations", True
-        )
+        self.enable_citations = config.get("system", {}).get("enable_citations", True)
 
     async def process(
         self,
@@ -113,12 +111,8 @@ class ResponseAgent(BaseAgent):
         output_dir: str | None,
         accumulated_response: str = "",
     ) -> dict[str, Any]:
-        available_cite_details = self._format_available_cite(
-            step, investigate_memory
-        )
-        tool_materials, image_materials = self._format_tool_materials(
-            step, output_dir
-        )
+        available_cite_details = self._format_available_cite(step, investigate_memory)
+        tool_materials, image_materials = self._format_tool_materials(step, output_dir)
         citation_details = self._format_citation_details(step, citation_memory)
 
         return {
@@ -143,15 +137,11 @@ class ResponseAgent(BaseAgent):
         # Add citation disable instruction if citations are disabled
         citation_instruction = ""
         if not self.enable_citations:
-            citation_instruction_yaml = self.get_prompt(
-                "citation_instruction_disabled"
-            )
+            citation_instruction_yaml = self.get_prompt("citation_instruction_disabled")
             if citation_instruction_yaml:
                 citation_instruction = citation_instruction_yaml
             else:
-                citation_instruction = (
-                    "\n\n**Important: Citation Feature Disabled**\n"
-                )
+                citation_instruction = "\n\n**Important: Citation Feature Disabled**\n"
 
         if image_materials:
             image_list = "\n".join([f"  - {img}" for img in image_materials])
@@ -161,17 +151,13 @@ class ResponseAgent(BaseAgent):
                     image_list=image_list
                 )
             else:
-                image_instruction = (
-                    f"\n\n**Image files to insert**:\n{image_list}\n"
-                )
+                image_instruction = f"\n\n**Image files to insert**:\n{image_list}\n"
             return base_prompt + citation_instruction + image_instruction
 
         return base_prompt + citation_instruction
 
     def _build_user_prompt(self, context: dict[str, Any]) -> str:
-        template = (
-            self.get_prompt("user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "ResponseAgent missing user_template, please configure user_template in prompts/{lang}/solve_loop/response_agent.yaml"
@@ -201,11 +187,7 @@ class ResponseAgent(BaseAgent):
         lines: list[str] = []
         for cite in step.available_cite:
             knowledge = next(
-                (
-                    k
-                    for k in investigate_memory.knowledge_chain
-                    if k.cite_id == cite
-                ),
+                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite),
                 None,
             )
             if not knowledge:
@@ -246,16 +228,12 @@ class ResponseAgent(BaseAgent):
             )
             # Priority: use recorded relative paths, then absolute paths, finally fall back to original artifacts list
             artifact_rel_paths = (
-                call.metadata.get("artifact_rel_paths")
-                if call.metadata
-                else None
+                call.metadata.get("artifact_rel_paths") if call.metadata else None
             )
             artifact_paths = (
                 call.metadata.get("artifact_paths") if call.metadata else None
             )
-            artifacts = (
-                call.metadata.get("artifacts") if call.metadata else None
-            )
+            artifacts = call.metadata.get("artifacts") if call.metadata else None
 
             if artifact_rel_paths:
                 for rel_path in artifact_rel_paths:
@@ -321,9 +299,7 @@ class ResponseAgent(BaseAgent):
             if not citation:
                 continue
             summary = citation.content or citation.raw_result[:200]
-            lines.append(
-                f"- {cite_id} [{citation.tool_type}] Query: {citation.query}"
-            )
+            lines.append(f"- {cite_id} [{citation.tool_type}] Query: {citation.query}")
             if summary:
                 lines.append(f"  Summary: {summary[:300]}")
         return "\n".join(lines) if lines else "(Citation information missing)"
@@ -331,9 +307,7 @@ class ResponseAgent(BaseAgent):
     # ------------------------------------------------------------------ #
     # Citation Extraction
     # ------------------------------------------------------------------ #
-    def _extract_used_citations(
-        self, content: str, step: SolveChainStep
-    ) -> list[str]:
+    def _extract_used_citations(self, content: str, step: SolveChainStep) -> list[str]:
         # If citations are disabled, return empty list
         if not self.enable_citations:
             return []
@@ -350,8 +324,7 @@ class ResponseAgent(BaseAgent):
                 continue
             normalized.append(f"[{candidate.strip()}]")
         allowed = set(
-            step.available_cite
-            + [tc.cite_id for tc in step.tool_calls if tc.cite_id]
+            step.available_cite + [tc.cite_id for tc in step.tool_calls if tc.cite_id]
         )
         ordered: list[str] = []
         for cite in normalized:

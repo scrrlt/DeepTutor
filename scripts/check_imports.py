@@ -2,7 +2,6 @@ import importlib
 
 modules = [
     "src.services.rag.factory",
-    "src.services.rag.pipelines.academic",
     "src.services.rag.pipelines.lightrag",
     "src.services.rag.pipelines.llamaindex",
     "src.services.rag.pipelines.raganything",

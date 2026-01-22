@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Perplexity AI Search Provider
 
@@ -93,9 +92,7 @@ class PerplexityProvider(BaseSearchProvider):
                 usage_info["cost"] = {
                     "total_cost": getattr(cost, "total_cost", 0),
                     "input_tokens_cost": getattr(cost, "input_tokens_cost", 0),
-                    "output_tokens_cost": getattr(
-                        cost, "output_tokens_cost", 0
-                    ),
+                    "output_tokens_cost": getattr(cost, "output_tokens_cost", 0),
                 }
 
         # Build search results list

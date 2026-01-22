@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Knowledge Base Configuration Service
 =====================================
@@ -189,14 +188,10 @@ class KnowledgeBaseConfigService:
 
             if config:
                 self.set_kb_config(kb_name, config)
-                logger.info(
-                    f"Synced config for KB '{kb_name}' from metadata.json"
-                )
+                logger.info(f"Synced config for KB '{kb_name}' from metadata.json")
 
         except Exception as e:
-            logger.warning(
-                f"Failed to sync config from metadata for '{kb_name}': {e}"
-            )
+            logger.warning(f"Failed to sync config from metadata for '{kb_name}': {e}")
 
     def sync_all_from_metadata(self, kb_base_dir: Path):
         """

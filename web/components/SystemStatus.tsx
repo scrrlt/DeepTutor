@@ -12,9 +12,9 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { apiUrl } from "@/lib/api";
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { apiUrl } from '@/lib/api'
 
 interface SystemStatusData {
   backend: {
@@ -52,11 +52,9 @@ interface TestResult {
 type ModelType = 'llm' | 'embeddings' | 'tts'
 
 export default function SystemStatus() {
-  const { t } = useTranslation();
-  const [statusData, setStatusData] = useState<SystemStatusData | null>(null);
-  const [backendConnected, setBackendConnected] = useState<boolean | null>(
-    null,
-  );
+  const { t } = useTranslation()
+  const [statusData, setStatusData] = useState<SystemStatusData | null>(null)
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null)
   const [testing, setTesting] = useState<Record<ModelType, boolean>>({
     llm: false,
     embeddings: false,
@@ -191,23 +189,23 @@ export default function SystemStatus() {
 
   const getStatusText = (status: string, isBackend: boolean = false) => {
     if (isBackend) {
-      if (backendConnected === null) return t("Checking...");
-      return backendConnected ? t("Online") : t("Offline");
+      if (backendConnected === null) return t('Checking...')
+      return backendConnected ? t('Online') : t('Offline')
     }
 
     switch (status) {
-      case "online":
-        return t("Online");
-      case "configured":
-        return t("Configured");
-      case "offline":
-        return t("Offline");
-      case "not_configured":
-        return t("Not Configured");
-      case "error":
-        return t("Error");
+      case 'online':
+        return t('Online')
+      case 'configured':
+        return t('Configured')
+      case 'offline':
+        return t('Offline')
+      case 'not_configured':
+        return t('Not Configured')
+      case 'error':
+        return t('Error')
       default:
-        return t("Unknown");
+        return t('Unknown')
     }
   }
 
@@ -224,8 +222,8 @@ export default function SystemStatus() {
         }`}
       >
         <div className="flex items-center gap-2">
-          {getStatusIcon("", true)}
-          <span className="font-medium">{t("Backend Service")}</span>
+          {getStatusIcon('', true)}
+          <span className="font-medium">{t('Backend Service')}</span>
         </div>
         <span>{getStatusText('', true)}</span>
       </div>
@@ -241,7 +239,7 @@ export default function SystemStatus() {
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                 <span className="font-medium text-slate-700 dark:text-slate-200">
-                  {t("LLM Model")}
+                  {t('LLM Model')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -272,12 +270,12 @@ export default function SystemStatus() {
                 {testing.llm ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>{t("Testing...")}</span>
+                    <span>{t('Testing...')}</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>{t("Test Connection")}</span>
+                    <span>{t('Test Connection')}</span>
                   </>
                 )}
               </button>
@@ -304,7 +302,7 @@ export default function SystemStatus() {
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                 <span className="font-medium text-slate-700 dark:text-slate-200">
-                  {t("Embeddings")}
+                  {t('Embeddings')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -335,12 +333,12 @@ export default function SystemStatus() {
                 {testing.embeddings ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>{t("Testing...")}</span>
+                    <span>{t('Testing...')}</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>{t("Test Connection")}</span>
+                    <span>{t('Test Connection')}</span>
                   </>
                 )}
               </button>
@@ -367,7 +365,7 @@ export default function SystemStatus() {
               <div className="flex items-center gap-2">
                 <Volume2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                 <span className="font-medium text-slate-700 dark:text-slate-200">
-                  {t("TTS Model")}
+                  {t('TTS Model')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -398,12 +396,12 @@ export default function SystemStatus() {
                 {testing.tts ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>{t("Testing...")}</span>
+                    <span>{t('Testing...')}</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>{t("Test Connection")}</span>
+                    <span>{t('Test Connection')}</span>
                   </>
                 )}
               </button>

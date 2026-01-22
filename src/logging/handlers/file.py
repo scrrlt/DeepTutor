@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 File Log Handlers
 =================
@@ -6,6 +5,7 @@ File Log Handlers
 File-based logging with rotation support.
 """
 
+import asyncio
 from datetime import datetime
 import json
 from logging.handlers import (

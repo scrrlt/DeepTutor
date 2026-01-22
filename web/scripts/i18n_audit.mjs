@@ -124,4 +124,3 @@ if (!showAll && allFindings.length > 80)
 
 if (strict) process.exit(1);
 process.exit(0);
-

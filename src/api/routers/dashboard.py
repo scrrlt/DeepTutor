@@ -1,24 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from src.api.utils.history import history_manager
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-=======
-=======
->>>>>>> e0a614a (Refactor code execution tools and add workspace management)
 from src.logging import get_logger
-
-logger = get_logger(__name__)
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
-
-from src.logging import get_logger
-
-
-logger = get_logger(__name__)
-
-from src.logging import get_logger
-
 
 logger = get_logger(__name__)
 

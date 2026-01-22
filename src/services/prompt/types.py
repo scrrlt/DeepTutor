@@ -9,9 +9,7 @@ from typing import Any
 class PromptBundle:
     def __init__(self, data: dict[str, Any], source_id: str = "unknown"):
         self._data = data
-        self.source_id = (
-            source_id  # Useful for debugging (e.g., "chat_agent_en")
-        )
+        self.source_id = source_id  # Useful for debugging (e.g., "chat_agent_en")
 
     def get(self, key: str, fallback: str = "") -> str:
         """

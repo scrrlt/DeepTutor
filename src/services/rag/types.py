@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 RAG Types
 =========
@@ -19,9 +18,7 @@ class Chunk:
     """
 
     content: str
-    chunk_type: str = (
-        "text"  # text, definition, theorem, equation, figure, table...
-    )
+    chunk_type: str = "text"  # text, definition, theorem, equation, figure, table...
     metadata: dict[str, Any] = field(default_factory=dict)
     embedding: list[float] | None = None
 

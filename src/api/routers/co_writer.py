@@ -23,8 +23,8 @@ from src.agents.co_writer.edit_agent import (
 from src.agents.co_writer.narrator_agent import NarratorAgent
 from src.logging import get_logger
 from src.services.config import load_config_with_main
-from src.services.tts import get_tts_config
 from src.services.settings.interface_settings import get_ui_language
+from src.services.tts import get_tts_config
 
 router = APIRouter()
 
@@ -33,9 +33,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main(
     "solve_config.yaml", project_root
 )  # Use any config to get main.yaml
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-    "logging", {}
-).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+    "log_dir"
+)
 logger = get_logger("CoWriter", level="INFO", log_dir=log_dir)
 
 # Singleton agent instances - use refresh_config() before each request
@@ -197,9 +197,7 @@ async def export_markdown(content: dict):
         return Response(
             content=markdown_content,
             media_type="text/markdown",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            },
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

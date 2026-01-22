@@ -73,8 +73,8 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
+      'rlig' 1,
+      'calt' 1;
   }
 }
 
@@ -227,7 +227,7 @@
 }
 
 .rough-circle::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -4px;
   left: -4px;
@@ -241,7 +241,7 @@
 }
 
 .rough-circle::after {
-  content: "";
+  content: '';
   position: absolute;
   top: -3px;
   left: -2px;
@@ -285,7 +285,7 @@
 }
 
 .rough-box::before {
-  content: "";
+  content: '';
   position: absolute;
   top: -2px;
   left: -3px;
@@ -297,7 +297,7 @@
 }
 
 .rough-box::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0px;
   left: -1px;
@@ -315,7 +315,7 @@
 }
 
 .rough-underline::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -364,7 +364,7 @@
 }
 
 .rough-bracket-container::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   top: -4px;
@@ -388,7 +388,7 @@ span.rough-bracket {
 }
 
 span.rough-bracket::before {
-  content: "";
+  content: '';
   position: absolute;
   left: -3px;
   top: -2px;
@@ -400,7 +400,7 @@ span.rough-bracket::before {
 }
 
 span.rough-bracket::after {
-  content: "";
+  content: '';
   position: absolute;
   left: -3px;
   bottom: -2px;

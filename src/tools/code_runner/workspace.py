@@ -87,9 +87,7 @@ class WorkspaceManager:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    def collect_artifacts(
-        self, assets_dir: Path | None
-    ) -> tuple[list[str], list[str]]:
+    def collect_artifacts(self, assets_dir: Path | None) -> tuple[list[str], list[str]]:
         """Collect artifact filenames and absolute paths from the assets dir."""
         artifacts: list[str] = []
         artifact_paths: list[str] = []
@@ -111,9 +109,7 @@ class WorkspaceManager:
                     if resolved_path.is_relative_to(root):
                         return
                 else:
-                    resolved_str = (
-                        str(resolved_path).lower().replace("\\", "/")
-                    )
+                    resolved_str = str(resolved_path).lower().replace("\\", "/")
                     root_str = str(root.resolve()).lower().replace("\\", "/")
                     if resolved_str.startswith(root_str):
                         return

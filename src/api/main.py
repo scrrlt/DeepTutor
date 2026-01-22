@@ -208,7 +208,9 @@ def validate_tool_consistency() -> None:
         agent_config_data = load_config_with_main("agents.yaml", project_root)
 
         main_tools = set(main_config.get("solve", {}).get("valid_tools", []))
-        agent_tools = set(agent_config_data.get("investigate", {}).get("valid_tools", []))
+        agent_tools = set(
+            agent_config_data.get("investigate", {}).get("valid_tools", [])
+        )
 
         if not agent_tools.issubset(main_tools):
             drift = agent_tools - main_tools
@@ -320,7 +322,9 @@ async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
         logger.error(f"Authentication error: {exc}")
         content = {
             "error": "authentication_failed",
-            "message": ("LLM authentication failed. Please check your API credentials."),
+            "message": (
+                "LLM authentication failed. Please check your API credentials."
+            ),
         }
         safe_detail = get_safe_detail(exc)
         if safe_detail:

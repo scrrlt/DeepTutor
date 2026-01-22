@@ -69,62 +69,6 @@ class RAGPipelineTestBase:
     def create_test_document(cls, temp_dir: str) -> str:
         """Create a test document for testing"""
         test_content = """
-# Introduction to Machine Learning
-
-Machine learning is a subset of artificial intelligence (AI) that provides systems
-the ability to automatically learn and improve from experience without being explicitly
-programmed.
-
-## Types of Machine Learning
-
-### Supervised Learning
-Supervised learning is a type of machine learning where the model is trained on labeled data.
-The model learns to map input features to output labels.
-
-Examples:
-- Classification: Predicting discrete labels
-- Regression: Predicting continuous values
-
-### Unsupervised Learning
-Unsupervised learning is a type of machine learning where the model is trained on unlabeled data.
-The model learns to find patterns and structures in the data.
-
-Examples:
-- Clustering: Grouping similar data points
-- Dimensionality reduction: Reducing the number of features
-
-### Reinforcement Learning
-Reinforcement learning is a type of machine learning where an agent learns to make decisions
-by interacting with an environment and receiving rewards or penalties.
-
-## Key Concepts
-
-### Training Data
-Training data is the dataset used to train a machine learning model.
-
-### Features
-Features are the input variables used to make predictions.
-
-### Labels
-Labels are the output variables (targets) in supervised learning.
-
-### Model
-A model is a mathematical representation of a real-world process.
-
-## Conclusion
-
-Machine learning has many applications in various fields including:
-- Natural language processing
-- Computer vision
-- Recommendation systems
-- Autonomous vehicles
-"""
-
-        # Create both .md and .txt versions
-        test_content = """# Introduction to Machine Learning and Deep Learning
-
-        Machine Learning is a subset of artificial intelligence...
-        """
 
         # Create .md file
         md_path = os.path.join(temp_dir, "ml_intro.md")

@@ -9,25 +9,25 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   DEFAULT_SIDEBAR_DESCRIPTION,
   DEFAULT_NAV_ORDER,
-} from "@/types/sidebar";
+} from '@/types/sidebar'
 
 // Helper to get initial sidebar width from localStorage
 function getInitialSidebarWidth(): number {
-  if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
-  const storedWidth = localStorage.getItem("sidebarWidth");
+  if (typeof window === 'undefined') return SIDEBAR_DEFAULT_WIDTH
+  const storedWidth = localStorage.getItem('sidebarWidth')
   if (storedWidth) {
-    const width = parseInt(storedWidth, 10);
+    const width = parseInt(storedWidth, 10)
     if (!isNaN(width) && width >= SIDEBAR_MIN_WIDTH && width <= SIDEBAR_MAX_WIDTH) {
-      return width;
+      return width
     }
   }
-  return SIDEBAR_DEFAULT_WIDTH;
+  return SIDEBAR_DEFAULT_WIDTH
 }
 
 // Helper to get initial collapsed state from localStorage
 function getInitialCollapsed(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem("sidebarCollapsed") === "true";
+  if (typeof window === 'undefined') return false
+  return localStorage.getItem('sidebarCollapsed') === 'true'
 }
 
 // Context type
@@ -49,8 +49,8 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // Sidebar dimensions state - use lazy initialization
-  const [sidebarWidth, setSidebarWidthState] = useState<number>(getInitialSidebarWidth);
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(getInitialCollapsed);
+  const [sidebarWidth, setSidebarWidthState] = useState<number>(getInitialSidebarWidth)
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(getInitialCollapsed)
 
   // Sidebar customization state
   const [sidebarDescription, setSidebarDescriptionState] = useState<string>(

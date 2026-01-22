@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tests for LLM factory routing behavior."""
 
 import pytest

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tests for chat template resolution utilities."""
 
 from __future__ import annotations
@@ -6,7 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.services.llm.chat_templates import render_chat_template, resolve_chat_template
+from src.services.llm.chat_templates import (
+    render_chat_template,
+    resolve_chat_template,
+)
 
 
 def test_resolve_chat_template_from_tokenizer_config(tmp_path: Path) -> None:

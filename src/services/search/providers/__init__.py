@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Web Search Provider Registry
 
@@ -6,7 +5,6 @@ This module manages the registration and retrieval of search providers.
 """
 
 import os
-from typing import Type
 
 from ..base import BaseSearchProvider
 

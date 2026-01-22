@@ -48,9 +48,7 @@ class TestLoggerNonBlockingLoad:
         bg_task = asyncio.create_task(background_task())
 
         try:
-            await asyncio.wait_for(
-                asyncio.gather(spam_task, bg_task), timeout=10
-            )
+            await asyncio.wait_for(asyncio.gather(spam_task, bg_task), timeout=10)
             elapsed = asyncio.get_event_loop().time() - start
 
             # Background task should complete many iterations (> 100)
@@ -105,16 +103,10 @@ class TestLLMClientConcurrentLoad:
         async def mock_complete_rate_limit(*args, **kwargs):
             from openai import RateLimitError
 
-            raise RateLimitError(
-                "429 Too Many Requests", response=None, body=None
-            )
+            raise RateLimitError("429 Too Many Requests", response=None, body=None)
 
-        with patch(
-            "src.services.llm.factory.complete", new=mock_complete_rate_limit
-        ):
-            with pytest.raises(
-                Exception
-            ):  # Should propagate the rate limit error
+        with patch("src.services.llm.factory.complete", new=mock_complete_rate_limit):
+            with pytest.raises(Exception):  # Should propagate the rate limit error
                 await client.complete("Test prompt")
 
     @pytest.mark.asyncio
@@ -131,9 +123,7 @@ class TestLLMClientConcurrentLoad:
         async def mock_complete_server_error(*args, **kwargs):
             raise RuntimeError("500 Internal Server Error")
 
-        with patch(
-            "src.services.llm.factory.complete", new=mock_complete_server_error
-        ):
+        with patch("src.services.llm.factory.complete", new=mock_complete_server_error):
             with pytest.raises(RuntimeError):
                 await client.complete("Test prompt")
 

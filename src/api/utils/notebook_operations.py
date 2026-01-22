@@ -253,9 +253,7 @@ class NotebookOperations:
             return False
 
         original_count = len(notebook["records"])
-        notebook["records"] = [
-            r for r in notebook["records"] if r["id"] != record_id
-        ]
+        notebook["records"] = [r for r in notebook["records"] if r["id"] != record_id]
 
         if len(notebook["records"]) == original_count:
             return False  # Record not found

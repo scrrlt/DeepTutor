@@ -32,7 +32,7 @@ from queue import Queue
 import sys
 from typing import Any
 
-from src.config.constants import LOG_SYMBOLS, PROJECT_ROOT
+from src.config.constants import PROJECT_ROOT
 
 from ._stdlib_logging import stdlib_logging
 
@@ -41,6 +41,7 @@ _log_queue: Queue = Queue(maxsize=10000)  # Max 10k records to prevent memory ex
 _listener: QueueListener | None = None
 _configured: bool = False  # Track if logging is configured
 _lazy_configured: bool = False  # Track if configured via lazy initialization
+_default_service_prefix: str | None = None
 
 
 def configure_logging(
@@ -66,7 +67,9 @@ def configure_logging(
 
     # Allow configuration if it was previously only lazy-configured
     if _configured and not _lazy_configured:
-        raise RuntimeError("logging.configure_logging() already called. Cannot reconfigure.")
+        raise RuntimeError(
+            "logging.configure_logging() already called. Cannot reconfigure."
+        )
 
     # If already running (from lazy), stop the old one before reconfiguration
     if _listener is not None:
@@ -81,7 +84,9 @@ def configure_logging(
     if console_output:
         console_handler = stdlib_logging.StreamHandler(sys.stdout)
         console_handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
-        console_handler.setFormatter(ConsoleFormatter())
+        console_handler.setFormatter(
+            ConsoleFormatter(service_prefix=_default_service_prefix)
+        )
         handlers.append(console_handler)
 
     if file_output:
@@ -126,6 +131,25 @@ def _cleanup_logging() -> None:
 atexit.register(_cleanup_logging)
 
 
+def set_default_service_prefix(prefix: str | None) -> None:
+    """
+    Set the default service prefix used by console formatters.
+
+    Args:
+        prefix: Prefix string to display before module tags, or None to disable.
+    """
+    global _default_service_prefix
+
+    _default_service_prefix = prefix
+    if _listener is None:
+        return
+
+    for handler in _listener.handlers:
+        formatter = getattr(handler, "formatter", None)
+        if isinstance(formatter, ConsoleFormatter):
+            formatter.service_prefix = prefix
+
+
 class LogLevel(Enum):
     """Log levels with standard tags"""
 
@@ -156,11 +180,21 @@ class ConsoleFormatter(stdlib_logging.Formatter):
         "PROGRESS": "\033[36m",  # Cyan
         "COMPLETE": "\033[32m",  # Green
     }
+    SYMBOLS = {
+        "DEBUG": "·",
+        "INFO": "●",
+        "SUCCESS": "✓",
+        "WARNING": "⚠",
+        "ERROR": "✗",
+        "CRITICAL": "✗",
+        "PROGRESS": "→",
+        "COMPLETE": "✓",
+    }
     RESET = "\033[0m"
     BOLD = "\033[1m"
     DIM = "\033[2m"
 
-    def __init__(self, service_prefix: Optional[str] = None):
+    def __init__(self, service_prefix: str | None = None):
         """
         Initialize console formatter.
 
@@ -175,11 +209,16 @@ class ConsoleFormatter(stdlib_logging.Formatter):
         self.use_colors = stdout_tty or stderr_tty
 
     def format(self, record: stdlib_logging.LogRecord) -> str:
-        # Get module name (padded to 12 chars for alignment)
         module = getattr(record, "module_name", record.name)
-        module_padded = f"[{module}]".ljust(14)
-        symbol = getattr(record, "symbol", self.SYMBOLS.get(record.levelname, "●"))
-        # Use pre-computed TTY status
+        module_tag = f"[{module}]".ljust(14)
+        display_level = getattr(record, "display_level", record.levelname)
+        level_tag = f"[{display_level}]".ljust(10)
+        symbol = getattr(
+            record,
+            "symbol",
+            self.SYMBOLS.get(record.levelname, "●"),
+        )
+
         if self.use_colors:
             color = self.COLORS.get(display_level, self.COLORS["INFO"])
             dim = self.DIM
@@ -189,15 +228,19 @@ class ConsoleFormatter(stdlib_logging.Formatter):
             dim = ""
             reset = ""
 
-        # Format message
         message = record.getMessage()
 
-        # Build output: [Backend] [Module] INFO: Message (module first, then level)
         if self.service_prefix:
             service_tag = f"[{self.service_prefix}]"
-            return f"{dim}{service_tag}{reset} {dim}{module_tag}{reset} {color}{level_tag}{reset} {message}"
+            prefix = f"{dim}{service_tag}{reset} "
         else:
-            return f"{dim}{module_tag}{reset} {color}{level_tag}{reset} {message}"
+            prefix = ""
+
+        return (
+            f"{prefix}{dim}{module_tag}{reset} "
+            f"{color}{symbol}{reset} "
+            f"{color}{level_tag}{reset} {message}"
+        )
 
 
 class FileFormatter(stdlib_logging.Formatter):
@@ -209,7 +252,7 @@ class FileFormatter(stdlib_logging.Formatter):
     def __init__(self):
         super().__init__(
             fmt="%(asctime)s [%(levelname)-8s] [%(module_name)-12s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S.%f",  # Include milliseconds for async tracing
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
     def format(self, record: stdlib_logging.LogRecord) -> str:
@@ -303,7 +346,9 @@ class Logger:
         task_handler.setLevel(stdlib_logging.DEBUG)
         task_handler.setFormatter(FileFormatter())
 
-        task_listener = QueueListener(task_queue, task_handler, respect_handler_level=True)
+        task_listener = QueueListener(
+            task_queue, task_handler, respect_handler_level=True
+        )
         task_listener.start()
 
         # Add QueueHandler to this logger that feeds the task-specific queue
@@ -339,10 +384,18 @@ class Logger:
         self,
         level: int,
         message: str,
-        display_level: Optional[str] = None,
-        **kwargs: Any,
+        *args: object,
+        display_level: str | None = None,
+        **kwargs: object,
     ):
         """Internal logging method with extra attributes."""
+        symbol = kwargs.get(
+            "symbol",
+            ConsoleFormatter.SYMBOLS.get(
+                stdlib_logging.getLevelName(level),
+                "●",
+            ),
+        )
         extra = {
             "module_name": self.name,
             "symbol": symbol,
@@ -353,64 +406,71 @@ class Logger:
             "extra": extra,
             "exc_info": kwargs.get("exc_info", False),
             "stack_info": kwargs.get("stack_info", False),
-            "stacklevel": kwargs.get("stacklevel", 1) + 2,  # Account for _log +
+            "stacklevel": kwargs.get("stacklevel", 1) + 2,
         }
-        # Pass args for formatting
         self.logger.log(level, message, *args, **log_kwargs)
 
     # Standard logging methods
-    def debug(self, message: str, **kwargs: Any):
+    def debug(self, message: str, *args: object, **kwargs: object):
         """Debug level log [DEBUG]"""
-        self._log(logging.DEBUG, message, **kwargs)
+        self._log(logging.DEBUG, message, *args, **kwargs)
 
-    def info(self, message: str, **kwargs: Any):
+    def info(self, message: str, *args: object, **kwargs: object):
         """Info level log [INFO]"""
-        self._log(logging.INFO, message, **kwargs)
+        self._log(logging.INFO, message, *args, **kwargs)
 
-    def warning(self, message: str, **kwargs: Any):
+    def warning(self, message: str, *args: object, **kwargs: object):
         """Warning level log [WARNING]"""
-        self._log(logging.WARNING, message, **kwargs)
+        self._log(logging.WARNING, message, *args, **kwargs)
 
-    def error(self, message: str, **kwargs: Any):
+    def error(self, message: str, *args: object, **kwargs: object):
         """Error level log [ERROR]"""
-        self._log(logging.ERROR, message, **kwargs)
+        self._log(logging.ERROR, message, *args, **kwargs)
 
-    def critical(self, message: str, **kwargs: Any):
+    def critical(self, message: str, *args: object, **kwargs: object):
         """Critical level log [CRITICAL]"""
-        self._log(logging.CRITICAL, message, **kwargs)
+        self._log(logging.CRITICAL, message, *args, **kwargs)
 
-    def exception(self, message: str, **kwargs: Any):
+    def exception(self, message: str, *args: object, **kwargs: object):
         """Log exception with traceback"""
         # Ensure exc_info is True to print the stack trace
         kwargs.setdefault("exc_info", True)
 
         # Forward all kwargs (including stack_info, stacklevel) to the underlying logger
-        self._log(logging.ERROR, message, display_level="ERROR", **kwargs)
+        self._log(logging.ERROR, message, *args, display_level="ERROR", **kwargs)
 
     # Convenience methods
-    def success(self, message: str, elapsed: float | None = None, **kwargs):
+    def success(
+        self,
+        message: str,
+        *args: object,
+        elapsed: float | None = None,
+        **kwargs: object,
+    ):
         """Success log with checkmark (✓)"""
         if elapsed is not None:
             message = f"{message} in {elapsed:.1f}s"
         self._log(
             stdlib_logging.INFO,
             message,
+            *args,
             symbol="✓",
             display_level="SUCCESS",
             **kwargs,
         )
 
-    def progress(self, message: str, **kwargs):
+    def progress(self, message: str, *args: object, **kwargs: object):
         """Progress log with arrow (→)"""
-        self._log(stdlib_logging.INFO, message, symbol="→", **kwargs)
+        self._log(stdlib_logging.INFO, message, *args, symbol="→", **kwargs)
 
-    def complete(self, message: str, **kwargs):
+    def complete(self, message: str, *args: object, **kwargs: object):
         """Completion log with checkmark (✓)"""
         self._log(
             stdlib_logging.INFO,
             message,
+            *args,
             symbol="✓",
-            display_level="SUCCESS",
+            display_level="COMPLETE",
             **kwargs,
         )
 
@@ -451,8 +511,11 @@ class Logger:
 
         level = stdlib_logging.ERROR if status == "error" else stdlib_logging.INFO
         display_level = (
-            "ERROR" if status == "error" else ("SUCCESS" if status == "complete" else "INFO")
+            "ERROR"
+            if status == "error"
+            else ("SUCCESS" if status == "complete" else "INFO")
         )
+        symbol = "✓" if status == "complete" else ("✗" if status == "error" else "●")
         self._log(level, message, symbol=symbol, display_level=display_level)
 
     def tool_call(
@@ -472,7 +535,9 @@ class Logger:
         """
         symbol = "✓" if status == "success" else ("✗" if status == "error" else "●")
         display_level = (
-            "SUCCESS" if status == "success" else ("ERROR" if status == "error" else "INFO")
+            "SUCCESS"
+            if status == "success"
+            else ("ERROR" if status == "error" else "INFO")
         )
 
         message = f"Tool: {tool_name}"
@@ -545,7 +610,9 @@ class Logger:
         """
         symbol = "✓" if status == "success" else ("✗" if status == "error" else "●")
         display_level = (
-            "SUCCESS" if status == "success" else ("ERROR" if status == "error" else "INFO")
+            "SUCCESS"
+            if status == "success"
+            else ("ERROR" if status == "error" else "INFO")
         )
 
         # Console message (brief)
@@ -755,6 +822,7 @@ _loggers: dict[tuple[str, str], "Logger"] = {}
 def get_logger(
     name: str = "Main",
     level: str = "INFO",
+    log_dir: str | Path | None = None,
 ) -> Logger:
     """
     Get or create a logger instance.
@@ -762,6 +830,7 @@ def get_logger(
     Args:
         name: Module name
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_dir: Optional log directory override (ignored; use configure_logging).
 
     Returns:
         Logger instance

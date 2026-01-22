@@ -54,16 +54,12 @@ async def test_decompose_agent_process_auto_mode(
     "src.agents.research.agents.decompose_agent.rag_search",
     new_callable=AsyncMock,
 )
-async def test_process_manual_mode(
-    mock_rag_search, decompose_agent: DecomposeAgent
-):
+async def test_process_manual_mode(mock_rag_search, decompose_agent: DecomposeAgent):
     """
     Tests the _process_manual_mode method.
     """
     decompose_agent._generate_sub_queries = AsyncMock(return_value=["q1"])
-    decompose_agent._generate_sub_topics = AsyncMock(
-        return_value=[{"title": "t1"}]
-    )
+    decompose_agent._generate_sub_topics = AsyncMock(return_value=[{"title": "t1"}])
     mock_rag_search.return_value = {"answer": "context"}
 
     result = await decompose_agent._process_manual_mode("topic", 1)
@@ -76,9 +72,7 @@ async def test_process_manual_mode(
     "src.agents.research.agents.decompose_agent.rag_search",
     new_callable=AsyncMock,
 )
-async def test_process_auto_mode(
-    mock_rag_search, decompose_agent: DecomposeAgent
-):
+async def test_process_auto_mode(mock_rag_search, decompose_agent: DecomposeAgent):
     """
     Tests the _process_auto_mode method.
     """

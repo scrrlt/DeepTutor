@@ -119,7 +119,9 @@ class HistoryManager:
                     # If it was a list, convert to dict format
                     data_to_save = {
                         "version": "1.0",
-                        "created_at": existing_data[0].get("timestamp") if existing_data else None,
+                        "created_at": existing_data[0].get("timestamp")
+                        if existing_data
+                        else None,
                         "sessions": history,
                     }
         except Exception:

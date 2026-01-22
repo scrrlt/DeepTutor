@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import { TaskState, ThoughtEntry } from "../../types/research";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useRef } from 'react'
+import { TaskState, ThoughtEntry } from '../../types/research'
+import { useTranslation } from 'react-i18next'
 import {
   Terminal,
   BrainCircuit,
@@ -44,8 +44,8 @@ const formatTimestamp = (ts: number) => {
 }
 
 export const ActiveTaskDetail: React.FC<ActiveTaskDetailProps> = ({ task }) => {
-  const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation()
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new thoughts arrive
   useEffect(() => {
@@ -58,7 +58,7 @@ export const ActiveTaskDetail: React.FC<ActiveTaskDetailProps> = ({ task }) => {
     return (
       <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
         <Terminal className="w-12 h-12 mb-3 opacity-20" />
-        <p className="text-sm">{t("Select a task to view execution details")}</p>
+        <p className="text-sm">{t('Select a task to view execution details')}</p>
       </div>
     )
   }
@@ -98,7 +98,7 @@ export const ActiveTaskDetail: React.FC<ActiveTaskDetailProps> = ({ task }) => {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-sm">
         {task.thoughts.length === 0 ? (
           <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-xs italic">
-            {t("Waiting for execution logs...")}
+            {t('Waiting for execution logs...')}
           </div>
         ) : (
           task.thoughts.map((thought, idx) => (

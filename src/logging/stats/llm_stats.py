@@ -24,10 +24,12 @@ Usage:
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..logger import Logger
 
 from src.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -128,9 +130,9 @@ class LLMStats:
 
         # Calculate cost
         pricing = get_pricing(model)
-        cost = (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
-            "output"
-        ]
+        cost = (prompt_tokens / 1000.0) * pricing["input"] + (
+            completion_tokens / 1000.0
+        ) * pricing["output"]
 
         # Record call
         call = LLMCall(
@@ -164,7 +166,7 @@ class LLMStats:
             "cost_usd": self.total_cost,
         }
 
-    def log_summary(self, logger: Optional["Logger"] = None):
+    def log_summary(self, logger: Optional["Logger"] = None) -> None:
         """
         Log summary using the unified logging system.
 
@@ -182,7 +184,7 @@ class LLMStats:
 
         total_tokens = self.total_prompt_tokens + self.total_completion_tokens
 
-        logger.info()
+        logger.info("")
         logger.info("=" * 60)
         logger.info(f"📊 [{self.module_name}] LLM Usage Summary")
         logger.info("=" * 60)
@@ -193,7 +195,7 @@ class LLMStats:
         )
         logger.info(f"  Cost        : ${self.total_cost:.6f} USD")
         logger.info("=" * 60)
-        logger.info()
+        logger.info("")
 
     def reset(self):
         """Reset all statistics."""

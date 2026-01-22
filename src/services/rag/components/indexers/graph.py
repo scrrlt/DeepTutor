@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Graph Indexer
 =============
@@ -8,6 +7,7 @@ Knowledge graph indexer using LightRAG.
 
 from pathlib import Path
 import sys
+from typing import Any
 
 from ...types import Document
 from ..base import BaseComponent
@@ -21,7 +21,7 @@ class GraphIndexer(BaseComponent):
     """
 
     name = "graph_indexer"
-    _instances: dict[str, any] = {}  # Cache RAG instances
+    _instances: dict[str, Any] = {}  # Cache RAG instances
 
     def __init__(self, kb_base_dir: str | None = None):
         """
@@ -45,7 +45,9 @@ class GraphIndexer(BaseComponent):
             return self._instances[working_dir]
 
         # Add RAG-Anything path
-        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+        project_root = (
+            Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+        )
         raganything_path = project_root.parent / "raganything" / "RAG-Anything"
         if raganything_path.exists() and str(raganything_path) not in sys.path:
             sys.path.insert(0, str(raganything_path))
@@ -84,7 +86,12 @@ class GraphIndexer(BaseComponent):
             self.logger.error(f"Failed to import RAG-Anything: {e}")
             raise
 
-    async def process(self, kb_name: str, documents: List[Document], **kwargs) -> bool:
+    async def process(
+        self,
+        kb_name: str,
+        documents: list[Document],
+        **kwargs: object,
+    ) -> bool:
         """
         Build knowledge graph from documents.
 
@@ -123,7 +130,9 @@ class GraphIndexer(BaseComponent):
                             tmp_path = tmp_file.name
 
                         # Use RAGAnything API
-                        working_dir = str(Path(self.kb_base_dir) / kb_name / "rag_storage")
+                        working_dir = str(
+                            Path(self.kb_base_dir) / kb_name / "rag_storage"
+                        )
                         output_dir = os.path.join(working_dir, "output")
                         os.makedirs(output_dir, exist_ok=True)
                         await rag.process_document_complete(tmp_path, output_dir)

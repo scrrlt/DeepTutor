@@ -57,9 +57,7 @@ class PrecisionAnswerAgent(BaseAgent):
             "final_answer": detailed_answer,
         }
 
-    async def _should_generate(
-        self, question: str, verbose: bool
-    ) -> dict[str, Any]:
+    async def _should_generate(self, question: str, verbose: bool) -> dict[str, Any]:
         system_prompt = (
             self.get_prompt("decision_system") if self.has_prompts() else None
         )
@@ -68,9 +66,7 @@ class PrecisionAnswerAgent(BaseAgent):
                 "PrecisionAnswerAgent missing decision_system prompt, please configure decision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
         template = (
-            self.get_prompt("decision_user_template")
-            if self.has_prompts()
-            else None
+            self.get_prompt("decision_user_template") if self.has_prompts() else None
         )
         if not template:
             raise ValueError(
@@ -99,9 +95,7 @@ class PrecisionAnswerAgent(BaseAgent):
                 "PrecisionAnswerAgent missing precision_system prompt, please configure precision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
         template = (
-            self.get_prompt("precision_user_template")
-            if self.has_prompts()
-            else None
+            self.get_prompt("precision_user_template") if self.has_prompts() else None
         )
         if not template:
             raise ValueError(
