@@ -69,9 +69,7 @@ class TrafficController:
 
         # Wait outside lock to avoid blocking other tasks
         if wait_time > 0:
-            logger.debug(
-                f"[{self.provider_name}] Rate limit active, waiting {wait_time:.2f}s"
-            )
+            logger.debug(f"[{self.provider_name}] Rate limit active, waiting {wait_time:.2f}s")
             await asyncio.sleep(wait_time)
             # Recursively try again (simplest way to ensure thread safety after sleep)
             await self._wait_for_token()
@@ -86,9 +84,7 @@ class TrafficController:
         # 1. Acquire Concurrency Slot
         try:
             # wait_for adds a timeout to the semaphore acquisition
-            await asyncio.wait_for(
-                self._semaphore.acquire(), timeout=self.acquisition_timeout
-            )
+            await asyncio.wait_for(self._semaphore.acquire(), timeout=self.acquisition_timeout)
         except TimeoutError:
             logger.error(
                 f"[{self.provider_name}] Local concurrency limit ({self.max_concurrency}) "
@@ -110,9 +106,7 @@ class TrafficController:
 
         wait_duration = time.monotonic() - start
         if wait_duration > 1.0:
-            logger.warning(
-                f"[{self.provider_name}] Traffic control wait: {wait_duration:.2f}s"
-            )
+            logger.warning(f"[{self.provider_name}] Traffic control wait: {wait_duration:.2f}s")
 
         return self
 

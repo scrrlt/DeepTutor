@@ -108,9 +108,7 @@ class LocalProcessRunner(Runner):
                     await proc.wait()
 
                     elapsed_ms = options.timeout * 1000
-                    artifacts, artifact_paths = (
-                        self.workspace_manager.collect_artifacts(assets_dir)
-                    )
+                    artifacts, artifact_paths = self.workspace_manager.collect_artifacts(assets_dir)
 
                     return RunResult(
                         stdout="",
@@ -151,9 +149,7 @@ class LocalProcessRunner(Runner):
 
         except Exception as exc:  # broad on purpose to map to RunResult
             logger.exception("LocalProcessRunner.run failed: %s", exc)
-            artifacts, artifact_paths = self.workspace_manager.collect_artifacts(
-                assets_dir
-            )
+            artifacts, artifact_paths = self.workspace_manager.collect_artifacts(assets_dir)
             return RunResult(
                 stdout="",
                 stderr=f"Code execution failed: {exc}",

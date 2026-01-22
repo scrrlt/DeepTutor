@@ -39,9 +39,9 @@ try:
     config = load_config_with_main(
         "solve_config.yaml", project_root
     )  # Use any config to get main.yaml
-    log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-        "logging", {}
-    ).get("log_dir")
+    log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+        "log_dir"
+    )
     logger = get_logger("Knowledge", log_dir=log_dir)
 except ImportError:
     # If import fails, use basic logging
@@ -96,9 +96,7 @@ def _extract_json_block(text: str) -> str:
             s = "\n".join(lines).strip()
 
         # Try to extract JSON object or array
-        if (s.startswith("{") and s.endswith("}")) or (
-            s.startswith("[") and s.endswith("]")
-        ):
+        if (s.startswith("{") and s.endswith("}")) or (s.startswith("[") and s.endswith("]")):
             return s
 
         o_start, o_end = s.find("{"), s.rfind("}")
@@ -238,9 +236,7 @@ async def _get_complete_content_async(
             # Can also add image captions to text
             captions = next_item.get("image_caption", [])
             if captions:
-                caption_text = (
-                    " ".join(captions) if isinstance(captions, list) else str(captions)
-                )
+                caption_text = " ".join(captions) if isinstance(captions, list) else str(captions)
                 complete_text += " " + caption_text
         # If it's regular text, use LLM to judge
         elif next_type == "text" and next_item.get("text_level", 0) == 0:
@@ -469,9 +465,7 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
             extracted = json.loads(json_str)
         except json.JSONDecodeError as e_first:
             # If parsing fails, try to fix common issues
-            logger.warning(
-                f"Batch {batch_idx}: Initial JSON parsing failed, attempting to fix..."
-            )
+            logger.warning(f"Batch {batch_idx}: Initial JSON parsing failed, attempting to fix...")
 
             # Try 1: Use strict=False
             try:
@@ -479,27 +473,19 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
 
                 decoder = JSONDecoder(strict=False)
                 extracted = decoder.decode(json_str)
-                logger.info(
-                    f"Batch {batch_idx}: Parsed successfully using non-strict mode"
-                )
+                logger.info(f"Batch {batch_idx}: Parsed successfully using non-strict mode")
             except Exception:
                 # Try 2: Use ast.literal_eval
                 try:
                     import ast
 
                     extracted = ast.literal_eval(json_str)
-                    logger.info(
-                        f"Batch {batch_idx}: Parsed successfully using literal_eval"
-                    )
+                    logger.info(f"Batch {batch_idx}: Parsed successfully using literal_eval")
                 except Exception:
                     # All methods failed, skip this batch
-                    logger.warning(
-                        f"Batch {batch_idx}: All parsing methods failed, skipping batch"
-                    )
+                    logger.warning(f"Batch {batch_idx}: All parsing methods failed, skipping batch")
                     logger.error(f"Original error: {e_first!s}")
-                    logger.error(
-                        f"Response content (first 500 chars): {response[:500]}"
-                    )
+                    logger.error(f"Response content (first 500 chars): {response[:500]}")
                     return numbered_items
 
         if not isinstance(extracted, list):
@@ -509,11 +495,7 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
         # Process extracted results
         for item in extracted:
             index = item.get("index")
-            if (
-                index is None
-                or index < batch_start
-                or index >= batch_start + len(batch)
-            ):
+            if index is None or index < batch_start or index >= batch_start + len(batch):
                 continue
 
             # Convert to index relative to batch
@@ -530,9 +512,7 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
             img_paths = []
 
             # For image or equation types, use LLM-extracted content directly (no need to complete)
-            original_type = original_item.get(
-                "_original_type", original_item.get("type", "")
-            )
+            original_type = original_item.get("_original_type", original_item.get("type", ""))
             if original_type in ["image", "equation"]:
                 complete_text = llm_extracted_text
                 # Collect image path for current item
@@ -619,9 +599,7 @@ async def extract_numbered_items_with_llm_async(
             captions = item.get("image_caption", [])
             if captions:
                 # Create a virtual text item
-                caption_text = (
-                    " ".join(captions) if isinstance(captions, list) else str(captions)
-                )
+                caption_text = " ".join(captions) if isinstance(captions, list) else str(captions)
                 virtual_item = {
                     "type": "image",
                     "text": caption_text,
@@ -651,14 +629,10 @@ async def extract_numbered_items_with_llm_async(
 
     # Statistics
     text_count = sum(
-        1
-        for item in content_items
-        if item.get("type") == "text" and item.get("text_level", 0) == 0
+        1 for item in content_items if item.get("type") == "text" and item.get("text_level", 0) == 0
     )
     image_count = sum(
-        1
-        for item in content_items
-        if item.get("type") == "image" and item.get("image_caption")
+        1 for item in content_items if item.get("type") == "image" and item.get("image_caption")
     )
     equation_count = sum(
         1
@@ -680,9 +654,7 @@ async def extract_numbered_items_with_llm_async(
         batches.append((batch_start, batch))
 
     total_batches = len(batches)
-    logger.info(
-        f"Using {max_concurrent} concurrent tasks to process {total_batches} batches"
-    )
+    logger.info(f"Using {max_concurrent} concurrent tasks to process {total_batches} batches")
 
     # Use semaphore to control concurrency
     semaphore = asyncio.Semaphore(max_concurrent)
@@ -1014,9 +986,7 @@ def main():
 
         # Debug mode: only process first file
         if args.debug:
-            logger.info(
-                f"⚠️ Debug mode: Only processing first file {content_list_files[0].name}"
-            )
+            logger.info(f"⚠️ Debug mode: Only processing first file {content_list_files[0].name}")
             content_list_files = content_list_files[:1]
 
     # Output file fixed as numbered_items.json (shared across entire knowledge base)
@@ -1038,9 +1008,7 @@ def main():
     logger.info(
         f"API key: {'Set (' + api_key[:8] + '...' + api_key[-4:] + ')' if api_key else 'Not set'}"
     )
-    logger.info(
-        f"API base URL: {base_url if base_url else 'Default (https://api.openai.com/v1)'}"
-    )
+    logger.info(f"API base URL: {base_url if base_url else 'Default (https://api.openai.com/v1)'}")
     logger.info("=" * 60)
     logger.info("")
 
@@ -1065,9 +1033,7 @@ def main():
             # From second file onwards, force merge mode
             if idx == 1 and len(content_list_files) > 1:
                 args.no_merge = False
-                logger.info(
-                    f"\nSubsequent files will be automatically merged to {output_file}\n"
-                )
+                logger.info(f"\nSubsequent files will be automatically merged to {output_file}\n")
 
         logger.info("\n" + "=" * 60)
         logger.info("✓ All files processed!")

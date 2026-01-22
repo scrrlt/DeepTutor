@@ -109,9 +109,7 @@ class MaterialOrganizerAgent(BaseAgent):
                     kp = str(point["knowledge_point"]).strip()
                     desc = str(point["description"]).strip()
                     if kp and desc and len(desc) >= 10:
-                        validated_points.append(
-                            {"knowledge_point": kp, "description": desc}
-                        )
+                        validated_points.append({"knowledge_point": kp, "description": desc})
 
             if not validated_points and records:
                 return await self._fallback_extract(records, user_thoughts)
@@ -129,7 +127,9 @@ class MaterialOrganizerAgent(BaseAgent):
         """Fallback extraction method using more lenient strategy"""
         materials_text = ""
         for i, record in enumerate(records, 1):
-            materials_text += f"\nRecord {i}: {record.get('title', '')} - {record.get('user_query', '')[:100]}"
+            materials_text += (
+                f"\nRecord {i}: {record.get('title', '')} - {record.get('user_query', '')[:100]}"
+            )
 
         system_prompt = self._prompts.get("fallback_system", "")
         user_template = self._prompts.get("fallback_user_template", "")
@@ -154,9 +154,7 @@ class MaterialOrganizerAgent(BaseAgent):
                     kp = str(point["knowledge_point"]).strip()
                     desc = str(point["description"]).strip()
                     if kp and desc:
-                        validated_points.append(
-                            {"knowledge_point": kp, "description": desc}
-                        )
+                        validated_points.append({"knowledge_point": kp, "description": desc})
 
             return (
                 validated_points

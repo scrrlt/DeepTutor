@@ -45,10 +45,7 @@ def test_complete_task(manager_agent: ManagerAgent):
     block = manager_agent.queue.add_block("t1", "o1")
     manager_agent.complete_task(block.block_id)
 
-    assert (
-        manager_agent.queue.get_block_by_id(block.block_id).status
-        == TopicStatus.COMPLETED
-    )
+    assert manager_agent.queue.get_block_by_id(block.block_id).status == TopicStatus.COMPLETED
 
 
 def test_fail_task(manager_agent: ManagerAgent):
@@ -58,9 +55,7 @@ def test_fail_task(manager_agent: ManagerAgent):
     block = manager_agent.queue.add_block("t1", "o1")
     manager_agent.fail_task(block.block_id)
 
-    assert (
-        manager_agent.queue.get_block_by_id(block.block_id).status == TopicStatus.FAILED
-    )
+    assert manager_agent.queue.get_block_by_id(block.block_id).status == TopicStatus.FAILED
 
 
 def test_add_new_topic(manager_agent: ManagerAgent):
@@ -94,7 +89,4 @@ async def test_async_methods(manager_agent: ManagerAgent):
     assert task is not None
 
     await manager_agent.complete_task_async(task.block_id)
-    assert (
-        manager_agent.queue.get_block_by_id(task.block_id).status
-        == TopicStatus.COMPLETED
-    )
+    assert manager_agent.queue.get_block_by_id(task.block_id).status == TopicStatus.COMPLETED

@@ -67,12 +67,8 @@ def test_get_available_knowledge(investigate_memory: InvestigateMemory):
     """
     Tests that the get_available_knowledge method correctly retrieves the knowledge items.
     """
-    item1 = KnowledgeItem(
-        cite_id="cite1", tool_type="tool1", query="q1", raw_result="r1"
-    )
-    item2 = KnowledgeItem(
-        cite_id="cite2", tool_type="tool2", query="q2", raw_result="r2"
-    )
+    item1 = KnowledgeItem(cite_id="cite1", tool_type="tool1", query="q1", raw_result="r1")
+    item2 = KnowledgeItem(cite_id="cite2", tool_type="tool2", query="q2", raw_result="r2")
     investigate_memory.add_knowledge(item1)
     investigate_memory.add_knowledge(item2)
 

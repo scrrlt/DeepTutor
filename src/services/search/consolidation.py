@@ -213,14 +213,10 @@ class AnswerConsolidator:
 
         if self.consolidation_type == "template":
             response.answer = self._consolidate_with_template(response)
-            _logger.success(
-                f"Template consolidation completed ({len(response.answer)} chars)"
-            )
+            _logger.success(f"Template consolidation completed ({len(response.answer)} chars)")
         elif self.consolidation_type == "llm":
             response.answer = self._consolidate_with_llm(response)
-            _logger.success(
-                f"LLM consolidation completed ({len(response.answer)} chars)"
-            )
+            _logger.success(f"LLM consolidation completed ({len(response.answer)} chars)")
         else:
             _logger.error(f"Unknown consolidation type: {self.consolidation_type}")
             raise ValueError(f"Unknown consolidation type: {self.consolidation_type}")

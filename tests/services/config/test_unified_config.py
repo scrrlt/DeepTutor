@@ -56,9 +56,7 @@ class TestUnifiedConfigManager:
             # API key should be hidden in default config view
             assert config["api_key"] == "***"
 
-    def test_list_configs(
-        self, config_manager: UnifiedConfigManager, mock_settings_dir: Path
-    ):
+    def test_list_configs(self, config_manager: UnifiedConfigManager, mock_settings_dir: Path):
         """Test listing configurations."""
         # Create a dummy config file
         config_file = mock_settings_dir / "llm_configs.json"
@@ -103,9 +101,7 @@ class TestUnifiedConfigManager:
         cid = added["id"]
 
         # Update it
-        updated = config_manager.update_config(
-            ConfigType.LLM, cid, {"name": "New Name"}
-        )
+        updated = config_manager.update_config(ConfigType.LLM, cid, {"name": "New Name"})
         assert updated is not None
         assert updated["name"] == "New Name"
         assert updated["id"] == cid
@@ -117,9 +113,7 @@ class TestUnifiedConfigManager:
 
     def test_update_default_config_fail(self, config_manager: UnifiedConfigManager):
         """Test that updating default config fails."""
-        result = config_manager.update_config(
-            ConfigType.LLM, "default", {"name": "New Name"}
-        )
+        result = config_manager.update_config(ConfigType.LLM, "default", {"name": "New Name"})
         assert result is None
 
     def test_delete_config(self, config_manager: UnifiedConfigManager):

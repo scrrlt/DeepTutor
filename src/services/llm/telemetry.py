@@ -118,9 +118,7 @@ def _record_usage(provider_name: str, result: object) -> None:
     if isinstance(usage, dict) and usage:
         total_tokens = usage.get("total_tokens")
         if total_tokens is None:
-            total_tokens = usage.get("prompt_tokens", 0) + usage.get(
-                "completion_tokens", 0
-            )
+            total_tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
         llm_stats.record_usage(
             provider=provider_name,
             model=getattr(result, "model", "unknown"),

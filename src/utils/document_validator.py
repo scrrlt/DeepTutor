@@ -84,11 +84,7 @@ class DocumentValidator:
 
         # Additional size check for PDFs to prevent resource exhaustion
         _, ext = os.path.splitext(filename.lower())
-        if (
-            ext == ".pdf"
-            and file_size is not None
-            and file_size > DocumentValidator.MAX_PDF_SIZE
-        ):
+        if ext == ".pdf" and file_size is not None and file_size > DocumentValidator.MAX_PDF_SIZE:
             raise ValueError(
                 f"PDF file too large: {file_size} bytes. Maximum allowed for PDFs: {DocumentValidator.MAX_PDF_SIZE} bytes"
             )

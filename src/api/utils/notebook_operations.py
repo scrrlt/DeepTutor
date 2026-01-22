@@ -300,9 +300,7 @@ class NotebookOperations:
             "total_notebooks": len(summaries),
             "total_records": total_records,
             "records_by_type": type_counts,
-            "recent_notebooks": [
-                s.model_dump() for s in summaries[:RECENT_NOTEBOOKS_LIMIT]
-            ],
+            "recent_notebooks": [s.model_dump() for s in summaries[:RECENT_NOTEBOOKS_LIMIT]],
         }
 
     # === Index Management (Private) ===
@@ -338,9 +336,7 @@ class NotebookOperations:
         for nb_info in index["notebooks"]:
             if nb_info["id"] == notebook["id"]:
                 nb_info["name"] = notebook.get("name", nb_info["name"])
-                nb_info["description"] = notebook.get(
-                    "description", nb_info["description"]
-                )
+                nb_info["description"] = notebook.get("description", nb_info["description"])
                 nb_info["color"] = notebook.get("color", nb_info["color"])
                 nb_info["icon"] = notebook.get("icon", nb_info["icon"])
                 nb_info["updated_at"] = notebook["updated_at"]
@@ -356,7 +352,5 @@ class NotebookOperations:
             notebook_id: Unique notebook identifier to remove.
         """
         index = await self.storage.load_index()
-        index["notebooks"] = [
-            nb for nb in index["notebooks"] if nb["id"] != notebook_id
-        ]
+        index["notebooks"] = [nb for nb in index["notebooks"] if nb["id"] != notebook_id]
         await self.storage.save_index(index)

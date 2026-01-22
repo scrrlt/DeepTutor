@@ -266,9 +266,7 @@ async def stream(
 
                         except json.JSONDecodeError:
                             # Log and skip malformed JSON chunks
-                            logger.warning(
-                                f"Skipping malformed JSON chunk: {data_str[:50]}..."
-                            )
+                            logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
                             continue
 
                     # Some servers don't use SSE format

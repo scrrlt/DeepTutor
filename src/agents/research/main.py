@@ -100,12 +100,8 @@ def display_config(config: dict[str, object]) -> None:
     logger.info(f"    - Paper Search: {researching.get('enable_paper_search', True)}")
 
     logger.info("Reporting Configuration")
-    logger.info(
-        f"  Min section length: {reporting.get('min_section_length', 500)} characters"
-    )
-    logger.info(
-        f"  Enable topic deduplication: {reporting.get('enable_deduplication', True)}"
-    )
+    logger.info(f"  Min section length: {reporting.get('min_section_length', 500)} characters")
+    logger.info(f"  Enable topic deduplication: {reporting.get('enable_deduplication', True)}")
 
 
 async def main() -> None:

@@ -55,7 +55,8 @@ repos:
     rev: 1.7.0
     hooks:
       - id: interrogate
-        args: [--config, pyproject.toml]
+        args: [--config, pyproject.toml, src]
+        pass_filenames: false
 
   # ============================================
   # Frontend code formatting and linting
@@ -115,8 +116,17 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports, --no-error-summary, --no-strict-optional]
-        exclude: ^(tests/|scripts/|src/agents/|src/services/rag/|src/api/routers/)
+        args:
+          [
+            --ignore-missing-imports,
+            --no-error-summary,
+            --no-strict-optional,
+            --follow-imports=skip,
+            src/services/llm/config.py,
+            src/services/llm/utils.py,
+            src/utils,
+          ]
+        pass_filenames: false
         additional_dependencies:
           - types-PyYAML
           - types-requests

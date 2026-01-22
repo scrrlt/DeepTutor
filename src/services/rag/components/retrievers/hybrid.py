@@ -41,9 +41,7 @@ class HybridRetriever(BaseComponent):
             return self._instances[working_dir]
 
         # Add RAG-Anything path
-        project_root = (
-            Path(__file__).resolve().parent.parent.parent.parent.parent.parent
-        )
+        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
         raganything_path = project_root.parent / "raganything" / "RAG-Anything"
         if raganything_path.exists() and str(raganything_path) not in sys.path:
             sys.path.insert(0, str(raganything_path))
@@ -65,9 +63,7 @@ class HybridRetriever(BaseComponent):
             )
 
             # LLM function using services (ASYNC - LightRAG expects async functions)
-            async def llm_model_func(
-                prompt, system_prompt=None, history_messages=None, **kwargs
-            ):
+            async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
                 """Call OpenAI chat completion directly for LightRAG."""
                 if history_messages is None:
                     history_messages = []
@@ -153,9 +149,7 @@ class HybridRetriever(BaseComponent):
             rag = self._get_rag_instance(kb_name)
             await rag._ensure_lightrag_initialized()
 
-            answer = await rag.aquery(
-                query, mode=mode, only_need_context=only_need_context
-            )
+            answer = await rag.aquery(query, mode=mode, only_need_context=only_need_context)
             answer_str = answer if isinstance(answer, str) else str(answer)
 
             return {

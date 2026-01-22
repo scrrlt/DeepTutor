@@ -28,9 +28,7 @@ from src.services.settings.interface_settings import get_ui_language
 # Setup module logger with unified logging system (from config)
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("question_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-    "log_dir"
-)
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("QuestionAPI", log_dir=log_dir)
 
 router = APIRouter()
@@ -245,16 +243,12 @@ async def websocket_mimic_generate(websocket: WebSocket):
 
                 # Create batch directory for parsed mode too
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                batch_dir = (
-                    MIMIC_OUTPUT_DIR / f"mimic_{timestamp}_{Path(paper_path).name}"
-                )
+                batch_dir = MIMIC_OUTPUT_DIR / f"mimic_{timestamp}_{Path(paper_path).name}"
                 batch_dir.mkdir(parents=True, exist_ok=True)
                 output_dir = str(batch_dir)
 
             else:
-                await websocket.send_json(
-                    {"type": "error", "content": f"Unknown mode: {mode}"}
-                )
+                await websocket.send_json({"type": "error", "content": f"Unknown mode: {mode}"})
                 return
 
             # Create WebSocket callback for real-time progress updates
@@ -298,9 +292,7 @@ async def websocket_mimic_generate(websocket: WebSocket):
                 try:
                     await websocket.send_json({"type": "complete"})
                 except (RuntimeError, WebSocketDisconnect):
-                    logger.debug(
-                        "WebSocket closed before complete signal could be sent"
-                    )
+                    logger.debug("WebSocket closed before complete signal could be sent")
             else:
                 error_msg = result.get("error", "Unknown error")
                 try:
@@ -368,9 +360,7 @@ async def websocket_question_generate(websocket: WebSocket):
 
         if not requirement:
             try:
-                await websocket.send_json(
-                    {"type": "error", "content": "Requirement is required"}
-                )
+                await websocket.send_json({"type": "error", "content": "Requirement is required"})
             except (RuntimeError, WebSocketDisconnect):
                 pass
             return
@@ -410,9 +400,7 @@ async def websocket_question_generate(websocket: WebSocket):
             base_url=base_url,
             api_version=api_version,
             kb_name=kb_name,
-            language=get_ui_language(
-                default=config.get("system", {}).get("language", "en")
-            ),
+            language=get_ui_language(default=config.get("system", {}).get("language", "en")),
             max_rounds=10,
             output_dir=str(output_base),
         )

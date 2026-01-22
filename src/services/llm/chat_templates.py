@@ -159,9 +159,7 @@ def _render_template(template: str, context: Mapping[str, Any]) -> str:
     # Disable autoescape for chat templates - these contain system prompts and user messages
     # that need to preserve formatting like newlines and special characters.
     # Input validation is handled at the API layer before reaching this function.
-    env = Environment(
-        loader=BaseLoader(), autoescape=True
-    )  # Enable autoescaping for security
+    env = Environment(loader=BaseLoader(), autoescape=True)  # Enable autoescaping for security
     return env.from_string(template).render(**context)
 
 

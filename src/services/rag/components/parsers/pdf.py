@@ -60,9 +60,7 @@ class PDFParser(BaseComponent):
 
         if content_list_file.exists():
             # Load existing parsed content
-            self.logger.info(
-                f"Loading existing parsed content from {content_list_file}"
-            )
+            self.logger.info(f"Loading existing parsed content from {content_list_file}")
             with open(content_list_file, encoding="utf-8") as f:
                 content_items = json.load(f)
 

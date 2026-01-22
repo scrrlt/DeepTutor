@@ -68,9 +68,7 @@ def load_parsed_paper(
         with open(json_file, encoding="utf-8") as f:
             content_list = json.load(f)
     else:
-        logger.warning(
-            "content_list.json file not found, will use markdown content only"
-        )
+        logger.warning("content_list.json file not found, will use markdown content only")
 
     images_dir = auto_dir / "images"
     if images_dir.exists():
@@ -274,9 +272,7 @@ Please analyze the above exam paper content, extract all question information, a
     return questions
 
 
-def save_questions_json(
-    questions: list[dict[str, Any]], output_dir: Path, paper_name: str
-) -> Path:
+def save_questions_json(questions: list[dict[str, Any]], output_dir: Path, paper_name: str) -> Path:
     """
     Save question information as JSON file
 
@@ -389,9 +385,7 @@ Examples:
         """,
     )
 
-    parser.add_argument(
-        "paper_dir", type=str, help="MinerU-parsed exam paper directory path"
-    )
+    parser.add_argument("paper_dir", type=str, help="MinerU-parsed exam paper directory path")
 
     parser.add_argument(
         "-o",

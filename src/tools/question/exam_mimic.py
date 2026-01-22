@@ -148,7 +148,9 @@ async def mimic_exam_questions(
         # Resolve relative names against reference_papers
         # SECURITY FIX: Prevent Path Injection / Traversal
         if os.path.isabs(paper_dir) or ".." in paper_dir:
-            error_msg = f"Invalid paper_dir: Absolute paths and traversal are not allowed. ({paper_dir})"
+            error_msg = (
+                f"Invalid paper_dir: Absolute paths and traversal are not allowed. ({paper_dir})"
+            )
             await send_progress("error", {"content": error_msg})
             return {"success": False, "error": error_msg}
 
@@ -232,9 +234,7 @@ async def mimic_exam_questions(
             output_base = project_root / "data" / "user" / "question" / "mimic_papers"
         output_base.mkdir(parents=True, exist_ok=True)
 
-        success = parse_pdf_with_mineru(
-            pdf_path=pdf_path, output_base_dir=str(output_base)
-        )
+        success = parse_pdf_with_mineru(pdf_path=pdf_path, output_base_dir=str(output_base))
 
         if not success:
             await send_progress("error", {"content": "Failed to parse PDF with MinerU"})
@@ -291,9 +291,7 @@ async def mimic_exam_questions(
             questions_data = json.load(f)
     else:
         logger.info("No question file found, starting extraction...")
-        success = extract_questions_from_paper(
-            paper_dir=str(latest_dir), output_dir=None
-        )
+        success = extract_questions_from_paper(paper_dir=str(latest_dir), output_dir=None)
 
         if not success:
             await send_progress("error", {"content": "Question extraction failed"})
@@ -508,18 +506,13 @@ async def mimic_exam_questions(
 
                 return {
                     "success": False,
-                    "reference_question_number": ref_question.get(
-                        "question_number", str(index)
-                    ),
+                    "reference_question_number": ref_question.get("question_number", str(index)),
                     "reference_question_text": ref_question["question_text"],
                     "error": f"Exception: {e!s}",
                 }
 
     # Run all mimic generations in parallel
-    tasks = [
-        generate_single_mimic(ref_q, i)
-        for i, ref_q in enumerate(reference_questions, 1)
-    ]
+    tasks = [generate_single_mimic(ref_q, i) for i, ref_q in enumerate(reference_questions, 1)]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Separate successes and failures

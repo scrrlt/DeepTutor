@@ -41,9 +41,7 @@ class LLMConfigCreate(ConfigBase):
     base_url: str | dict[str, str] = Field(
         ..., description="API endpoint or {'use_env': 'VAR_NAME'}"
     )
-    api_key: str | dict[str, str] = Field(
-        ..., description="API key or {'use_env': 'VAR_NAME'}"
-    )
+    api_key: str | dict[str, str] = Field(..., description="API key or {'use_env': 'VAR_NAME'}")
     model: str = Field(..., description="Model name")
     api_version: str | None = None
 
@@ -162,15 +160,10 @@ async def get_config_status():
 
         return {
             "configured": bool(
-                active
-                and active.get(
-                    "model" if config_type != ConfigType.SEARCH else "provider"
-                )
+                active and active.get("model" if config_type != ConfigType.SEARCH else "provider")
             ),
             "active_config_id": active_config.get("id") if active_config else "default",
-            "active_config_name": active_config.get("name")
-            if active_config
-            else "Default",
+            "active_config_name": active_config.get("name") if active_config else "Default",
             "model": active.get("model") if active else None,
             "provider": active.get("provider") if active else None,
             "env_configured": env_status,
@@ -227,14 +220,10 @@ async def add_llm_config(config: LLMConfigCreate):
 async def update_llm_config(config_id: str, updates: ConfigUpdate):
     """Update an LLM configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot update default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot update default configuration")
 
     manager = get_config_manager()
-    result = manager.update_config(
-        ConfigType.LLM, config_id, updates.model_dump(exclude_none=True)
-    )
+    result = manager.update_config(ConfigType.LLM, config_id, updates.model_dump(exclude_none=True))
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return result
@@ -244,9 +233,7 @@ async def update_llm_config(config_id: str, updates: ConfigUpdate):
 async def delete_llm_config(config_id: str):
     """Delete an LLM configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot delete default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.LLM, config_id)
@@ -373,9 +360,7 @@ async def add_embedding_config(config: EmbeddingConfigCreate):
 async def update_embedding_config(config_id: str, updates: ConfigUpdate):
     """Update an embedding configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot update default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot update default configuration")
 
     manager = get_config_manager()
     result = manager.update_config(
@@ -390,9 +375,7 @@ async def update_embedding_config(config_id: str, updates: ConfigUpdate):
 async def delete_embedding_config(config_id: str):
     """Delete an embedding configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot delete default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.EMBEDDING, config_id)
@@ -529,14 +512,10 @@ async def add_tts_config(config: TTSConfigCreate):
 async def update_tts_config(config_id: str, updates: ConfigUpdate):
     """Update a TTS configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot update default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot update default configuration")
 
     manager = get_config_manager()
-    result = manager.update_config(
-        ConfigType.TTS, config_id, updates.model_dump(exclude_none=True)
-    )
+    result = manager.update_config(ConfigType.TTS, config_id, updates.model_dump(exclude_none=True))
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return result
@@ -546,9 +525,7 @@ async def update_tts_config(config_id: str, updates: ConfigUpdate):
 async def delete_tts_config(config_id: str):
     """Delete a TTS configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot delete default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.TTS, config_id)
@@ -653,9 +630,7 @@ async def add_search_config(config: SearchConfigCreate):
 async def update_search_config(config_id: str, updates: ConfigUpdate):
     """Update a search configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot update default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot update default configuration")
 
     manager = get_config_manager()
     result = manager.update_config(
@@ -670,9 +645,7 @@ async def update_search_config(config_id: str, updates: ConfigUpdate):
 async def delete_search_config(config_id: str):
     """Delete a search configuration."""
     if config_id == "default":
-        raise HTTPException(
-            status_code=400, detail="Cannot delete default configuration"
-        )
+        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.SEARCH, config_id)

@@ -98,13 +98,11 @@ def get_model_pricing(model_name: str) -> dict[str, float]:
     return MODEL_PRICING["gpt-4o-mini"]
 
 
-def calculate_cost(
-    model_name: str, prompt_tokens: int, completion_tokens: int
-) -> float:
+def calculate_cost(model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
     pricing = get_model_pricing(model_name)
-    return (prompt_tokens / 1000.0) * pricing["input"] + (
-        completion_tokens / 1000.0
-    ) * pricing["output"]
+    return (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
+        "output"
+    ]
 
 
 @dataclass
@@ -164,8 +162,7 @@ class TokenTracker:
         else:
             # Estimate: approximate by word count * 1.3
             est_prompt = int(
-                (((system_prompt or "") + "\n" + (user_prompt or "")).split().__len__())
-                * 1.3
+                (((system_prompt or "") + "\n" + (user_prompt or "")).split().__len__()) * 1.3
             )
             prompt_tokens = est_prompt
             completion_tokens = int(((response_text or "").split().__len__()) * 1.3)

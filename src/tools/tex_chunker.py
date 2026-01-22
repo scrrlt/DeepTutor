@@ -244,9 +244,7 @@ The results demonstrate the effectiveness of our approach.
     logger.info("Total tokens: %d", total_tokens)
 
     # Chunk (set smaller max_tokens for demonstration)
-    chunks = chunker.split_tex_into_chunks(
-        tex_content=test_tex, max_tokens=200, overlap=50
-    )
+    chunks = chunker.split_tex_into_chunks(tex_content=test_tex, max_tokens=200, overlap=50)
 
     logger.info("Chunking result: %d chunks", len(chunks))
 

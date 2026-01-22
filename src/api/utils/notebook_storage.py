@@ -61,9 +61,7 @@ class NotebookStorage:
             return
 
         try:
-            content = json.dumps(
-                {"notebooks": []}, indent=JSON_INDENT, ensure_ascii=False
-            )
+            content = json.dumps({"notebooks": []}, indent=JSON_INDENT, ensure_ascii=False)
             async with aiofiles.open(self.index_file, "w", encoding="utf-8") as f:
                 await f.write(content)
         except OSError as e:

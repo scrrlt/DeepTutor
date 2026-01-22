@@ -49,8 +49,7 @@ def parse_pdf_with_mineru(
     mineru_cmd = _get_mineru_command()
     if not mineru_cmd:
         logger.error(
-            "MinerU not found. Install via: "
-            "pip install magic-pdf[full] or pip install mineru"
+            "MinerU not found. Install via: pip install magic-pdf[full] or pip install mineru"
         )
         return False
 
@@ -122,9 +121,7 @@ def parse_pdf_with_mineru(
         if not expected_subdir.exists():
             subdirs = [x for x in temp_path.iterdir() if x.is_dir()]
             if not subdirs:
-                logger.error(
-                    "MinerU reported success but produced no output directories."
-                )
+                logger.error("MinerU reported success but produced no output directories.")
                 return False
             expected_subdir = subdirs[0]
 
@@ -152,9 +149,7 @@ def main() -> None:
     )
     parser.add_argument("pdf_path", help="Path to source PDF")
     parser.add_argument("-o", "--output", help="Output directory root")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable debug logging"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable debug logging")
 
     args = parser.parse_args()
 

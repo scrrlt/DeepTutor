@@ -33,9 +33,7 @@ def test_rag_service_initialization(mock_get_pipeline, rag_service: RAGService):
 
     # Test that get_pipeline is called when the pipeline is accessed
     rag_service._get_pipeline()
-    mock_get_pipeline.assert_called_once_with(
-        "test_provider", kb_base_dir="/tmp/test_kb"
-    )
+    mock_get_pipeline.assert_called_once_with("test_provider", kb_base_dir="/tmp/test_kb")
 
 
 @pytest.mark.asyncio
@@ -63,9 +61,7 @@ async def test_rag_service_search(mock_get_pipeline, rag_service: RAGService):
     mock_pipeline = AsyncMock()
     mock_get_pipeline.return_value = mock_pipeline
 
-    with patch.object(
-        rag_service, "_get_provider_for_kb", return_value="test_provider"
-    ):
+    with patch.object(rag_service, "_get_provider_for_kb", return_value="test_provider"):
         await rag_service.search("test_query", "test_kb", mode="hybrid")
 
         mock_pipeline.search.assert_called_once_with(
@@ -75,9 +71,7 @@ async def test_rag_service_search(mock_get_pipeline, rag_service: RAGService):
 
 @pytest.mark.asyncio
 @patch("src.services.rag.factory.get_pipeline")
-async def test_rag_service_delete_with_pipeline_method(
-    mock_get_pipeline, rag_service: RAGService
-):
+async def test_rag_service_delete_with_pipeline_method(mock_get_pipeline, rag_service: RAGService):
     """
     Tests that the delete method calls the pipeline's delete method.
     """

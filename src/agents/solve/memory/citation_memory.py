@@ -88,9 +88,7 @@ class CitationMemory:
                 # Compatible with old versions: guess from existing cite_id
                 for citation in memory.citations:
                     prefix = memory._get_tool_prefix(citation.tool_type)
-                    number = memory._extract_counter_from_cite_id(
-                        citation.cite_id, prefix
-                    )
+                    number = memory._extract_counter_from_cite_id(citation.cite_id, prefix)
                     if number is not None:
                         memory.tool_counters[prefix] = max(
                             memory.tool_counters.get(prefix, 0), number
@@ -258,9 +256,7 @@ class CitationMemory:
         citations_to_format = self.citations
         if used_cite_ids is not None:
             cite_id_set = set(used_cite_ids)
-            citations_to_format = [
-                c for c in self.citations if c.cite_id in cite_id_set
-            ]
+            citations_to_format = [c for c in self.citations if c.cite_id in cite_id_set]
             if not citations_to_format:
                 return no_citations_text
 
@@ -283,9 +279,7 @@ class CitationMemory:
             if citation.query:
                 query_block = self._format_block(
                     citation.query,
-                    language="python"
-                    if citation.tool_type == "code_execution"
-                    else None,
+                    language="python" if citation.tool_type == "code_execution" else None,
                 )
                 lines.append(query_content_label)
                 lines.append(self._indent_block(query_block, "    "))
@@ -293,9 +287,7 @@ class CitationMemory:
             if citation.content:
                 content_block = self._format_block(
                     citation.content,
-                    language="python"
-                    if citation.tool_type == "code_execution"
-                    else None,
+                    language="python" if citation.tool_type == "code_execution" else None,
                     force_block=True,
                 )
                 lines.append(citation_content_label)
@@ -303,9 +295,7 @@ class CitationMemory:
             elif citation.raw_result:
                 raw_block = self._format_block(
                     citation.raw_result,
-                    language="python"
-                    if citation.tool_type == "code_execution"
-                    else None,
+                    language="python" if citation.tool_type == "code_execution" else None,
                     force_block=True,
                 )
                 lines.append(citation_content_label)
@@ -335,9 +325,7 @@ class CitationMemory:
         return f"[{prefix}-{current}]"
 
     @staticmethod
-    def _format_block(
-        text: str, language: str | None = None, force_block: bool = False
-    ) -> str:
+    def _format_block(text: str, language: str | None = None, force_block: bool = False) -> str:
         if not text:
             return ""
         clean = text.strip()
@@ -351,9 +339,7 @@ class CitationMemory:
     def _indent_block(block: str, prefix: str) -> str:
         if not block:
             return ""
-        return "\n".join(
-            prefix + line if line else prefix for line in block.splitlines()
-        )
+        return "\n".join(prefix + line if line else prefix for line in block.splitlines())
 
     @staticmethod
     def _extract_counter_from_cite_id(cite_id: str, prefix: str) -> int | None:

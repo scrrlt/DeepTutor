@@ -46,9 +46,7 @@ class NumberedItemExtractor(BaseComponent):
             self.logger.warning("No content_items in document, skipping extraction")
             return []
 
-        self.logger.info(
-            f"Extracting numbered items from {len(doc.content_items)} content items"
-        )
+        self.logger.info(f"Extracting numbered items from {len(doc.content_items)} content items")
 
         try:
             from src.knowledge.extract_numbered_items import (
@@ -73,9 +71,7 @@ class NumberedItemExtractor(BaseComponent):
                 chunks.append(
                     Chunk(
                         content=item_data["text"],
-                        chunk_type=item_data[
-                            "type"
-                        ],  # Definition, Theorem, Equation...
+                        chunk_type=item_data["type"],  # Definition, Theorem, Equation...
                         metadata={
                             "identifier": identifier,
                             "page": item_data.get("page", 0),

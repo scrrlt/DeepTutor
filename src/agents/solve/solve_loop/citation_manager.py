@@ -25,9 +25,7 @@ class CitationManager:
             return
 
         self.citation_counter = 0
-        self.citation_map: dict[
-            str, dict[str, Any]
-        ] = {}  # {citation_id: citation_info}
+        self.citation_map: dict[str, dict[str, Any]] = {}  # {citation_id: citation_info}
         self._initialized = True
 
     def allocate_citation_id(

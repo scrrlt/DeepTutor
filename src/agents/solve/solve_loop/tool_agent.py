@@ -88,8 +88,7 @@ Rules:
         pending = [
             call
             for call in step.tool_calls
-            if call.tool_type not in {"none", "finish"}
-            and call.status in {"pending", "running"}
+            if call.tool_type not in {"none", "finish"} and call.status in {"pending", "running"}
         ]
 
         if not pending:
@@ -314,9 +313,7 @@ Rules:
                 error_prefix = "【⚠️ Code execution failed】\n"
                 if "FileNotFoundError" in stderr and "artifacts/" in stderr:
                     error_prefix += "Path error detected: Code uses 'artifacts/xxx.png', but working directory is already the artifacts directory.\n"
-                    error_prefix += (
-                        "Please use 'xxx.png' instead of 'artifacts/xxx.png'.\n\n"
-                    )
+                    error_prefix += "Please use 'xxx.png' instead of 'artifacts/xxx.png'.\n\n"
                 raw_answer = error_prefix + raw_answer
 
             new_image_paths = self._collect_new_image_artifacts(
@@ -337,9 +334,7 @@ Rules:
 
         raise ValueError(f"Unknown tool type: {tool_type}")
 
-    def _format_code_answer(
-        self, exec_result: dict[str, Any], artifacts_dir: str
-    ) -> str:
+    def _format_code_answer(self, exec_result: dict[str, Any], artifacts_dir: str) -> str:
         stdout = exec_result.get("stdout", "")
         stderr = exec_result.get("stderr", "")
         artifacts = exec_result.get("artifacts", [])
@@ -371,9 +366,7 @@ Rules:
 
         return "\n".join(lines)
 
-    async def _summarize_tool_result(
-        self, tool_type: str, query: str, raw_answer: str
-    ) -> str:
+    async def _summarize_tool_result(self, tool_type: str, query: str, raw_answer: str) -> str:
         system_prompt = self.get_prompt("system") if self.has_prompts() else None
         if not system_prompt:
             raise ValueError(
@@ -424,9 +417,7 @@ Rules:
             return []
         raw_citations = result.get("citations") or []
         search_results = result.get("search_results") or []
-        search_map = {
-            item.get("url"): item for item in search_results if item.get("url")
-        }
+        search_map = {item.get("url"): item for item in search_results if item.get("url")}
 
         selected: list[dict[str, Any]] = []
         for cid in used_ids:
@@ -489,16 +480,12 @@ Rules:
             rel_path: str | None = None
             if output_base:
                 try:
-                    rel_path = str(file_path.relative_to(output_base)).replace(
-                        "\\", "/"
-                    )
+                    rel_path = str(file_path.relative_to(output_base)).replace("\\", "/")
                 except ValueError:
                     rel_path = None
             if rel_path is None:
                 try:
-                    rel_path = str(
-                        file_path.relative_to(artifacts_path.parent)
-                    ).replace("\\", "/")
+                    rel_path = str(file_path.relative_to(artifacts_path.parent)).replace("\\", "/")
                 except ValueError:
                     rel_path = str(Path("artifacts") / file_path.name)
             rel_paths.append(rel_path)

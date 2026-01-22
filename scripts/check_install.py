@@ -84,18 +84,12 @@ def check_python_environment() -> bool:
 
     # Python version
     py_version = sys.version_info
-    print_info(
-        f"Python version: {py_version.major}.{py_version.minor}.{py_version.micro}"
-    )
+    print_info(f"Python version: {py_version.major}.{py_version.minor}.{py_version.micro}")
 
     if py_version >= (3, 10):
-        print_success(
-            f"Python {py_version.major}.{py_version.minor} meets requirement (>=3.10)"
-        )
+        print_success(f"Python {py_version.major}.{py_version.minor} meets requirement (>=3.10)")
     else:
-        print_error(
-            f"Python {py_version.major}.{py_version.minor} is below requirement (>=3.10)"
-        )
+        print_error(f"Python {py_version.major}.{py_version.minor} is below requirement (>=3.10)")
         all_ok = False
 
     # Python executable
@@ -112,9 +106,7 @@ def check_python_environment() -> bool:
     elif in_venv:
         print_success(f"Virtual environment: {sys.prefix}")
     else:
-        print_warning(
-            "No isolated environment detected (recommended: use conda or venv)"
-        )
+        print_warning("No isolated environment detected (recommended: use conda or venv)")
 
     return all_ok
 
@@ -404,9 +396,7 @@ def main():
     # 2. Backend packages
     backend_ok, backend_installed, backend_missing = check_backend_packages()
     if backend_ok:
-        summary.append(
-            ("Backend Dependencies", f"✅ OK ({backend_installed} packages)")
-        )
+        summary.append(("Backend Dependencies", f"✅ OK ({backend_installed} packages)"))
     else:
         summary.append(
             (
@@ -417,13 +407,9 @@ def main():
         all_checks_passed = False
 
     # 3. Frontend packages
-    frontend_ok, frontend_installed, frontend_missing = check_frontend_packages(
-        project_root
-    )
+    frontend_ok, frontend_installed, frontend_missing = check_frontend_packages(project_root)
     if frontend_ok:
-        summary.append(
-            ("Frontend Dependencies", f"✅ OK ({frontend_installed} packages)")
-        )
+        summary.append(("Frontend Dependencies", f"✅ OK ({frontend_installed} packages)"))
     else:
         summary.append(
             (

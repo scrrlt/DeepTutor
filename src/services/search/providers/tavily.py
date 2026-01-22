@@ -68,9 +68,7 @@ class TavilyProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(
-            f"Calling Tavily API depth={search_depth}, max_results={max_results}"
-        )
+        self.logger.debug(f"Calling Tavily API depth={search_depth}, max_results={max_results}")
         payload: dict[str, Any] = {
             "api_key": self.api_key,
             "query": query,
@@ -100,9 +98,7 @@ class TavilyProvider(BaseSearchProvider):
                 error_data = response.json()
             except (json.JSONDecodeError, ValueError):
                 error_data = {"error": response.text}
-            self.logger.error(
-                f"Tavily API error: {response.status_code} - {error_data}"
-            )
+            self.logger.error(f"Tavily API error: {response.status_code} - {error_data}")
             raise Exception(
                 f"Tavily API error: {response.status_code} - "
                 f"{error_data.get('error', response.text)}"

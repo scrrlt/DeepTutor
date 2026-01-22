@@ -54,9 +54,7 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
             openai_complete_if_cache,
         )
 
-        _openai_complete_if_cache = cast(
-            OpenAICompleteIfCache, openai_complete_if_cache
-        )
+        _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
     return _openai_complete_if_cache
 
 
@@ -372,9 +370,7 @@ async def _openai_complete(
 
         timeout = aiohttp.ClientTimeout(total=120)
         connector = _get_aiohttp_connector()
-        async with aiohttp.ClientSession(
-            timeout=timeout, connector=connector
-        ) as session:
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             try:
                 async with session.post(url, headers=headers, json=data) as resp:
                     if resp.status == 200:
@@ -384,16 +380,12 @@ async def _openai_complete(
                             choices_list = cast(list[object], choices)
                             first_choice = choices_list[0]
                             if isinstance(first_choice, Mapping):
-                                message = cast(Mapping[str, object], first_choice).get(
-                                    "message"
-                                )
+                                message = cast(Mapping[str, object], first_choice).get("message")
                             else:
                                 message = None
                             if isinstance(message, Mapping):
                                 # Use unified response extraction
-                                content = extract_response_content(
-                                    cast(dict[str, object], message)
-                                )
+                                content = extract_response_content(cast(dict[str, object], message))
                     else:
                         error_text = await resp.text()
                         raise LLMAPIError(
@@ -516,9 +508,7 @@ async def _openai_stream(
                         choices_list = cast(list[object], choices)
                         first_choice = choices_list[0]
                         if isinstance(first_choice, Mapping):
-                            delta = cast(Mapping[str, object], first_choice).get(
-                                "delta"
-                            )
+                            delta = cast(Mapping[str, object], first_choice).get("delta")
                         else:
                             delta = None
                         if isinstance(delta, Mapping):
@@ -543,8 +533,7 @@ async def _openai_stream(
 
                                         # Check if closed immediately in same chunk
                                         if any(
-                                            close_m in thinking_buffer
-                                            for close_m in close_markers
+                                            close_m in thinking_buffer for close_m in close_markers
                                         ):
                                             cleaned = clean_thinking_tags(
                                                 thinking_buffer, binding, model
@@ -557,14 +546,9 @@ async def _openai_stream(
                                 continue
                             elif in_thinking_block:
                                 thinking_buffer += content
-                                if any(
-                                    close_m in thinking_buffer
-                                    for close_m in close_markers
-                                ):
+                                if any(close_m in thinking_buffer for close_m in close_markers):
                                     # Block finished
-                                    cleaned = clean_thinking_tags(
-                                        thinking_buffer, binding, model
-                                    )
+                                    cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
                                         yield cleaned
                                     in_thinking_block = False
@@ -589,9 +573,7 @@ async def _anthropic_complete(
     """Anthropic (Claude) API completion."""
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError(
-            "Anthropic API key is missing.", provider="anthropic"
-        )
+        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
 
     # Build URL using unified utility
     effective_base = base_url or "https://api.anthropic.com/v1"
@@ -665,9 +647,7 @@ async def _anthropic_stream(
 
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise LLMAuthenticationError(
-            "Anthropic API key is missing.", provider="anthropic"
-        )
+        raise LLMAuthenticationError("Anthropic API key is missing.", provider="anthropic")
 
     # Build URL using unified utility
     effective_base = base_url or "https://api.anthropic.com/v1"

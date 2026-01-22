@@ -75,9 +75,9 @@ def load_logging_config() -> LoggingConfig:
             console_output=logging_config.get("console_output", True),
             file_output=logging_config.get("save_to_file", True),
             log_dir=get_path_from_config(config, "user_log_dir"),
-            lightrag_forwarding_enabled=logging_config.get(
-                "lightrag_forwarding", {}
-            ).get("enabled", True),
+            lightrag_forwarding_enabled=logging_config.get("lightrag_forwarding", {}).get(
+                "enabled", True
+            ),
             lightrag_min_level=logging_config.get("lightrag_forwarding", {}).get(
                 "min_level", "INFO"
             ),

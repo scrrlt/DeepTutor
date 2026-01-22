@@ -61,18 +61,10 @@ class RephraseAgent(BaseAgent):
                 if iteration == 0:
                     history_parts.append(f"[User - Initial Input]\n{content}")
                 else:
-                    history_parts.append(
-                        f"[User - Feedback (Round {iteration})]\n{content}"
-                    )
+                    history_parts.append(f"[User - Feedback (Round {iteration})]\n{content}")
             elif role == "assistant":
-                topic = (
-                    content.get("topic", "")
-                    if isinstance(content, dict)
-                    else str(content)
-                )
-                history_parts.append(
-                    f"[Assistant - Rephrased Topic (Round {iteration})]\n{topic}"
-                )
+                topic = content.get("topic", "") if isinstance(content, dict) else str(content)
+                history_parts.append(f"[Assistant - Rephrased Topic (Round {iteration})]\n{topic}")
 
         return "\n\n".join(history_parts)
 
@@ -108,9 +100,7 @@ class RephraseAgent(BaseAgent):
             logger.info(f"Original Input: {user_input}\n")
         else:
             logger.info(f"User Feedback: {user_input}\n")
-            logger.info(
-                f"Conversation History: {len(self.conversation_history)} entries\n"
-            )
+            logger.info(f"Conversation History: {len(self.conversation_history)} entries\n")
 
         # Add current user input to history
         self.conversation_history.append(
@@ -252,6 +242,7 @@ class RephraseAgent(BaseAgent):
                 "fine",
                 "agree",
                 "approved",
+                "happy",
             ]
             continue_keywords = [
                 "modify",
@@ -264,28 +255,22 @@ class RephraseAgent(BaseAgent):
                 "hope",
             ]
 
-            user_satisfied = any(
-                kw in feedback_lower for kw in satisfied_keywords
-            ) and not any(kw in feedback_lower for kw in continue_keywords)
+            user_satisfied = any(kw in feedback_lower for kw in satisfied_keywords) and not any(
+                kw in feedback_lower for kw in continue_keywords
+            )
 
             result = {
                 "user_satisfied": user_satisfied,
                 "should_continue": not user_satisfied,
                 "interpretation": "Judged based on keywords",
                 "suggested_action": (
-                    "Continue rephrasing"
-                    if not user_satisfied
-                    else "Proceed to next stage"
+                    "Continue rephrasing" if not user_satisfied else "Proceed to next stage"
                 ),
             }
 
         logger.info("\n📊 Judgment Result:")
-        logger.info(
-            f"  User Satisfied: {'Yes' if result.get('user_satisfied') else 'No'}"
-        )
-        logger.info(
-            f"  Continue Rephrasing: {'Yes' if result.get('should_continue') else 'No'}"
-        )
+        logger.info(f"  User Satisfied: {'Yes' if result.get('user_satisfied') else 'No'}")
+        logger.info(f"  Continue Rephrasing: {'Yes' if result.get('should_continue') else 'No'}")
         logger.info(f"  Intent Interpretation: {result.get('interpretation', '')}")
 
         return result

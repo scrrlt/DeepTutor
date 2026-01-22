@@ -220,9 +220,7 @@ class PerformanceMonitor:
             "total_tokens": self.total_tokens,
             "total_api_calls": self.total_api_calls,
             "total_errors": self.total_errors,
-            "agents": {
-                name: metrics.to_dict() for name, metrics in self.metrics.items()
-            },
+            "agents": {name: metrics.to_dict() for name, metrics in self.metrics.items()},
         }
 
     def generate_report(self) -> dict[str, Any]:
@@ -276,9 +274,7 @@ class PerformanceMonitor:
         for agent_name, metrics in self.metrics.items():
             logger.info(f"\n{agent_name}:")
             logger.info(
-                f"  Duration: {metrics.duration:.2f}s"
-                if metrics.duration
-                else "  Duration: N/A"
+                f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A"
             )
             logger.info(f"  Tokens: {metrics.total_tokens}")
             logger.info(f"  API Calls: {metrics.api_calls}")
@@ -339,9 +335,7 @@ def track_performance(monitor: PerformanceMonitor):
 _global_monitor: PerformanceMonitor | None = None
 
 
-def get_monitor(
-    enabled: bool = True, save_dir: str | None = None
-) -> PerformanceMonitor:
+def get_monitor(enabled: bool = True, save_dir: str | None = None) -> PerformanceMonitor:
     """
     Get global monitor instance (singleton pattern)
 

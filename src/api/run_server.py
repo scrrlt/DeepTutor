@@ -44,16 +44,12 @@ if __name__ == "__main__":
     reload_excludes = [
         str(project_root / "venv"),  # Virtual environment
         str(project_root / ".venv"),  # Virtual environment (alternative name)
-        str(
-            project_root / "data"
-        ),  # Data directory (includes knowledge_bases, user data, logs)
+        str(project_root / "data"),  # Data directory (includes knowledge_bases, user data, logs)
         str(project_root / "node_modules"),  # Node modules (if any at root)
         str(project_root / "web" / "node_modules"),  # Web node modules
         str(project_root / "web" / ".next"),  # Next.js build
         str(project_root / ".git"),  # Git directory
-        str(
-            project_root / "scripts"
-        ),  # Scripts directory - don't reload on launcher changes
+        str(project_root / "scripts"),  # Scripts directory - don't reload on launcher changes
     ]
 
     # Filter out non-existent directories to avoid warnings

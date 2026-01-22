@@ -58,16 +58,12 @@ class PrecisionAnswerAgent(BaseAgent):
         }
 
     async def _should_generate(self, question: str, verbose: bool) -> dict[str, Any]:
-        system_prompt = (
-            self.get_prompt("decision_system") if self.has_prompts() else None
-        )
+        system_prompt = self.get_prompt("decision_system") if self.has_prompts() else None
         if not system_prompt:
             raise ValueError(
                 "PrecisionAnswerAgent missing decision_system prompt, please configure decision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        template = (
-            self.get_prompt("decision_user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("decision_user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "PrecisionAnswerAgent missing decision_user_template, please configure decision_user_template in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
@@ -87,23 +83,17 @@ class PrecisionAnswerAgent(BaseAgent):
     async def _generate_precision_answer(
         self, question: str, detailed_answer: str, verbose: bool
     ) -> str:
-        system_prompt = (
-            self.get_prompt("precision_system") if self.has_prompts() else None
-        )
+        system_prompt = self.get_prompt("precision_system") if self.has_prompts() else None
         if not system_prompt:
             raise ValueError(
                 "PrecisionAnswerAgent missing precision_system prompt, please configure precision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        template = (
-            self.get_prompt("precision_user_template") if self.has_prompts() else None
-        )
+        template = self.get_prompt("precision_user_template") if self.has_prompts() else None
         if not template:
             raise ValueError(
                 "PrecisionAnswerAgent missing precision_user_template, please configure precision_user_template in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        user_prompt = template.format(
-            question=question, detailed_answer=detailed_answer
-        )
+        user_prompt = template.format(question=question, detailed_answer=detailed_answer)
         response = await self.call_llm(
             user_prompt=user_prompt,
             system_prompt=system_prompt,

@@ -28,9 +28,7 @@ from src.services.settings.interface_settings import get_ui_language
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("solve_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-    "log_dir"
-)
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("SolveAPI", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
@@ -158,9 +156,7 @@ async def websocket_solve(websocket: WebSocket):
         session_id = data.get("session_id")  # Optional session ID
 
         if not question:
-            await websocket.send_json(
-                {"type": "error", "content": "Question is required"}
-            )
+            await websocket.send_json({"type": "error", "content": "Question is required"})
             return
 
         # Get or create session
@@ -207,14 +203,10 @@ async def websocket_solve(websocket: WebSocket):
             api_version = getattr(llm_config, "api_version", None)
         except Exception as e:
             logger.error(f"Failed to get LLM config: {e}", exc_info=True)
-            await websocket.send_json(
-                {"type": "error", "content": f"LLM configuration error: {e}"}
-            )
+            await websocket.send_json({"type": "error", "content": f"LLM configuration error: {e}"})
             return
 
-        ui_language = get_ui_language(
-            default=config.get("system", {}).get("language", "en")
-        )
+        ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
         solver = MainSolver(
             kb_name=kb_name,
             output_base_dir=str(output_base),
@@ -283,9 +275,7 @@ async def websocket_solve(websocket: WebSocket):
         def send_progress_update(stage: str, progress: dict[str, Any]):
             """Send progress update to frontend"""
             try:
-                log_queue.put_nowait(
-                    {"type": "progress", "stage": stage, "progress": progress}
-                )
+                log_queue.put_nowait({"type": "progress", "stage": stage, "progress": progress})
             except Exception:
                 pass
 
@@ -349,9 +339,7 @@ async def websocket_solve(websocket: WebSocket):
 
             # Send final agent status update
             if display_manager:
-                final_agent_status = dict.fromkeys(
-                    display_manager.agents_status.keys(), "done"
-                )
+                final_agent_status = dict.fromkeys(display_manager.agents_status.keys(), "done")
                 await safe_send_json(
                     {
                         "type": "agent_status",
@@ -404,9 +392,7 @@ async def websocket_solve(websocket: WebSocket):
                     "session_id": session_id,
                 },
                 summary=(
-                    result.get("final_answer")[:100] + "..."
-                    if result.get("final_answer")
-                    else ""
+                    result.get("final_answer")[:100] + "..." if result.get("final_answer") else ""
                 ),
             )
 
@@ -414,9 +400,7 @@ async def websocket_solve(websocket: WebSocket):
         # Mark connection as closed before sending error (to prevent log_pusher from interfering)
         connection_closed.set()
         await safe_send_json({"type": "error", "content": str(e)})
-        logger.error(
-            f"[{task_id if 'task_id' in locals() else 'unknown'}] Solving failed: {e}"
-        )
+        logger.error(f"[{task_id if 'task_id' in locals() else 'unknown'}] Solving failed: {e}")
         if "task_id" in locals():
             task_manager.update_task_status(task_id, "error", error=str(e))
     finally:

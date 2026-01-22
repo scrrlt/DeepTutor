@@ -371,9 +371,7 @@ class RedisSessionManager(SessionManager):
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).warning(
-                "Failed to enforce session limit: %s", exc
-            )
+            logging.getLogger(__name__).warning("Failed to enforce session limit: %s", exc)
             return
 
         excess = count - max_sessions
@@ -446,9 +444,7 @@ class RedisSessionManager(SessionManager):
             except Exception as exc:
                 import logging
 
-                logging.getLogger(__name__).warning(
-                    "Failed to unwatch Redis key: %s", exc
-                )
+                logging.getLogger(__name__).warning("Failed to unwatch Redis key: %s", exc)
             return None
 
         message = {

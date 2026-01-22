@@ -87,9 +87,9 @@ class GuideManager:
                 config = {}
 
         # Initialize logger (from config)
-        log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-            "logging", {}
-        ).get("log_dir")
+        log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+            "log_dir"
+        )
         self.logger = get_logger("Guide", log_dir=log_dir)
 
         if language is None:
@@ -100,9 +100,7 @@ class GuideManager:
         else:
             # If explicitly specified, also parse it to ensure consistency
             self.language = parse_language(language)
-            self.logger.info(
-                f"Using explicitly specified language setting: {self.language}"
-            )
+            self.logger.info(f"Using explicitly specified language setting: {self.language}")
 
         if output_dir:
             self.output_dir = Path(output_dir)
@@ -166,9 +164,7 @@ class GuideManager:
             return
 
         if not hasattr(session, "to_dict"):
-            self.logger.warning(
-                "Skipping session serialization for %s", resolved_session_id
-            )
+            self.logger.warning("Skipping session serialization for %s", resolved_session_id)
             self._sessions[resolved_session_id] = session
             return
 
@@ -237,9 +233,7 @@ class GuideManager:
         if not locate_result.get("success"):
             return {
                 "success": False,
-                "error": locate_result.get(
-                    "error", "Failed to analyze knowledge points"
-                ),
+                "error": locate_result.get("error", "Failed to analyze knowledge points"),
                 "session_id": None,
             }
 
@@ -342,9 +336,7 @@ class GuideManager:
 
         current_knowledge = state.get("current_knowledge")
 
-        interactive_result = await self.interactive_agent.process(
-            knowledge=current_knowledge
-        )
+        interactive_result = await self.interactive_agent.process(knowledge=current_knowledge)
 
         session.current_index = 0
         session.status = "learning"
@@ -426,9 +418,7 @@ class GuideManager:
 
         current_knowledge = state.get("current_knowledge")
 
-        interactive_result = await self.interactive_agent.process(
-            knowledge=current_knowledge
-        )
+        interactive_result = await self.interactive_agent.process(knowledge=current_knowledge)
 
         session.current_index = new_index
         session.current_html = interactive_result.get("html", "")

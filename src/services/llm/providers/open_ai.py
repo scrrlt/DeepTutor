@@ -71,13 +71,9 @@ class OpenAIProvider(BaseLLMProvider):
             content = message.content or ""
             finish_reason = choice.finish_reason
             usage = response.usage.model_dump() if response.usage else {}
-            raw_response = (
-                response.model_dump() if hasattr(response, "model_dump") else {}
-            )
+            raw_response = response.model_dump() if hasattr(response, "model_dump") else {}
             provider_label = (
-                "azure"
-                if isinstance(self.client, openai.AsyncAzureOpenAI)
-                else "openai"
+                "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
             )
 
             return TutorResponse(
@@ -108,9 +104,7 @@ class OpenAIProvider(BaseLLMProvider):
 
         stream = await self.execute(_create_stream)
         accumulated_content = ""
-        provider_label = (
-            "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
-        )
+        provider_label = "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
 
         try:
             async for chunk in stream:

@@ -36,12 +36,8 @@ async def test_precision_answer_agent_process_workflow(
     """
     Tests the overall workflow of the PrecisionAnswerAgent's process method.
     """
-    precision_answer_agent._should_generate = AsyncMock(
-        return_value={"needs_precision": True}
-    )
-    precision_answer_agent._generate_precision_answer = AsyncMock(
-        return_value="precision_answer"
-    )
+    precision_answer_agent._should_generate = AsyncMock(return_value={"needs_precision": True})
+    precision_answer_agent._generate_precision_answer = AsyncMock(return_value="precision_answer")
 
     result = await precision_answer_agent.process("question", "detailed_answer")
 

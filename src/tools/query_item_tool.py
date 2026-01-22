@@ -61,9 +61,7 @@ def query_numbered_item(
 
             project_root = Path(__file__).parent.parent.parent
             config = load_config_with_main("main.yaml", project_root)
-            max_results = (
-                config.get("tools", {}).get("query_item", {}).get("max_results", 5)
-            )
+            max_results = config.get("tools", {}).get("query_item", {}).get("max_results", 5)
         except Exception:
             max_results = 5  # Default value
 
@@ -191,9 +189,7 @@ def query_numbered_item(
     exact_matches = []
     for key, value in items.items():
         if key.lower() == identifier_lower:
-            exact_matches.append(
-                {"identifier": key, "type": item_type, "content": value}
-            )
+            exact_matches.append({"identifier": key, "type": item_type, "content": value})
 
     if exact_matches:
         # Limit results
@@ -220,9 +216,7 @@ def query_numbered_item(
 
     # 3. Prefix match (e.g., "2.1" matches "(2.1.1)", "(2.1.2)", etc.)
     prefix_matches = []
-    identifier_clean = identifier.strip().strip(
-        "()"
-    )  # Remove parentheses, extract pure numbers
+    identifier_clean = identifier.strip().strip("()")  # Remove parentheses, extract pure numbers
 
     for key, value in items.items():
         key_clean = key.strip().strip("()")
@@ -232,9 +226,7 @@ def query_numbered_item(
             or key_clean == identifier_clean
             or key.lower().startswith(identifier_lower)
         ):
-            prefix_matches.append(
-                {"identifier": key, "type": item_type, "content": value}
-            )
+            prefix_matches.append({"identifier": key, "type": item_type, "content": value})
 
     # Limit results
     if max_results and len(prefix_matches) > max_results:
@@ -246,10 +238,7 @@ def query_numbered_item(
             prefix_matches[0]["content"]
             if len(prefix_matches) == 1
             else "\n\n".join(
-                [
-                    f"[{item['identifier']}]\n{item['content']}"
-                    for item in prefix_matches
-                ]
+                [f"[{item['identifier']}]\n{item['content']}" for item in prefix_matches]
             )
         )
 
@@ -266,9 +255,7 @@ def query_numbered_item(
     partial_matches = []
     for key, value in items.items():
         if identifier_lower in key.lower():
-            partial_matches.append(
-                {"identifier": key, "type": item_type, "content": value}
-            )
+            partial_matches.append({"identifier": key, "type": item_type, "content": value})
 
     # Limit results
     if max_results and len(partial_matches) > max_results:
@@ -279,10 +266,7 @@ def query_numbered_item(
             partial_matches[0]["content"]
             if len(partial_matches) == 1
             else "\n\n".join(
-                [
-                    f"[{item['identifier']}]\n{item['content']}"
-                    for item in partial_matches
-                ]
+                [f"[{item['identifier']}]\n{item['content']}" for item in partial_matches]
             )
         )
 

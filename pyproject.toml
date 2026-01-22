@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 name = "ai-tutor"
 version = "0.5.0"
 description = "An intelligent learning companion with multi-agent collaboration and RAG"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 
@@ -28,8 +28,8 @@ all = [
 # Black code formatter configuration
 # ============================================
 [tool.black]
-line-length = 88
-target-version = ['py312']
+line-length = 100
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -56,8 +56,8 @@ extend-exclude = '''
 # ============================================
 [tool.ruff]
 # Target Python version
-target-version = "py312"
-line-length = 88
+target-version = "py310"
+line-length = 100
 
 [tool.ruff.lint]
 # 只启用最基础的规则（放宽要求）

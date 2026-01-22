@@ -121,9 +121,7 @@ class EmbeddingClient:
 
         if self._init_loop and self._init_loop.is_running():
             # Different loop context, dispatch to init loop for adapter affinity
-            future = asyncio.run_coroutine_threadsafe(
-                self.embed(texts), self._init_loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
             return future.result(timeout=self.config.request_timeout or 30)
 
         # Init loop is dead but we're in a different running loop - can't safely proceed

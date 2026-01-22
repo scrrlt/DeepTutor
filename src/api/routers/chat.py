@@ -203,9 +203,7 @@ async def websocket_chat(websocket: WebSocket):
                 enable_web_search = data.get("enable_web_search", False)
 
                 if not message:
-                    await websocket.send_json(
-                        {"type": "error", "message": "Message is required"}
-                    )
+                    await websocket.send_json({"type": "error", "message": "Message is required"})
                     continue
 
                 logger.info(
@@ -331,14 +329,10 @@ async def websocket_chat(websocket: WebSocket):
                     session_id=session_id,
                     role="assistant",
                     content=full_response,
-                    sources=sources
-                    if (sources.get("rag") or sources.get("web"))
-                    else None,
+                    sources=sources if (sources.get("rag") or sources.get("web")) else None,
                 )
 
-                logger.info(
-                    f"Chat completed: session={session_id}, {len(full_response)} chars"
-                )
+                logger.info(f"Chat completed: session={session_id}, {len(full_response)} chars")
             except Exception as exc:
                 # Log internal exception with traceback for server-side diagnostics
                 logger.warning("Chat message processing failed", exc_info=True)

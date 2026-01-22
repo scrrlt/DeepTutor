@@ -84,9 +84,7 @@ def test_prompts_key_and_placeholder_parity():
 
             for lang_name, target_file in candidates:
                 if not target_file.exists():
-                    failures.append(
-                        f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}"
-                    )
+                    failures.append(f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}")
                     continue
 
                 target_obj = _load_yaml(target_file)

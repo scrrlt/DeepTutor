@@ -72,15 +72,11 @@ class ProgressTracker:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         # If loop is running, create task
-                        asyncio.create_task(
-                            broadcaster.broadcast(self.kb_name, progress)
-                        )
+                        asyncio.create_task(broadcaster.broadcast(self.kb_name, progress))
                     else:
                         # If loop exists but not running, try to run (may fail, but doesn't affect main flow)
                         try:
-                            loop.run_until_complete(
-                                broadcaster.broadcast(self.kb_name, progress)
-                            )
+                            loop.run_until_complete(broadcaster.broadcast(self.kb_name, progress))
                         except RuntimeError:
                             # Cannot run, ignore
                             pass

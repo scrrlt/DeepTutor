@@ -67,9 +67,7 @@ def configure_logging(
 
     # Allow configuration if it was previously only lazy-configured
     if _configured and not _lazy_configured:
-        raise RuntimeError(
-            "logging.configure_logging() already called. Cannot reconfigure."
-        )
+        raise RuntimeError("logging.configure_logging() already called. Cannot reconfigure.")
 
     # If already running (from lazy), stop the old one before reconfiguration
     if _listener is not None:
@@ -84,9 +82,7 @@ def configure_logging(
     if console_output:
         console_handler = stdlib_logging.StreamHandler(sys.stdout)
         console_handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
-        console_handler.setFormatter(
-            ConsoleFormatter(service_prefix=_default_service_prefix)
-        )
+        console_handler.setFormatter(ConsoleFormatter(service_prefix=_default_service_prefix))
         handlers.append(console_handler)
 
     if file_output:
@@ -346,9 +342,7 @@ class Logger:
         task_handler.setLevel(stdlib_logging.DEBUG)
         task_handler.setFormatter(FileFormatter())
 
-        task_listener = QueueListener(
-            task_queue, task_handler, respect_handler_level=True
-        )
+        task_listener = QueueListener(task_queue, task_handler, respect_handler_level=True)
         task_listener.start()
 
         # Add QueueHandler to this logger that feeds the task-specific queue
@@ -511,9 +505,7 @@ class Logger:
 
         level = stdlib_logging.ERROR if status == "error" else stdlib_logging.INFO
         display_level = (
-            "ERROR"
-            if status == "error"
-            else ("SUCCESS" if status == "complete" else "INFO")
+            "ERROR" if status == "error" else ("SUCCESS" if status == "complete" else "INFO")
         )
         symbol = "✓" if status == "complete" else ("✗" if status == "error" else "●")
         self._log(level, message, symbol=symbol, display_level=display_level)
@@ -535,9 +527,7 @@ class Logger:
         """
         symbol = "✓" if status == "success" else ("✗" if status == "error" else "●")
         display_level = (
-            "SUCCESS"
-            if status == "success"
-            else ("ERROR" if status == "error" else "INFO")
+            "SUCCESS" if status == "success" else ("ERROR" if status == "error" else "INFO")
         )
 
         message = f"Tool: {tool_name}"
@@ -610,9 +600,7 @@ class Logger:
         """
         symbol = "✓" if status == "success" else ("✗" if status == "error" else "●")
         display_level = (
-            "SUCCESS"
-            if status == "success"
-            else ("ERROR" if status == "error" else "INFO")
+            "SUCCESS" if status == "success" else ("ERROR" if status == "error" else "INFO")
         )
 
         # Console message (brief)

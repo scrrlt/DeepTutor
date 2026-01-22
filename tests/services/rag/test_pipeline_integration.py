@@ -117,9 +117,7 @@ class PipelineIntegrationTest:
         # Initialize service with temp directory
         from src.services.rag import RAGService
 
-        self.service = RAGService(
-            kb_base_dir=self.temp_dir, provider=self.pipeline_name
-        )
+        self.service = RAGService(kb_base_dir=self.temp_dir, provider=self.pipeline_name)
 
         # Verify test file exists
         if not self.test_file.exists():
@@ -402,9 +400,7 @@ async def main():
         default="llamaindex",
         help="Pipeline to test (or 'all' for all pipelines). Default: llamaindex",
     )
-    parser.add_argument(
-        "--list", "-l", action="store_true", help="List available pipelines"
-    )
+    parser.add_argument("--list", "-l", action="store_true", help="List available pipelines")
 
     args = parser.parse_args()
 

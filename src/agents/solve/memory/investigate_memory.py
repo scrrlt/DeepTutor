@@ -69,9 +69,7 @@ class InvestigateMemory:
         user_question: str = "",
         output_dir: str | None = None,
     ):
-        self.task_id = (
-            task_id or f"investigate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        )
+        self.task_id = task_id or f"investigate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.user_question = user_question
         self.output_dir = output_dir
 

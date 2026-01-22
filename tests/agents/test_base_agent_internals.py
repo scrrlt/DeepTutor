@@ -58,10 +58,7 @@ def test_prompt_fallback(base_agent: BaseAgent):
         base_agent (BaseAgent): The BaseAgent instance.
     """
     assert base_agent.get_prompt("missing", fallback="Fallback") == "Fallback"
-    assert (
-        base_agent.get_prompt("nested.missing", fallback="Deep Fallback")
-        == "Deep Fallback"
-    )
+    assert base_agent.get_prompt("nested.missing", fallback="Deep Fallback") == "Deep Fallback"
 
 
 def test_track_usage_delegation(base_agent: BaseAgent):

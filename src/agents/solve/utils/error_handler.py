@@ -23,10 +23,7 @@ from src.services.llm.exceptions import LLMParseError
 def _format_validation_errors(e: ValidationError) -> str:
     """Format Pydantic validation errors into a readable string."""
     return "; ".join(
-        [
-            f"{'.'.join(str(x) for x in err['loc']) or 'root'}: {err['msg']}"
-            for err in e.errors()
-        ]
+        [f"{'.'.join(str(x) for x in err['loc']) or 'root'}: {err['msg']}" for err in e.errors()]
     )
 
 
@@ -42,9 +39,7 @@ class ToolIntent(BaseModel):
     @classmethod
     def validate_tool_type(cls, v):
         if v.lower() not in VALID_INVESTIGATE_TOOLS:
-            raise ValueError(
-                f"tool_type must be one of {VALID_INVESTIGATE_TOOLS}, got: {v}"
-            )
+            raise ValueError(f"tool_type must be one of {VALID_INVESTIGATE_TOOLS}, got: {v}")
         return v.lower()
 
     @field_validator("query")
@@ -60,9 +55,7 @@ class InvestigateOutput(BaseModel):
     """Model for InvestigateAgent output"""
 
     reasoning: str = Field(..., description="Reasoning for the investigation")
-    tools: list[ToolIntent] = Field(
-        ..., min_length=1, description="List of tool intents"
-    )
+    tools: list[ToolIntent] = Field(..., min_length=1, description="List of tool intents")
 
     @field_validator("tools")
     @classmethod
@@ -70,9 +63,7 @@ class InvestigateOutput(BaseModel):
         # Check for 'none' tool exclusivity
         has_none = any(tool.tool_type == "none" for tool in v)
         if has_none and len(v) > 1:
-            raise ValueError(
-                "When 'none' tool exists, no other tool intents should be provided"
-            )
+            raise ValueError("When 'none' tool exists, no other tool intents should be provided")
         return v
 
 
@@ -95,9 +86,7 @@ class NoteOutput(BaseModel):
     """Model for NoteAgent output"""
 
     summary: str = Field(..., description="Summary of the notes")
-    citations: list[Citation] = Field(
-        default_factory=list, description="List of citations"
-    )
+    citations: list[Citation] = Field(default_factory=list, description="List of citations")
 
 
 class ReflectOutput(BaseModel):
@@ -105,9 +94,7 @@ class ReflectOutput(BaseModel):
 
     should_stop: bool = Field(..., description="Whether to stop the investigation")
     reason: str = Field(..., description="Reason for the decision")
-    remaining_questions: list[str] = Field(
-        ..., description="List of remaining questions"
-    )
+    remaining_questions: list[str] = Field(..., description="List of remaining questions")
 
 
 class PlanStep(BaseModel):
@@ -129,9 +116,7 @@ class PlanOutput(BaseModel):
     """Model for PlanAgent output"""
 
     answer_style: str = Field(..., description="Style of the answer")
-    blocks: list[PlanBlock] = Field(
-        ..., min_length=1, description="List of plan blocks"
-    )
+    blocks: list[PlanBlock] = Field(..., min_length=1, description="List of plan blocks")
 
 
 class SolveToolCall(BaseModel):
@@ -151,9 +136,7 @@ class SolveToolCall(BaseModel):
 class SolveOutput(BaseModel):
     """Model for SolveAgent output"""
 
-    tool_calls: list[SolveToolCall] = Field(
-        ..., min_length=1, description="List of tool calls"
-    )
+    tool_calls: list[SolveToolCall] = Field(..., min_length=1, description="List of tool calls")
 
 
 # Initialize module logger
@@ -288,9 +271,7 @@ def validate_investigate_output(
         # Check none tool exclusivity
         has_none = any(t.get("tool_type", "").lower() == "none" for t in tools)
         if has_none and len(tools) > 1:
-            raise LLMParseError(
-                "When 'none' tool exists, no other tool intents should be provided"
-            )
+            raise LLMParseError("When 'none' tool exists, no other tool intents should be provided")
         return True
 
     # Use Pydantic for standard validation
@@ -299,9 +280,7 @@ def validate_investigate_output(
         return True
     except ValidationError as e:
         error_details = _format_validation_errors(e)
-        raise LLMParseError(
-            f"InvestigateAgent output validation failed: {error_details}"
-        ) from e
+        raise LLMParseError(f"InvestigateAgent output validation failed: {error_details}") from e
 
 
 def validate_note_output(output: dict[str, Any]) -> bool:
@@ -311,9 +290,7 @@ def validate_note_output(output: dict[str, Any]) -> bool:
         return True
     except ValidationError as e:
         error_details = _format_validation_errors(e)
-        raise LLMParseError(
-            f"NoteAgent output validation failed: {error_details}"
-        ) from e
+        raise LLMParseError(f"NoteAgent output validation failed: {error_details}") from e
 
 
 def validate_reflect_output(output: dict[str, Any]) -> bool:
@@ -335,9 +312,7 @@ def validate_plan_output(output: dict[str, Any]) -> bool:
         return True
     except ValidationError as e:
         error_details = _format_validation_errors(e)
-        raise LLMParseError(
-            f"PlanAgent output validation failed: {error_details}"
-        ) from e
+        raise LLMParseError(f"PlanAgent output validation failed: {error_details}") from e
 
 
 def validate_solve_output(
@@ -356,9 +331,7 @@ def validate_solve_output(
             if not isinstance(tool_call, dict):
                 raise LLMParseError(f"tool_call[{i}] must be a dictionary")
             if "tool_type" not in tool_call or "query" not in tool_call:
-                raise LLMParseError(
-                    f"tool_call[{i}] missing required fields: tool_type, query"
-                )
+                raise LLMParseError(f"tool_call[{i}] missing required fields: tool_type, query")
             tool_type = tool_call.get("tool_type", "").lower()
             if tool_type not in valid_tool_types:
                 raise LLMParseError(
@@ -372,9 +345,7 @@ def validate_solve_output(
         return True
     except ValidationError as e:
         error_details = _format_validation_errors(e)
-        raise LLMParseError(
-            f"SolveAgent output validation failed: {error_details}"
-        ) from e
+        raise LLMParseError(f"SolveAgent output validation failed: {error_details}") from e
 
 
 def validate_none_tool_constraint(
@@ -391,8 +362,7 @@ def validate_none_tool_constraint(
         LLMParseError: If none tool constraint is violated
     """
     has_none = any(
-        isinstance(tool_type := tool.get(tool_type_key), str)
-        and tool_type.lower() == "none"
+        isinstance(tool_type := tool.get(tool_type_key), str) and tool_type.lower() == "none"
         for tool in tools
     )
 

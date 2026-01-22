@@ -282,9 +282,7 @@ class BaseAgent(ABC):
             LLMStats instance
         """
         if module_name not in cls._shared_stats:
-            cls._shared_stats[module_name] = LLMStats(
-                module_name=module_name.capitalize()
-            )
+            cls._shared_stats[module_name] = LLMStats(module_name=module_name.capitalize())
         return cls._shared_stats[module_name]
 
     @classmethod
@@ -430,9 +428,7 @@ class BaseAgent(ABC):
             if supports_response_format(binding, model):
                 kwargs["response_format"] = response_format
             else:
-                self.logger.debug(
-                    f"response_format not supported for {binding}/{model}, skipping"
-                )
+                self.logger.debug(f"response_format not supported for {binding}/{model}, skipping")
 
         if messages:
             kwargs["messages"] = messages
@@ -495,9 +491,7 @@ class BaseAgent(ABC):
 
         # Verbose output
         if verbose:
-            self.logger.debug(
-                f"LLM response: model={model}, duration={call_duration:.2f}s"
-            )
+            self.logger.debug(f"LLM response: model={model}, duration={call_duration:.2f}s")
 
         return response
 
@@ -604,9 +598,7 @@ class BaseAgent(ABC):
                     agent_name=self.agent_name,
                     stage=stage_label,
                     response=(
-                        full_response[:200] + "..."
-                        if len(full_response) > 200
-                        else full_response
+                        full_response[:200] + "..." if len(full_response) > 200 else full_response
                     ),
                     metadata={
                         "length": len(full_response),
@@ -680,11 +672,7 @@ class BaseAgent(ABC):
             if section_value is not None:
                 return section_value
             # field_or_fallback acts as fallback in simple mode
-            return (
-                field_or_fallback
-                if field_or_fallback
-                else (fallback if fallback else None)
-            )
+            return field_or_fallback if field_or_fallback else (fallback if fallback else None)
 
     def has_prompts(self) -> bool:
         """Check if prompts have been loaded."""

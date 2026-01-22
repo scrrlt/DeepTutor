@@ -131,9 +131,7 @@ class AITutorStarter:
             None.
         """
         logger.section("Please select a function:")
-        logger.info(
-            "1. 🧠 Solver System (Solve) - Intelligent academic problem solving"
-        )
+        logger.info("1. 🧠 Solver System (Solve) - Intelligent academic problem solving")
         logger.info("2. 📝 Question Generator (Question) - Generate questions")
         logger.info("3. 🔬 Deep Research (Research) - Multi-round research")
         logger.info("4. 💡 Idea Generation (IdeaGen) - Extract research ideas")
@@ -171,8 +169,7 @@ class AITutorStarter:
 
         while True:
             choice = input(
-                "\nPlease select knowledge base "
-                f"(1-{len(self.available_kbs)}) [default: 1]: "
+                f"\nPlease select knowledge base (1-{len(self.available_kbs)}) [default: 1]: "
             ).strip()
             if not choice:
                 return self.available_kbs[0]
@@ -181,9 +178,7 @@ class AITutorStarter:
                 idx = int(choice) - 1
                 if 0 <= idx < len(self.available_kbs):
                     return self.available_kbs[idx]
-                logger.warning(
-                    f"Please enter a number between 1 and {len(self.available_kbs)}"
-                )
+                logger.warning(f"Please enter a number between 1 and {len(self.available_kbs)}")
             except ValueError:
                 logger.warning("Please enter a valid number")
 
@@ -281,8 +276,7 @@ class AITutorStarter:
         logger.success(f"Selected knowledge base: {kb_name}")
 
         question = self._prompt_multiline(
-            "Please enter your question (multi-line input supported, "
-            "empty line to finish):"
+            "Please enter your question (multi-line input supported, empty line to finish):"
         )
         if not question:
             logger.warning("No question entered, returning to main menu")
@@ -321,9 +315,7 @@ class AITutorStarter:
             logger.info(f"   Pipeline: {result.get('pipeline', 'dual_loop')}")
 
             if "analysis_iterations" in result:
-                logger.info(
-                    f"   Analysis loop iterations: {result['analysis_iterations']} rounds"
-                )
+                logger.info(f"   Analysis loop iterations: {result['analysis_iterations']} rounds")
             if "solve_steps" in result:
                 logger.info(f"   Solve steps completed: {result['solve_steps']} steps")
             if "total_steps" in result:
@@ -564,27 +556,19 @@ class AITutorStarter:
             # Apply preset mode configuration
             preset_configs = {
                 "quick": {
-                    "planning": {
-                        "decompose": {"initial_subtopics": 2, "mode": "manual"}
-                    },
+                    "planning": {"decompose": {"initial_subtopics": 2, "mode": "manual"}},
                     "researching": {"max_iterations": 2},
                 },
                 "standard": {
-                    "planning": {
-                        "decompose": {"initial_subtopics": 5, "mode": "manual"}
-                    },
+                    "planning": {"decompose": {"initial_subtopics": 5, "mode": "manual"}},
                     "researching": {"max_iterations": 5},
                 },
                 "deep": {
-                    "planning": {
-                        "decompose": {"initial_subtopics": 8, "mode": "manual"}
-                    },
+                    "planning": {"decompose": {"initial_subtopics": 8, "mode": "manual"}},
                     "researching": {"max_iterations": 7},
                 },
                 "auto": {
-                    "planning": {
-                        "decompose": {"mode": "auto", "auto_max_subtopics": 8}
-                    },
+                    "planning": {"decompose": {"mode": "auto", "auto_max_subtopics": 8}},
                     "researching": {"max_iterations": 6},
                 },
             }
@@ -628,9 +612,7 @@ class AITutorStarter:
             metadata = result.get("metadata", {})
             if metadata:
                 logger.info("Research statistics:")
-                logger.info(
-                    f"   Report word count: {metadata.get('report_word_count', 0)}"
-                )
+                logger.info(f"   Report word count: {metadata.get('report_word_count', 0)}")
                 stats = metadata.get("statistics", {})
                 if stats:
                     logger.info(f"   Topic blocks: {stats.get('total_blocks', 0)}")
@@ -641,10 +623,7 @@ class AITutorStarter:
             try:
                 # Read report content
                 report_content = ""
-                if (
-                    result.get("final_report_path")
-                    and Path(result["final_report_path"]).exists()
-                ):
+                if result.get("final_report_path") and Path(result["final_report_path"]).exists():
                     with open(result["final_report_path"], encoding="utf-8") as f:
                         report_content = f.read()
 
@@ -713,9 +692,7 @@ class AITutorStarter:
             )
 
             # Organize materials
-            organizer = MaterialOrganizerAgent(
-                api_key=self.api_key, base_url=self.base_url
-            )
+            organizer = MaterialOrganizerAgent(api_key=self.api_key, base_url=self.base_url)
 
             logger.info("Extracting knowledge points...")
             knowledge_points = await organizer.extract_knowledge_points(materials)
@@ -726,9 +703,7 @@ class AITutorStarter:
                 return
 
             # Generate ideas
-            workflow = IdeaGenerationWorkflow(
-                api_key=self.api_key, base_url=self.base_url
-            )
+            workflow = IdeaGenerationWorkflow(api_key=self.api_key, base_url=self.base_url)
 
             logger.info("Generating research ideas...")
             result = await workflow.process(knowledge_points)
@@ -764,8 +739,7 @@ class AITutorStarter:
             if choice == "1":
                 logger.section("Starting backend service")
                 logger.info(
-                    "Command: python -m uvicorn api.main:app "
-                    "--host 127.0.0.1 --port 8000 --reload"
+                    "Command: python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload"
                 )
                 import subprocess  # nosec B404
 
@@ -822,10 +796,7 @@ class AITutorStarter:
             logger.info("LLM Configuration:")
             logger.info(f"   Model: {llm_config.model or 'N/A'}")
             logger.info(f"   API Endpoint: {llm_config.base_url or 'N/A'}")
-            logger.info(
-                "   API Key: "
-                f"{'Configured' if llm_config.api_key else 'Not configured'}"
-            )
+            logger.info(f"   API Key: {'Configured' if llm_config.api_key else 'Not configured'}")
         except Exception as e:
             logger.error(f"Load failed: {e}")
 
@@ -881,20 +852,16 @@ class AITutorStarter:
                     continue  # Don't ask to continue after settings
                 elif choice == "7":
                     logger.section(
-                        "Thank you for using DeepTutor Intelligent Teaching "
-                        "Assistant System"
+                        "Thank you for using DeepTutor Intelligent Teaching Assistant System"
                     )
                     break
 
                 # Ask if continue
                 logger.separator()
-                continue_choice = (
-                    input("Continue using? (y/n) [default: y]: ").strip().lower()
-                )
+                continue_choice = input("Continue using? (y/n) [default: y]: ").strip().lower()
                 if continue_choice == "n":
                     logger.section(
-                        "Thank you for using DeepTutor Intelligent Teaching "
-                        "Assistant System"
+                        "Thank you for using DeepTutor Intelligent Teaching Assistant System"
                     )
                     break
 

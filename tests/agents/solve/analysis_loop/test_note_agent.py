@@ -24,9 +24,7 @@ def note_agent() -> NoteAgent:
         config = {
             "system": {"language": "en"},
         }
-        agent = NoteAgent(
-            config=config, api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = NoteAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -37,9 +35,7 @@ async def test_note_agent_process_workflow(note_agent: NoteAgent):
     Args:
         note_agent (NoteAgent): The NoteAgent instance.
     """
-    note_agent.call_llm = AsyncMock(
-        return_value='{"summary": "test summary", "citations": []}'
-    )
+    note_agent.call_llm = AsyncMock(return_value='{"summary": "test summary", "citations": []}')
 
     memory = InvestigateMemory(user_question="test question")
     knowledge_item = KnowledgeItem(
@@ -52,9 +48,7 @@ async def test_note_agent_process_workflow(note_agent: NoteAgent):
 
     citation_memory = CitationMemory(output_dir="/tmp/test")
 
-    result = await note_agent.process(
-        "test question", memory, ["cite1"], citation_memory
-    )
+    result = await note_agent.process("test question", memory, ["cite1"], citation_memory)
 
     note_agent.call_llm.assert_called_once()
     assert result["success"] is True
@@ -82,9 +76,7 @@ async def test_note_agent_process_invalid_json(note_agent: NoteAgent):
 
     citation_memory = CitationMemory(output_dir="/tmp/test")
 
-    result = await note_agent.process(
-        "test question", memory, ["cite1"], citation_memory
-    )
+    result = await note_agent.process("test question", memory, ["cite1"], citation_memory)
 
     note_agent.call_llm.assert_called_once()
     assert result["success"] is False
@@ -102,9 +94,7 @@ async def test_note_agent_process_knowledge_not_found(note_agent: NoteAgent):
     memory = InvestigateMemory(user_question="test question")
     citation_memory = CitationMemory(output_dir="/tmp/test")
 
-    result = await note_agent.process(
-        "test question", memory, ["cite1"], citation_memory
-    )
+    result = await note_agent.process("test question", memory, ["cite1"], citation_memory)
 
     assert result["success"] is False
     assert len(result["failed"]) == 1

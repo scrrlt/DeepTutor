@@ -80,9 +80,7 @@ def list_knowledge_bases() -> None:
                 )
                 logger.info(
                     "    - RAG: %s",
-                    "Initialized"
-                    if stats.get("rag_initialized")
-                    else "Not initialized",
+                    "Initialized" if stats.get("rag_initialized") else "Not initialized",
                 )
             except Exception:
                 pass
@@ -172,9 +170,7 @@ async def init_knowledge_base(args: argparse.Namespace) -> None:
 
     if not api_key and not args.skip_processing:
         logger.error("API Key not set")
-        logger.info(
-            "Please set environment variable LLM_API_KEY or use --api-key parameter"
-        )
+        logger.info("Please set environment variable LLM_API_KEY or use --api-key parameter")
         return
 
     # Collect document files
@@ -254,9 +250,7 @@ def extract_items(args: argparse.Namespace) -> None:
 
     if not api_key:
         logger.error("API Key not set")
-        logger.info(
-            "Please set environment variable LLM_API_KEY or use --api-key parameter"
-        )
+        logger.info("Please set environment variable LLM_API_KEY or use --api-key parameter")
         return
 
     # Build paths
@@ -378,9 +372,7 @@ async def refresh_knowledge_base(args: argparse.Namespace) -> None:
 
     if not api_key:
         logger.error("API Key not set")
-        logger.info(
-            "Please set environment variable LLM_API_KEY or use --api-key parameter"
-        )
+        logger.info("Please set environment variable LLM_API_KEY or use --api-key parameter")
         return
 
     try:
@@ -423,9 +415,7 @@ async def refresh_knowledge_base(args: argparse.Namespace) -> None:
                 images_dir.mkdir(parents=True, exist_ok=True)
                 logger.info("  ✓ Cleaned images")
         else:
-            logger.info(
-                "Step 2/3: Skipping content cleanup (use --full for complete refresh)"
-            )
+            logger.info("Step 2/3: Skipping content cleanup (use --full for complete refresh)")
 
         # Step 3: Reprocess all documents
         logger.info("Step 3/3: Reprocessing documents...")
@@ -510,9 +500,7 @@ Usage Examples:
     )
 
     # set-default command
-    default_parser = subparsers.add_parser(
-        "set-default", help="Set default knowledge base"
-    )
+    default_parser = subparsers.add_parser("set-default", help="Set default knowledge base")
     default_parser.add_argument("name", help="Knowledge base name")
 
     # init command
@@ -532,16 +520,12 @@ Usage Examples:
         action="store_true",
         help="Skip numbered items extraction",
     )
-    init_parser.add_argument(
-        "--batch-size", type=int, default=20, help="Batch size (default 20)"
-    )
+    init_parser.add_argument("--batch-size", type=int, default=20, help="Batch size (default 20)")
 
     # extract command
     extract_parser = subparsers.add_parser("extract", help="Extract numbered items")
     extract_parser.add_argument("--kb", required=True, help="Knowledge base name")
-    extract_parser.add_argument(
-        "--content-file", help="Specify content_list file (optional)"
-    )
+    extract_parser.add_argument("--content-file", help="Specify content_list file (optional)")
     extract_parser.add_argument(
         "--batch-size", type=int, default=20, help="Batch size (default 20)"
     )
@@ -562,9 +546,7 @@ Usage Examples:
     # delete command
     delete_parser = subparsers.add_parser("delete", help="Delete knowledge base")
     delete_parser.add_argument("name", help="Knowledge base name")
-    delete_parser.add_argument(
-        "--force", action="store_true", help="Skip confirmation (dangerous)"
-    )
+    delete_parser.add_argument("--force", action="store_true", help="Skip confirmation (dangerous)")
 
     # clean-rag command
     clean_parser = subparsers.add_parser(

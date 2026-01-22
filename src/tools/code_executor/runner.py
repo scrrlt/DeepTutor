@@ -82,13 +82,11 @@ class LocalProcessRunner(Runner):
                     # Enforce size limits
                     if len(stdout_bytes) > MAX_OUTPUT_BYTES:
                         stdout_bytes = (
-                            stdout_bytes[:MAX_OUTPUT_BYTES]
-                            + b"\n... [TRUNCATED: output too large]"
+                            stdout_bytes[:MAX_OUTPUT_BYTES] + b"\n... [TRUNCATED: output too large]"
                         )
                     if len(stderr_bytes) > MAX_OUTPUT_BYTES:
                         stderr_bytes = (
-                            stderr_bytes[:MAX_OUTPUT_BYTES]
-                            + b"\n... [TRUNCATED: stderr too large]"
+                            stderr_bytes[:MAX_OUTPUT_BYTES] + b"\n... [TRUNCATED: stderr too large]"
                         )
 
                 except TimeoutError:
@@ -100,9 +98,7 @@ class LocalProcessRunner(Runner):
                     await proc.wait()
 
                     elapsed_ms = options.timeout * MILLISECONDS_PER_SECOND
-                    artifacts, artifact_paths = (
-                        self.workspace_manager.collect_artifacts(assets_dir)
-                    )
+                    artifacts, artifact_paths = self.workspace_manager.collect_artifacts(assets_dir)
 
                     return RunResult(
                         stdout="",
@@ -127,9 +123,7 @@ class LocalProcessRunner(Runner):
                     else str(stderr_bytes)
                 )
 
-                artifacts, artifact_paths = self.workspace_manager.collect_artifacts(
-                    assets_dir
-                )
+                artifacts, artifact_paths = self.workspace_manager.collect_artifacts(assets_dir)
 
                 return RunResult(
                     stdout=stdout,
@@ -142,9 +136,7 @@ class LocalProcessRunner(Runner):
 
         except Exception as exc:  # broad on purpose to map to RunResult
             logger.exception("LocalProcessRunner.run failed: %s", exc)
-            artifacts, artifact_paths = self.workspace_manager.collect_artifacts(
-                assets_dir
-            )
+            artifacts, artifact_paths = self.workspace_manager.collect_artifacts(assets_dir)
             return RunResult(
                 stdout="",
                 stderr=f"Code execution failed: {exc}",

@@ -38,17 +38,12 @@ def test_is_local_llm_server() -> None:
 
 def test_sanitize_url() -> None:
     # sanitize_url only strips specific suffixes, not arbitrary paths
-    assert (
-        utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api"
-    )
+    assert utils.sanitize_url("localhost:11434/api/chat") == "http://localhost:11434/api"
     # But it adds http
     assert utils.sanitize_url("localhost:11434/v1") == "http://localhost:11434"
     assert utils.sanitize_url("example.com") == "http://example.com"
     assert utils.sanitize_url(None) == ""
-    assert (
-        utils.sanitize_url("http://example.com/v1/chat/completions")
-        == "http://example.com"
-    )
+    assert utils.sanitize_url("http://example.com/v1/chat/completions") == "http://example.com"
 
 
 def test_clean_thinking_tags() -> None:
@@ -64,28 +59,19 @@ def test_clean_thinking_tags() -> None:
     # But clean_thinking_tags imports inside function.
     # For now test basic tag removal.
     content_with_binding = "<think>thought</think> answer"
-    assert (
-        utils.clean_thinking_tags(content_with_binding, binding="deepseek") == "answer"
-    )
-    assert (
-        utils.clean_thinking_tags(content_with_binding, binding="openai")
-        == content_with_binding
-    )
+    assert utils.clean_thinking_tags(content_with_binding, binding="deepseek") == "answer"
+    assert utils.clean_thinking_tags(content_with_binding, binding="openai") == content_with_binding
 
 
 def test_build_chat_url() -> None:
     base = "http://localhost:11434"
     assert utils.build_chat_url(base) == "http://localhost:11434/chat/completions"
 
-    assert (
-        utils.build_chat_url(base, binding="anthropic")
-        == "http://localhost:11434/messages"
-    )
+    assert utils.build_chat_url(base, binding="anthropic") == "http://localhost:11434/messages"
 
     # Already has suffix
     assert (
-        utils.build_chat_url("http://host/v1/chat/completions")
-        == "http://host/v1/chat/completions"
+        utils.build_chat_url("http://host/v1/chat/completions") == "http://host/v1/chat/completions"
     )
 
     # Azure

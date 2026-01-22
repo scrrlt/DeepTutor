@@ -37,9 +37,7 @@ async def test_complete(mock_get_provider):
     Tests that the complete function correctly calls the provider's complete method.
     """
     mock_provider = MagicMock(spec=BaseLLMProvider)
-    mock_provider.complete = AsyncMock(
-        return_value=LLMResponse(content="test_response")
-    )
+    mock_provider.complete = AsyncMock(return_value=LLMResponse(content="test_response"))
     mock_get_provider.return_value = mock_provider
 
     response = await complete("test_prompt")
@@ -89,6 +87,4 @@ async def test_fetch_models(mock_cloud_fetch, mock_local_fetch):
 
     # Test cloud provider
     await fetch_models("openai", "https://api.openai.com/v1")
-    mock_cloud_fetch.assert_called_once_with(
-        "https://api.openai.com/v1", None, "openai"
-    )
+    mock_cloud_fetch.assert_called_once_with("https://api.openai.com/v1", None, "openai")

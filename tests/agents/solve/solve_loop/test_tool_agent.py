@@ -27,9 +27,7 @@ def tool_agent():
         patch("src.agents.base_agent.get_logger"),
     ):
         config = {"system": {"language": "en"}}
-        agent = ToolAgent(
-            config=config, api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = ToolAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -51,9 +49,7 @@ async def test_tool_agent_process_workflow(tool_agent: ToolAgent):
     citation_memory = CitationMemory()
     citation_memory.add_citation("rag_hybrid", "test_query", cite_id="cite1")
 
-    result = await tool_agent.process(
-        step, solve_memory, citation_memory, "kb_name", "/tmp"
-    )
+    result = await tool_agent.process(step, solve_memory, citation_memory, "kb_name", "/tmp")
 
     tool_agent._execute_single_call.assert_called_once()
     tool_agent._summarize_tool_result.assert_called_once()
@@ -77,22 +73,16 @@ async def test_execute_single_call(
     mock_run_code.return_value = {"stdout": "code"}
 
     record = ToolCallRecord(tool_type="rag_hybrid", query="q")
-    answer, _ = await tool_agent._execute_single_call(
-        record, "kb", "/tmp", "/tmp/artifacts", True
-    )
+    answer, _ = await tool_agent._execute_single_call(record, "kb", "/tmp", "/tmp/artifacts", True)
     assert answer == "rag"
 
     record = ToolCallRecord(tool_type="web_search", query="q")
-    answer, _ = await tool_agent._execute_single_call(
-        record, "kb", "/tmp", "/tmp/artifacts", True
-    )
+    answer, _ = await tool_agent._execute_single_call(record, "kb", "/tmp", "/tmp/artifacts", True)
     assert answer == "web"
 
     record = ToolCallRecord(tool_type="code_execution", query="q")
     tool_agent._generate_code_from_intent = AsyncMock(return_value="code")
-    answer, _ = await tool_agent._execute_single_call(
-        record, "kb", "/tmp", "/tmp/artifacts", True
-    )
+    answer, _ = await tool_agent._execute_single_call(record, "kb", "/tmp", "/tmp/artifacts", True)
     assert "code" in answer
 
 

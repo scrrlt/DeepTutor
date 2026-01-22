@@ -2,17 +2,18 @@
 LLM Utilities
 =============
 
-Utility functions for LLM service:
-- URL handling for local and cloud servers
-- Response content extraction
-- Thinking tags cleaning
+Shared helpers for URL handling, response parsing, and content cleanup.
 """
 
-from collections.abc import Mapping, Sequence
-import re
-from typing import Any, cast
+from __future__ import annotations
 
-# Known cloud provider domains (should never be treated as local)
+from collections.abc import Mapping, Sequence
+import ipaddress
+import os
+import re
+from typing import Any
+from urllib.parse import urlparse
+
 CLOUD_DOMAINS = [
     ".openai.com",
     ".anthropic.com",
@@ -28,168 +29,104 @@ CLOUD_DOMAINS = [
     ".perplexity.ai",
 ]
 
-# Common local server ports
 LOCAL_PORTS = [
-    ":1234",  # LM Studio
-    ":11434",  # Ollama
-    ":8000",  # vLLM
-    ":8080",  # llama.cpp
-    ":5000",  # Common dev port
-    ":3000",  # Common dev port
-    ":8001",  # Alternative vLLM
-    ":5001",  # Alternative dev port
+    ":1234",
+    ":11434",
+    ":8000",
+    ":8080",
+    ":5000",
+    ":3000",
+    ":8001",
+    ":5001",
 ]
 
-# Local hostname indicators
 LOCAL_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "0.0.0.0",  # Used by some local LLM servers for all-interface binding  # nosec B104
+    "0.0.0.0",  # nosec B104
 ]
 
-# Ports that need /v1 suffix for OpenAI compatibility
 V1_SUFFIX_PORTS = {
-    ":11434",  # Ollama
-    ":1234",  # LM Studio
-    ":8000",  # vLLM
-    ":8001",  # Alternative vLLM
-    ":8080",  # llama.cpp
+    ":11434",
+    ":1234",
+    ":8000",
+    ":8001",
+    ":8080",
 }
 
 
-def is_local_llm_server(base_url: str) -> bool:
+def is_local_llm_server(base_url: str, allow_private: bool | None = None) -> bool:
     """
-    Check if the given URL points to a local LLM server.
-
-    Detects local servers by:
-    1. Checking for local/private hostnames and IPs
-    2. Checking for private IP ranges (10.x.x.x, 192.168.x.x, 172.16-31.x.x)
-    3. Checking for common local LLM server ports (as fallback)
-    4. Excluding known cloud provider domains
+    Determine whether a URL points to a local LLM server.
 
     Args:
-        base_url: The base URL to check
+        base_url: URL to inspect.
+        allow_private: Optional override to treat private IPs as local.
 
     Returns:
-        True if the URL appears to be a local LLM server
+        True when the URL looks local.
     """
     if not base_url:
         return False
 
+    if allow_private is None:
+        env_value = os.environ.get("LLM_TREAT_PRIVATE_AS_LOCAL")
+        if env_value is not None:
+            allow_private = env_value.strip().lower() in ("1", "true", "yes")
+
     base_url_lower = base_url.lower()
+    if any(domain in base_url_lower for domain in CLOUD_DOMAINS):
+        return False
 
-    # First, exclude known cloud providers
-    for domain in CLOUD_DOMAINS:
-        if domain in base_url_lower:
-            return False
-
-    # Extract hostname/IP from URL
     try:
-        from urllib.parse import urlparse
-
         parsed = urlparse(base_url)
         hostname = parsed.hostname or parsed.netloc
         if not hostname:
             return False
-        hostname_lower = hostname.lower()
     except Exception:
-        # Fallback to simple string checks if URL parsing fails
-        hostname_lower = base_url_lower
+        hostname = base_url
 
-    # Check for local hostname indicators (regardless of port)
+    hostname_lower = hostname.lower()
     if any(host in hostname_lower for host in LOCAL_HOSTS):
         return True
 
-    # Check for private IP ranges
-    import ipaddress
-
     try:
-        # Try to parse as IP address
         ip = ipaddress.ip_address(hostname)
-        # Check if it's a private IP
-        if ip.is_private:
-            return True
-        # Also allow loopback IPs
         if ip.is_loopback:
             return True
+        if allow_private and ip.is_private:
+            return True
     except ValueError:
-        # Not a valid IP, continue with hostname checks
         pass
 
-    # Check for common local server ports (as fallback for edge cases)
-    for port in LOCAL_PORTS:
-        if port in base_url_lower:
-            return True
-
-    return False
+    return any(port in base_url_lower for port in LOCAL_PORTS)
 
 
-def _needs_v1_suffix(url: str) -> bool:
-    """
-    Check if the URL needs /v1 suffix for OpenAI compatibility.
-
-    Most local LLM servers (Ollama, LM Studio, vLLM, llama.cpp) expose
-    OpenAI-compatible endpoints at /v1.
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        True if /v1 should be appended
-    """
-    if not url:
-        return False
-
-    url_lower = url.lower()
-
-    # Skip if already has /v1
-    if url_lower.endswith("/v1"):
-        return False
-
-    # Only add /v1 for local servers with known ports that need it
-    if not is_local_llm_server(url):
-        return False
-
-    # Check if URL contains any port that needs /v1 suffix
-    # Also check for "ollama" in URL (but not ollama.com cloud service)
-    is_ollama = "ollama" in url_lower and "ollama.com" not in url_lower
-    if is_ollama:
-        return True
-
-    return any(port in url_lower for port in V1_SUFFIX_PORTS)
+def _needs_v1_suffix(base_url: str) -> bool:
+    return any(port in base_url for port in V1_SUFFIX_PORTS) and not base_url.endswith("/v1")
 
 
 def sanitize_url(base_url: str, model: str = "") -> str:
     """
-    Sanitize base URL for OpenAI-compatible APIs, with special handling for local LLM servers.
-
-    Handles:
-    - Ollama (port 11434)
-    - LM Studio (port 1234)
-    - vLLM (port 8000)
-    - llama.cpp (port 8080)
-    - Other localhost OpenAI-compatible servers
+    Sanitize a base URL, normalizing scheme and removing known endpoints.
 
     Args:
-        base_url: The base URL to sanitize
-        model: Optional model name (unused, kept for API compatibility)
+        base_url: Base URL.
+        model: Unused (kept for API compatibility).
 
     Returns:
-        Sanitized URL string
+        Sanitized base URL.
     """
     if not base_url:
-        return base_url
+        return ""
+
+    if not re.match(r"^[a-zA-Z]+://", base_url):
+        base_url = f"http://{base_url}"
 
     url = base_url.rstrip("/")
-
-    # Ensure URL has a protocol (default to http for local servers)
     if url and not url.startswith(("http://", "https://")):
         url = "http://" + url
 
-    # Standard OpenAI client library is strict about URLs:
-    # - No trailing slashes
-    # - No /chat/completions or /completions/messages/embeddings suffixes
-    #   (it adds these automatically)
     for suffix in [
         "/chat/completions",
         "/completions",
@@ -197,10 +134,8 @@ def sanitize_url(base_url: str, model: str = "") -> str:
         "/embeddings",
     ]:
         if url.endswith(suffix):
-            url = url[: -len(suffix)]
-            url = url.rstrip("/")
+            url = url[: -len(suffix)].rstrip("/")
 
-    # For local LLM servers, ensure /v1 is present for OpenAI compatibility
     if _needs_v1_suffix(url):
         url = url.rstrip("/") + "/v1"
 
@@ -212,35 +147,11 @@ def clean_thinking_tags(
     binding: str | None = None,
     model: str | None = None,
 ) -> str:
-    """
-    Remove thinking tags from model output.
-
-    Some reasoning models (DeepSeek, Qwen, etc.) include <think>...</think> blocks
-    that should be stripped from the final response.
-
-    Args:
-        content: Raw model output
-        binding: Provider binding name (optional, for capability check)
-        model: Model name (optional, for capability check)
-
-    Returns:
-        Cleaned content without thinking tags
-        return ""
+    """Remove <think> tags from model output."""
     if not content:
-        return content
+        return ""
 
-    # Check if model produces thinking tags (if binding/model provided)
-    if binding:
-        # Lazy import to avoid circular dependency
-        from .capabilities import has_thinking_tags
-
-        if not has_thinking_tags(binding, model):
-            return content
-
-    pattern = re.compile(
-        r"(?:<think>.*?</think>|◣.*?◢|꽁.*?꽁)",
-        re.DOTALL | re.IGNORECASE,
-    )
+    pattern = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(pattern, "", content)
     return cleaned.strip()
 
@@ -250,44 +161,20 @@ def build_chat_url(
     api_version: str | None = None,
     binding: str | None = None,
 ) -> str:
-    """
-    Build the full chat completions endpoint URL.
+    """Build a chat-completions endpoint URL."""
+    base_url = base_url.rstrip("/")
+    binding_lower = (binding or "openai").lower()
 
-    Handles:
-    - Adding /chat/completions suffix for OpenAI-compatible endpoints
-    - Adding /messages suffix for Anthropic endpoints
-    - Adding api-version query parameter for Azure OpenAI
-
-    Args:
-        base_url: Base URL (should be sanitized first)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding name (optional, for Anthropic detection)
-
-    Returns:
-        Full endpoint URL
-
-    Raises:
-        ValueError: If an unsupported binding is provided.
-    """
-    if not base_url:
-        return base_url
-
-    url = base_url.rstrip("/")
-
-    # Anthropic uses /messages endpoint
-    binding_lower = (binding or "").lower()
-    if binding_lower in ["anthropic", "claude"]:
-        if not url.endswith("/messages"):
-            url += "/messages"
+    if binding_lower in {"anthropic", "claude"}:
+        url = f"{base_url}/messages"
+    elif binding_lower == "cohere":
+        url = f"{base_url}/chat"
     else:
-        # OpenAI-compatible endpoints use /chat/completions
-        if not url.endswith("/chat/completions"):
-            url += "/chat/completions"
+        url = f"{base_url}/chat/completions"
 
-    # Add api-version for Azure OpenAI
     if api_version:
         separator = "&" if "?" in url else "?"
-        url += f"{separator}api-version={api_version}"
+        url = f"{url}{separator}api-version={api_version}"
 
     return url
 
@@ -297,32 +184,13 @@ def build_completion_url(
     api_version: str | None = None,
     binding: str | None = None,
 ) -> str:
-    """
-    Build the full completions endpoint URL.
-
-    Handles:
-    - Adding /completions suffix for OpenAI-compatible endpoints
-    - Adding api-version query parameter for Azure OpenAI
-
-    Args:
-        base_url: Base URL (should be sanitized first)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding name (optional, for compatibility)
-
-    Returns:
-        Full endpoint URL
-
-    Raises:
-        ValueError: If binding is 'anthropic' or 'claude' (Anthropic does not
-            support the legacy completions endpoint).
-    """
+    """Build a legacy completions endpoint URL."""
     if not base_url:
         return base_url
 
     url = base_url.rstrip("/")
-
     binding_lower = (binding or "").lower()
-    if binding_lower in ["anthropic", "claude"]:
+    if binding_lower in {"anthropic", "claude"}:
         raise ValueError("Anthropic does not support /completions endpoint")
 
     if not url.endswith("/completions"):
@@ -336,146 +204,64 @@ def build_completion_url(
 
 
 def extract_response_content(message: Any) -> str:
-    """
-    Extract content from LLM response message.
-
-    Handles different response formats from various models:
-    - Standard content field
-    - Reasoning models that use reasoning_content, reasoning, or thought fields
-    - Direct strings or None values
-
-    Args:
-        message: Message object/dict from LLM response or direct string
-
-    Returns:
-        Extracted content string
-    """
+    """Extract textual content from response payloads."""
     if message is None:
         return ""
 
     if isinstance(message, str):
         return message
 
-    if not isinstance(message, (dict, Mapping)):
-        return str(message)
-
-    def _extract_parts(value: Any) -> list[str]:
-        if value is None:
-            return []
-        if isinstance(value, str):
-            return [value]
-        if isinstance(value, Mapping):
-            for key in ("text", "content", "value"):
-                if key in value:
-                    return _extract_parts(value.get(key))
-            return []
-        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+    if isinstance(message, Mapping):
+        content = message.get("content")
+        if isinstance(content, list):
             parts: list[str] = []
-            for item in value:
-                parts.extend(_extract_parts(item))
-            return parts
-        return [str(value)]
+            for part in content:
+                if isinstance(part, Mapping) and "text" in part:
+                    parts.append(str(part["text"]))
+                elif isinstance(part, str):
+                    parts.append(part)
+            return "".join(parts)
+        if content is not None:
+            return str(content)
+        if "text" in message:
+            return str(message["text"])
 
-    content = message.get("content", "")
-    if not content:
-        content = (
-            message.get("reasoning_content")
-            or message.get("reasoning")
-            or message.get("thought")
-            or ""
-        )
-
-    parts = _extract_parts(content)
-    if parts:
-        return "".join(parts)
-
-    return ""
+    return str(message)
 
 
 def _normalize_model_name(entry: object) -> str | None:
-    """
-    Normalize a model name from a provider payload entry.
-
-    Args:
-        entry: The raw model entry returned by a provider.
-
-    Returns:
-        The normalized model name, or None if one cannot be derived.
-
-    Raises:
-        None.
-    """
-    if entry is None:
-        return None
-
     if isinstance(entry, str):
-        return entry if entry else None
-
+        return entry
     if isinstance(entry, Mapping):
-        # Use cast to ensure type safety - Mapping interface doesn't guarantee get() method
-        # but we know this will be a dict-like object in practice from model APIs
-        entry_dict = cast(dict[str, Any], entry)
-        name = entry_dict.get("id")
-        if name is None:
-            name = entry_dict.get("name")
-        if name is None:
-            return None
-        text = str(name)
-        return text if text else None
-
-    text = str(entry)
-    return text if text else None
+        for key in ("id", "name", "model"):
+            value = entry.get(key)
+            if isinstance(value, str):
+                return value
+    return None
 
 
 def collect_model_names(entries: Sequence[object]) -> list[str]:
-    """
-    Collect normalized model names from a sequence of entries.
-
-    Args:
-        entries: Sequence of model entries from provider payloads.
-
-    Returns:
-        List of normalized model names.
-
-    Raises:
-        None.
-    """
+    """Collect model names from provider payloads."""
     names: list[str] = []
     for entry in entries:
         name = _normalize_model_name(entry)
-        if name is not None:
+        if name:
             names.append(name)
     return names
 
 
-def build_auth_headers(
-    api_key: str | None,
-    binding: str | None = None,
-) -> dict[str, str]:
-    """
-    Build authentication headers for LLM API requests.
-
-    Args:
-        api_key: API key
-        binding: Provider binding name (for provider-specific headers)
-
-    Returns:
-        Headers dict
-
-    Raises:
-        None.
-    """
+def build_auth_headers(api_key: str | None, binding: str | None = None) -> dict[str, str]:
+    """Build auth headers for provider requests."""
     headers = {"Content-Type": "application/json"}
 
     if not api_key:
         return headers
 
     binding_lower = (binding or "").lower()
-
-    if binding_lower in ["anthropic", "claude"]:
+    if binding_lower in {"anthropic", "claude"}:
         headers["x-api-key"] = api_key
         headers["anthropic-version"] = "2023-06-01"
-    elif binding_lower in ["azure_openai", "azure"]:
+    elif binding_lower in {"azure_openai", "azure"}:
         headers["api-key"] = api_key
     else:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -484,17 +270,14 @@ def build_auth_headers(
 
 
 __all__ = [
-    # URL utilities
     "sanitize_url",
     "is_local_llm_server",
     "build_chat_url",
     "build_completion_url",
     "build_auth_headers",
     "collect_model_names",
-    # Content utilities
     "clean_thinking_tags",
     "extract_response_content",
-    # Constants
     "CLOUD_DOMAINS",
     "LOCAL_PORTS",
     "LOCAL_HOSTS",

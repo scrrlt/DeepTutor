@@ -17,11 +17,7 @@ router = APIRouter()
 
 # Settings file path for UI preferences (stored in settings folder with other configs)
 SETTINGS_FILE = (
-    Path(__file__).parent.parent.parent.parent
-    / "data"
-    / "user"
-    / "settings"
-    / "interface.json"
+    Path(__file__).parent.parent.parent.parent / "data" / "user" / "settings" / "interface.json"
 )
 
 # Default sidebar navigation order
@@ -153,9 +149,7 @@ async def get_sidebar_settings():
         "description": current_ui.get(
             "sidebar_description", DEFAULT_UI_SETTINGS["sidebar_description"]
         ),
-        "nav_order": current_ui.get(
-            "sidebar_nav_order", DEFAULT_UI_SETTINGS["sidebar_nav_order"]
-        ),
+        "nav_order": current_ui.get("sidebar_nav_order", DEFAULT_UI_SETTINGS["sidebar_nav_order"]),
     }
 
 

@@ -49,9 +49,7 @@ class LightRAGRetriever(BaseComponent):
             if working_dir in self._instances:
                 return self._instances[working_dir]
 
-            project_root = (
-                Path(__file__).resolve().parent.parent.parent.parent.parent.parent
-            )
+            project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
             raganything_path = project_root.parent / "raganything" / "RAG-Anything"
             if raganything_path.exists() and str(raganything_path) not in sys.path:
                 sys.path.insert(0, str(raganything_path))
@@ -92,9 +90,7 @@ class LightRAGRetriever(BaseComponent):
                         try:
                             await distributed_lock.release()
                         except Exception as exc:  # noqa: BLE001
-                            self.logger.warning(
-                                "Failed to release LightRAG init lock: %s", exc
-                            )
+                            self.logger.warning("Failed to release LightRAG init lock: %s", exc)
 
             except ImportError as e:
                 self.logger.error(f"Failed to import LightRAG: {e}")

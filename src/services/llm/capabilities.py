@@ -207,9 +207,7 @@ def get_capability(
     if model:
         model_lower = model.lower()
         # Sort by pattern length descending to match most specific first
-        for pattern, overrides in sorted(
-            MODEL_OVERRIDES.items(), key=lambda x: -len(x[0])
-        ):
+        for pattern, overrides in sorted(MODEL_OVERRIDES.items(), key=lambda x: -len(x[0])):
             if model_lower.startswith(pattern):
                 if capability in overrides:
                     return overrides[capability]

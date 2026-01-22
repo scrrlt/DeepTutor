@@ -160,10 +160,7 @@ class RAGPipeline:
         if self._indexers:
             self.logger.info("Stage 4: Indexing...")
             await asyncio.gather(
-                *[
-                    indexer.process(kb_name, documents, **kwargs)
-                    for indexer in self._indexers
-                ]
+                *[indexer.process(kb_name, documents, **kwargs) for indexer in self._indexers]
             )
 
         self.logger.info(f"KB '{kb_name}' initialized successfully")
@@ -207,9 +204,7 @@ class RAGPipeline:
         kb_dir = kb_dir.resolve()
         base_dir = Path(self.kb_base_dir).resolve()
         if not kb_dir.is_relative_to(base_dir):
-            raise ValueError(
-                f"Knowledge base path outside allowed directory: {kb_name}"
-            )
+            raise ValueError(f"Knowledge base path outside allowed directory: {kb_name}")
 
         if kb_dir.exists():
             shutil.rmtree(kb_dir)

@@ -42,12 +42,8 @@ from src.services.llm import get_llm_config
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
-config = load_config_with_main(
-    "solve_config.yaml", project_root
-)  # Use any config to get main.yaml
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-    "log_dir"
-)
+config = load_config_with_main("solve_config.yaml", project_root)  # Use any config to get main.yaml
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("Knowledge", level="INFO", log_dir=log_dir)
 
 router = APIRouter()
@@ -161,9 +157,7 @@ async def run_upload_processing_task(
     progress_tracker.task_id = task_id
 
     try:
-        logger.info(
-            f"[{task_id}] Processing {len(uploaded_file_paths)} files to KB '{kb_name}'"
-        )
+        logger.info(f"[{task_id}] Processing {len(uploaded_file_paths)} files to KB '{kb_name}'")
         progress_tracker.update(
             ProgressStage.PROCESSING_DOCUMENTS,
             f"Processing {len(uploaded_file_paths)} files...",
@@ -201,9 +195,7 @@ async def run_upload_processing_task(
             total=len(processed_files),
         )
 
-        logger.success(
-            f"[{task_id}] Processed {len(processed_files)} files to KB '{kb_name}'"
-        )
+        logger.success(f"[{task_id}] Processed {len(processed_files)} files to KB '{kb_name}'")
         task_manager.update_task_status(task_id, "completed")
     except Exception as e:
         error_msg = f"Upload processing failed (KB '{kb_name}'): {e}"
@@ -336,9 +328,7 @@ async def set_default_kb(kb_name: str):
 
         # Verify KB exists
         if kb_name not in manager.list_knowledge_bases():
-            raise HTTPException(
-                status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
 
         manager.set_default(kb_name)
         return {"status": "success", "default_kb": kb_name}
@@ -368,9 +358,7 @@ async def list_knowledge_bases():
         for name in kb_names:
             try:
                 info = manager.get_info(name)
-                logger.debug(
-                    f"Successfully got info for KB '{name}': {info.get('statistics', {})}"
-                )
+                logger.debug(f"Successfully got info for KB '{name}': {info.get('statistics', {})}")
                 result.append(
                     KnowledgeBaseInfo(
                         name=info["name"],
@@ -385,9 +373,7 @@ async def list_knowledge_bases():
                 try:
                     kb_dir = manager.base_dir / name
                     if kb_dir.exists():
-                        logger.info(
-                            f"KB '{name}' directory exists, creating fallback info"
-                        )
+                        logger.info(f"KB '{name}' directory exists, creating fallback info")
                         result.append(
                             KnowledgeBaseInfo(
                                 name=name,
@@ -401,14 +387,10 @@ async def list_knowledge_bases():
                             )
                         )
                 except Exception as fallback_err:
-                    logger.error(
-                        f"Fallback also failed for KB '{name}': {fallback_err}"
-                    )
+                    logger.error(f"Fallback also failed for KB '{name}': {fallback_err}")
 
         if errors and not result:
-            error_detail = (
-                f"Failed to load knowledge bases. Errors: {'; '.join(errors)}"
-            )
+            error_detail = f"Failed to load knowledge bases. Errors: {'; '.join(errors)}"
             logger.error(error_detail)
             raise HTTPException(status_code=500, detail=error_detail)
 
@@ -424,9 +406,7 @@ async def list_knowledge_bases():
     except Exception as e:
         error_msg = f"Error listing knowledge bases: {e}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list knowledge bases: {e!s}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to list knowledge bases: {e!s}")
 
 
 @router.get("/{kb_name}")
@@ -436,9 +416,7 @@ async def get_knowledge_base_details(kb_name: str):
         manager = get_kb_manager()
         return manager.get_info(kb_name)
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -450,15 +428,11 @@ async def delete_knowledge_base(kb_name: str):
         manager = get_kb_manager()
         success = manager.delete_knowledge_base(kb_name, confirm=True)
         if not success:
-            raise HTTPException(
-                status_code=400, detail="Failed to delete knowledge base"
-            )
+            raise HTTPException(status_code=400, detail="Failed to delete knowledge base")
         logger.info(f"KB '{kb_name}' deleted")
         return {"message": f"Knowledge base '{kb_name}' deleted successfully"}
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -492,9 +466,7 @@ async def upload_files(
             file_path = None
             try:
                 # Sanitize filename first (without size validation)
-                sanitized_filename = DocumentValidator.validate_upload_safety(
-                    file.filename, None
-                )
+                sanitized_filename = DocumentValidator.validate_upload_safety(file.filename, None)
                 file.filename = sanitized_filename
 
                 # Save file to disk with size checking during streaming
@@ -527,7 +499,9 @@ async def upload_files(
                     except OSError:
                         pass
 
-                error_message = f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
+                error_message = (
+                    f"Validation failed for file '{file.filename}': {format_exception_message(e)}"
+                )
                 logger.error(error_message, exc_info=True)
                 raise HTTPException(status_code=400, detail=error_message) from e
 
@@ -548,9 +522,7 @@ async def upload_files(
             "files": uploaded_files,
         }
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         # Unexpected failure (Server error)
         formatted_error = format_exception_message(e)
@@ -635,9 +607,7 @@ async def create_knowledge_base(
 
         background_tasks.add_task(run_initialization_task, initializer)
 
-        logger.success(
-            f"KB '{name}' created, processing {len(uploaded_files)} files in background"
-        )
+        logger.success(f"KB '{name}' created, processing {len(uploaded_files)} files in background")
 
         return {
             "message": f"Knowledge base '{name}' created. Processing {len(uploaded_files)} files in background.",
@@ -724,9 +694,7 @@ async def websocket_progress(websocket: WebSocket, kb_name: str):
                     pass
 
             if should_send:
-                await websocket.send_json(
-                    {"type": "progress", "data": initial_progress}
-                )
+                await websocket.send_json({"type": "progress", "data": initial_progress})
 
         last_progress = initial_progress
         last_timestamp = initial_progress.get("timestamp") if initial_progress else None
@@ -808,9 +776,7 @@ async def get_linked_folders(kb_name: str):
         folders = manager.get_linked_folders(kb_name)
         return [LinkedFolderInfo(**f) for f in folders]
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -822,18 +788,14 @@ async def unlink_folder(kb_name: str, folder_id: str):
         manager = get_kb_manager()
         success = manager.unlink_folder(kb_name, folder_id)
         if not success:
-            raise HTTPException(
-                status_code=404, detail=f"Folder '{folder_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Folder '{folder_id}' not found")
         logger.info(f"Unlinked folder '{folder_id}' from KB '{kb_name}'")
         return {
             "message": "Folder unlinked successfully",
             "folder_id": folder_id,
         }
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -909,8 +871,6 @@ async def sync_folder(kb_name: str, folder_id: str, background_tasks: Background
     except HTTPException:
         raise
     except ValueError:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_name}' not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

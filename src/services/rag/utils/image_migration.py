@@ -81,16 +81,12 @@ async def migrate_images_and_update_paths(
 
     for batch_start in range(0, len(image_items), batch_size):
         batch = image_items[batch_start : batch_start + batch_size]
-        batch_updates = await _process_image_batch(
-            batch, source_base_dir, target_images_dir
-        )
+        batch_updates = await _process_image_batch(batch, source_base_dir, target_images_dir)
         path_updates.update(batch_updates)
         migrated_count += len([v for v in batch_updates.values() if v])
 
         if batch_start + batch_size < len(image_items):
-            logger.info(
-                f"Migrated {batch_start + len(batch)}/{len(image_items)} images..."
-            )
+            logger.info(f"Migrated {batch_start + len(batch)}/{len(image_items)} images...")
 
     # Update content_list with new paths
     updated_content_list = _update_content_list_paths(content_list, path_updates)
@@ -117,18 +113,11 @@ async def _process_image_batch(
     """
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_COPIES)
 
-    async def copy_single_image(
-        idx: int, img_path: str, field_name: str
-    ) -> tuple[str, str]:
+    async def copy_single_image(idx: int, img_path: str, field_name: str) -> tuple[str, str]:
         async with semaphore:
-            return await _migrate_single_image(
-                img_path, source_base_dir, target_images_dir
-            )
+            return await _migrate_single_image(img_path, source_base_dir, target_images_dir)
 
-    tasks = [
-        copy_single_image(idx, img_path, field_name)
-        for idx, img_path, field_name in batch
-    ]
+    tasks = [copy_single_image(idx, img_path, field_name) for idx, img_path, field_name in batch]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -192,9 +181,7 @@ async def _migrate_single_image(
 
         # Copy file using thread pool to avoid blocking
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None, shutil.copy2, str(source_path), str(target_path)
-        )
+        await loop.run_in_executor(None, shutil.copy2, str(source_path), str(target_path))
 
         logger.debug(f"Migrated: {source_path.name} -> {target_path}")
         return (img_path, str(target_path))

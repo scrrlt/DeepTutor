@@ -23,9 +23,7 @@ async def test_rag_search_success():
         assert result["status"] == "success"
         assert result["answer"] == "The answer is 42."
         # Verify engine was queried with correct params
-        mock_engine.query.assert_called_with(
-            "What is the meaning?", param_mode="hybrid"
-        )
+        mock_engine.query.assert_called_with("What is the meaning?", param_mode="hybrid")
 
 
 @pytest.mark.asyncio

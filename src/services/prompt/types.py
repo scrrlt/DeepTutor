@@ -38,6 +38,4 @@ class PromptBundle:
             return tmpl.format(**kwargs)
         except KeyError as e:
             # Observability: Log exactly which variable was missing in which prompt
-            raise ValueError(
-                f"Missing var {e} in prompt '{key}' (source: {self.source_id})"
-            ) from e
+            raise ValueError(f"Missing var {e} in prompt '{key}' (source: {self.source_id})") from e

@@ -19,9 +19,7 @@ def decompose_agent():
         patch("src.agents.base_agent.get_logger"),
     ):
         config = {"researching": {"enable_rag_hybrid": True}, "rag": {}}
-        agent = DecomposeAgent(
-            config=config, api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = DecomposeAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -76,9 +74,7 @@ async def test_process_auto_mode(mock_rag_search, decompose_agent: DecomposeAgen
     """
     Tests the _process_auto_mode method.
     """
-    decompose_agent._generate_sub_topics_auto = AsyncMock(
-        return_value=[{"title": "t1"}]
-    )
+    decompose_agent._generate_sub_topics_auto = AsyncMock(return_value=[{"title": "t1"}])
     mock_rag_search.return_value = {"answer": "context"}
 
     result = await decompose_agent._process_auto_mode("topic", 1)
@@ -91,9 +87,7 @@ async def test_process_without_rag(decompose_agent: DecomposeAgent):
     """
     Tests the _process_without_rag method.
     """
-    decompose_agent.call_llm = AsyncMock(
-        return_value='{"sub_topics": [{"title": "t1"}]}'
-    )
+    decompose_agent.call_llm = AsyncMock(return_value='{"sub_topics": [{"title": "t1"}]}')
     decompose_agent.get_prompt = MagicMock(return_value="prompt")
 
     result = await decompose_agent._process_without_rag("topic", 1)
@@ -119,9 +113,7 @@ async def test_generate_sub_topics(decompose_agent: DecomposeAgent):
     """
     Tests the _generate_sub_topics method.
     """
-    decompose_agent.call_llm = AsyncMock(
-        return_value='{"sub_topics": [{"title": "t1"}]}'
-    )
+    decompose_agent.call_llm = AsyncMock(return_value='{"sub_topics": [{"title": "t1"}]}')
     decompose_agent.get_prompt = MagicMock(return_value="prompt")
 
     topics = await decompose_agent._generate_sub_topics("topic", "context", 1)

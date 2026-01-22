@@ -99,9 +99,7 @@ async def test_chat(guide_manager: GuideManager):
     session.knowledge_points = [{"title": "kp1"}]
     session.current_index = 0
     guide_manager._load_session = MagicMock(return_value=session)
-    guide_manager.chat_agent.process = AsyncMock(
-        return_value={"answer": "assistant_response"}
-    )
+    guide_manager.chat_agent.process = AsyncMock(return_value={"answer": "assistant_response"})
 
     result = await guide_manager.chat("sid", "user_message")
 

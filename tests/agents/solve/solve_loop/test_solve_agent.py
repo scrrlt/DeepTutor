@@ -27,9 +27,7 @@ def solve_agent():
         patch("src.agents.base_agent.get_logger"),
     ):
         config = {"system": {"language": "en"}}
-        agent = SolveAgent(
-            config=config, api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = SolveAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -81,7 +79,9 @@ def test_parse_tool_plan(solve_agent: SolveAgent):
     """
     Tests that the _parse_tool_plan method correctly parses the tool plan.
     """
-    response = '{"tool_calls": [{"type": "rag_hybrid", "intent": "q1"}, {"type": "finish", "intent": ""}]}'
+    response = (
+        '{"tool_calls": [{"type": "rag_hybrid", "intent": "q1"}, {"type": "finish", "intent": ""}]}'
+    )
     plan = solve_agent._parse_tool_plan(response)
 
     assert len(plan) == 2

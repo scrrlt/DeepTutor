@@ -204,9 +204,7 @@ class KnowledgeBaseManager:
 
         return sorted(kb_list)
 
-    def register_knowledge_base(
-        self, name: str, description: str = "", set_default: bool = False
-    ):
+    def register_knowledge_base(self, name: str, description: str = "", set_default: bool = False):
         """Register a knowledge base"""
         kb_dir = self.base_dir / name
         if not kb_dir.exists():
@@ -244,9 +242,7 @@ class KnowledgeBaseManager:
         kb_dir = self.get_knowledge_base_path(name)
         rag_storage = kb_dir / "rag_storage"
         if not rag_storage.exists():
-            raise ValueError(
-                f"RAG storage not found for knowledge base: {name or 'default'}"
-            )
+            raise ValueError(f"RAG storage not found for knowledge base: {name or 'default'}")
         return rag_storage
 
     def get_images_path(self, name: str | None = None) -> Path:
@@ -392,9 +388,7 @@ class KnowledgeBaseManager:
         if dir_exists:
             try:
                 raw_count = (
-                    len([f for f in raw_dir.iterdir() if f.is_file()])
-                    if raw_dir.exists()
-                    else 0
+                    len([f for f in raw_dir.iterdir() if f.is_file()]) if raw_dir.exists() else 0
                 )
             except Exception:
                 pass
@@ -410,26 +404,19 @@ class KnowledgeBaseManager:
 
             try:
                 content_lists_count = (
-                    len(list(content_list_dir.glob("*.json")))
-                    if content_list_dir.exists()
-                    else 0
+                    len(list(content_list_dir.glob("*.json"))) if content_list_dir.exists() else 0
                 )
             except Exception:
                 pass
 
         metadata = info["metadata"]
-        rag_provider = (
-            metadata.get("rag_provider") if isinstance(metadata, dict) else None
-        )
+        rag_provider = metadata.get("rag_provider") if isinstance(metadata, dict) else None
         # Also check kb_config for rag_provider (fallback)
         if not rag_provider:
             rag_provider = kb_config.get("rag_provider")
 
         rag_initialized = (
-            dir_exists
-            and rag_storage_dir
-            and rag_storage_dir.exists()
-            and rag_storage_dir.is_dir()
+            dir_exists and rag_storage_dir and rag_storage_dir.exists() and rag_storage_dir.is_dir()
         )
 
         info["statistics"] = {
@@ -456,9 +443,7 @@ class KnowledgeBaseManager:
                         with open(entities_file, encoding="utf-8") as f:
                             entities_data = json.load(f)
                             rag_stats["entities"] = (
-                                len(entities_data)
-                                if isinstance(entities_data, (list, dict))
-                                else 0
+                                len(entities_data) if isinstance(entities_data, (list, dict)) else 0
                             )
                     except Exception:
                         pass
@@ -480,9 +465,7 @@ class KnowledgeBaseManager:
                         with open(chunks_file, encoding="utf-8") as f:
                             chunks_data = json.load(f)
                             rag_stats["chunks"] = (
-                                len(chunks_data)
-                                if isinstance(chunks_data, (list, dict))
-                                else 0
+                                len(chunks_data) if isinstance(chunks_data, (list, dict)) else 0
                             )
                     except Exception:
                         pass
@@ -726,9 +709,7 @@ class KnowledgeBaseManager:
 
         return True
 
-    def scan_linked_folder(
-        self, folder_path: str, provider: str = "raganything"
-    ) -> list[str]:
+    def scan_linked_folder(self, folder_path: str, provider: str = "raganything") -> list[str]:
         """
         Scan a linked folder and return list of supported file paths.
 
@@ -832,9 +813,7 @@ class KnowledgeBaseManager:
             "modified_count": len(modified_files),
         }
 
-    def update_folder_sync_state(
-        self, kb_name: str, folder_id: str, synced_files: list[str]
-    ):
+    def update_folder_sync_state(self, kb_name: str, folder_id: str, synced_files: list[str]):
         """
         Update the sync state for a linked folder after successful sync.
 
@@ -909,9 +888,7 @@ def main():
     )
 
     # Set default command
-    default_parser = subparsers.add_parser(
-        "set-default", help="Set default knowledge base"
-    )
+    default_parser = subparsers.add_parser("set-default", help="Set default knowledge base")
     default_parser.add_argument("name", help="Knowledge base name")
 
     # Delete command

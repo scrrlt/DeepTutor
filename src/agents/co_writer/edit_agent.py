@@ -89,9 +89,7 @@ class EditAgent(BaseAgent):
                 - edited_text: Edited text
                 - operation_id: Operation ID
         """
-        operation_id = (
-            datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
-        )
+        operation_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
 
         context = ""
         tool_call_file = None
@@ -127,9 +125,7 @@ class EditAgent(BaseAgent):
                     }
                     tool_call_file = save_tool_call(operation_id, "rag", tool_call_data)
                 except Exception as e:
-                    self.logger.error(
-                        f"RAG search failed: {e}, continuing without context"
-                    )
+                    self.logger.error(f"RAG search failed: {e}, continuing without context")
                     source = None
 
         elif source == "web":
@@ -155,9 +151,7 @@ class EditAgent(BaseAgent):
                 source = None
 
         # Build prompts
-        system_prompt = self.get_prompt(
-            "system", "You are an expert editor and writing assistant."
-        )
+        system_prompt = self.get_prompt("system", "You are an expert editor and writing assistant.")
 
         action_verbs = {
             "rewrite": "Rewrite",
@@ -173,9 +167,7 @@ class EditAgent(BaseAgent):
             )
             or "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n"
         )
-        user_prompt = action_template.format(
-            action_verb=action_verb, instruction=instruction
-        )
+        user_prompt = action_template.format(action_verb=action_verb, instruction=instruction)
 
         if context:
             context_template = (
@@ -230,9 +222,7 @@ class EditAgent(BaseAgent):
                 - marked_text: Text with annotations
                 - operation_id: Operation ID
         """
-        operation_id = (
-            datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
-        )
+        operation_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
 
         system_prompt = self.get_prompt("auto_mark_system", "")
         user_template = self.get_prompt(

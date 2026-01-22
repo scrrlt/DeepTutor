@@ -9,6 +9,7 @@ from collections.abc import Callable
 from datetime import datetime
 import json
 from pathlib import Path
+import os
 import sys
 from typing import Any
 
@@ -111,9 +112,7 @@ class ResearchPipeline:
 
         # Set directories
         system_config = config.get("system", {})
-        self.cache_dir = (
-            Path(system_config.get("output_base_dir", "./cache")) / self.research_id
-        )
+        self.cache_dir = Path(system_config.get("output_base_dir", "./cache")) / self.research_id
         self.reports_dir = Path(system_config.get("reports_dir", "./reports"))
 
         # Create directories
@@ -275,9 +274,7 @@ class ResearchPipeline:
 
                     loop = asyncio.get_event_loop()
                     result = await asyncio.wait_for(
-                        loop.run_in_executor(
-                            None, functools.partial(tool_func, *args, **kwargs)
-                        ),
+                        loop.run_in_executor(None, functools.partial(tool_func, *args, **kwargs)),
                         timeout=timeout,
                     )
                 return result
@@ -297,9 +294,7 @@ class ResearchPipeline:
                     await asyncio.sleep(1)
 
         # All retries exhausted
-        self.logger.error(
-            f"Tool {tool_name} failed after {max_retries + 1} attempts: {last_error}"
-        )
+        self.logger.error(f"Tool {tool_name} failed after {max_retries + 1} attempts: {last_error}")
         raise last_error if last_error else RuntimeError(f"{tool_name} failed")
 
     async def _call_tool(self, tool_type: str, query: str) -> str:
@@ -372,9 +367,7 @@ class ResearchPipeline:
             if tool_type == "paper_search":
                 if self._paper_tool is None:
                     self._paper_tool = PaperSearchTool()
-                years_limit = self.config.get("researching", {}).get(
-                    "paper_search_years_limit", 3
-                )
+                years_limit = self.config.get("researching", {}).get("paper_search_years_limit", 3)
                 papers = await self._call_tool_with_retry(
                     self._paper_tool.search_papers,
                     query=query,
@@ -432,9 +425,7 @@ class ResearchPipeline:
             Research result
         """
         if self.logger:
-            self.logger.section(
-                "DR-in-KG 2.0 - Deep Research System Based on Dynamic Topic Queue"
-            )
+            self.logger.section("DR-in-KG 2.0 - Deep Research System Based on Dynamic Topic Queue")
             self.logger.info(f"Research Topic: {topic}")
             self.logger.info(f"Research ID: {self.research_id}")
         self.input_topic = topic
@@ -618,9 +609,7 @@ class ResearchPipeline:
                         f"Optimized Research Topic: {rephrase_result.get('topic', '')}"
                     )
                     self.logger.info(f"{'=' * 70}")
-                    self.logger.info(
-                        "\n💬 Are you satisfied with this rephrasing result?"
-                    )
+                    self.logger.info("\n💬 Are you satisfied with this rephrasing result?")
                     self.logger.info(
                         "   - Enter 'satisfied', 'ok', etc. to indicate satisfaction, will proceed to next stage"
                     )
@@ -629,18 +618,19 @@ class ResearchPipeline:
                     )
                     self.logger.info("   - Press Enter directly to use current result")
 
-                    user_input = input("\nYour choice: ").strip()
+                    if not sys.stdin.isatty() or os.getenv("PYTEST_CURRENT_TEST"):
+                        user_input = ""
+                    else:
+                        user_input = input("\nYour choice: ").strip()
 
                     if not user_input:
-                        self.logger.success(
-                            "Using current result, proceeding to next stage"
-                        )
+                        self.logger.success("Using current result, proceeding to next stage")
                         break
 
                     # Determine user intent
-                    satisfaction = await self.agents[
-                        "rephrase"
-                    ].check_user_satisfaction(rephrase_result, user_input)
+                    satisfaction = await self.agents["rephrase"].check_user_satisfaction(
+                        rephrase_result, user_input
+                    )
 
                     if satisfaction.get("user_satisfied", False):
                         self.logger.success("User satisfied, proceeding to next stage")
@@ -692,9 +682,7 @@ class ResearchPipeline:
         else:
             # Manual mode: use initial_subtopics
             num_subtopics = decompose_config.get("initial_subtopics", 5)
-            self.logger.info(
-                f"📌 Using Manual mode, expected subtopics: {num_subtopics}"
-            )
+            self.logger.info(f"📌 Using Manual mode, expected subtopics: {num_subtopics}")
 
         self._log_progress(
             "planning",
@@ -783,9 +771,7 @@ class ResearchPipeline:
         Phase 2: Dynamic Research Loop
         Routes to series or parallel execution based on configuration
         """
-        execution_mode = self.config.get("researching", {}).get(
-            "execution_mode", "series"
-        )
+        execution_mode = self.config.get("researching", {}).get("execution_mode", "series")
 
         if execution_mode == "parallel":
             await self._phase2_researching_parallel()
@@ -898,9 +884,7 @@ class ResearchPipeline:
         # Get all pending blocks at the start
         from src.agents.research.data_structures import TopicStatus
 
-        pending_blocks = [
-            b for b in self.queue.blocks if b.status == TopicStatus.PENDING
-        ]
+        pending_blocks = [b for b in self.queue.blocks if b.status == TopicStatus.PENDING]
         total_blocks = len(self.queue.blocks)
 
         self.logger.info(
@@ -915,9 +899,7 @@ class ResearchPipeline:
         )
 
         # Track completed blocks
-        completed_count = {
-            "value": 0
-        }  # Use dict to allow modification in nested function
+        completed_count = {"value": 0}  # Use dict to allow modification in nested function
 
         # Create async wrappers for thread-safe operations in parallel mode
         class AsyncCitationManagerWrapper:
@@ -926,9 +908,7 @@ class ResearchPipeline:
             def __init__(self, cm):
                 self._cm = cm
 
-            async def add_citation(
-                self, citation_id, tool_type, tool_trace, raw_answer
-            ):
+            async def add_citation(self, citation_id, tool_type, tool_trace, raw_answer):
                 return await self._cm.add_citation_async(
                     citation_id, tool_type, tool_trace, raw_answer
                 )
@@ -989,10 +969,7 @@ class ResearchPipeline:
                     async with manager._lock:
                         # Refresh block status from queue
                         current_block = self.queue.get_block_by_id(block.block_id)
-                        if (
-                            current_block
-                            and current_block.status == TopicStatus.PENDING
-                        ):
+                        if current_block and current_block.status == TopicStatus.PENDING:
                             self.queue.mark_researching(block.block_id)
 
                     # Add to active tasks
@@ -1035,17 +1012,13 @@ class ResearchPipeline:
                             "sub_topic": block.sub_topic,
                             "status": event_type,
                             "iteration": data.get("iteration", 0),
-                            "max_iterations": data.get(
-                                "max_iterations", config_max_iterations
-                            ),
+                            "max_iterations": data.get("max_iterations", config_max_iterations),
                             "current_tool": data.get("tool_type"),
                             "current_query": data.get("query"),
                             "tools_used": data.get("tools_used", []),
                         }
                         # Schedule async update
-                        asyncio.create_task(
-                            update_active_task(block.block_id, task_info)
-                        )
+                        asyncio.create_task(update_active_task(block.block_id, task_info))
 
                         # Also log the detailed progress
                         self._log_researching_progress(
@@ -1088,9 +1061,7 @@ class ResearchPipeline:
                     )
 
                     if self.logger:
-                        self.logger.success(
-                            f"[{block.block_id}] ✓ Completed: {block.sub_topic}"
-                        )
+                        self.logger.success(f"[{block.block_id}] ✓ Completed: {block.sub_topic}")
 
                     return result
 
@@ -1103,9 +1074,7 @@ class ResearchPipeline:
                     await update_active_task(block.block_id, None)
 
                     if self.logger:
-                        self.logger.error(
-                            f"[{block.block_id}] ✗ Failed: {block.sub_topic} - {e}"
-                        )
+                        self.logger.error(f"[{block.block_id}] ✗ Failed: {block.sub_topic} - {e}")
 
                     self._log_researching_progress(
                         "block_failed",
@@ -1144,9 +1113,7 @@ class ResearchPipeline:
                 break
 
             # Get any newly added pending blocks
-            new_pending = [
-                b for b in self.queue.blocks if b.status == TopicStatus.PENDING
-            ]
+            new_pending = [b for b in self.queue.blocks if b.status == TopicStatus.PENDING]
             if not new_pending:
                 # No pending blocks, but there might be researching ones
                 # Wait a bit for them to complete
@@ -1294,11 +1261,7 @@ class ResearchPipeline:
         event = {"status": status, "timestamp": datetime.now().isoformat()}
         event.update({k: v for k, v in payload.items() if v is not None})
         self._stage_events[stage].append(event)
-        file_path = (
-            self.plan_progress_file
-            if stage == "planning"
-            else self.report_progress_file
-        )
+        file_path = self.plan_progress_file if stage == "planning" else self.report_progress_file
         context = {
             "research_id": self.research_id,
             "stage": stage,
@@ -1344,9 +1307,7 @@ async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="DR-in-KG 2.0 - Deep Research System")
     parser.add_argument("--topic", type=str, required=True, help="Research topic")
-    parser.add_argument(
-        "--config", type=str, default="config.yaml", help="Configuration file"
-    )
+    parser.add_argument("--config", type=str, default="config.yaml", help="Configuration file")
     parser.add_argument(
         "--preset",
         type=str,

@@ -119,6 +119,20 @@ def record_call_failure(provider: str) -> None:  # noqa: ARG001
         provider: Provider name (unused in current implementation).
     """
     _circuit_breaker.failures += 1
+
+
+def alert_callback(provider: str, rate: float) -> None:
+    """Default alert callback for error rate tracking.
+
+    Args:
+        provider: Provider name triggering the alert.
+        rate: Error rate that exceeded the threshold.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
+    _ = (provider, rate)
     _circuit_breaker.last_failure_time = time.time()
     if _circuit_breaker.failures >= _circuit_breaker.failure_threshold:
         _circuit_breaker.state = "OPEN"

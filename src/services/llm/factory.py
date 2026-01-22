@@ -204,9 +204,7 @@ async def complete(
         logger.warning(message)
 
     if exponential_backoff:
-        wait_strategy = tenacity.wait_exponential(
-            multiplier=retry_delay, min=retry_delay, max=60
-        )  # type: ignore[assignment]
+        wait_strategy = tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=60)  # type: ignore[assignment]
     else:
         wait_strategy = tenacity.wait_fixed(retry_delay)  # type: ignore[assignment]
 
@@ -234,9 +232,7 @@ async def complete(
             from .error_mapping import map_error
 
             provider_value = call_kwargs.get("binding")
-            provider_name = (
-                provider_value if isinstance(provider_value, str) else "unknown"
-            )
+            provider_name = provider_value if isinstance(provider_value, str) else "unknown"
             mapped_error = map_error(e, provider=provider_name)
             raise mapped_error from e
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   PenTool,
   Loader2,
@@ -21,30 +21,18 @@ import {
   Cpu,
   DollarSign,
 } from 'lucide-react'
-import { useGlobal } from '@/context/GlobalContext'
+import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
-import 'katex/dist/katex.min.css'
-import { apiUrl } from '@/lib/api'
-import { processLatexContent } from '@/lib/latex'
+import { useGlobal } from '@/context/GlobalContext'
 import AddToNotebookModal from '@/components/AddToNotebookModal'
 import { LogDrawer } from '@/components/question'
 import { useQuestionReducer } from '@/hooks/useQuestionReducer'
-} from "lucide-react";
-import { useGlobal } from "@/context/GlobalContext";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { apiUrl } from "@/lib/api";
-import { processLatexContent } from "@/lib/latex";
-import AddToNotebookModal from "@/components/AddToNotebookModal";
-import { LogDrawer } from "@/components/question";
-import { useQuestionReducer } from "@/hooks/useQuestionReducer";
-import { useTranslation } from "react-i18next";
+import { apiUrl } from '@/lib/api'
+import { processLatexContent } from '@/lib/latex'
+import 'katex/dist/katex.min.css'
 
 export default function QuestionPage() {
   const {
@@ -53,8 +41,8 @@ export default function QuestionPage() {
     startQuestionGen,
     startMimicQuestionGen,
     resetQuestionGen,
-  } = useGlobal();
-  const { t } = useTranslation();
+  } = useGlobal()
+  const { t } = useTranslation()
 
   // Dashboard state for parallel generation
   const [dashboardState, dispatchDashboard] = useQuestionReducer()
@@ -150,10 +138,10 @@ export default function QuestionPage() {
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.type !== "application/pdf") {
-      alert(t("Please upload a PDF exam paper"));
-      return;
+    const file = e.target.files?.[0] || null
+    if (file && file.type !== 'application/pdf') {
+      alert(t('Please upload a PDF exam paper'))
+      return
     }
     setQuestionState(prev => ({
       ...prev,
@@ -183,7 +171,7 @@ export default function QuestionPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold">
               <PenTool className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              {t("Question Generator")}
+              {t('Question Generator')}
             </div>
 
             {/* Mode Switching */}
@@ -198,7 +186,7 @@ export default function QuestionPage() {
                   }`}
                 >
                   <BrainCircuit className="w-4 h-4" />
-                  {t("Custom")}
+                  {t('Custom')}
                 </button>
                 <button
                   onClick={() => setQuestionState(prev => ({ ...prev, mode: 'mimic' }))}
@@ -209,7 +197,7 @@ export default function QuestionPage() {
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  {t("Mimic Exam")}
+                  {t('Mimic Exam')}
                 </button>
               </div>
             )}
@@ -221,18 +209,18 @@ export default function QuestionPage() {
                   <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>
-                      {t("Generating")} {totalQuestions}/{questionState.count}...
+                      {t('Generating')} {totalQuestions}/{questionState.count}...
                     </span>
                   </div>
                 ) : isComplete ? (
                   <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>
-                      {totalQuestions} {t("questions")}
+                      {totalQuestions} {t('questions')}
                     </span>
                     {extendedCount > 0 && (
                       <span className="text-amber-600 dark:text-amber-400">
-                        ({extendedCount} {t("extended")})
+                        ({extendedCount} {t('extended')})
                       </span>
                     )}
                   </div>
@@ -292,7 +280,7 @@ export default function QuestionPage() {
                 className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1.5 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
               >
                 <Activity className="w-4 h-4" />
-                {t("Logs")}
+                {t('Logs')}
               </button>
             )}
 
@@ -303,7 +291,7 @@ export default function QuestionPage() {
                 className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1.5 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
-                {t("New")}
+                {t('New')}
               </button>
             )}
           </div>
@@ -337,14 +325,14 @@ export default function QuestionPage() {
                             : 'text-blue-800 dark:text-blue-300'
                         }`}
                       >
-                        {questionState.mode === "knowledge"
-                          ? t("Custom Mode")
-                          : t("Mimic Exam Paper Mode")}
+                        {questionState.mode === 'knowledge'
+                          ? t('Custom Mode')
+                          : t('Mimic Exam Paper Mode')}
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {questionState.mode === "knowledge"
-                          ? t("Generate questions based on knowledge base content")
-                          : t("Generate similar questions based on an exam paper")}
+                        {questionState.mode === 'knowledge'
+                          ? t('Generate questions based on knowledge base content')
+                          : t('Generate similar questions based on an exam paper')}
                       </p>
                     </div>
                   </div>
@@ -355,7 +343,7 @@ export default function QuestionPage() {
                   <>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        {t("Knowledge Point / Topic")}
+                        {t('Knowledge Point / Topic')}
                       </label>
                       <input
                         type="text"
@@ -366,7 +354,7 @@ export default function QuestionPage() {
                             topic: e.target.value,
                           }))
                         }
-                        placeholder={t("e.g. Gradient Descent Optimization")}
+                        placeholder={t('e.g. Gradient Descent Optimization')}
                         className="w-full p-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all text-lg dark:text-slate-200 placeholder:text-slate-400"
                       />
                     </div>
@@ -374,7 +362,7 @@ export default function QuestionPage() {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          {t("Count")}
+                          {t('Count')}
                         </label>
                         <input
                           type="number"
@@ -413,7 +401,7 @@ export default function QuestionPage() {
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          {t("Difficulty")}
+                          {t('Difficulty')}
                         </label>
                         <select
                           value={questionState.difficulty}
@@ -425,15 +413,15 @@ export default function QuestionPage() {
                           }
                           className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200"
                         >
-                          <option value="easy">{t("Easy")}</option>
-                          <option value="medium">{t("Medium")}</option>
-                          <option value="hard">{t("Hard")}</option>
+                          <option value="easy">{t('Easy')}</option>
+                          <option value="medium">{t('Medium')}</option>
+                          <option value="hard">{t('Hard')}</option>
                         </select>
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          {t("Type")}
+                          {t('Type')}
                         </label>
                         <select
                           value={questionState.type}
@@ -445,8 +433,8 @@ export default function QuestionPage() {
                           }
                           className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200"
                         >
-                          <option value="choice">{t("Multiple Choice")}</option>
-                          <option value="written">{t("Written")}</option>
+                          <option value="choice">{t('Multiple Choice')}</option>
+                          <option value="written">{t('Written')}</option>
                         </select>
                       </div>
                     </div>
@@ -458,7 +446,7 @@ export default function QuestionPage() {
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        {t("Upload Exam Paper (PDF)")}
+                        {t('Upload Exam Paper (PDF)')}
                       </label>
                       <div className="relative">
                         <input
@@ -485,9 +473,9 @@ export default function QuestionPage() {
                           ) : (
                             <div className="text-center text-slate-500 dark:text-slate-400">
                               <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                              <p className="font-medium">{t("Click to upload PDF")}</p>
+                              <p className="font-medium">{t('Click to upload PDF')}</p>
                               <p className="text-xs">
-                                {t("The system will parse and generate questions")}
+                                {t('The system will parse and generate questions')}
                               </p>
                             </div>
                           )}
@@ -497,15 +485,13 @@ export default function QuestionPage() {
 
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600"></div>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
-                        {t("OR")}
-                      </span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{t('OR')}</span>
                       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600"></div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        {t("Pre-parsed Directory")}
+                        {t('Pre-parsed Directory')}
                       </label>
                       <input
                         type="text"
@@ -517,7 +503,7 @@ export default function QuestionPage() {
                             uploadedFile: null,
                           }))
                         }
-                        placeholder={t("e.g. 2211asm1")}
+                        placeholder={t('e.g. 2211asm1')}
                         className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200 placeholder:text-slate-400"
                       />
                     </div>
@@ -531,7 +517,7 @@ export default function QuestionPage() {
                   className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-purple-500/30 hover:from-purple-700 hover:to-indigo-700 hover:shadow-purple-500/50 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-5 h-5" />
-                  {t("Generate Questions")}
+                  {t('Generate Questions')}
                 </button>
               </div>
             </div>
@@ -545,7 +531,7 @@ export default function QuestionPage() {
                 <div className="p-3 border-b border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      {t("Questions")}
+                      {t('Questions')}
                     </span>
                     <span className="text-xs text-slate-400">
                       {totalQuestions}/{questionState.count}
@@ -566,7 +552,7 @@ export default function QuestionPage() {
                   {totalQuestions === 0 && isGenerating && (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400">
                       <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                      <p className="text-sm">{t("Generating...")}</p>
+                      <p className="text-sm">{t('Generating...')}</p>
                     </div>
                   )}
                   {questionState.results.map((result: any, idx: number) => (
@@ -610,9 +596,7 @@ export default function QuestionPage() {
                               {result.question.type || result.question.question_type}
                             </span>
                             {result.extended && (
-                              <span className="text-xs text-amber-500">
-                                {t("Extended")}
-                              </span>
+                              <span className="text-xs text-amber-500">{t('Extended')}</span>
                             )}
                           </div>
                         </div>
@@ -638,7 +622,7 @@ export default function QuestionPage() {
                         {currentQuestion.extended && (
                           <span className="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded flex items-center gap-1">
                             <Zap className="w-3 h-3" />
-                            {t("Extended")}
+                            {t('Extended')}
                           </span>
                         )}
                       </div>
@@ -647,7 +631,7 @@ export default function QuestionPage() {
                         className="text-xs text-indigo-500 hover:text-indigo-600 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                       >
                         <Book className="w-3 h-3" />
-                        {t("Add to Notebook")}
+                        {t('Add to Notebook')}
                       </button>
                     </div>
 
@@ -724,7 +708,7 @@ export default function QuestionPage() {
                           value={userAnswers[activeIdx] || ''}
                           onChange={e => handleAnswer(e.target.value)}
                           disabled={submittedMap[activeIdx]}
-                          placeholder={t("Type your answer here...")}
+                          placeholder={t('Type your answer here...')}
                           className="w-full h-40 p-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 resize-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                         />
                       )}
@@ -735,7 +719,7 @@ export default function QuestionPage() {
                           {/* Correct Answer */}
                           <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
                             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
-                              {t("Correct Answer")}
+                              {t('Correct Answer')}
                             </p>
                             <div className="text-emerald-800 dark:text-emerald-200 prose prose-sm dark:prose-invert max-w-none">
                               <ReactMarkdown
@@ -753,7 +737,7 @@ export default function QuestionPage() {
                           {currentQuestion.question.explanation && (
                             <div>
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                {t("Explanation")}
+                                {t('Explanation')}
                               </p>
                               <div className="text-slate-700 dark:text-slate-300 prose prose-sm dark:prose-invert max-w-none">
                                 <ReactMarkdown
@@ -776,11 +760,11 @@ export default function QuestionPage() {
                                 <div className="flex items-center gap-2 text-sm">
                                   <AlertCircle className="w-4 h-4 text-slate-400" />
                                   <span className="font-medium text-slate-600 dark:text-slate-300">
-                                    {t("Relevance Analysis")}
+                                    {t('Relevance Analysis')}
                                   </span>
                                   <span className="text-xs px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 text-slate-500 rounded">
-                                    {currentQuestion.rounds || 1} {t("round")}
-                                    {(currentQuestion.rounds || 1) > 1 ? t("s") : ""}
+                                    {currentQuestion.rounds || 1} {t('round')}
+                                    {(currentQuestion.rounds || 1) > 1 ? t('s') : ''}
                                   </span>
                                 </div>
                                 {showAnalysis ? (
@@ -796,7 +780,7 @@ export default function QuestionPage() {
                                     <div>
                                       <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">
                                         <Database className="w-3 h-3" />
-                                        {t("KB Coverage")}
+                                        {t('KB Coverage')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
@@ -814,7 +798,7 @@ export default function QuestionPage() {
                                     <div>
                                       <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
                                         <Zap className="w-3 h-3" />
-                                        {t("Extension Points")}
+                                        {t('Extension Points')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
@@ -833,7 +817,7 @@ export default function QuestionPage() {
                                       <div>
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
                                           <Database className="w-3 h-3" />
-                                          {t("KB Connection")}
+                                          {t('KB Connection')}
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
@@ -852,7 +836,7 @@ export default function QuestionPage() {
                                       <div>
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-orange-600 uppercase tracking-wider mb-1">
                                           <Lightbulb className="w-3 h-3" />
-                                          {t("Extended Aspects")}
+                                          {t('Extended Aspects')}
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
@@ -869,7 +853,7 @@ export default function QuestionPage() {
                                   {currentQuestion.validation.reasoning && (
                                     <div>
                                       <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                        {t("Reasoning")}
+                                        {t('Reasoning')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
@@ -899,12 +883,12 @@ export default function QuestionPage() {
                           disabled={!userAnswers[activeIdx]}
                           className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/20 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                          {t("Submit Answer")}
+                          {t('Submit Answer')}
                         </button>
                       ) : (
                         <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl">
                           <CheckCircle2 className="w-4 h-4" />
-                          <span className="font-medium">{t("Submitted")}</span>
+                          <span className="font-medium">{t('Submitted')}</span>
                         </div>
                       )}
                     </div>
@@ -916,18 +900,14 @@ export default function QuestionPage() {
                         <>
                           <Loader2 className="w-12 h-12 animate-spin mx-auto mb-3 text-purple-500" />
                           <p className="text-lg font-medium text-slate-600 dark:text-slate-300">
-                            {t("Generating questions...")}
+                            {t('Generating questions...')}
                           </p>
-                          <p className="text-sm">
-                            {t("View progress in the Logs panel")}
-                          </p>
+                          <p className="text-sm">{t('View progress in the Logs panel')}</p>
                         </>
                       ) : (
                         <>
                           <Book className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm">
-                            {t("Select a question to view details")}
-                          </p>
+                          <p className="text-sm">{t('Select a question to view details')}</p>
                         </>
                       )}
                     </div>

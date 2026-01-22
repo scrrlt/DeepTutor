@@ -105,9 +105,7 @@ async def test_generate_questions_custom(coordinator: AgentCoordinator):
         }
         mock_create_analyzer.return_value = mock_analyzer
 
-        result = await coordinator.generate_questions_custom(
-            {"knowledge_point": "kp1"}, 1
-        )
+        result = await coordinator.generate_questions_custom({"knowledge_point": "kp1"}, 1)
 
         assert result["success"] is True
         assert result["completed"] == 1

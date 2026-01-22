@@ -74,9 +74,7 @@ async def test_strict_filter(idea_generation_workflow: IdeaGenerationWorkflow):
     Args:
         idea_generation_workflow (IdeaGenerationWorkflow): The IdeaGenerationWorkflow instance.
     """
-    idea_generation_workflow.call_llm = AsyncMock(
-        return_value='{"kept_ideas": ["idea1"]}'
-    )
+    idea_generation_workflow.call_llm = AsyncMock(return_value='{"kept_ideas": ["idea1"]}')
     idea_generation_workflow._prompts = {
         "strict_filter_system": "",
         "strict_filter_user_template": "",

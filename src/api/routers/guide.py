@@ -29,9 +29,7 @@ router = APIRouter()
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("guide_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-    "log_dir"
-)
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("Guide", level="INFO", log_dir=log_dir)
 
 
@@ -42,9 +40,7 @@ class CreateSessionRequest(BaseModel):
     """Create session request"""
 
     notebook_id: str | None = None  # Optional, single notebook mode
-    records: list[dict] | None = (
-        None  # Optional, cross-notebook mode with direct records
-    )
+    records: list[dict] | None = None  # Optional, cross-notebook mode with direct records
 
 
 class ChatRequest(BaseModel):
@@ -81,9 +77,7 @@ def get_guide_manager():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM config error: {e!s}")
 
-    ui_language = get_ui_language(
-        default=config.get("system", {}).get("language", "en")
-    )
+    ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
     return GuideManager(
         api_key=api_key,
         base_url=base_url,
@@ -123,9 +117,7 @@ async def create_session(request: CreateSessionRequest):
             records = notebook.get("records", [])
             notebook_name = notebook.get("name", "Unknown")
         else:
-            raise HTTPException(
-                status_code=400, detail="Must provide notebook_id or records"
-            )
+            raise HTTPException(status_code=400, detail="Must provide notebook_id or records")
 
         if not records:
             raise HTTPException(status_code=400, detail="No available records")
@@ -242,9 +234,7 @@ async def get_current_html(session_id: str):
         manager = get_guide_manager()
         html = manager.get_current_html(session_id)
         if html is None:
-            raise HTTPException(
-                status_code=404, detail="Session not found or no HTML content"
-            )
+            raise HTTPException(status_code=404, detail="Session not found or no HTML content")
         return {"html": html}
     except HTTPException:
         raise
@@ -311,9 +301,7 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
                     if message:
                         logger.debug(f"[{task_id}] User message: {message[:50]}...")
                         result = await manager.chat(session_id, message)
-                        await websocket.send_json(
-                            {"type": "chat_result", "data": result}
-                        )
+                        await websocket.send_json({"type": "chat_result", "data": result})
 
                 elif msg_type == "fix_html":
                     bug_desc = data.get("bug_description", "")

@@ -56,9 +56,7 @@ def fetch_repo_stats(owner: str, repo: str, token: str | None = None) -> dict:
         return {"stargazers_count": 0, "forks_count": 0}
 
 
-def fetch_github_api(
-    url: str, token: str | None = None, count_only: bool = False
-) -> tuple:
+def fetch_github_api(url: str, token: str | None = None, count_only: bool = False) -> tuple:
     """Fetch data from GitHub API with pagination. Returns (users, total_count)."""
     headers = {
         "Accept": "application/vnd.github.v3+json",
@@ -77,9 +75,7 @@ def fetch_github_api(
         req = urllib.request.Request(paginated_url, headers=headers)
 
         try:
-            with urllib.request.urlopen(
-                req, timeout=30, context=ssl_context
-            ) as response:
+            with urllib.request.urlopen(req, timeout=30, context=ssl_context) as response:
                 data = json.loads(response.read().decode())
                 if not data:
                     break
@@ -124,9 +120,7 @@ def fetch_avatar_as_base64(avatar_url: str, size: int = 48) -> str | None:
         else:
             avatar_url += f"?s={size}"
 
-        req = urllib.request.Request(
-            avatar_url, headers={"User-Agent": "Repo-Roster-Generator"}
-        )
+        req = urllib.request.Request(avatar_url, headers={"User-Agent": "Repo-Roster-Generator"})
         with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
             data = response.read()
             content_type = response.headers.get("Content-Type", "image/png")
@@ -192,9 +186,9 @@ def generate_modern_roster_svg(
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_user = {
-            executor.submit(
-                fetch_avatar_as_base64, user["avatar_url"], avatar_size * 2
-            ): user["login"]
+            executor.submit(fetch_avatar_as_base64, user["avatar_url"], avatar_size * 2): user[
+                "login"
+            ]
             for user in display_users
         }
         for future in as_completed(future_to_user):
@@ -286,9 +280,7 @@ No {title.lower()} yet
 
 def main():
     parser = argparse.ArgumentParser(description="Generate GitHub roster SVG images")
-    parser.add_argument(
-        "--repo", required=True, help="GitHub repo in format owner/repo"
-    )
+    parser.add_argument("--repo", required=True, help="GitHub repo in format owner/repo")
     parser.add_argument("--output", default="assets/roster", help="Output directory")
     parser.add_argument(
         "--theme",
@@ -296,12 +288,8 @@ def main():
         choices=["dark", "light"],
         help="Color theme",
     )
-    parser.add_argument(
-        "--display", type=int, default=6, help="Number of avatars to display"
-    )
-    parser.add_argument(
-        "--token", default=os.environ.get("GITHUB_TOKEN"), help="GitHub token"
-    )
+    parser.add_argument("--display", type=int, default=6, help="Number of avatars to display")
+    parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"), help="GitHub token")
 
     args = parser.parse_args()
 
@@ -328,8 +316,7 @@ def main():
     forks_url = f"https://api.github.com/repos/{owner}/{repo}/forks"
     forks, _ = fetch_github_api(forks_url, args.token)
     forkers = [
-        {"login": f["owner"]["login"], "avatar_url": f["owner"]["avatar_url"]}
-        for f in forks
+        {"login": f["owner"]["login"], "avatar_url": f["owner"]["avatar_url"]} for f in forks
     ]
     logger.info(f"Fetched {len(forkers)} forker records for avatars")
 

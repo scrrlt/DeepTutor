@@ -58,15 +58,9 @@ class ResearchAgent(BaseAgent):
         tools_web_search_enabled = (
             config.get("tools", {}).get("web_search", {}).get("enabled", True)
         )
-        research_web_search_enabled = self.researching_config.get(
-            "enable_web_search", False
-        )
-        self.enable_web_search = (
-            tools_web_search_enabled and research_web_search_enabled
-        )
-        self.enable_paper_search = self.researching_config.get(
-            "enable_paper_search", False
-        )
+        research_web_search_enabled = self.researching_config.get("enable_web_search", False)
+        self.enable_web_search = tools_web_search_enabled and research_web_search_enabled
+        self.enable_paper_search = self.researching_config.get("enable_paper_search", False)
         self.enable_run_code = self.researching_config.get("enable_run_code", True)
         # Store enabled tools list for prompt generation
         self.enabled_tools = self.researching_config.get("enabled_tools", ["RAG"])
@@ -148,9 +142,7 @@ class ResearchAgent(BaseAgent):
             phase1_tools.append(
                 "- `rag_hybrid`: Get comprehensive information, core concepts, mechanism principles"
             )
-            phase1_tools.append(
-                "- `rag_naive`: Query specific definitions, precise formulas"
-            )
+            phase1_tools.append("- `rag_naive`: Query specific definitions, precise formulas")
             phase1_tools.append(
                 "- `query_item`: Get content with specific entry numbers (if known)"
             )
@@ -173,9 +165,7 @@ Focus on building foundational knowledge:
                 "- `paper_search`: Get cutting-edge academic research (if topic involves academic fields)"
             )
         if has_web:
-            phase2_tools.append(
-                "- `web_search`: Get practical application cases, industry trends"
-            )
+            phase2_tools.append("- `web_search`: Get practical application cases, industry trends")
 
         if phase2_tools:
             guidance_parts.append(
@@ -215,9 +205,7 @@ Focus on thoroughly exploring the knowledge base from multiple angles."""
 
         return "\n\n".join(guidance_parts)
 
-    def _generate_research_depth_guidance(
-        self, iteration: int, used_tools: list[str]
-    ) -> str:
+    def _generate_research_depth_guidance(self, iteration: int, used_tools: list[str]) -> str:
         """
         Generate research depth guidance based on iteration, used tools, and iteration_mode
 
@@ -238,15 +226,11 @@ Focus on thoroughly exploring the knowledge base from multiple angles."""
             guidance = "Focus on building foundational knowledge using RAG/knowledge base tools."
         elif iteration <= middle_threshold:
             phase = "middle"
-            phase_desc = (
-                f"Middle Stage (Iteration {early_threshold + 1}-{middle_threshold})"
-            )
+            phase_desc = f"Middle Stage (Iteration {early_threshold + 1}-{middle_threshold})"
             if self.enable_paper_search or self.enable_web_search:
                 guidance = "Consider using Paper/Web search to add academic depth and real-time information."
             else:
-                guidance = (
-                    "Deepen knowledge coverage, explore different angles of the topic."
-                )
+                guidance = "Deepen knowledge coverage, explore different angles of the topic."
         else:
             phase = "late"
             phase_desc = f"Late Stage (Iteration {middle_threshold + 1}+)"
@@ -340,9 +324,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             if criteria:
                 return criteria
             # Fallback if YAML not configured
-            return (
-                "- **FLEXIBLE mode (Auto)**: You have autonomy to decide sufficiency."
-            )
+            return "- **FLEXIBLE mode (Auto)**: You have autonomy to decide sufficiency."
         else:
             criteria = self.get_prompt("guidance", "iteration_mode_fixed")
             if criteria:
@@ -444,9 +426,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             user_prompt_template,
             topic=topic,
             overview=overview,
-            current_knowledge=current_knowledge[:2000]
-            if current_knowledge
-            else "(None)",
+            current_knowledge=current_knowledge[:2000] if current_knowledge else "(None)",
             iteration=iteration,
             max_iterations=self.max_iterations,
             existing_topics=topics_text,
@@ -527,9 +507,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
 
         while iteration < self.max_iterations:
             iteration += 1
-            self.logger.info(
-                f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】"
-            )
+            self.logger.info(f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】")
 
             # Send iteration started progress
             send_progress(
@@ -604,13 +582,9 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
 
                     add_topic_method = getattr(manager_agent, "add_new_topic")
                     if inspect.iscoroutinefunction(add_topic_method):
-                        added = await add_topic_method(
-                            trimmed_topic, new_overview or ""
-                        )
+                        added = await add_topic_method(trimmed_topic, new_overview or "")
                     else:
-                        added = manager_agent.add_new_topic(
-                            trimmed_topic, new_overview or ""
-                        )
+                        added = manager_agent.add_new_topic(trimmed_topic, new_overview or "")
                     if added:
                         self.logger.info(
                             f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue"
@@ -623,9 +597,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                             new_overview=new_overview or "",
                         )
                 if new_topic_reason:
-                    self.logger.info(
-                        f"{block_id_prefix}     Reason: {new_topic_reason}"
-                    )
+                    self.logger.info(f"{block_id_prefix}     Reason: {new_topic_reason}")
 
             query = plan.get("query", "").strip()
             tool_type = plan.get("tool_type", "rag_hybrid")
@@ -757,9 +729,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             "final_knowledge": current_knowledge,
             "tools_used": tools_used,
             "queries_used": queries_used,
-            "status": "completed"
-            if iteration < self.max_iterations
-            else "max_iterations_reached",
+            "status": "completed" if iteration < self.max_iterations else "max_iterations_reached",
         }
 
 

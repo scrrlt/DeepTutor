@@ -31,9 +31,7 @@ async def test_llm_provider_integration():
     """Verify the active LLM provider works as intended."""
     api_key = os.getenv("LLM_API_KEY")
     if not api_key and "localhost" not in os.getenv("LLM_HOST", ""):
-        pytest.skip(
-            "LLM_API_KEY not set and not using local host, skipping integration test"
-        )
+        pytest.skip("LLM_API_KEY not set and not using local host, skipping integration test")
 
     # Bare call letting pytest report failures naturally
     response = await asyncio.wait_for(

@@ -129,9 +129,7 @@ Potential Difficulty: {point.get("user_difficulty", "")}
                 "summary": cleaned_summary,
                 "notebook_name": notebook_name,
                 "total_points": len(knowledge_points),
-                "total_interactions": len(
-                    [m for m in chat_history if m.get("role") == "user"]
-                ),
+                "total_interactions": len([m for m in chat_history if m.get("role") == "user"]),
             }
 
         except Exception as e:

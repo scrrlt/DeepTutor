@@ -54,11 +54,7 @@ def _merge_missing(en_obj: Any, zh_obj: Any) -> tuple[Any, int]:
                     # For non-string nodes, insert scaffold recursively
                     zh_obj[k], inc = _merge_missing(
                         v,
-                        {}
-                        if isinstance(v, dict)
-                        else []
-                        if isinstance(v, list)
-                        else None,
+                        {} if isinstance(v, dict) else [] if isinstance(v, list) else None,
                     )
                     added += inc
             else:
@@ -117,9 +113,7 @@ def main() -> int:
                 zh_file = lang_dir / rel
                 if not zh_file.exists():
                     if not args.create_missing_files:
-                        print(
-                            f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}"
-                        )
+                        print(f"[MISSING {lang_name}] {module_dir.name}: {rel.as_posix()}")
                         continue
                     zh_obj = {}
                 else:
@@ -131,9 +125,7 @@ def main() -> int:
 
                 total_added += added
                 total_files += 1
-                print(
-                    f"[SYNC {lang_name}] {module_dir.name}: {rel.as_posix()} (+{added} keys)"
-                )
+                print(f"[SYNC {lang_name}] {module_dir.name}: {rel.as_posix()} (+{added} keys)")
 
                 if args.write:
                     _dump_yaml(zh_file, new_obj)

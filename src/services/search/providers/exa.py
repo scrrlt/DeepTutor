@@ -77,9 +77,7 @@ class ExaProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(
-            f"Calling Exa API type={search_type}, num_results={num_results}"
-        )
+        self.logger.debug(f"Calling Exa API type={search_type}, num_results={num_results}")
         headers = {
             "Content-Type": "application/json",
             "x-api-key": self.api_key,
@@ -88,9 +86,7 @@ class ExaProvider(BaseSearchProvider):
         # Build contents configuration
         contents: dict[str, Any] = {}
         if include_text:
-            contents["text"] = (
-                {"maxCharacters": max_characters} if max_characters else True
-            )
+            contents["text"] = {"maxCharacters": max_characters} if max_characters else True
         if include_highlights:
             contents["highlights"] = True
         if include_summary:

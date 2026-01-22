@@ -57,9 +57,7 @@ class AzureEmbeddingAdapter(BaseEmbeddingAdapter):
             # Standardize response
             data = response.data
             if not isinstance(data, (list, tuple)) or not data:
-                logger.error(
-                    "Azure Embedding API returned empty or invalid 'data' field"
-                )
+                logger.error("Azure Embedding API returned empty or invalid 'data' field")
                 raise ValueError("Invalid API response: missing or empty 'data' field")
 
             embeddings = [item.embedding for item in data]

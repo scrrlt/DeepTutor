@@ -147,9 +147,7 @@ class ResponseAgent(BaseAgent):
             image_list = "\n".join([f"  - {img}" for img in image_materials])
             image_instruction_template = self.get_prompt("image_instruction")
             if image_instruction_template:
-                image_instruction = image_instruction_template.format(
-                    image_list=image_list
-                )
+                image_instruction = image_instruction_template.format(image_list=image_list)
             else:
                 image_instruction = f"\n\n**Image files to insert**:\n{image_list}\n"
             return base_prompt + citation_instruction + image_instruction
@@ -227,12 +225,8 @@ class ResponseAgent(BaseAgent):
                 f"Raw excerpt: {raw_preview}"
             )
             # Priority: use recorded relative paths, then absolute paths, finally fall back to original artifacts list
-            artifact_rel_paths = (
-                call.metadata.get("artifact_rel_paths") if call.metadata else None
-            )
-            artifact_paths = (
-                call.metadata.get("artifact_paths") if call.metadata else None
-            )
+            artifact_rel_paths = call.metadata.get("artifact_rel_paths") if call.metadata else None
+            artifact_paths = call.metadata.get("artifact_paths") if call.metadata else None
             artifacts = call.metadata.get("artifacts") if call.metadata else None
 
             if artifact_rel_paths:
@@ -287,8 +281,7 @@ class ResponseAgent(BaseAgent):
 
         cite_ids = list(
             dict.fromkeys(
-                step.available_cite
-                + [tc.cite_id for tc in step.tool_calls if tc.cite_id]
+                step.available_cite + [tc.cite_id for tc in step.tool_calls if tc.cite_id]
             )
         )
         if not cite_ids:
@@ -323,9 +316,7 @@ class ResponseAgent(BaseAgent):
             if not candidate:
                 continue
             normalized.append(f"[{candidate.strip()}]")
-        allowed = set(
-            step.available_cite + [tc.cite_id for tc in step.tool_calls if tc.cite_id]
-        )
+        allowed = set(step.available_cite + [tc.cite_id for tc in step.tool_calls if tc.cite_id])
         ordered: list[str] = []
         for cite in normalized:
             if cite in allowed and cite not in ordered:

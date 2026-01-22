@@ -119,10 +119,7 @@ class ConfigManager:
                     logger.exception("Error loading config: %s", exc)
                     return {}
 
-            return (
-                yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False))
-                or {}
-            )
+            return yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False)) or {}
 
     def save_config(self, config: dict[str, Any]) -> bool:
         """
@@ -229,9 +226,7 @@ class ConfigManager:
         parsed_env = self._load_env_file(env_path)
         parsed_env.update(self._load_env_file(local_path))
 
-        missing = [
-            key for key in keys if not (parsed_env.get(key) or os.environ.get(key))
-        ]
+        missing = [key for key in keys if not (parsed_env.get(key) or os.environ.get(key))]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})
         return {"missing": missing}

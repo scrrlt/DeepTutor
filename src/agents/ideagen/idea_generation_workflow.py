@@ -69,9 +69,7 @@ class IdeaGenerationWorkflow(BaseAgent):
             if result is not None and asyncio.iscoroutine(result):
                 await result
 
-    async def loose_filter(
-        self, knowledge_points: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    async def loose_filter(self, knowledge_points: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Loose filtering - filter out unsuitable knowledge points
 
@@ -91,15 +89,11 @@ class IdeaGenerationWorkflow(BaseAgent):
         points_text = ""
         for i, point in enumerate(knowledge_points, 1):
             description = point.get("description", "")
-            points_text += (
-                f"\n{i}. {point['knowledge_point']}\n   Description: {description}\n"
-            )
+            points_text += f"\n{i}. {point['knowledge_point']}\n   Description: {description}\n"
 
         user_prompt = user_template.format(points_text=points_text)
 
-        self.logger.info(
-            f"Calling LLM to filter {len(knowledge_points)} knowledge points..."
-        )
+        self.logger.info(f"Calling LLM to filter {len(knowledge_points)} knowledge points...")
 
         response = await self.call_llm(
             user_prompt=user_prompt,
@@ -190,9 +184,7 @@ class IdeaGenerationWorkflow(BaseAgent):
             # Ensure at least 5
             if len(ideas) < 5:
                 # If less than 5, can call again or supplement
-                self.logger.warning(
-                    f"Only {len(ideas)} ideas generated (expected at least 5)"
-                )
+                self.logger.warning(f"Only {len(ideas)} ideas generated (expected at least 5)")
 
             # Save generated research ideas
             if self.output_dir:
@@ -349,15 +341,13 @@ class IdeaGenerationWorkflow(BaseAgent):
         for i, idea in enumerate(research_ideas, 1):
             ideas_text += f"{i}. {idea}\n"
 
-        user_prompt = user_template.format(
-            knowledge_point=knowledge_point["knowledge_point"],
-            description=knowledge_point["description"],
-            ideas_text=ideas_text,
-        )
+            user_prompt = user_template.format(
+                knowledge_point=knowledge_point["knowledge_point"],
+                description=knowledge_point.get("description", ""),
+                ideas_text=ideas_text,
+            )
 
-        response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt
-        )
+        response = await self.call_llm(user_prompt=user_prompt, system_prompt=system_prompt)
 
         return response
 

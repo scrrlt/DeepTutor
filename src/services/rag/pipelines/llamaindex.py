@@ -26,9 +26,7 @@ from ..pipeline import RAGPipeline
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
-    Path(__file__).resolve().parent.parent.parent.parent.parent
-    / "data"
-    / "knowledge_bases"
+    Path(__file__).resolve().parent.parent.parent.parent.parent / "data" / "knowledge_bases"
 )
 
 
@@ -198,9 +196,7 @@ class LlamaIndexPipeline(RAGPipeline):
                 return False
 
             # Create index with LlamaIndex (run sync code in thread pool to avoid blocking)
-            self.logger.info(
-                f"Creating VectorStoreIndex with {len(documents)} documents..."
-            )
+            self.logger.info(f"Creating VectorStoreIndex with {len(documents)} documents...")
 
             # Run sync LlamaIndex code in thread pool to avoid blocking async event loop
             loop = asyncio.get_event_loop()
@@ -280,9 +276,7 @@ class LlamaIndexPipeline(RAGPipeline):
             loop = asyncio.get_event_loop()
 
             def load_and_retrieve():
-                storage_context = StorageContext.from_defaults(
-                    persist_dir=str(storage_dir)
-                )
+                storage_context = StorageContext.from_defaults(persist_dir=str(storage_dir))
                 index = load_index_from_storage(storage_context)
                 top_k = kwargs.get("top_k", 5)
 

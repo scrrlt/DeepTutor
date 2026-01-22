@@ -86,15 +86,11 @@ def detect_provider(kb_path: Path) -> str | None:
 
     if has_llamaindex:
         # Check if LlamaIndex has required files
-        llamaindex_valid = all(
-            (llamaindex_dir / f).exists() for f in LLAMAINDEX_REQUIRED_FILES
-        )
+        llamaindex_valid = all((llamaindex_dir / f).exists() for f in LLAMAINDEX_REQUIRED_FILES)
 
     if has_lightrag:
         # Check if LightRAG has required files
-        lightrag_valid = all(
-            (lightrag_dir / f).exists() for f in LIGHTRAG_REQUIRED_FILES
-        )
+        lightrag_valid = all((lightrag_dir / f).exists() for f in LIGHTRAG_REQUIRED_FILES)
 
     # Return based on which has valid files
     if llamaindex_valid and lightrag_valid:
@@ -221,9 +217,7 @@ def validate_kb(kb_path: Path) -> dict:
 
     # Check optional directories
     content_list_dir = kb_path / "content_list"
-    result["has_content_list"] = content_list_dir.exists() and any(
-        content_list_dir.glob("*.json")
-    )
+    result["has_content_list"] = content_list_dir.exists() and any(content_list_dir.glob("*.json"))
 
     raw_dir = kb_path / "raw"
     result["has_raw_docs"] = raw_dir.exists() and any(raw_dir.iterdir())
@@ -242,9 +236,7 @@ def validate_kb(kb_path: Path) -> dict:
 # =============================================================================
 
 
-def copy_kb_directory(
-    source_path: Path, target_path: Path, verbose: bool = True
-) -> bool:
+def copy_kb_directory(source_path: Path, target_path: Path, verbose: bool = True) -> bool:
     """
     Copy knowledge base directory to target location.
 
@@ -426,9 +418,7 @@ async def extract_numbered_items(kb_name: str, kb_base_dir: Path) -> bool:
         return False
 
 
-async def test_kb_search(
-    kb_name: str, query: str = "What is this knowledge base about?"
-) -> bool:
+async def test_kb_search(kb_name: str, query: str = "What is this knowledge base about?") -> bool:
     """
     Test knowledge base with a simple search query.
 
@@ -633,9 +623,7 @@ Examples:
         help=f"Target base directory (default: {DEFAULT_KB_BASE_DIR})",
     )
 
-    parser.add_argument(
-        "--test", action="store_true", help="Run a test query after migration"
-    )
+    parser.add_argument("--test", action="store_true", help="Run a test query after migration")
 
     parser.add_argument(
         "--extract-items",

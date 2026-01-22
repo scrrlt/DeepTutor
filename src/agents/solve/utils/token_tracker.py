@@ -128,9 +128,7 @@ def count_tokens_with_litellm(messages: list[dict], model_name: str) -> dict[str
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
-def calculate_cost_with_litellm(
-    model: str, prompt_tokens: int, completion_tokens: int
-) -> float:
+def calculate_cost_with_litellm(model: str, prompt_tokens: int, completion_tokens: int) -> float:
     """
     Calculate cost using litellm (more accurate if available)
 
@@ -196,9 +194,7 @@ def get_model_pricing(model_name: str) -> dict[str, float]:
     return MODEL_PRICING.get("gpt-4o-mini", {"input": 0.00015, "output": 0.0006})
 
 
-def calculate_cost(
-    model_name: str, prompt_tokens: int, completion_tokens: int
-) -> float:
+def calculate_cost(model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
     """
     Calculate LLM call cost (backward compatibility function)
 
@@ -310,9 +306,7 @@ class TokenTracker:
             calculation_method = "api"
         # If no API data, try using tiktoken for precise calculation
         elif self.prefer_tiktoken and system_prompt and user_prompt:
-            prompt_tokens = count_tokens_with_tiktoken(
-                system_prompt + "\n" + user_prompt, model
-            )
+            prompt_tokens = count_tokens_with_tiktoken(system_prompt + "\n" + user_prompt, model)
             if response_text:
                 completion_tokens = count_tokens_with_tiktoken(response_text, model)
             calculation_method = "tiktoken"
@@ -337,9 +331,7 @@ class TokenTracker:
 
         # Calculate cost (prefer litellm, otherwise manual calculation)
         if self.prefer_litellm and LITELLM_AVAILABLE:
-            cost_usd = calculate_cost_with_litellm(
-                model, prompt_tokens, completion_tokens
-            )
+            cost_usd = calculate_cost_with_litellm(model, prompt_tokens, completion_tokens)
         else:
             cost_usd = calculate_cost(model, prompt_tokens, completion_tokens)
 

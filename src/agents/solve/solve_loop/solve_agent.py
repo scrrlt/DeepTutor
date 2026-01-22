@@ -192,9 +192,7 @@ class SolveAgent(BaseAgent):
             "question": question,
             "current_step_id": current_step.step_id,
             "step_target": current_step.step_target,
-            "available_cite_text": self._format_available_cite(
-                current_step, investigate_memory
-            ),
+            "available_cite_text": self._format_available_cite(current_step, investigate_memory),
             "previous_steps": self._format_previous_steps(current_step, solve_memory),
             "current_tool_history": self._format_tool_history(current_step),
         }
@@ -236,9 +234,7 @@ class SolveAgent(BaseAgent):
                 continue
             summary = knowledge.summary or knowledge.raw_result[:300]
             raw_preview = (
-                knowledge.raw_result[:300].replace("\n", " ")
-                if knowledge.raw_result
-                else ""
+                knowledge.raw_result[:300].replace("\n", " ") if knowledge.raw_result else ""
             )
             lines.append(
                 f"{cite_id} | {knowledge.tool_type}\n"
@@ -300,9 +296,7 @@ class SolveAgent(BaseAgent):
                 continue
 
             if tool_type not in self.SUPPORTED_TOOL_TYPES:
-                self.logger.warning(
-                    f"[SolveAgent] Ignoring unknown tool type: {tool_type}"
-                )
+                self.logger.warning(f"[SolveAgent] Ignoring unknown tool type: {tool_type}")
                 continue
 
             actions.append({"type": tool_type, "query": query})
@@ -312,9 +306,7 @@ class SolveAgent(BaseAgent):
     # ------------------------------------------------------------------ #
     # Query preprocessing & helper
     # ------------------------------------------------------------------ #
-    def _prepare_query(
-        self, tool_type: str, query: str, current_step: SolveChainStep
-    ) -> str:
+    def _prepare_query(self, tool_type: str, query: str, current_step: SolveChainStep) -> str:
         return query.strip()
 
     def _summarize_none_answer(self, text: str) -> str:
@@ -325,9 +317,7 @@ class SolveAgent(BaseAgent):
             return ""
         cleaned = text.strip()
         cleaned = cleaned.replace("\\{", "{").replace("\\}", "}").replace("$", "")
-        pattern = re.compile(
-            r"(?P<var>[A-Za-z_][A-Za-z0-9_\[\]]*)\s*=\s*\{(?P<values>[^\}]+)\}"
-        )
+        pattern = re.compile(r"(?P<var>[A-Za-z_][A-Za-z0-9_\[\]]*)\s*=\s*\{(?P<values>[^\}]+)\}")
 
         def replacer(match: re.Match) -> str:
             var = match.group("var")

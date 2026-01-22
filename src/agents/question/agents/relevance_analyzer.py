@@ -159,9 +159,7 @@ class RelevanceAnalyzer(BaseAgent):
                     pass
 
         if result is None:
-            raise ValueError(
-                f"Failed to parse analysis JSON: {parse_error}"
-            ) from parse_error
+            raise ValueError(f"Failed to parse analysis JSON: {parse_error}") from parse_error
 
         # Normalize relevance value
         relevance = result.get("relevance", "partial")

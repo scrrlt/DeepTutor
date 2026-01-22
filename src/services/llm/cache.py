@@ -198,9 +198,7 @@ async def get_cached_completion(key: str) -> str | None:
         return None
 
 
-async def set_cached_completion(
-    key: str, value: str, ttl_seconds: int | None = None
-) -> None:
+async def set_cached_completion(key: str, value: str, ttl_seconds: int | None = None) -> None:
     """
     Write to Redis, handling connection errors gracefully.
 

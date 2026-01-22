@@ -58,15 +58,11 @@ class LLMClient:
         if binding_lower in ("openai", "azure", "azure_openai", "gemini"):
             if self.config.api_key:
                 os.environ["OPENAI_API_KEY"] = self.config.api_key
-                self.logger.debug(
-                    "Set OPENAI_API_KEY env var for LightRAG compatibility"
-                )
+                self.logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility")
 
             if self.config.base_url:
                 os.environ["OPENAI_BASE_URL"] = self.config.base_url
-                self.logger.debug(
-                    "Set OPENAI_BASE_URL env var to %s", self.config.base_url
-                )
+                self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
 
     async def complete(
         self,
@@ -250,8 +246,7 @@ class LLMClient:
                 clean_kwargs = {
                     k: v
                     for k, v in kwargs.items()
-                    if k
-                    not in ["messages", "prompt", "system_prompt", "history_messages"]
+                    if k not in ["messages", "prompt", "system_prompt", "history_messages"]
                 }
                 lightrag_kwargs = {
                     "messages": messages,
@@ -276,9 +271,7 @@ class LLMClient:
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_data}"
-                            },
+                            "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
                         },
                     ],
                 }

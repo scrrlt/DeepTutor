@@ -86,9 +86,7 @@ class NoteAgent(BaseAgent):
                 None,
             )
             if not knowledge_item:
-                failed_ids.append(
-                    {"cite_id": cite_id, "reason": "knowledge_item not found"}
-                )
+                failed_ids.append({"cite_id": cite_id, "reason": "knowledge_item not found"})
                 continue
 
             context = self._build_context(question, knowledge_item, memory)
@@ -120,9 +118,7 @@ class NoteAgent(BaseAgent):
                 validate_note_output(parsed_result)
                 if verbose:
                     summary_len = len(parsed_result.get("summary", ""))
-                    logger.info(
-                        f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}"
-                    )
+                    logger.info(f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}")
             except ParseError as e:
                 failed_ids.append({"cite_id": cite_id, "reason": str(e)})
                 continue
@@ -131,15 +127,11 @@ class NoteAgent(BaseAgent):
                 continue
 
             citations = parsed_result.get("citations", [])
-            memory.update_knowledge_summary(
-                cite_id=cite_id, summary=parsed_result["summary"]
-            )
+            memory.update_knowledge_summary(cite_id=cite_id, summary=parsed_result["summary"])
 
             if citation_memory:
                 sources = ", ".join(
-                    citation.get("source", "")
-                    for citation in citations
-                    if citation.get("source")
+                    citation.get("source", "") for citation in citations if citation.get("source")
                 )
                 metadata_block = {"extracted_sources": citations} if citations else None
                 try:

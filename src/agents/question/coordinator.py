@@ -185,9 +185,7 @@ class AgentCoordinator:
                 - rounds: Always 1 (no iteration)
         """
         self.logger.section("Single Question Generation")
-        self.logger.info(
-            f"Knowledge point: {requirement.get('knowledge_point', 'N/A')}"
-        )
+        self.logger.info(f"Knowledge point: {requirement.get('knowledge_point', 'N/A')}")
 
         await self._send_ws_update(
             "progress",
@@ -239,9 +237,7 @@ class AgentCoordinator:
             knowledge_context=knowledge_context,
         )
 
-        self.logger.success(
-            f"Question generated with {analysis['relevance']} relevance"
-        )
+        self.logger.success(f"Question generated with {analysis['relevance']} relevance")
 
         # Build result (compatible with old format)
         result = {
@@ -292,9 +288,7 @@ class AgentCoordinator:
 
         # Create batch directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        batch_dir = (
-            Path(self.output_dir) / f"batch_{timestamp}" if self.output_dir else None
-        )
+        batch_dir = Path(self.output_dir) / f"batch_{timestamp}" if self.output_dir else None
         if batch_dir:
             batch_dir.mkdir(parents=True, exist_ok=True)
 
@@ -344,9 +338,7 @@ class AgentCoordinator:
             {"stage": "planning", "progress": {"status": "creating_plan"}},
         )
 
-        plan = await self._generate_question_plan(
-            requirement, knowledge_context, num_questions
-        )
+        plan = await self._generate_question_plan(requirement, knowledge_context, num_questions)
         focuses = plan.get("focuses", [])
 
         # Save plan.json
@@ -548,9 +540,7 @@ class AgentCoordinator:
 
         # Truncate knowledge context consistently (4000 chars across all agents)
         truncated_knowledge = (
-            knowledge_context[:4000]
-            if len(knowledge_context) > 4000
-            else knowledge_context
+            knowledge_context[:4000] if len(knowledge_context) > 4000 else knowledge_context
         )
         truncation_suffix = "...[truncated]" if len(knowledge_context) > 4000 else ""
 
@@ -659,9 +649,7 @@ class AgentCoordinator:
 **KB Coverage**: {validation.get("kb_coverage", "")}
 """
             if validation.get("extension_points"):
-                md_content += (
-                    f"\n**Extension Points**: {validation.get('extension_points', '')}"
-                )
+                md_content += f"\n**Extension Points**: {validation.get('extension_points', '')}"
 
             with open(output_path / "question.md", "w", encoding="utf-8") as f:
                 f.write(md_content)
@@ -748,9 +736,7 @@ class AgentCoordinator:
 **KB Coverage**: {analysis.get("kb_coverage", "")}
 """
         if analysis.get("extension_points"):
-            md_content += (
-                f"\n**Extension Points**: {analysis.get('extension_points', '')}"
-            )
+            md_content += f"\n**Extension Points**: {analysis.get('extension_points', '')}"
 
         with open(question_dir / "question.md", "w", encoding="utf-8") as f:
             f.write(md_content)

@@ -39,9 +39,7 @@ class KnowledgeBaseConfigService:
         self._config: dict[str, Any] = self._load_config()
 
     @classmethod
-    def get_instance(
-        cls, config_path: Path | None = None
-    ) -> "KnowledgeBaseConfigService":
+    def get_instance(cls, config_path: Path | None = None) -> "KnowledgeBaseConfigService":
         """Get singleton instance."""
         if cls._instance is None:
             cls._instance = cls(config_path)
@@ -92,8 +90,7 @@ class KnowledgeBaseConfigService:
         return {
             "rag_provider": kb_config.get("rag_provider")
             or defaults.get("rag_provider", "llamaindex"),
-            "search_mode": kb_config.get("search_mode")
-            or defaults.get("search_mode", "hybrid"),
+            "search_mode": kb_config.get("search_mode") or defaults.get("search_mode", "hybrid"),
             **kb_config,
         }
 

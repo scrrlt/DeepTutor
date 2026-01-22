@@ -47,9 +47,7 @@ async def test_investigate_agent_process_workflow(
     investigate_agent.call_llm = AsyncMock(
         return_value='{"reasoning": "test reasoning", "plan": [{"tool": "rag_hybrid", "query": "test query"}]}'
     )
-    investigate_agent._execute_single_action = AsyncMock(
-        return_value=MagicMock(cite_id="cite1")
-    )
+    investigate_agent._execute_single_action = AsyncMock(return_value=MagicMock(cite_id="cite1"))
 
     memory = InvestigateMemory(user_question="test question")
     citation_memory = CitationMemory(output_dir="/tmp/test")

@@ -43,9 +43,7 @@ def test_embedding_config_initialization():
 
 @pytest.fixture
 def mock_embedding_config():
-    return EmbeddingConfig(
-        model="test-model", api_key="sk-test", binding="openai", dim=1536
-    )
+    return EmbeddingConfig(model="test-model", api_key="sk-test", binding="openai", dim=1536)
 
 
 @pytest.fixture
@@ -64,9 +62,7 @@ def mock_adapter():
 
 @pytest.fixture
 def client(mock_embedding_config, mock_adapter):
-    with patch(
-        "src.services.embedding.client.get_embedding_provider_manager"
-    ) as mock_mgr_get:
+    with patch("src.services.embedding.client.get_embedding_provider_manager") as mock_mgr_get:
         mock_mgr = MagicMock()
         mock_mgr.get_adapter.return_value = mock_adapter
         mock_mgr.get_active_adapter.return_value = mock_adapter
@@ -119,9 +115,7 @@ async def test_embed_validation_error(client, mock_adapter):
 
 @pytest.mark.asyncio
 async def test_embed_manager_error(mock_embedding_config):
-    with patch(
-        "src.services.embedding.client.get_embedding_provider_manager"
-    ) as mock_mgr_get:
+    with patch("src.services.embedding.client.get_embedding_provider_manager") as mock_mgr_get:
         mock_mgr = MagicMock()
         mock_mgr.get_adapter.side_effect = ValueError("Unknown provider")
         mock_mgr_get.return_value = mock_mgr

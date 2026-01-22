@@ -22,9 +22,7 @@ def mock_subprocess():
 
 def test_get_mineru_command_finds_magic_pdf():
     with patch("src.tools.question.pdf_parser.shutil.which") as mock_which:
-        mock_which.side_effect = (
-            lambda cmd: "/bin/magic-pdf" if cmd == "magic-pdf" else None
-        )
+        mock_which.side_effect = lambda cmd: "/bin/magic-pdf" if cmd == "magic-pdf" else None
         assert pdf_parser._get_mineru_command() == "magic-pdf"
 
 
@@ -56,10 +54,7 @@ def test_parse_pdf_output_creation_failure(tmp_path, mock_mineru_check):
     # Mock mkdir to raise OSError
     with patch("pathlib.Path.mkdir", side_effect=OSError("Permission denied")):
         assert (
-            pdf_parser.parse_pdf_with_mineru(
-                str(pdf), output_base_dir="/root/restricted"
-            )
-            is False
+            pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir="/root/restricted") is False
         )
 
 
@@ -78,10 +73,7 @@ def test_parse_pdf_success(tmp_path, mock_mineru_check, mock_subprocess):
 
     mock_subprocess.side_effect = side_effect
 
-    assert (
-        pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_dir))
-        is True
-    )
+    assert pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_dir)) is True
 
     # Verify subprocess call
     mock_subprocess.assert_called_once()
@@ -111,9 +103,6 @@ def test_parse_pdf_backup_rotation(tmp_path, mock_mineru_check, mock_subprocess)
     mock_subprocess.side_effect = side_effect
 
     with patch("src.tools.question.pdf_parser.shutil.move") as mock_move:
-        assert (
-            pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_base))
-            is True
-        )
+        assert pdf_parser.parse_pdf_with_mineru(str(pdf), output_base_dir=str(output_base)) is True
         # Called twice: once for backup, once for moving result
         assert mock_move.call_count == 2

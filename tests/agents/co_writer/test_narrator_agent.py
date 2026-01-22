@@ -47,9 +47,7 @@ async def test_narrator_agent_generate_script(narrator_agent: NarratorAgent):
 
 @pytest.mark.asyncio
 @patch("openai.AsyncOpenAI")
-async def test_narrator_agent_generate_audio(
-    mock_openai, narrator_agent: NarratorAgent
-):
+async def test_narrator_agent_generate_audio(mock_openai, narrator_agent: NarratorAgent):
     """Test that the generate_audio method correctly calls the TTS API and saves the audio file.
 
     Args:

@@ -44,14 +44,10 @@ class InvestigateAgent(BaseAgent):
             token_tracker=token_tracker,
         )
         # Read web_search enabled config from tools.web_search.enabled
-        self.enable_web_search = (
-            config.get("tools", {}).get("web_search", {}).get("enabled", True)
-        )
+        self.enable_web_search = config.get("tools", {}).get("web_search", {}).get("enabled", True)
 
         # Read agent-specific config from solve.agents.investigate_agent
-        agent_config = (
-            config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
-        )
+        agent_config = config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
         self.max_actions_per_round = agent_config.get("max_actions_per_round", 1)
         self.max_iterations = agent_config.get("max_iterations", 3)
 
@@ -123,9 +119,7 @@ class InvestigateAgent(BaseAgent):
         if not isinstance(tool_plans, list):
             if isinstance(tool_plans, dict):
                 # If plan is a dict, wrap it in a list
-                self.logger.warning(
-                    "Parse warning: 'plan' field is a dict, wrapping in list"
-                )
+                self.logger.warning("Parse warning: 'plan' field is a dict, wrapping in list")
                 tool_plans = [tool_plans]
             else:
                 self.logger.warning(
@@ -202,9 +196,7 @@ class InvestigateAgent(BaseAgent):
             "actions": executed_actions,
         }
 
-    def _build_context(
-        self, question: str, memory: InvestigateMemory
-    ) -> dict[str, Any]:
+    def _build_context(self, question: str, memory: InvestigateMemory) -> dict[str, Any]:
         """Build context (pass full content, no truncation)"""
         knowledge_chain_full = []
         for item in memory.knowledge_chain:
@@ -272,9 +264,7 @@ class InvestigateAgent(BaseAgent):
                 for line in lines:
                     # Skip lines that describe web_search as an available tool
                     if "`web_search`" in line and (
-                        "Use Sparingly" in line
-                        or "latest news" in line
-                        or "Web Search" in line
+                        "Use Sparingly" in line or "latest news" in line or "Web Search" in line
                     ):
                         continue
                     # Also remove web_search from tool list in output format
@@ -420,13 +410,9 @@ class InvestigateAgent(BaseAgent):
         """Call RAG Hybrid"""
         return await rag_search(query=query, kb_name=kb_name, mode="hybrid")
 
-    async def _call_web_search(
-        self, query: str, output_dir: str | None
-    ) -> dict[str, Any]:
+    async def _call_web_search(self, query: str, output_dir: str | None) -> dict[str, Any]:
         """Call Web Search"""
-        return web_search(
-            query=query, output_dir=output_dir or "./cache", verbose=False
-        )
+        return web_search(query=query, output_dir=output_dir or "./cache", verbose=False)
 
     async def _call_query_item(self, identifier: str, kb_name: str) -> dict[str, Any]:
         """Call Query Item"""

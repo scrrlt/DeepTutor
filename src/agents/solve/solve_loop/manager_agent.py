@@ -70,9 +70,7 @@ class ManagerAgent(BaseAgent):
         # 1. Check if steps already exist
         if solve_memory.solve_chains:
             steps_count = len(solve_memory.solve_chains)
-            self.logger.log_stage_progress(
-                stage_label, "skip", f"Already has {steps_count} steps"
-            )
+            self.logger.log_stage_progress(stage_label, "skip", f"Already has {steps_count} steps")
             return {
                 "has_steps": True,
                 "steps_count": steps_count,
@@ -81,9 +79,7 @@ class ManagerAgent(BaseAgent):
             }
 
         # 2. Build context
-        context = self._build_context(
-            question=question, investigate_memory=investigate_memory
-        )
+        context = self._build_context(question=question, investigate_memory=investigate_memory)
 
         # 3. Build Prompt
         system_prompt = self._build_system_prompt()
@@ -106,9 +102,7 @@ class ManagerAgent(BaseAgent):
         solve_memory.save()
 
         steps_count = len(steps)
-        self.logger.log_stage_progress(
-            stage_label, "complete", f"Generated {steps_count} steps"
-        )
+        self.logger.log_stage_progress(stage_label, "complete", f"Generated {steps_count} steps")
         return {
             "has_steps": True,
             "steps_count": steps_count,
@@ -141,9 +135,7 @@ class ManagerAgent(BaseAgent):
 
         remaining_questions = []
         if investigate_memory and getattr(investigate_memory, "reflections", None):
-            remaining_questions = (
-                investigate_memory.reflections.remaining_questions or []
-            )
+            remaining_questions = investigate_memory.reflections.remaining_questions or []
 
         reflections_summary = (
             "\n".join(f"- {q}" for q in remaining_questions)
@@ -151,9 +143,7 @@ class ManagerAgent(BaseAgent):
             else "(No remaining questions)"
         )
 
-        knowledge_summary_text = (
-            knowledge_text if knowledge_text else "(No research information)"
-        )
+        knowledge_summary_text = knowledge_text if knowledge_text else "(No research information)"
 
         return {
             "question": question,
@@ -198,9 +188,7 @@ class ManagerAgent(BaseAgent):
 
         steps_data = parsed_data.get("steps", [])
         if not isinstance(steps_data, list):
-            raise ValueError(
-                f"'steps' field in JSON is not an array. Parsed result: {parsed_data}"
-            )
+            raise ValueError(f"'steps' field in JSON is not an array. Parsed result: {parsed_data}")
 
         if not steps_data:
             raise ValueError("'steps' array in JSON is empty, please check LLM output")
@@ -240,11 +228,7 @@ class ManagerAgent(BaseAgent):
             if not isinstance(cite_ids_raw, list):
                 # Compatible with string format
                 if isinstance(cite_ids_raw, str):
-                    cite_ids_raw = (
-                        [cite_ids_raw]
-                        if cite_ids_raw and cite_ids_raw != "none"
-                        else []
-                    )
+                    cite_ids_raw = [cite_ids_raw] if cite_ids_raw and cite_ids_raw != "none" else []
                 else:
                     cite_ids_raw = []
 
@@ -271,23 +255,17 @@ class ManagerAgent(BaseAgent):
                 SolveChainStep(
                     step_id=step_id,
                     step_target=step_target,
-                    available_cite=list(
-                        dict.fromkeys(filtered_cites)
-                    ),  # Remove duplicates
+                    available_cite=list(dict.fromkeys(filtered_cites)),  # Remove duplicates
                     status="undone",
                 )
             )
 
         if not steps:
-            raise ValueError(
-                "Failed to parse any valid steps, please check LLM output format"
-            )
+            raise ValueError("Failed to parse any valid steps, please check LLM output format")
 
         logger = getattr(self, "logger", None)
         if logger is not None:
-            logger.info(
-                f"[ManagerAgent._parse_response] Parsed {len(steps)} solve-chain steps"
-            )
+            logger.info(f"[ManagerAgent._parse_response] Parsed {len(steps)} solve-chain steps")
             for step in steps:
                 logger.info(f"  - {step.step_id}: {step.step_target}")
                 logger.info(

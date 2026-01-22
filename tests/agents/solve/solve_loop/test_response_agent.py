@@ -27,9 +27,7 @@ def response_agent():
         patch("src.agents.base_agent.get_logger"),
     ):
         config = {"system": {"language": "en", "enable_citations": True}}
-        agent = ResponseAgent(
-            config=config, api_key="test_key", base_url="http://localhost:1234"
-        )
+        agent = ResponseAgent(config=config, api_key="test_key", base_url="http://localhost:1234")
         yield agent
 
 
@@ -40,9 +38,7 @@ async def test_response_agent_process_workflow(response_agent: ResponseAgent):
     """
     response_agent.call_llm = AsyncMock(return_value="test response [cite1]")
 
-    step = SolveChainStep(
-        step_id="step1", step_target="target1", available_cite=["[cite1]"]
-    )
+    step = SolveChainStep(step_id="step1", step_target="target1", available_cite=["[cite1]"])
     solve_memory = SolveMemory()
     solve_memory.create_chains([step])
     investigate_memory = InvestigateMemory()

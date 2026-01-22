@@ -30,9 +30,7 @@ class WorkspaceManager:
             self.base_dir = Path(env_path).expanduser().resolve()
         else:
             # Default workspace is set under user directory
-            self.base_dir = (
-                self.project_root / "data" / "user" / DEFAULT_WORKSPACE_NAME
-            ).resolve()
+            self.base_dir = (self.project_root / "data" / "user" / DEFAULT_WORKSPACE_NAME).resolve()
 
         # Determine allowed roots (allow project and user data by default)
         self.allowed_roots: list[Path] = [

@@ -70,9 +70,7 @@ def test_format_citations_markdown(citation_memory: CitationMemory):
     """
     Tests that the format_citations_markdown method correctly formats the citations.
     """
-    cite_id = citation_memory.add_citation(
-        "test_tool", "test_query", content="test_content"
-    )
+    cite_id = citation_memory.add_citation("test_tool", "test_query", content="test_content")
     markdown = citation_memory.format_citations_markdown(used_cite_ids=[cite_id])
 
     assert "## Citations" in markdown

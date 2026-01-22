@@ -130,9 +130,9 @@ class LLMStats:
 
         # Calculate cost
         pricing = get_pricing(model)
-        cost = (prompt_tokens / 1000.0) * pricing["input"] + (
-            completion_tokens / 1000.0
-        ) * pricing["output"]
+        cost = (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
+            "output"
+        ]
 
         # Record call
         call = LLMCall(

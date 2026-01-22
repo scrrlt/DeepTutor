@@ -101,11 +101,7 @@ class AnthropicProvider(BaseLLMProvider):
             Exception: Propagates SDK or execution errors.
         """
         self._check_deprecated_kwargs(kwargs)
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "claude-3-sonnet-20240229"
-        )
+        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
         kwargs.pop("max_retries", None)
         kwargs.pop("stream", None)
 
@@ -152,11 +148,7 @@ class AnthropicProvider(BaseLLMProvider):
             Exception: Propagates SDK or execution errors.
         """
         self._check_deprecated_kwargs(kwargs)
-        model = (
-            kwargs.pop("model", None)
-            or self.config.model_name
-            or "claude-3-sonnet-20240229"
-        )
+        model = kwargs.pop("model", None) or self.config.model_name or "claude-3-sonnet-20240229"
         max_tokens = kwargs.pop("max_tokens", 1024)
         kwargs.pop("max_retries", None)
 

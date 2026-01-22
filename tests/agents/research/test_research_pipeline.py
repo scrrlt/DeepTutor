@@ -128,9 +128,7 @@ async def test_phase2_researching_series(research_pipeline: ResearchPipeline):
     research_pipeline.queue.add_block("sub1")
     research_pipeline.queue.add_block("sub2")
 
-    research_pipeline.agents["research"].process = AsyncMock(
-        return_value={"iterations": 1}
-    )
+    research_pipeline.agents["research"].process = AsyncMock(return_value={"iterations": 1})
 
     await research_pipeline._phase2_researching()
 
@@ -153,9 +151,7 @@ async def test_phase2_researching_parallel(
     research_pipeline.queue.add_block("sub1")
     research_pipeline.queue.add_block("sub2")
 
-    research_pipeline.agents["research"].process = AsyncMock(
-        return_value={"iterations": 1}
-    )
+    research_pipeline.agents["research"].process = AsyncMock(return_value={"iterations": 1})
 
     await research_pipeline._phase2_researching()
 

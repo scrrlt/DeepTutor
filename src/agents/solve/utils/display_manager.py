@@ -102,9 +102,7 @@ class DisplayManager:
         layout.split_column(Layout(name="header", size=10), Layout(name="body"))
 
         # Split upper part into left (Agents) and right (Stats)
-        layout["header"].split_row(
-            Layout(name="agents", ratio=1), Layout(name="stats", ratio=2)
-        )
+        layout["header"].split_row(Layout(name="agents", ratio=1), Layout(name="stats", ratio=2))
 
         return layout
 

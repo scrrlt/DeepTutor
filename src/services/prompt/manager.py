@@ -62,16 +62,12 @@ class PromptManager:
             Loaded prompt configuration dictionary
         """
         lang_code = parse_language(language)
-        cache_key = self._build_cache_key(
-            module_name, agent_name, lang_code, subdirectory
-        )
+        cache_key = self._build_cache_key(module_name, agent_name, lang_code, subdirectory)
 
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        prompts = self._load_with_fallback(
-            module_name, agent_name, lang_code, subdirectory
-        )
+        prompts = self._load_with_fallback(module_name, agent_name, lang_code, subdirectory)
         self._cache[cache_key] = prompts
         return prompts
 
@@ -98,9 +94,7 @@ class PromptManager:
         fallback_chain = self.LANGUAGE_FALLBACKS.get(lang_code, ["en"])
 
         for lang in fallback_chain:
-            prompt_file = self._resolve_prompt_path(
-                prompts_dir, lang, agent_name, subdirectory
-            )
+            prompt_file = self._resolve_prompt_path(prompts_dir, lang, agent_name, subdirectory)
             if prompt_file and prompt_file.exists():
                 try:
                     with open(prompt_file, encoding="utf-8") as f:
@@ -199,9 +193,7 @@ class PromptManager:
     ) -> dict[str, Any]:
         """Force reload prompts, bypassing cache."""
         lang_code = parse_language(language)
-        cache_key = self._build_cache_key(
-            module_name, agent_name, lang_code, subdirectory
-        )
+        cache_key = self._build_cache_key(module_name, agent_name, lang_code, subdirectory)
 
         if cache_key in self._cache:
             del self._cache[cache_key]

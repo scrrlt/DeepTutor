@@ -31,9 +31,7 @@ def _load_config() -> dict[str, Any]:
             config = load_config_with_main("solve_config.yaml", PROJECT_ROOT)
             run_code_config = config.get("tools", {}).get("run_code", {})
             if run_code_config:
-                logger.debug(
-                    "Loaded run_code config from solve_config.yaml (with main.yaml)"
-                )
+                logger.debug("Loaded run_code config from solve_config.yaml (with main.yaml)")
                 return run_code_config
         except Exception as e:
             logger.debug(f"Failed to load from solve_config: {e}")
@@ -43,9 +41,7 @@ def _load_config() -> dict[str, Any]:
             config = load_config_with_main("question_config.yaml", PROJECT_ROOT)
             run_code_config = config.get("tools", {}).get("run_code", {})
             if run_code_config:
-                logger.debug(
-                    "Loaded run_code config from question_config.yaml (with main.yaml)"
-                )
+                logger.debug("Loaded run_code config from question_config.yaml (with main.yaml)")
                 return run_code_config
         except Exception as e:
             logger.debug(f"Failed to load from question_config: {e}")
@@ -164,9 +160,7 @@ async def run_code(
     Execute code in isolated environment, return result structure consistent with previous version.
     """
     if language.lower() != "python":
-        raise ValueError(
-            f"Unsupported language: {language}, currently only Python is supported"
-        )
+        raise ValueError(f"Unsupported language: {language}, currently only Python is supported")
 
     WORKSPACE_MANAGER.ensure_initialized()
     ImportGuard.validate(code, allowed_imports)

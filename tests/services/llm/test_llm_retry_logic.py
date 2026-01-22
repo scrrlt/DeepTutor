@@ -46,9 +46,7 @@ class TestRetriableErrorDetection:
         """Server errors (5xx) should be retried."""
         for status_code in [500, 502, 503, 504]:
             error = LLMAPIError("Server error", status_code=status_code)
-            assert _is_retriable_error(error) is True, (
-                f"Status {status_code} should be retriable"
-            )
+            assert _is_retriable_error(error) is True, f"Status {status_code} should be retriable"
 
     def test_client_error_4xx_not_retriable(self):
         """Client errors (4xx except 429) should NOT be retried."""
@@ -132,9 +130,7 @@ class TestCircuitBreakerIntegration:
     @pytest.mark.asyncio
     async def test_circuit_breaker_open_raises_llm_error(self):
         """When circuit breaker is open, should raise LLMError immediately."""
-        with patch(
-            "src.services.llm.providers.base_provider.is_call_allowed"
-        ) as mock_allowed:
+        with patch("src.services.llm.providers.base_provider.is_call_allowed") as mock_allowed:
             mock_allowed.return_value = False
 
             from src.services.llm.config import LLMConfig
@@ -161,15 +157,9 @@ class TestCircuitBreakerIntegration:
     async def test_circuit_breaker_closed_executes_normally(self):
         """When circuit breaker is closed, should execute function normally."""
         with (
-            patch(
-                "src.services.llm.providers.base_provider.is_call_allowed"
-            ) as mock_allowed,
-            patch(
-                "src.services.llm.providers.base_provider.record_provider_call"
-            ) as mock_record,
-            patch(
-                "src.services.llm.providers.base_provider.record_call_success"
-            ) as mock_success,
+            patch("src.services.llm.providers.base_provider.is_call_allowed") as mock_allowed,
+            patch("src.services.llm.providers.base_provider.record_provider_call") as mock_record,
+            patch("src.services.llm.providers.base_provider.record_call_success") as mock_success,
         ):
             mock_allowed.return_value = True
 

@@ -84,9 +84,7 @@ class ChatAgent(BaseAgent):
                         {
                             "kb_name": kb_name,
                             "content": (
-                                rag_answer[:500] + "..."
-                                if len(rag_answer) > 500
-                                else rag_answer
+                                rag_answer[:500] + "..." if len(rag_answer) > 500 else rag_answer
                             ),
                         }
                     )
@@ -141,9 +139,7 @@ class ChatAgent(BaseAgent):
 
         # Add context if available
         if context:
-            context_template = self.get_prompt(
-                "context_template", "Reference context:\n{context}"
-            )
+            context_template = self.get_prompt("context_template", "Reference context:\n{context}")
             context_msg = context_template.format(context=context)
             messages.append({"role": "system", "content": context_msg})
 

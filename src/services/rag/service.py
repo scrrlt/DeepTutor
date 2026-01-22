@@ -32,9 +32,7 @@ class RAGPipelineProtocol(Protocol):
     typed access to initialize/search/delete calls.
     """
 
-    async def initialize(
-        self, kb_name: str, file_paths: list[str], **kwargs: Any
-    ) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """Initialize a knowledge base with documents."""
 
     async def search(self, query: str, kb_name: str, **kwargs: Any) -> dict[str, Any]:
@@ -105,9 +103,7 @@ class RAGService:
         """Get or create the default pipeline instance."""
         return self._get_cached_pipeline(self.provider)
 
-    async def initialize(
-        self, kb_name: str, file_paths: list[str], **kwargs: Any
-    ) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """
         Initialize a knowledge base with documents.
 
@@ -125,9 +121,7 @@ class RAGService:
         """
         self.logger.info(f"Initializing KB '{kb_name}' with provider '{self.provider}'")
         pipeline = self._get_pipeline()
-        return await pipeline.initialize(
-            kb_name=kb_name, file_paths=file_paths, **kwargs
-        )
+        return await pipeline.initialize(kb_name=kb_name, file_paths=file_paths, **kwargs)
 
     async def search(
         self, query: str, kb_name: str, mode: str = "hybrid", **kwargs: Any
@@ -164,9 +158,7 @@ class RAGService:
         # Get pipeline for the specific provider
         pipeline = self._get_cached_pipeline(provider)
 
-        result = await pipeline.search(
-            query=query, kb_name=kb_name, mode=mode, **kwargs
-        )
+        result = await pipeline.search(query=query, kb_name=kb_name, mode=mode, **kwargs)
 
         # Ensure consistent return format
         if "query" not in result:
@@ -198,17 +190,13 @@ class RAGService:
 
             metadata_exists = metadata_file.exists()
             if metadata_exists:
-                async with aiofiles.open(
-                    metadata_file, encoding="utf-8"
-                ) as file_handle:
+                async with aiofiles.open(metadata_file, encoding="utf-8") as file_handle:
                     content = await file_handle.read()
                 metadata = json.loads(content)
                 provider = metadata.get("rag_provider")
                 if provider:
                     if has_pipeline(provider):
-                        self.logger.info(
-                            f"Using provider '{provider}' from KB metadata"
-                        )
+                        self.logger.info(f"Using provider '{provider}' from KB metadata")
                         return provider
                     self.logger.warning(
                         f"Unknown provider '{provider}' in KB metadata; falling back to instance provider",

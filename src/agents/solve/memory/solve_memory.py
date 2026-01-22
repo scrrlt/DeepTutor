@@ -298,9 +298,7 @@ class SolveMemory:
         if not step:
             raise ValueError(f"Step {step_id} not found")
         step.update_response(response=response, used_citations=used_citations or [])
-        self.metadata["completed_steps"] = sum(
-            1 for c in self.solve_chains if c.status == "done"
-        )
+        self.metadata["completed_steps"] = sum(1 for c in self.solve_chains if c.status == "done")
         self.updated_at = _now()
 
     def get_summary(self) -> str:
@@ -311,9 +309,7 @@ class SolveMemory:
             f"Completed: {self.metadata['completed_steps']}",
         ]
         for step in self.solve_chains:
-            lines.append(
-                f"- {step.step_id} | {step.status} | target: {step.step_target[:60]}..."
-            )
+            lines.append(f"- {step.step_id} | {step.status} | target: {step.step_target[:60]}...")
         return "\n".join(lines)
 
     # ------------------------------------------------------------------ #
@@ -356,6 +352,4 @@ class SolveMemory:
 
         self.solve_chains = converted
         self.metadata["total_steps"] = len(converted)
-        self.metadata["completed_steps"] = sum(
-            1 for step in converted if step.status == "done"
-        )
+        self.metadata["completed_steps"] = sum(1 for step in converted if step.status == "done")

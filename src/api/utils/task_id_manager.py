@@ -69,9 +69,7 @@ class TaskIDManager:
                 self._task_metadata[task_id]["status"] = status
                 self._task_metadata[task_id].update(kwargs)
                 if status in ["completed", "error", "cancelled"]:
-                    self._task_metadata[task_id]["finished_at"] = (
-                        datetime.now().isoformat()
-                    )
+                    self._task_metadata[task_id]["finished_at"] = datetime.now().isoformat()
 
     def get_task_metadata(self, task_id: str) -> dict | None:
         """Get task metadata"""

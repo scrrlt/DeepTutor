@@ -22,9 +22,7 @@ from src.services.tts import get_tts_config
 # Import shared stats from edit_agent for legacy compatibility
 
 # Define storage path (unified under user/co-writer/ directory)
-USER_DIR = (
-    Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
-)
+USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
 
 
 def ensure_dirs():
@@ -97,9 +95,7 @@ class NarratorAgent(BaseAgent):
             raise ValueError("TTS config 'base_url' is empty")
 
         if not isinstance(base_url, str):
-            raise ValueError(
-                f"TTS config 'base_url' must be a string, got {type(base_url)}"
-            )
+            raise ValueError(f"TTS config 'base_url' must be a string, got {type(base_url)}")
 
         # Validate URL format
         if not base_url.startswith(("http://", "https://")):
@@ -110,9 +106,7 @@ class NarratorAgent(BaseAgent):
         try:
             parsed = urlparse(base_url)
             if not parsed.netloc:
-                raise ValueError(
-                    f"TTS config 'base_url' has invalid format: {base_url}"
-                )
+                raise ValueError(f"TTS config 'base_url' has invalid format: {base_url}")
         except Exception as e:
             raise ValueError(f"TTS config 'base_url' parsing error: {e}")
 
@@ -130,9 +124,7 @@ class NarratorAgent(BaseAgent):
             raise ValueError("TTS config 'model' is empty")
 
         # Log configuration info (hide sensitive information)
-        api_key_preview = (
-            f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "*" * 10
-        )
+        api_key_preview = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "*" * 10
         self.logger.info("TTS Configuration Loaded (OpenAI API):")
         self.logger.info(f"  Model: {model}")
         self.logger.info(f"  Base URL: {base_url}")
@@ -160,9 +152,7 @@ class NarratorAgent(BaseAgent):
         """
         return await self.narrate(content, style, voice, skip_audio)
 
-    async def generate_script(
-        self, content: str, style: str = "friendly"
-    ) -> dict[str, Any]:
+    async def generate_script(self, content: str, style: str = "friendly") -> dict[str, Any]:
         """
         Generate narration script
 
@@ -267,9 +257,7 @@ class NarratorAgent(BaseAgent):
             self.logger.warning(f"Failed to extract key points: {e}")
             return []
 
-    async def generate_audio(
-        self, script: str, voice: str | None = None
-    ) -> dict[str, Any]:
+    async def generate_audio(self, script: str, voice: str | None = None) -> dict[str, Any]:
         """
         Convert narration script to audio using OpenAI TTS API
 
@@ -301,9 +289,7 @@ class NarratorAgent(BaseAgent):
         # Truncate overly long scripts (OpenAI TTS supports up to 4096 characters)
         original_script_length = len(script)
         if len(script) > 4096:
-            self.logger.warning(
-                f"Script length {len(script)} exceeds 4096 limit. Truncating..."
-            )
+            self.logger.warning(f"Script length {len(script)} exceeds 4096 limit. Truncating...")
             truncated = script[:4093]
             last_period = max(
                 truncated.rfind("。"),
@@ -325,9 +311,7 @@ class NarratorAgent(BaseAgent):
         audio_filename = f"narration_{audio_id}.mp3"
         audio_path = USER_DIR / audio_filename
 
-        self.logger.info(
-            f"Starting TTS audio generation - ID: {audio_id}, Voice: {voice}"
-        )
+        self.logger.info(f"Starting TTS audio generation - ID: {audio_id}, Voice: {voice}")
 
         try:
             binding = os.getenv("TTS_BINDING", "openai")
@@ -431,9 +415,7 @@ class NarratorAgent(BaseAgent):
 
         if not skip_audio and self.tts_config:
             try:
-                audio_result = await self.generate_audio(
-                    script_result["script"], voice=voice
-                )
+                audio_result = await self.generate_audio(script_result["script"], voice=voice)
                 result.update(
                     {
                         "audio_url": audio_result["audio_url"],

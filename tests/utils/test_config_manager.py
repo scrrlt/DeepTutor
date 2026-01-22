@@ -91,8 +91,6 @@ def test_env_info(config_manager: ConfigManager, tmp_path):
     env_info = config_manager.get_env_info()
     assert env_info["model"] == "test_model"
 
-    validation_result = config_manager.validate_required_env(
-        ["LLM_API_KEY", "MISSING_KEY"]
-    )
+    validation_result = config_manager.validate_required_env(["LLM_API_KEY", "MISSING_KEY"])
     assert "MISSING_KEY" in validation_result["missing"]
     assert "LLM_API_KEY" not in validation_result["missing"]

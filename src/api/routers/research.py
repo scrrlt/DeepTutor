@@ -32,9 +32,7 @@ def load_config():
 
 # Initialize logger with config
 config = load_config()
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-    "log_dir"
-)
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
 logger = get_logger("ResearchAPI", log_dir=log_dir)
 
 
@@ -126,9 +124,9 @@ async def websocket_research_run(websocket: WebSocket):
         )
         try:
             # Get log_dir from config
-            log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-                "logging", {}
-            ).get("log_dir")
+            log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+                "log_dir"
+            )
             research_logger = get_logger("Research", log_dir=log_dir)
             research_logger.info(f"[{task_id}] Starting research flow: {topic[:50]}...")
         except Exception as e:
@@ -147,12 +145,8 @@ async def websocket_research_run(websocket: WebSocket):
             default_planning = research_config.get("planning", {})
             for key, value in default_planning.items():
                 if key not in config["planning"]:
-                    config["planning"][key] = (
-                        value if not isinstance(value, dict) else value.copy()
-                    )
-                elif isinstance(value, dict) and isinstance(
-                    config["planning"][key], dict
-                ):
+                    config["planning"][key] = value if not isinstance(value, dict) else value.copy()
+                elif isinstance(value, dict) and isinstance(config["planning"][key], dict):
                     # Deep merge for nested dicts like decompose, rephrase
                     for k, v in value.items():
                         if k not in config["planning"][key]:
@@ -293,9 +287,7 @@ async def websocket_research_run(websocket: WebSocket):
         def progress_callback(event: dict[str, Any]):
             """Progress callback function, puts progress events into queue"""
             try:
-                asyncio.get_event_loop().call_soon_threadsafe(
-                    progress_queue.put_nowait, event
-                )
+                asyncio.get_event_loop().call_soon_threadsafe(progress_queue.put_nowait, event)
             except Exception as e:
                 logger.error(f"Progress callback error: {e}")
 
@@ -404,9 +396,7 @@ async def websocket_research_run(websocket: WebSocket):
                     "logging", {}
                 ).get("log_dir")
                 research_logger = get_logger("Research", log_dir=log_dir)
-                research_logger.success(
-                    f"[{task_id}] Research flow completed: {topic[:50]}..."
-                )
+                research_logger.success(f"[{task_id}] Research flow completed: {topic[:50]}...")
                 task_manager.update_task_status(task_id, "completed")
             except Exception as e:
                 logger.warning(f"Failed to log completion: {e}")
@@ -420,9 +410,9 @@ async def websocket_research_run(websocket: WebSocket):
 
         # Update task status to error
         try:
-            log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-                "logging", {}
-            ).get("log_dir")
+            log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
+                "log_dir"
+            )
             research_logger = get_logger("Research", log_dir=log_dir)
             research_logger.error(f"[{task_id}] Research flow failed: {e}")
             task_manager.update_task_status(task_id, "error", error=str(e))

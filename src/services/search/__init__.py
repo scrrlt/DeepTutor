@@ -162,10 +162,7 @@ def web_search(
 
     # Determine provider: function arg > env var > config > default
     provider_name = (
-        provider
-        or os.environ.get("SEARCH_PROVIDER")
-        or config.get("provider")
-        or "perplexity"
+        provider or os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity"
     ).lower()
 
     # Determine consolidation from config if not provided
@@ -225,11 +222,7 @@ def web_search(
         answer = result.get("answer", "")
         _logger.info(f"Query: {query}")
         if answer:
-            _logger.info(
-                f"Answer: {answer[:200]}..."
-                if len(answer) > 200
-                else f"Answer: {answer}"
-            )
+            _logger.info(f"Answer: {answer[:200]}..." if len(answer) > 200 else f"Answer: {answer}")
         _logger.info(f"Citations: {len(result.get('citations', []))}")
 
     return result
@@ -253,9 +246,7 @@ def get_current_config() -> dict[str, Any]:
     config = _get_web_search_config()
 
     # Determine effective provider
-    provider = (
-        os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity"
-    ).lower()
+    provider = (os.environ.get("SEARCH_PROVIDER") or config.get("provider") or "perplexity").lower()
 
     return {
         "enabled": config.get("enabled", True),

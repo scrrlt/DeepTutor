@@ -58,9 +58,7 @@ class RAGAnythingDoclingPipeline:
         """
         self.logger = get_logger("RAGAnythingDoclingPipeline")
         self.kb_base_dir = kb_base_dir or str(
-            Path(__file__).resolve().parent.parent.parent.parent.parent
-            / "data"
-            / "knowledge_bases"
+            Path(__file__).resolve().parent.parent.parent.parent.parent / "data" / "knowledge_bases"
         )
         self.enable_image = enable_image_processing
         self.enable_table = enable_table_processing
@@ -184,9 +182,7 @@ class RAGAnythingDoclingPipeline:
             rag = self._get_rag_instance(kb_name)
             await rag._ensure_lightrag_initialized()
 
-            total_files = len(classification.needs_mineru) + len(
-                classification.text_files
-            )
+            total_files = len(classification.needs_mineru) + len(classification.text_files)
             idx = 0
             total_images_migrated = 0
 
@@ -194,9 +190,7 @@ class RAGAnythingDoclingPipeline:
             for file_path in classification.needs_mineru:
                 idx += 1
                 file_name = Path(file_path).name
-                self.logger.info(
-                    f"Processing [{idx}/{total_files}] (Docling): {file_name}"
-                )
+                self.logger.info(f"Processing [{idx}/{total_files}] (Docling): {file_name}")
 
                 # Step 1: Parse document (without RAG insertion)
                 self.logger.info("  Step 1/3: Parsing document...")
@@ -207,9 +201,7 @@ class RAGAnythingDoclingPipeline:
                 )
 
                 # Step 2: Migrate images and update paths
-                self.logger.info(
-                    "  Step 2/3: Migrating images to canonical location..."
-                )
+                self.logger.info("  Step 2/3: Migrating images to canonical location...")
                 (
                     updated_content_list,
                     num_migrated,
@@ -279,9 +271,7 @@ class RAGAnythingDoclingPipeline:
             content_list_dir = kb_dir / "content_list"
 
             if not content_list_dir.exists():
-                self.logger.warning(
-                    "No content_list directory found, skipping extraction"
-                )
+                self.logger.warning("No content_list directory found, skipping extraction")
                 return
 
             # Load all content list files
@@ -343,9 +333,7 @@ class RAGAnythingDoclingPipeline:
             rag = self._get_rag_instance(kb_name)
             await rag._ensure_lightrag_initialized()
 
-            answer = await rag.aquery(
-                query, mode=mode, only_need_context=only_need_context
-            )
+            answer = await rag.aquery(query, mode=mode, only_need_context=only_need_context)
             answer_str = answer if isinstance(answer, str) else str(answer)
 
             return {

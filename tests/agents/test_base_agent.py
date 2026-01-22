@@ -36,9 +36,7 @@ def base_agent() -> BaseAgent:
         ),
     ):
         config = LLMConfig(model="test_model", binding="test_binding")
-        agent = ConcreteAgent(
-            module_name="test_module", agent_name="test_agent", config=config
-        )
+        agent = ConcreteAgent(module_name="test_module", agent_name="test_agent", config=config)
         yield agent
 
 
@@ -88,9 +86,7 @@ async def test_call_llm(base_agent: BaseAgent):
         base_agent (BaseAgent): The BaseAgent instance.
     """
     base_agent.provider = MagicMock()
-    base_agent.provider.complete = AsyncMock(
-        return_value=MagicMock(content="test_response")
-    )
+    base_agent.provider.complete = AsyncMock(return_value=MagicMock(content="test_response"))
 
     response = await base_agent.call_llm("user_prompt", "system_prompt")
 
@@ -113,9 +109,7 @@ async def test_stream_llm(base_agent: BaseAgent):
     base_agent.provider = MagicMock()
     base_agent.provider.stream = mock_stream
 
-    chunks = [
-        chunk async for chunk in base_agent.stream_llm("user_prompt", "system_prompt")
-    ]
+    chunks = [chunk async for chunk in base_agent.stream_llm("user_prompt", "system_prompt")]
 
     assert "".join(chunks) == "test response"
 

@@ -88,9 +88,7 @@ async def test_main_solver_ainit_invalid_config():
         new_callable=AsyncMock,
     ) as mock_load_config:
         mock_load_config.return_value = {
-            "solve": {
-                "agents": {"investigate_agent": {"max_iterations": "not_an_integer"}}
-            }
+            "solve": {"agents": {"investigate_agent": {"max_iterations": "not_an_integer"}}}
         }
 
         with patch(
@@ -170,9 +168,7 @@ async def test_main_solver_solve_workflow():
             with patch.object(
                 solver, "_run_dual_loop_pipeline", new_callable=AsyncMock
             ) as mock_run_pipeline:
-                mock_run_pipeline.return_value = {
-                    "final_answer": "This is the final answer."
-                }
+                mock_run_pipeline.return_value = {"final_answer": "This is the final answer."}
 
                 question = "What is the meaning of life?"
                 result = await solver.solve(question)
@@ -240,21 +236,15 @@ async def test_main_solver_dual_loop_pipeline():
 
         # Mock memory objects
         with (
-            patch(
-                "src.agents.solve.main_solver.InvestigateMemory"
-            ) as mock_investigate_memory,
+            patch("src.agents.solve.main_solver.InvestigateMemory") as mock_investigate_memory,
             patch("src.agents.solve.main_solver.SolveMemory") as mock_solve_memory,
             patch("src.agents.solve.main_solver.CitationMemory"),
         ):
-            mock_investigate_memory.load_or_create.return_value = MagicMock(
-                knowledge_chain=[]
-            )
+            mock_investigate_memory.load_or_create.return_value = MagicMock(knowledge_chain=[])
 
             mock_step = MagicMock()
             mock_step.status = "waiting_response"
-            mock_solve_memory.load_or_create.return_value = MagicMock(
-                solve_chains=[mock_step]
-            )
+            mock_solve_memory.load_or_create.return_value = MagicMock(solve_chains=[mock_step])
 
             question = "Test question"
             output_dir = "/tmp/test_output"
