@@ -65,6 +65,30 @@ class LLMClient:
                 os.environ["OPENAI_BASE_URL"] = self.config.base_url
                 self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
 
+    def _setup_openai_env_vars(self) -> None:
+        """
+        Set OpenAI environment variables for LightRAG compatibility.
+
+        LightRAG's internal functions read from os.environ["OPENAI_API_KEY"]
+        even when api_key is passed as parameter. This method ensures the
+        environment variables are set for all LightRAG operations.
+
+        Set LLM_DISABLE_ENV_SYNC=true to skip this behavior when running in
+        multi-tenant environments that manage credentials explicitly.
+        """
+        if os.getenv("LLM_DISABLE_ENV_SYNC", "").lower() in ("1", "true", "yes"):
+            self.logger.debug("Skipping OpenAI env sync due to LLM_DISABLE_ENV_SYNC")
+            return
+        binding = getattr(self.config, "binding", "openai")
+
+        if binding in ("openai", "azure_openai", "gemini"):
+            if self.config.api_key and not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = self.config.api_key
+                self.logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility")
+            if self.config.base_url and not os.getenv("OPENAI_BASE_URL"):
+                os.environ["OPENAI_BASE_URL"] = self.config.base_url
+                self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
+
     async def complete(
         self,
         prompt: str,

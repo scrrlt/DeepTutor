@@ -30,6 +30,11 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from ..logger import Logger
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 # Model pricing per 1K tokens (USD)
 MODEL_PRICING = {
     "gpt-4o": {"input": 0.0025, "output": 0.010},

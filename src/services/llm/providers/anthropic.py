@@ -10,45 +10,6 @@ from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
 from .base_provider import BaseLLMProvider
 
-_DISALLOWED_KWARGS = {
-    "api_version",
-    "base_url",
-    "binding",
-    "logit_bias",
-    "max_retries",  # Handled by factory retry mechanism
-    "response_format",
-    "seed",
-    "stream",
-    "stream_options",
-}
-
-
-def _sanitize_kwargs(kwargs: dict[str, object]) -> dict[str, object]:
-    """
-    Remove OpenAI-only and factory-specific kwargs before Anthropic calls.
-
-    Args:
-        kwargs: Raw kwargs passed to the provider.
-
-    Returns:
-        Sanitized kwargs safe for the Anthropic SDK.
-    """
-    import logging
-
-    sanitized = dict(kwargs)
-    removed_keys = []
-    for key in _DISALLOWED_KWARGS:
-        if key in sanitized:
-            removed_keys.append(key)
-            sanitized.pop(key)
-
-    if removed_keys:
-        logging.getLogger("AnthropicProvider").warning(
-            "Ignoring unsupported Anthropic kwargs (handled upstream): %s", removed_keys
-        )
-
-    return sanitized
-
 
 @register_provider("anthropic")
 class AnthropicProvider(BaseLLMProvider):
