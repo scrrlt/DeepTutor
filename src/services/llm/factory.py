@@ -18,12 +18,23 @@ from typing import (
     TypeAlias,
     TypedDict,
 )
+from collections.abc import Mapping
+from typing import (
+    Any,
+    AsyncGenerator,
+    Dict,
+    List,
+    Optional,
+    TypeAlias,
+    TypedDict,
+)
 
 import tenacity
 
 from src.config.settings import settings
 from src.logging.logger import Logger, get_logger
 
+from . import local_provider
 from . import local_provider
 from .config import get_llm_config
 from .exceptions import (
@@ -37,6 +48,7 @@ from .providers.base_provider import BaseLLMProvider
 from .utils import is_local_llm_server
 
 # Initialize logger
+logger: Logger = get_logger("LLMFactory")
 logger: Logger = get_logger("LLMFactory")
 
 # Default retry configuration (bound to settings)
@@ -65,6 +77,7 @@ def _is_retriable_error(error: BaseException) -> bool:
     """
     from aiohttp import ClientError
 
+    if isinstance(error, (asyncio.TimeoutError, ClientError)):
     if isinstance(error, (asyncio.TimeoutError, ClientError)):
         return True
 
@@ -144,6 +157,7 @@ async def complete(
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
     **kwargs: object,
+    **kwargs: object,
 ) -> str:
     """
     Unified LLM completion function with automatic retry.
@@ -160,6 +174,8 @@ async def complete(
         api_version: API version for Azure OpenAI (optional)
         binding: Provider binding type (optional)
         messages: Pre-built messages array (optional)
+        max_retries: Maximum number of retry attempts (default: 3)
+        retry_delay: Initial delay between retries in seconds (default: 1.0)
         max_retries: Maximum number of retry attempts (default: 3)
         retry_delay: Initial delay between retries in seconds (default: 1.0)
         exponential_backoff: Whether to use exponential backoff (default: True)
@@ -228,12 +244,18 @@ async def complete(
         wait=wait_strategy,
         stop=tenacity.stop_after_attempt(max_retries + 1),
         before_sleep=_log_retry_warning,
+        wait=wait_strategy,
+        stop=tenacity.stop_after_attempt(max_retries + 1),
+        before_sleep=_log_retry_warning,
     )
+    async def _do_complete(call_kwargs: CallKwargs) -> str:
     async def _do_complete(call_kwargs: CallKwargs) -> str:
         try:
             if use_local:
                 return await local_provider.complete(**call_kwargs)
             else:
+                from . import cloud_provider
+
                 from . import cloud_provider
 
                 return await cloud_provider.complete(**call_kwargs)
@@ -244,9 +266,13 @@ async def complete(
             provider_value = call_kwargs.get("binding")
             provider_name = provider_value if isinstance(provider_value, str) else "unknown"
             mapped_error = map_error(e, provider=provider_name)
+            provider_value = call_kwargs.get("binding")
+            provider_name = provider_value if isinstance(provider_value, str) else "unknown"
+            mapped_error = map_error(e, provider=provider_name)
             raise mapped_error from e
 
     # Build call kwargs
+    call_kwargs: CallKwargs = {
     call_kwargs: CallKwargs = {
         "prompt": prompt,
         "system_prompt": system_prompt,
@@ -267,6 +293,7 @@ async def complete(
 
     # Execute with retry (handled by tenacity decorator)
     return await _do_complete(call_kwargs)
+    return await _do_complete(call_kwargs)
 
 
 async def stream(
@@ -282,6 +309,7 @@ async def stream(
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
+    **kwargs: object,
     **kwargs: object,
 ) -> AsyncGenerator[str, None]:
     """
@@ -304,6 +332,8 @@ async def stream(
         messages: Pre-built messages array (optional)
         max_retries: Maximum number of retry attempts (default: 3)
         retry_delay: Initial delay between retries in seconds (default: 1.0)
+        max_retries: Maximum number of retry attempts (default: 3)
+        retry_delay: Initial delay between retries in seconds (default: 1.0)
         exponential_backoff: Whether to use exponential backoff (default: True)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
@@ -323,6 +353,7 @@ async def stream(
     use_local = _should_use_local(base_url)
 
     # Build call kwargs
+    call_kwargs: CallKwargs = {
     call_kwargs: CallKwargs = {
         "prompt": prompt,
         "system_prompt": system_prompt,
@@ -345,18 +376,24 @@ async def stream(
     last_exception = None
     delay = retry_delay
     has_yielded = False
+    has_yielded = False
 
+    for attempt in range(max_retries + 1):
     for attempt in range(max_retries + 1):
         try:
             # Route to appropriate provider
             if use_local:
                 async for chunk in local_provider.stream(**call_kwargs):
                     has_yielded = True
+                    has_yielded = True
                     yield chunk
             else:
                 from . import cloud_provider
 
+                from . import cloud_provider
+
                 async for chunk in cloud_provider.stream(**call_kwargs):
+                    has_yielded = True
                     has_yielded = True
                     yield chunk
             # If we get here, streaming completed successfully
@@ -368,12 +405,17 @@ async def stream(
             if has_yielded:
                 raise
 
+            # If we've already yielded, don't retry
+            if has_yielded:
+                raise
+
             # Check if we should retry
             if attempt >= max_retries or not _is_retriable_error(e):
                 raise
 
             # Calculate delay for next attempt
             if exponential_backoff:
+                current_delay = min(delay * (2**attempt), 60)  # Cap at 60 seconds
                 current_delay = min(delay * (2**attempt), 60)  # Cap at 60 seconds
             else:
                 current_delay = delay
@@ -413,6 +455,8 @@ async def fetch_models(
     else:
         from . import cloud_provider
 
+        from . import cloud_provider
+
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
 
@@ -440,7 +484,32 @@ ProviderPresetMap: TypeAlias = Mapping[str, ProviderPreset]
 ProviderPresetBundle: TypeAlias = Mapping[str, ProviderPresetMap]
 
 
+class ApiProviderPreset(TypedDict, total=False):
+    """Typed representation of API provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    models: list[str]
+    binding: str
+
+
+class LocalProviderPreset(TypedDict, total=False):
+    """Typed representation of local provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    default_key: str
+
+
+ProviderPreset: TypeAlias = ApiProviderPreset | LocalProviderPreset
+ProviderPresetMap: TypeAlias = Mapping[str, ProviderPreset]
+ProviderPresetBundle: TypeAlias = Mapping[str, ProviderPresetMap]
+
+
 # API Provider Presets
+API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
 API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
     "openai": {
         "name": "OpenAI",
@@ -471,6 +540,7 @@ API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
 
 # Local Provider Presets
 LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
+LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
     "ollama": {
         "name": "Ollama",
         "base_url": "http://localhost:11434/v1",
@@ -498,6 +568,7 @@ LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
 }
 
 
+def get_provider_presets() -> ProviderPresetBundle:
 def get_provider_presets() -> ProviderPresetBundle:
     """
     Get all provider presets for frontend display.

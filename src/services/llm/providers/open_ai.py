@@ -20,6 +20,11 @@ from .base_provider import BaseLLMProvider
 from src.logging import get_logger
 
 
+logger = get_logger(__name__)
+
+from src.logging import get_logger
+
+
 
 logger = get_logger(__name__)
 
@@ -68,6 +73,8 @@ class OpenAIProvider(BaseLLMProvider):
                 **kwargs,
             )
 
+            if not response.choices:
+                raise ValueError("API returned no choices in response")
             choice = response.choices[0]
             usage = response.usage.model_dump() if response.usage else {}
 
@@ -75,6 +82,7 @@ class OpenAIProvider(BaseLLMProvider):
                 content=content,
                 raw_response=raw_response,
                 usage=usage,
+                provider="azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai",
                 provider="azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai",
                 model=model,
                 finish_reason=finish_reason,
@@ -107,6 +115,8 @@ class OpenAIProvider(BaseLLMProvider):
         accumulated_content = ""
         provider_label = "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
         final_usage = None
+        provider_label = "azure" if isinstance(self.client, openai.AsyncAzureOpenAI) else "openai"
+        final_usage = None
 
         try:
             async for chunk in stream:
@@ -117,7 +127,7 @@ class OpenAIProvider(BaseLLMProvider):
                 yield TutorStreamChunk(
                     content=accumulated_content,
                     delta=delta,
-                    provider="openai",
+                    provider=provider_label,
                     model=model,
                     is_complete=False,
                 )

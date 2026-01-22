@@ -24,7 +24,6 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -40,7 +39,6 @@ class ExaProvider(BaseSearchProvider):
     supports_answer = True  # Provides summaries and context
     BASE_URL = "https://api.exa.ai/search"
 
-    async def search(
     async def search(
         self,
         query: str,

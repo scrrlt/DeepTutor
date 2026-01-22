@@ -8,6 +8,8 @@ from collections.abc import AsyncGenerator
 import json
 import logging
 from typing import Any, AsyncGenerator, Dict, List, Optional
+import logging
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
@@ -16,6 +18,7 @@ from .exceptions import LLMAPIError, LLMConfigError
 logger = get_logger(__name__)
 from .utils import (
     collect_model_names,
+    collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
@@ -23,6 +26,8 @@ from .utils import (
     extract_response_content,
     sanitize_url,
 )
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,7 @@ async def complete(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
+    **kwargs: Any,
     **kwargs: Any,
 ) -> str:
     """
@@ -120,6 +126,7 @@ async def stream(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
+    **kwargs: Any,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
@@ -257,6 +264,7 @@ async def stream(
                                 content = delta.get("content")
                                 if content:
                                     # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
+                                    # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     yield content
                         except json.JSONDecodeError:
                             pass
@@ -267,6 +275,7 @@ async def stream(
         raise
     except Exception as e:
         # Streaming failed, fall back to non-streaming
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
         logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
@@ -328,7 +337,9 @@ async def fetch_models(
                         data = await resp.json()
                         if "models" in data:
                             return collect_model_names(data["models"])
+                            return collect_model_names(data["models"])
             except Exception:
+                pass  # Fail silently if model fetching fails for this endpoint
                 pass  # Fail silently if model fetching fails for this endpoint
 
         # Try OpenAI-compatible /models
@@ -341,11 +352,15 @@ async def fetch_models(
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):
                         return collect_model_names(data["data"])
+                        return collect_model_names(data["data"])
                     elif "models" in data and isinstance(data["models"], list):
+                        return collect_model_names(data["models"])
                         return collect_model_names(data["models"])
                     elif isinstance(data, list):
                         return collect_model_names(data)
+                        return collect_model_names(data)
         except Exception as e:
+            logger.error("Error fetching models from %s: %s", base_url, e)
             logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []

@@ -105,6 +105,14 @@ class EmbeddingClient:
         Executes the async embed call on the loop where the client was initialized
         to avoid event loop affinity issues.
         """
+
+    def embed_sync(self, texts: List[str]) -> List[List[float]]:
+        """
+        Thread-safe synchronous wrapper for embed().
+
+        Executes the async embed call on the loop where the client was initialized
+        to avoid event loop affinity issues.
+        """
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
