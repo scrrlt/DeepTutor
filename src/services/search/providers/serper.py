@@ -40,7 +40,7 @@ class SerperProvider(BaseSearchProvider):
     supports_answer = False  # Raw SERP results, no LLM answer
     BASE_URL = "https://google.serper.dev"
 
-    def search(
+    async def search(
         self,
         query: str,
         mode: str = "search",  # search, scholar
@@ -98,7 +98,12 @@ class SerperProvider(BaseSearchProvider):
                 f"{error_data.get('message', response.text)}"
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except (json.JSONDecodeError, ValueError):
+            self.logger.error("Failed to decode Serper JSON response")
+            raise SerperAPIError("Failed to decode Serper JSON response")
+
         self.logger.debug(f"Serper returned {len(data.get('organic', []))} results")
 
         # Extract search results

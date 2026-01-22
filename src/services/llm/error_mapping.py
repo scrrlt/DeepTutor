@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Optional, Type
+from types import ModuleType
+from typing import Callable, List, Optional, Type, cast
 
 # Import unified exceptions from exceptions.py
 from .exceptions import (
@@ -62,14 +63,15 @@ _GLOBAL_RULES: List[MappingRule] = [
     ),
 ]
 
-if _HAS_OPENAI:
+if _HAS_OPENAI and openai is not None:
+    openai_module = cast(ModuleType, openai)
     _GLOBAL_RULES[:0] = [
         MappingRule(
-            classifier=_instance_of(openai.AuthenticationError),
+            classifier=_instance_of(openai_module.AuthenticationError),
             factory=lambda exc, provider: LLMAuthenticationError(str(exc), provider=provider),
         ),
         MappingRule(
-            classifier=_instance_of(openai.RateLimitError),
+            classifier=_instance_of(openai_module.RateLimitError),
             factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
         ),
     ]

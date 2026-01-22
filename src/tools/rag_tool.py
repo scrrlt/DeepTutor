@@ -7,6 +7,7 @@ All logic is delegated to RAGService in src/services/rag/service.py.
 """
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -19,6 +20,9 @@ load_dotenv(project_root / ".env", override=False)
 
 # Import RAGService as the single entry point
 from src.services.rag.service import RAGService
+
+# Default provider constant used by tests and external callers
+DEFAULT_RAG_PROVIDER = os.getenv("RAG_PROVIDER", "raganything")
 
 
 async def rag_search(
@@ -65,6 +69,9 @@ async def rag_search(
 
     try:
         return await service.search(query=query, kb_name=kb_name, mode=mode, **kwargs)
+    except ValueError:
+        # Preserve ValueError for callers/tests that expect the specific error type
+        raise
     except Exception as e:
         raise Exception(f"RAG search failed: {e}")
 

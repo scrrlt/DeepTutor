@@ -23,6 +23,7 @@ class TutorStreamChunk(BaseModel):
     model: str
     is_complete: bool = False
     usage: Optional[Dict[str, int]] = None
+    cost_estimate: float = 0.0
 
 
 AsyncStreamGenerator = AsyncGenerator[TutorStreamChunk, None]

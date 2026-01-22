@@ -7,6 +7,7 @@ Unified embedding client for all DeepTutor services.
 Now supports multiple providers through adapters.
 """
 
+import asyncio
 from typing import List, Optional
 
 from src.logging import get_logger
@@ -34,6 +35,12 @@ class EmbeddingClient:
         self.config = config or get_embedding_config()
         self.logger = get_logger("EmbeddingClient")
         self.manager: EmbeddingProviderManager = get_embedding_provider_manager()
+
+        # Capture the loop where the client/adapters were created for thread-safe sync wrapper
+        try:
+            self._init_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._init_loop = None
 
         # Initialize adapter based on binding configuration
         try:
@@ -91,24 +98,45 @@ class EmbeddingClient:
 
     def embed_sync(self, texts: List[str]) -> List[List[float]]:
         """
-        Synchronous wrapper for embed().
+        Thread-safe synchronous wrapper for embed().
 
-        Use this when you need to call from non-async context.
+        Executes the async embed call on the loop where the client was initialized
+        to avoid event loop affinity issues.
         """
-        import asyncio
 
+    def embed_sync(self, texts: List[str]) -> List[List[float]]:
+        """
+        Thread-safe synchronous wrapper for embed().
+
+        Executes the async embed call on the loop where the client was initialized
+        to avoid event loop affinity issues.
+        """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.embed(texts))
-                    return future.result()
-            else:
-                return loop.run_until_complete(self.embed(texts))
+            current_loop = asyncio.get_running_loop()
         except RuntimeError:
+            current_loop = None
+
+        if current_loop is None:
+            # No running loop, safe to create a new one
             return asyncio.run(self.embed(texts))
+
+        if current_loop == self._init_loop:
+            # Called sync from within the init loop - this would block
+            raise RuntimeError(
+                "embed_sync() cannot be called from within the same running event loop. "
+                "Use 'await embed()' instead."
+            )
+
+        if self._init_loop and self._init_loop.is_running():
+            # Different loop context, dispatch to init loop for adapter affinity
+            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
+            return future.result(timeout=self.config.request_timeout or 30)
+
+        # Init loop is dead but we're in a different running loop - can't safely proceed
+        raise RuntimeError(
+            "embed_sync() called from a running event loop, but the initialization loop "
+            "is no longer running. Re-initialize the client in the current async context."
+        )
 
     def get_embedding_func(self):
         """

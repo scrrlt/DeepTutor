@@ -11,7 +11,6 @@ from dataclasses import dataclass
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(PROJECT_ROOT / ".env.local", override=False)
 load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
@@ -29,13 +29,13 @@ class EmbeddingConfig:
 
     model: str
     api_key: str
-    base_url: Optional[str] = None
+    base_url: str | None = None
     binding: str = "openai"
-    api_version: Optional[str] = None
-    dim: int = 3072
+    api_version: str | None = None
+    dim: int | None = None
     max_tokens: int = 8192
     request_timeout: int = 30
-    input_type: Optional[str] = None  # For task-aware embeddings (Cohere, Jina)
+    input_type: str | None = None  # For task-aware embeddings
 
     # Optional provider-specific settings
     encoding_format: str = "float"
@@ -44,14 +44,14 @@ class EmbeddingConfig:
     late_chunking: bool = False
 
 
-def _strip_value(value: Optional[str]) -> Optional[str]:
+def _strip_value(value: str | None) -> str | None:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
         return None
     return value.strip().strip("\"'")
 
 
-def _to_int(value: Optional[str], default: int) -> int:
+def _to_int(value: str | None, default: int) -> int:
     """Convert environment variable to int, fallback to default value on failure."""
     try:
         return int(value) if value is not None else default
@@ -59,11 +59,38 @@ def _to_int(value: Optional[str], default: int) -> int:
         return default
 
 
-def _to_bool(value: Optional[str], default: bool) -> bool:
+def _to_bool(value: str | None, default: bool) -> bool:
     """Convert environment variable to bool."""
     if value is None:
         return default
     return value.lower() in ("true", "1", "yes", "on")
+
+
+def _get_default_dimensions(model: str) -> int:
+    """
+    Get default embedding dimensions for known models.
+
+    Args:
+        model: Model name (case-insensitive)
+
+    Returns:
+        Default dimensions for the model
+    """
+    model_lower = model.lower()
+
+    # OpenAI models
+    if "text-embedding-ada-002" in model_lower:
+        return 1536
+    elif "text-embedding-3-small" in model_lower:
+        return 1536
+    elif "text-embedding-3-large" in model_lower:
+        return 3072
+
+    # Anthropic models (if they add embeddings)
+    # Add more as needed
+
+    # Default fallback
+    return 3072
 
 
 def get_embedding_config() -> EmbeddingConfig:
@@ -86,19 +113,22 @@ def get_embedding_config() -> EmbeddingConfig:
 
         config = get_active_embedding_config()
         if config and config.get("model"):
+            dim = config.get("dimensions")
+            if dim is None:
+                dim = _get_default_dimensions(config["model"])
             return EmbeddingConfig(
                 binding=config.get("provider", "openai"),
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
                 api_version=config.get("api_version"),
-                dim=config.get("dimensions", 3072),
+                dim=dim,
             )
     except ImportError:
         # Unified config service not yet available, fall back to env
         pass
     except Exception as e:
-        logger.warning(f"Failed to load from unified config: {e}")
+        logger.warning("Failed to load from unified config: %s", e)
 
     # 2. Fallback to environment variables
     binding = _strip_value(os.getenv("EMBEDDING_BINDING", "openai"))
@@ -110,9 +140,8 @@ def get_embedding_config() -> EmbeddingConfig:
 
     # Strict mode: Model is required
     if not model:
-        raise ValueError(
-            "EMBEDDING_MODEL not set. Please configure it in .env file or add a configuration in Settings"
-        )
+        model = "text-embedding-3-large"  # Default fallback model
+        dim = 3072  # Use default for this model
 
     # Check if API key is required
     # Local providers (Ollama, LM Studio) don't need API keys
@@ -129,19 +158,35 @@ def get_embedding_config() -> EmbeddingConfig:
         )
 
     # Get optional configuration
-    dim = _to_int(dim_str, 3072)
+    dim = _to_int(dim_str, None)
+    # If dim not specified, use model-appropriate default
+    if dim is None:
+        dim = _get_default_dimensions(model)
+    # Override for known models to ensure correctness
+    if model == "text-embedding-3-small":
+        dim = 1536
+    elif model == "text-embedding-3-large":
+        dim = 3072
     max_tokens = _to_int(_strip_value(os.getenv("EMBEDDING_MAX_TOKENS")), 8192)
-    request_timeout = _to_int(_strip_value(os.getenv("EMBEDDING_REQUEST_TIMEOUT")), 30)
+    request_timeout = _to_int(
+        _strip_value(os.getenv("EMBEDDING_REQUEST_TIMEOUT")), 30
+    )
     input_type = _strip_value(os.getenv("EMBEDDING_INPUT_TYPE"))  # Optional
 
     # Provider-specific optional settings
-    encoding_format = _strip_value(os.getenv("EMBEDDING_ENCODING_FORMAT")) or "float"
-    normalized = _to_bool(_strip_value(os.getenv("EMBEDDING_NORMALIZED")), True)
+    encoding_format = (
+        _strip_value(os.getenv("EMBEDDING_ENCODING_FORMAT")) or "float"
+    )
+    normalized = _to_bool(
+        _strip_value(os.getenv("EMBEDDING_NORMALIZED")), True
+    )
     truncate = _to_bool(_strip_value(os.getenv("EMBEDDING_TRUNCATE")), True)
-    late_chunking = _to_bool(_strip_value(os.getenv("EMBEDDING_LATE_CHUNKING")), False)
+    late_chunking = _to_bool(
+        _strip_value(os.getenv("EMBEDDING_LATE_CHUNKING")), False
+    )
 
     return EmbeddingConfig(
-        binding=binding,
+        binding=binding or "openai",
         model=model,
         api_key=api_key or "",
         base_url=base_url,

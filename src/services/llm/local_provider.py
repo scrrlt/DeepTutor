@@ -13,18 +13,22 @@ Key features:
 """
 
 import json
-from typing import AsyncGenerator, Dict, List, Optional
+import logging
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
 from .exceptions import LLMAPIError, LLMConfigError
 from .utils import (
+    collect_model_names,
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
     extract_response_content,
     sanitize_url,
 )
+
+logger = logging.getLogger(__name__)
 
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
@@ -37,7 +41,7 @@ async def complete(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using local LLM server.
@@ -109,6 +113,7 @@ async def complete(
                 content = clean_thinking_tags(content)
                 return content
 
+                logger.warning("Local LLM returned no choices: %s", result)
             return ""
 
 
@@ -119,7 +124,7 @@ async def stream(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.
@@ -238,6 +243,7 @@ async def stream(
                                 delta = chunk_data["choices"][0].get("delta", {})
                                 content = delta.get("content")
                                 if content:
+                                    # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     yield content
                         except json.JSONDecodeError:
                             pass
@@ -246,7 +252,7 @@ async def stream(
         raise  # Re-raise LLM errors as-is
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        print(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
             content = await complete(
@@ -304,9 +310,9 @@ async def fetch_models(
                     if resp.status == 200:
                         data = await resp.json()
                         if "models" in data:
-                            return [m["name"] for m in data.get("models", [])]
+                            return collect_model_names(data["models"])
             except Exception:
-                pass
+                pass  # Fail silently if model fetching fails for this endpoint
 
         # Try OpenAI-compatible /models
         try:
@@ -317,26 +323,13 @@ async def fetch_models(
 
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
+                        return collect_model_names(data["data"])
                     elif "models" in data and isinstance(data["models"], list):
-                        if data["models"] and isinstance(data["models"][0], dict):
-                            return [
-                                m.get("id") or m.get("name")
-                                for m in data["models"]
-                                if m.get("id") or m.get("name")
-                            ]
-                        return [str(m) for m in data["models"]]
+                        return collect_model_names(data["models"])
                     elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                        return collect_model_names(data)
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []
 

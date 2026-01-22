@@ -23,7 +23,7 @@ Pricing:
 from datetime import datetime
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -39,7 +39,7 @@ class ExaProvider(BaseSearchProvider):
     supports_answer = True  # Provides summaries and context
     BASE_URL = "https://api.exa.ai/search"
 
-    def search(
+    async def search(
         self,
         query: str,
         search_type: str = "auto",  # auto, neural, keyword
@@ -111,7 +111,12 @@ class ExaProvider(BaseSearchProvider):
         if end_published_date:
             payload["endPublishedDate"] = end_published_date
 
-        response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
+            except httpx.RequestError as e:
+                self.logger.error(f"Exa request failed: {e}")
+                raise Exception(f"Exa request failed: {e}")
 
         if response.status_code != 200:
             try:

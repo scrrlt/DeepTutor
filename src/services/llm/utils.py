@@ -9,8 +9,9 @@ Utility functions for LLM service:
 - Thinking tags cleaning
 """
 
+from collections.abc import Mapping, Sequence
 import re
-from typing import Any, Optional
+from typing import Any, cast
 
 # Known cloud provider domains (should never be treated as local)
 CLOUD_DOMAINS = [
@@ -44,7 +45,7 @@ LOCAL_PORTS = [
 LOCAL_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "0.0.0.0",
+    "0.0.0.0",  # Used by some local LLM servers for all-interface binding  # nosec B104
 ]
 
 # Ports that need /v1 suffix for OpenAI compatibility
@@ -161,7 +162,12 @@ def sanitize_url(base_url: str, model: str = "") -> str:
     # - No trailing slashes
     # - No /chat/completions or /completions/messages/embeddings suffixes
     #   (it adds these automatically)
-    for suffix in ["/chat/completions", "/completions", "/messages", "/embeddings"]:
+    for suffix in [
+        "/chat/completions",
+        "/completions",
+        "/messages",
+        "/embeddings",
+    ]:
         if url.endswith(suffix):
             url = url[: -len(suffix)]
             url = url.rstrip("/")
@@ -175,8 +181,8 @@ def sanitize_url(base_url: str, model: str = "") -> str:
 
 def clean_thinking_tags(
     content: str,
-    binding: Optional[str] = None,
-    model: Optional[str] = None,
+    binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Remove thinking tags from model output.
@@ -207,13 +213,23 @@ def clean_thinking_tags(
     if "<think>" in content:
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
 
+    # Remove unicode thinking delimiters often used by local/reasoning models
+    # e.g., ◣ ... ◢  (U+25E3 / U+25E2) or repeated marker like 꽁...꽁
+    # Use non-greedy matching and DOTALL to span multiple lines
+    if "◣" in content and "◢" in content:
+        content = re.sub(r"\u25E3.*?\u25E2", "", content, flags=re.DOTALL)
+
+    if "꽁" in content:
+        # 꽁 is sometimes used as both open+close marker, remove paired blocks
+        content = re.sub(r"꽁.*?꽁", "", content, flags=re.DOTALL)
+
     return content.strip()
 
 
 def build_chat_url(
     base_url: str,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
+    api_version: str | None = None,
+    binding: str | None = None,
 ) -> str:
     """
     Build the full chat completions endpoint URL.
@@ -230,6 +246,9 @@ def build_chat_url(
 
     Returns:
         Full endpoint URL
+
+    Raises:
+        ValueError: If an unsupported binding is provided.
     """
     if not base_url:
         return base_url
@@ -254,22 +273,72 @@ def build_chat_url(
     return url
 
 
-def extract_response_content(message: dict[str, Any]) -> str:
+def build_completion_url(
+    base_url: str,
+    api_version: str | None = None,
+    binding: str | None = None,
+) -> str:
+    """
+    Build the full completions endpoint URL.
+
+    Handles:
+    - Adding /completions suffix for OpenAI-compatible endpoints
+    - Adding api-version query parameter for Azure OpenAI
+
+    Args:
+        base_url: Base URL (should be sanitized first)
+        api_version: API version for Azure OpenAI (optional)
+        binding: Provider binding name (optional, for compatibility)
+
+    Returns:
+        Full endpoint URL
+
+    Raises:
+        ValueError: If binding is 'anthropic' or 'claude' (Anthropic does not
+            support the legacy completions endpoint).
+    """
+    if not base_url:
+        return base_url
+
+    url = base_url.rstrip("/")
+
+    binding_lower = (binding or "").lower()
+    if binding_lower in ["anthropic", "claude"]:
+        raise ValueError("Anthropic does not support /completions endpoint")
+
+    if not url.endswith("/completions"):
+        url += "/completions"
+
+    if api_version:
+        separator = "&" if "?" in url else "?"
+        url += f"{separator}api-version={api_version}"
+
+    return url
+
+
+def extract_response_content(message: Any) -> str:
     """
     Extract content from LLM response message.
 
     Handles different response formats from various models:
     - Standard content field
     - Reasoning models that use reasoning_content, reasoning, or thought fields
+    - Direct strings or None values
 
     Args:
-        message: Message dict from LLM response (e.g., choices[0].message)
+        message: Message object/dict from LLM response or direct string
 
     Returns:
         Extracted content string
     """
-    if not message:
+    if message is None:
         return ""
+
+    if isinstance(message, str):
+        return message
+
+    if not isinstance(message, (dict, Mapping)):
+        return str(message)
 
     content = message.get("content", "")
 
@@ -282,12 +351,68 @@ def extract_response_content(message: dict[str, Any]) -> str:
             or ""
         )
 
-    return content
+    return str(content)
+
+
+def _normalize_model_name(entry: object) -> str | None:
+    """
+    Normalize a model name from a provider payload entry.
+
+    Args:
+        entry: The raw model entry returned by a provider.
+
+    Returns:
+        The normalized model name, or None if one cannot be derived.
+
+    Raises:
+        None.
+    """
+    if entry is None:
+        return None
+
+    if isinstance(entry, str):
+        return entry if entry else None
+
+    if isinstance(entry, Mapping):
+        # Use cast to ensure type safety - Mapping interface doesn't guarantee get() method
+        # but we know this will be a dict-like object in practice from model APIs
+        entry_dict = cast(dict[str, Any], entry)
+        name = entry_dict.get("id")
+        if name is None:
+            name = entry_dict.get("name")
+        if name is None:
+            return None
+        text = str(name)
+        return text if text else None
+
+    text = str(entry)
+    return text if text else None
+
+
+def collect_model_names(entries: Sequence[object]) -> list[str]:
+    """
+    Collect normalized model names from a sequence of entries.
+
+    Args:
+        entries: Sequence of model entries from provider payloads.
+
+    Returns:
+        List of normalized model names.
+
+    Raises:
+        None.
+    """
+    names: list[str] = []
+    for entry in entries:
+        name = _normalize_model_name(entry)
+        if name is not None:
+            names.append(name)
+    return names
 
 
 def build_auth_headers(
-    api_key: Optional[str],
-    binding: Optional[str] = None,
+    api_key: str | None,
+    binding: str | None = None,
 ) -> dict[str, str]:
     """
     Build authentication headers for LLM API requests.
@@ -298,6 +423,9 @@ def build_auth_headers(
 
     Returns:
         Headers dict
+
+    Raises:
+        None.
     """
     headers = {"Content-Type": "application/json"}
 
@@ -309,7 +437,7 @@ def build_auth_headers(
     if binding_lower in ["anthropic", "claude"]:
         headers["x-api-key"] = api_key
         headers["anthropic-version"] = "2023-06-01"
-    elif binding_lower == "azure_openai":
+    elif binding_lower in ["azure_openai", "azure"]:
         headers["api-key"] = api_key
     else:
         headers["Authorization"] = f"Bearer {api_key}"
@@ -322,7 +450,9 @@ __all__ = [
     "sanitize_url",
     "is_local_llm_server",
     "build_chat_url",
+    "build_completion_url",
     "build_auth_headers",
+    "collect_model_names",
     # Content utilities
     "clean_thinking_tags",
     "extract_response_content",

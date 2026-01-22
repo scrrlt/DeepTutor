@@ -76,12 +76,15 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
         Pipeline instance
 
     Raises:
-        ValueError: If pipeline name is not found
+        ValueError: If pipeline name is not found or is None
     """
+    if not name:
+        raise ValueError("Pipeline name must be specified.")
+
     _init_pipelines()
     if name not in _PIPELINES:
         available = list(_PIPELINES.keys())
-        raise ValueError(f"Unknown pipeline: {name}. Available: {available}")
+        raise ValueError(f"Pipeline '{name}' not found. Available: {available}")
 
     factory = _PIPELINES[name]
 
@@ -130,6 +133,11 @@ def list_pipelines() -> List[Dict[str, str]]:
             "id": "raganything_docling",
             "name": "RAG-Anything (Docling)",
             "description": "Multimodal document processing with Docling parser. Better for Office documents (.docx, .pptx) and HTML. Easier to install.",
+        },
+        {
+            "id": "academic",
+            "name": "Academic",
+            "description": "Academic document pipeline: semantic chunking and numbered item extraction for papers and textbooks.",
         },
     ]
 

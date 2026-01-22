@@ -24,37 +24,7 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
 load_dotenv(PROJECT_ROOT / ".env", override=False)
-
-
-def _setup_openai_env_vars_early():
-    """
-    Set OPENAI_API_KEY environment variable early for LightRAG compatibility.
-
-    LightRAG's internal functions (e.g., create_openai_async_client) read directly
-    from os.environ["OPENAI_API_KEY"] instead of using the api_key parameter.
-    This function ensures the environment variable is set as soon as this module
-    is imported, before any LightRAG operations can occur.
-
-    This is called at module load time to ensure env vars are set before any
-    RAG operations, including those in worker threads/processes.
-    """
-    binding = os.getenv("LLM_BINDING", "openai")
-    api_key = os.getenv("LLM_API_KEY")
-    base_url = os.getenv("LLM_HOST")
-
-    # Only set env vars for OpenAI-compatible bindings
-    if binding in ("openai", "azure_openai", "gemini"):
-        if api_key and not os.getenv("OPENAI_API_KEY"):
-            os.environ["OPENAI_API_KEY"] = api_key
-            logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility (early init)")
-
-        if base_url and not os.getenv("OPENAI_BASE_URL"):
-            os.environ["OPENAI_BASE_URL"] = base_url
-            logger.debug(f"Set OPENAI_BASE_URL env var to {base_url} (early init)")
-
-
-# Execute early setup at module import time
-_setup_openai_env_vars_early()
+load_dotenv(PROJECT_ROOT / ".env.local", override=False)
 
 
 @dataclass
@@ -70,6 +40,31 @@ class LLMConfig:
     temperature: float = 0.7
 
 
+def initialize_environment():
+    """
+    Explicitly initialize environment variables for compatibility.
+
+    LightRAG's internal functions (e.g., create_openai_async_client) read directly
+    from os.environ["OPENAI_API_KEY"] instead of using the api_key parameter.
+    This function ensures the environment variable is set.
+
+    Should be called during application startup (main.py/run_server.py).
+    """
+    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
+    api_key = _strip_value(os.getenv("LLM_API_KEY"))
+    base_url = _strip_value(os.getenv("LLM_HOST"))
+
+    # Only set env vars for OpenAI-compatible bindings
+    if binding in ("openai", "azure_openai", "gemini"):
+        if api_key and not os.getenv("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = api_key
+            logger.debug("Set OPENAI_API_KEY env var (LightRAG compatibility)")
+
+        if base_url and not os.getenv("OPENAI_BASE_URL"):
+            os.environ["OPENAI_BASE_URL"] = base_url
+            logger.debug(f"Set OPENAI_BASE_URL env var to {base_url}")
+
+
 def _strip_value(value: Optional[str]) -> Optional[str]:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
@@ -79,7 +74,7 @@ def _strip_value(value: Optional[str]) -> Optional[str]:
 
 def _get_llm_config_from_env() -> LLMConfig:
     """Get LLM configuration from environment variables."""
-    binding = _strip_value(os.getenv("LLM_BINDING", "openai"))
+    binding = _strip_value(os.getenv("LLM_BINDING")) or "openai"
     model = _strip_value(os.getenv("LLM_MODEL"))
     api_key = _strip_value(os.getenv("LLM_API_KEY"))
     base_url = _strip_value(os.getenv("LLM_HOST"))
@@ -125,7 +120,7 @@ def get_llm_config() -> LLMConfig:
         config = get_active_llm_config()
         if config:
             return LLMConfig(
-                binding=config.get("provider", "openai"),
+                binding=config.get("provider") or "openai",
                 model=config["model"],
                 api_key=config.get("api_key", ""),
                 base_url=config.get("base_url"),
@@ -143,34 +138,14 @@ def get_llm_config() -> LLMConfig:
 
 async def get_llm_config_async() -> LLMConfig:
     """
-    Async version of get_llm_config for non-blocking configuration loading.
+    Async wrapper for get_llm_config.
+
+    Useful for consistency in async contexts, though the underlying load is synchronous.
 
     Returns:
         LLMConfig: Configuration dataclass
-
-    Raises:
-        LLMConfigError: If required configuration is missing
     """
-    # 1. Try to get active config from unified config service
-    try:
-        from src.services.config import get_active_llm_config
-
-        config = get_active_llm_config()
-        if config:
-            return LLMConfig(
-                binding=config.get("provider", "openai"),
-                model=config["model"],
-                api_key=config.get("api_key", ""),
-                base_url=config.get("base_url"),
-                api_version=config.get("api_version"),
-            )
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning(f"Failed to load from unified config: {e}")
-
-    # 2. Fallback to environment variables
-    return _get_llm_config_from_env()
+    return get_llm_config()
 
 
 def uses_max_completion_tokens(model: str) -> bool:
@@ -206,7 +181,7 @@ def uses_max_completion_tokens(model: str) -> bool:
     return False
 
 
-def get_token_limit_kwargs(model: str, max_tokens: int) -> dict:
+def get_token_limit_kwargs(model: str, max_tokens: int) -> dict[str, int]:
     """
     Get the appropriate token limit parameter for the model.
 

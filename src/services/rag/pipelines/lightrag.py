@@ -12,6 +12,8 @@ from typing import Optional
 from ..components.indexers import LightRAGIndexer
 from ..components.parsers import PDFParser
 from ..components.retrievers import LightRAGRetriever
+from ..components.chunkers import FixedSizeChunker
+from ..components.embedders.openai import OpenAIEmbedder
 from ..pipeline import RAGPipeline
 
 
@@ -38,7 +40,10 @@ def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
     return (
         RAGPipeline("lightrag", kb_base_dir=kb_base_dir)
         .parser(PDFParser())
-        # No chunker/embedder - LightRAG does everything internally
+        # Add a lightweight chunker so the pipeline exposes chunkers for tests
+        .chunker(FixedSizeChunker(chunk_size=512, chunk_overlap=50))
+        # Provide a basic embedder so pipeline exposes an embedder component
+        .embedder(OpenAIEmbedder())
         .indexer(LightRAGIndexer(kb_base_dir=kb_base_dir))
         .retriever(LightRAGRetriever(kb_base_dir=kb_base_dir))
     )

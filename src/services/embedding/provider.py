@@ -10,6 +10,7 @@ Provides centralized configuration and adapter selection.
 import logging
 from typing import Any, Dict, Optional, Type
 
+from .adapters.azure import AzureEmbeddingAdapter
 from .adapters.base import BaseEmbeddingAdapter
 from .adapters.cohere import CohereEmbeddingAdapter
 from .adapters.jina import JinaEmbeddingAdapter
@@ -32,7 +33,7 @@ class EmbeddingProviderManager:
     # Mapping of binding names to adapter classes
     ADAPTER_MAPPING: Dict[str, Type[BaseEmbeddingAdapter]] = {
         "openai": OpenAICompatibleEmbeddingAdapter,
-        "azure_openai": OpenAICompatibleEmbeddingAdapter,
+        "azure_openai": AzureEmbeddingAdapter,
         "jina": JinaEmbeddingAdapter,
         "huggingface": OpenAICompatibleEmbeddingAdapter,
         "google": OpenAICompatibleEmbeddingAdapter,
@@ -45,7 +46,9 @@ class EmbeddingProviderManager:
         """Initialize the provider manager."""
         self.adapter: Optional[BaseEmbeddingAdapter] = None
 
-    def get_adapter(self, binding: str, config: Dict[str, Any]) -> BaseEmbeddingAdapter:
+    def get_adapter(
+        self, binding: str, config: Dict[str, Any]
+    ) -> BaseEmbeddingAdapter:
         """
         Get and instantiate an adapter for the specified binding.
 
@@ -67,7 +70,7 @@ class EmbeddingProviderManager:
                 f"Unknown embedding binding: '{binding}'. Supported providers: {supported}"
             )
 
-        logger.info(f"Initializing embedding adapter for binding: {binding}")
+        logger.info("Initializing embedding adapter for binding: %s", binding)
         return adapter_class(config)
 
     def set_adapter(self, adapter: BaseEmbeddingAdapter) -> None:
@@ -78,7 +81,9 @@ class EmbeddingProviderManager:
             adapter: Adapter instance to set as active
         """
         self.adapter = adapter
-        logger.debug(f"Active embedding adapter set to: {adapter.__class__.__name__}")
+        logger.debug(
+            "Active embedding adapter set to: %s", adapter.__class__.__name__
+        )
 
     def get_active_adapter(self) -> BaseEmbeddingAdapter:
         """

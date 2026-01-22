@@ -40,8 +40,12 @@ class MarkdownParser(BaseComponent):
 
         self.logger.info(f"Parsing Markdown: {file_path.name}")
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except OSError as e:
+            self.logger.error(f"Failed to read file {file_path}: {e}")
+            raise
 
         return Document(
             content=content,
