@@ -109,19 +109,11 @@ class ReportingAgent(BaseAgent):
               "citations": int
             }
         """
-<<<<<<< HEAD
-        logger.info(f"\n{'=' * 70}")
-        logger.info("📄 ReportingAgent - Report Generation")
-        logger.info(f"{'=' * 70}")
-        logger.info(f"Topic: {topic}")
-        logger.info(f"Topic Blocks: {len(queue.blocks)}\n")
-=======
         self.logger.info(f"\n{'=' * 70}")
         self.logger.info("📄 ReportingAgent - Report Generation")
         self.logger.info(f"{'=' * 70}")
         self.logger.info(f"Topic: {topic}")
         self.logger.info(f"Topic Blocks: {len(queue.blocks)}\n")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         # Store progress_callback for use in _write_report
         self._progress_callback = progress_callback
@@ -133,11 +125,7 @@ class ReportingAgent(BaseAgent):
         # 1) Deduplication
         logger.info("🔄 Step 1: Deduplication and cleaning...")
         cleaned_blocks = await self._deduplicate_blocks(queue.blocks)
-<<<<<<< HEAD
-        logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
-=======
         self.logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback, "deduplicate_completed", kept_blocks=len(cleaned_blocks)
         )
@@ -145,11 +133,7 @@ class ReportingAgent(BaseAgent):
         # 2) Outline
         logger.info("\n📋 Step 2: Generating outline...")
         outline = await self._generate_outline(topic, cleaned_blocks)
-<<<<<<< HEAD
-        logger.info("✓ Outline generation completed")
-=======
         self.logger.info("✓ Outline generation completed")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback, "outline_completed", sections=len(outline.get("sections", []))
         )
@@ -160,28 +144,17 @@ class ReportingAgent(BaseAgent):
         # 3) Writing
         logger.info("\n✍️  Step 3: Writing report...")
         report_markdown = await self._write_report(topic, cleaned_blocks, outline)
-<<<<<<< HEAD
-        logger.info("✓ Report writing completed")
-=======
         self.logger.info("✓ Report writing completed")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(progress_callback, "writing_completed")
 
         word_count = len(report_markdown)
         sections = len(cleaned_blocks)
         citations = sum(len(b.tool_traces) for b in cleaned_blocks)
 
-<<<<<<< HEAD
-        logger.info("\n📊 Report Statistics:")
-        logger.info(f"   Word Count: {word_count}")
-        logger.info(f"   Sections: {sections}")
-        logger.info(f"   Citations: {citations}")
-=======
         self.logger.info("\n📊 Report Statistics:")
         self.logger.info(f"   Word Count: {word_count}")
         self.logger.info(f"   Sections: {sections}")
         self.logger.info(f"   Citations: {citations}")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback,
             "reporting_completed",
@@ -875,7 +848,9 @@ class ReportingAgent(BaseAgent):
 
         # Add source documents if available
         if sources:
-            result += f"\n<details>\n<summary>📄 Source Documents ({len(sources)} docs)</summary>\n\n"
+            result += "\n<details>\n<summary>📄 Source Documents ({} docs)</summary>\n\n".format(
+                len(sources)
+            )
             for i, source in enumerate(sources, 1):
                 title = source.get("title", "") or source.get("source_file", f"Document {i}")
                 content = source.get("content_preview", "")

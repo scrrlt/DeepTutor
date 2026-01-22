@@ -65,13 +65,8 @@ class ManagerAgent(BaseAgent):
         if block:
             # Mark as researching
             self.queue.mark_researching(block.block_id)
-<<<<<<< HEAD
-            logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
-            logger.info(f"   Topic: {block.sub_topic}")
-=======
             self.logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
             self.logger.info(f"   Topic: {block.sub_topic}")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         return block
 
@@ -90,11 +85,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_completed(block_id)
         if success:
-<<<<<<< HEAD
-            logger.info(f"✓ ManagerAgent: Task {block_id} completed")
-=======
             self.logger.info(f"✓ ManagerAgent: Task {block_id} completed")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         return success
 
@@ -165,15 +156,9 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_failed(block_id)
         if success:
-<<<<<<< HEAD
-            logger.error(f"✗ ManagerAgent: Task {block_id} failed")
-            if reason:
-                logger.info(f"   Reason: {reason}")
-=======
             self.logger.error(f"✗ ManagerAgent: Task {block_id} failed")
             if reason:
                 self.logger.info(f"   Reason: {reason}")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         return success
 
@@ -195,23 +180,14 @@ class ManagerAgent(BaseAgent):
         if not normalized:
             raise ValueError("New topic title cannot be empty")
         if self.queue.has_topic(normalized):
-<<<<<<< HEAD
-            logger.warning(
+            self.logger.info(
                 f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition"
             )
             return None
 
         block = self.queue.add_block(normalized, overview)
-        logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
-        logger.info(f"   Topic: {sub_topic}")
-=======
-            self.logger.info(f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition")
-            return None
-
-        block = self.queue.add_block(normalized, overview)
         self.logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
         self.logger.info(f"   Topic: {sub_topic}")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         return block
 
@@ -247,15 +223,6 @@ class ManagerAgent(BaseAgent):
             return {}
 
         stats = self.queue.get_statistics()
-<<<<<<< HEAD
-        logger.info("\n📊 Queue Status:")
-        logger.info(f"   Total Topics: {stats['total_blocks']}")
-        logger.info(f"   Pending: {stats['pending']}")
-        logger.info(f"   Researching: {stats['researching']}")
-        logger.info(f"   Completed: {stats['completed']}")
-        logger.error(f"   Failed: {stats['failed']}")
-        logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
-=======
         self.logger.info("\n📊 Queue Status:")
         self.logger.info(f"   Total Topics: {stats['total_blocks']}")
         self.logger.info(f"   Pending: {stats['pending']}")
@@ -263,7 +230,6 @@ class ManagerAgent(BaseAgent):
         self.logger.info(f"   Completed: {stats['completed']}")
         self.logger.error(f"   Failed: {stats['failed']}")
         self.logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         return stats
 

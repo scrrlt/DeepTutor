@@ -17,19 +17,11 @@ from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
 from .base_provider import BaseLLMProvider
 
-<<<<<<< HEAD
 from src.logging import get_logger
 
-<<<<<<< HEAD
+
+
 logger = get_logger(__name__)
-
-=======
-
-
-=======
->>>>>>> e0a614a (Refactor code execution tools and add workspace management)
-logger = get_logger(__name__)
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
 @register_provider("openai")
 class OpenAIProvider(BaseLLMProvider):
@@ -76,46 +68,8 @@ class OpenAIProvider(BaseLLMProvider):
                 **kwargs,
             )
 
-            content = ""
-            finish_reason: str | None = None
-            try:
-                choice = response.choices[0]
-                message = getattr(choice, "message", None)
-                content_val = getattr(message, "content", "") if message else ""
-                content = str(content_val or "")
-
-                finish_reason_val = getattr(choice, "finish_reason", None)
-                if finish_reason_val is not None and not isinstance(
-                    finish_reason_val, str
-                ):
-                    finish_reason = str(finish_reason_val)
-                else:
-                    finish_reason = finish_reason_val
-            except Exception:
-                content = ""
-                finish_reason = None
-
-            usage: dict[str, int] = {}
-            try:
-                if getattr(response, "usage", None):
-                    model_dump = getattr(response.usage, "model_dump", None)
-                    if callable(model_dump):
-                        usage_val = model_dump()
-                        if inspect.isawaitable(usage_val):
-                            usage_val = await usage_val
-                        if isinstance(usage_val, dict):
-                            usage = usage_val
-            except Exception:
-                usage = {}
-
-            raw_response: dict[str, Any] = {}
-            if hasattr(response, "model_dump"):
-                try:
-                    dumped = response.model_dump()
-                    if isinstance(dumped, dict):
-                        raw_response = dumped
-                except Exception:
-                    raw_response = {}
+            choice = response.choices[0]
+            usage = response.usage.model_dump() if response.usage else {}
 
             return TutorResponse(
                 content=content,
@@ -160,26 +114,13 @@ class OpenAIProvider(BaseLLMProvider):
                     delta = chunk.choices[0].delta.content
                     accumulated_content += delta
 
-                    yield TutorStreamChunk(
-                        content=accumulated_content,
-                        delta=delta,
-                        provider="openai",
-                        model=model,
-                        is_complete=False,
-                    )
-        except openai.APIConnectionError as e:
-            logger.error(f"Stream connection failed: {e}")
-            raise
-        except TypeError as exc:
-            # Compatibility shim for OpenAI APIConnectionError signature changes
-            try:
-                error = openai.APIConnectionError(
-                    request=None, message=str(exc)
+                yield TutorStreamChunk(
+                    content=accumulated_content,
+                    delta=delta,
+                    provider="openai",
+                    model=model,
+                    is_complete=False,
                 )
-                logger.error(f"Stream connection failed: {error}")
-                raise error from exc
-            except TypeError:
-                raise
 
         yield TutorStreamChunk(
             content=accumulated_content,

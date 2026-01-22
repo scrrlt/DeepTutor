@@ -365,6 +365,7 @@ async def fetch_models(
                     return models_from_list
         except Exception as e:
             logger.error(f"Error fetching models from {base_url}: {e}")
+            logger.error(f"Error fetching models from {base_url}: {e}")
 
         return []
 

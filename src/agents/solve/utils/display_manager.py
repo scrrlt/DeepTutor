@@ -197,7 +197,6 @@ class DisplayManager:
         """Add log"""
         if not self.rich_available:
             logger.info(message)
-            logger.info(message)
             return
 
         # Simple cleaning

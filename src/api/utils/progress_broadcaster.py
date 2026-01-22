@@ -9,13 +9,7 @@ from fastapi import WebSocket
 
 from src.logging import get_logger
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
-=======
->>>>>>> e0a614a (Refactor code execution tools and add workspace management)
 logger = get_logger(__name__)
 
 
@@ -39,13 +33,9 @@ class ProgressBroadcaster:
             if kb_name not in self._connections:
                 self._connections[kb_name] = set()
             self._connections[kb_name].add(websocket)
-<<<<<<< HEAD
             logger.info(
                 f"[ProgressBroadcaster] Connected WebSocket for KB '{kb_name}' (total: {len(self._connections[kb_name])})"
             )
-=======
-            logger.info(f"[ProgressBroadcaster] Connected WebSocket for KB '{kb_name}' (total: {len(self._connections[kb_name])})")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
     async def disconnect(self, kb_name: str, websocket: WebSocket):
         """Disconnect WebSocket connection"""

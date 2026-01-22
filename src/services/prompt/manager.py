@@ -104,7 +104,6 @@ class PromptManager:
                         return yaml.safe_load(f) or {}
                 except Exception as e:
                     logger.error(f"Warning: Failed to load {prompt_file}: {e}")
-                    logger.error(f"Warning: Failed to load {prompt_file}: {e}")
                     continue
 
         logger.warning(f"Warning: No prompt file found for {module_name}/{agent_name}")

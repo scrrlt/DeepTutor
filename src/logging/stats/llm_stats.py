@@ -24,9 +24,10 @@ Usage:
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from src.logging import get_logger
+
 
 logger = get_logger(__name__)
 
@@ -50,9 +51,7 @@ def get_pricing(model: str) -> dict[str, float]:
     for key, pricing in MODEL_PRICING.items():
         if key in model_lower or model_lower in key:
             return pricing
-    return MODEL_PRICING.get(
-        "gpt-4o-mini", {"input": 0.00015, "output": 0.0006}
-    )
+    return MODEL_PRICING.get("gpt-4o-mini", {"input": 0.00015, "output": 0.0006})
 
 
 def estimate_tokens(text: str) -> int:
@@ -129,9 +128,9 @@ class LLMStats:
 
         # Calculate cost
         pricing = get_pricing(model)
-        cost = (prompt_tokens / 1000.0) * pricing["input"] + (
-            completion_tokens / 1000.0
-        ) * pricing["output"]
+        cost = (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
+            "output"
+        ]
 
         # Record call
         call = LLMCall(
@@ -161,8 +160,7 @@ class LLMStats:
             "calls": len(self.calls),
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
-            "total_tokens": self.total_prompt_tokens
-            + self.total_completion_tokens,
+            "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
             "cost_usd": self.total_cost,
         }
 

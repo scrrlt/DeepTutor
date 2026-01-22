@@ -96,9 +96,7 @@ class DecomposeAgent(BaseAgent):
         self.logger.info(f"RAG Enabled: {self.enable_rag}")
         if mode == "auto":
             self.logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
-            self.logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
         else:
-            self.logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
             self.logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
 
         # If RAG is disabled, use direct LLM generation without RAG context

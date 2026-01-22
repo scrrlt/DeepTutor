@@ -116,22 +116,12 @@ def print_validation_result(is_valid: bool, errors: list[str], warnings: list[st
 
 if __name__ == "__main__":
     # Test configuration validation
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    logger.info("Configuration Validation Test")
-=======
-    print("Configuration Validation Test")
->>>>>>> cb09a95 (feat: Replace print statements with proper logging)
+
     logger.info("=" * 60)
-=======
     logger.section("Configuration Validation Test")
     logger.info("%s", "=" * 60)
->>>>>>> b97c4c6 (Refactor logging and improve code clarity across multiple modules)
-=======
     logger.info("Configuration Validation Test")
     logger.info("=" * 60)
->>>>>>> d73408a (refactor: improve logging consistency and clarity in various modules)
 
     # Validate config.yaml in current directory
     config_path = PROJECT_ROOT / "config.yaml"
