@@ -38,7 +38,12 @@ Usage:
     )
 """
 
-from .factory import get_pipeline, has_pipeline, list_pipelines, register_pipeline
+from .factory import (
+    get_pipeline,
+    has_pipeline,
+    list_pipelines,
+    register_pipeline,
+)
 from .pipeline import RAGPipeline
 from .service import RAGService
 from .types import Chunk, Document, SearchResult

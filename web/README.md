@@ -124,13 +124,13 @@ Main dashboard showing:
 Centralized API client for backend communication:
 
 ```typescript
-import { apiUrl } from "@/lib/api";
+import { apiUrl } from '@/lib/api'
 
 // REST API
-const response = await fetch(`${apiUrl}/knowledge/list`);
+const response = await fetch(`${apiUrl}/knowledge/list`)
 
 // WebSocket
-const ws = new WebSocket(`${wsUrl}/api/v1/solve`);
+const ws = new WebSocket(`${wsUrl}/api/v1/solve`)
 ```
 
 ### Global Context (context/GlobalContext.tsx)
@@ -151,40 +151,40 @@ Navigation sidebar with links to all modules.
 
 ```typescript
 const response = await fetch(`${apiUrl}/api/v1/knowledge/list`, {
-  method: "GET",
+  method: 'GET',
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
-});
-const data = await response.json();
+})
+const data = await response.json()
 ```
 
 ### WebSocket
 
 ```typescript
-const ws = new WebSocket(`${wsUrl}/api/v1/solve`);
+const ws = new WebSocket(`${wsUrl}/api/v1/solve`)
 
 ws.onopen = () => {
   ws.send(
     JSON.stringify({
-      question: "Your question",
-      kb_name: "ai_textbook",
-    }),
-  );
-};
+      question: 'Your question',
+      kb_name: 'ai_textbook',
+    })
+  )
+}
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
+ws.onmessage = event => {
+  const data = JSON.parse(event.data)
   // Handle streaming data
-};
+}
 
-ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
-};
+ws.onerror = error => {
+  console.error('WebSocket error:', error)
+}
 
 ws.onclose = () => {
-  console.log("WebSocket closed");
-};
+  console.log('WebSocket closed')
+}
 ```
 
 ## 🎨 Styling
@@ -264,9 +264,8 @@ Global styles in `app/globals.css` including:
 Configured in `lib/api.ts`:
 
 ```typescript
-export const apiUrl =
-  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8001";
-export const wsUrl = process.env.NEXT_PUBLIC_WS_BASE || "ws://localhost:8001";
+export const apiUrl = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8001'
+export const wsUrl = process.env.NEXT_PUBLIC_WS_BASE || 'ws://localhost:8001'
 ```
 
 Set in `.env.local`:
@@ -284,17 +283,17 @@ Key settings in `next.config.js`:
 const nextConfig = {
   // Dev indicator position
   devIndicators: {
-    position: "bottom-right",
+    position: 'bottom-right',
   },
   // Turbopack configuration
   turbopack: {
     resolveAlias: {
-      cytoscape: "cytoscape/dist/cytoscape.cjs.js",
+      cytoscape: 'cytoscape/dist/cytoscape.cjs.js',
     },
   },
   // Transpile packages
-  transpilePackages: ["mermaid"],
-};
+  transpilePackages: ['mermaid'],
+}
 ```
 
 ## 🔗 Related Modules

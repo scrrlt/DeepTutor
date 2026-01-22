@@ -29,8 +29,12 @@ router = APIRouter()
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
-config = load_config_with_main("solve_config.yaml", project_root)  # Use any config to get main.yaml
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
+config = load_config_with_main(
+    "solve_config.yaml", project_root
+)  # Use any config to get main.yaml
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+    "logging", {}
+).get("log_dir")
 logger = get_logger("IdeaGen", level="INFO", log_dir=log_dir)
 
 
@@ -45,7 +49,9 @@ class IdeaGenStage:
 
     INIT = "init"  # Initialization
     EXTRACTING = "extracting"  # Extracting knowledge points
-    KNOWLEDGE_EXTRACTED = "knowledge_extracted"  # Knowledge points extraction completed
+    KNOWLEDGE_EXTRACTED = (
+        "knowledge_extracted"  # Knowledge points extraction completed
+    )
     FILTERING = "filtering"  # Loose filtering
     FILTERED = "filtered"  # Filtering completed
     EXPLORING = "exploring"  # Exploring research ideas
@@ -58,7 +64,11 @@ class IdeaGenStage:
 
 
 async def send_status(
-    websocket: WebSocket, stage: str, message: str, data: dict = None, task_id: str = None
+    websocket: WebSocket,
+    stage: str,
+    message: str,
+    data: dict | None = None,
+    task_id: str | None = None,
 ):
     """Unified status sending function"""
     payload = {
@@ -127,9 +137,7 @@ async def websocket_ideagen(websocket: WebSocket):
         )
 
         # Generate task ID
-        task_key = (
-            f"ideagen_{notebook_id or 'cross_notebook'}_{hash(str(direct_records or record_ids))}"
-        )
+        task_key = f"ideagen_{notebook_id or 'cross_notebook'}_{hash(str(direct_records or record_ids))}"
         task_id = task_manager.generate_task_id("ideagen", task_key)
 
         # Send task ID to frontend
@@ -159,10 +167,13 @@ async def websocket_ideagen(websocket: WebSocket):
             logger.info(f"Using {len(records)} direct records")
         elif notebook_id:
             nb_manager = NotebookManager()
-            notebook = nb_manager.get_notebook(notebook_id)
+            notebook = await nb_manager.get_notebook(notebook_id)
             if not notebook:
                 await send_status(
-                    websocket, IdeaGenStage.ERROR, "Notebook not found", task_id=task_id
+                    websocket,
+                    IdeaGenStage.ERROR,
+                    "Notebook not found",
+                    task_id=task_id,
                 )
                 await websocket.close()
                 return
@@ -224,14 +235,19 @@ async def websocket_ideagen(websocket: WebSocket):
                     "description": user_thoughts.strip(),
                 }
             ]
-            logger.info("Created virtual knowledge point from user thoughts (text-only mode)")
+            logger.info(
+                "Created virtual knowledge point from user thoughts (text-only mode)"
+            )
 
         # ========== Stage 3: KNOWLEDGE_EXTRACTED ==========
         await send_status(
             websocket,
             IdeaGenStage.KNOWLEDGE_EXTRACTED,
             f"Extracted {len(knowledge_points)} knowledge points",
-            {"knowledge_points": knowledge_points, "count": len(knowledge_points)},
+            {
+                "knowledge_points": knowledge_points,
+                "count": len(knowledge_points),
+            },
             task_id=task_id,
         )
 
@@ -299,14 +315,20 @@ async def websocket_ideagen(websocket: WebSocket):
 
         for idx, point in enumerate(filtered_points):
             point_name = point.get("knowledge_point", f"Point {idx + 1}")
-            logger.info(f"Processing knowledge point {idx + 1}/{total_points}: {point_name}")
+            logger.info(
+                f"Processing knowledge point {idx + 1}/{total_points}: {point_name}"
+            )
 
             # ========== Stage 6: EXPLORING ==========
             await send_status(
                 websocket,
                 IdeaGenStage.EXPLORING,
                 f"Exploring research ideas for: {point_name} ({idx + 1}/{total_points})",
-                {"index": idx + 1, "total": total_points, "knowledge_point": point_name},
+                {
+                    "index": idx + 1,
+                    "total": total_points,
+                    "knowledge_point": point_name,
+                },
                 task_id=task_id,
             )
 
@@ -355,7 +377,11 @@ async def websocket_ideagen(websocket: WebSocket):
                 websocket,
                 IdeaGenStage.GENERATING,
                 f"Generating statement for: {point_name}",
-                {"index": idx + 1, "kept_ideas": len(kept_ideas), "knowledge_point": point_name},
+                {
+                    "index": idx + 1,
+                    "kept_ideas": len(kept_ideas),
+                    "knowledge_point": point_name,
+                },
                 task_id=task_id,
             )
 

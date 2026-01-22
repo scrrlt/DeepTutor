@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 NoteAgent - Note taker
 Based on new knowledge, generates or updates notes, annotates covered pain points and missing points
@@ -14,6 +13,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..memory import CitationMemory, InvestigateMemory, KnowledgeItem
 from ..utils import ParseError, validate_note_output
@@ -31,7 +33,7 @@ class NoteAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="note_agent",
@@ -140,7 +142,11 @@ class NoteAgent(BaseAgent):
                     citation_memory.save()
                 except ValueError:
                     if verbose:
+<<<<<<< HEAD
+                        logger.warning(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
+=======
                         logger.info(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
             processed_details.append(
                 {

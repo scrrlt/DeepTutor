@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 GenerateAgent - Responsible for generating questions based on knowledge context.
 
@@ -67,7 +66,9 @@ class GenerateAgent(BaseAgent):
         self.logger.info("Starting question generation")
 
         # Build requirements string
-        requirements_str = json.dumps(requirement, ensure_ascii=False, indent=2)
+        requirements_str = json.dumps(
+            requirement, ensure_ascii=False, indent=2
+        )
 
         # Build focus string
         if focus:
@@ -143,7 +144,9 @@ class GenerateAgent(BaseAgent):
             question = self._parse_question_response(response)
             question["knowledge_point"] = knowledge_point
 
-            self.logger.info(f"Generated {question.get('question_type', 'unknown')} question")
+            self.logger.info(
+                f"Generated {question.get('question_type', 'unknown')} question"
+            )
 
             return {
                 "success": True,
@@ -205,7 +208,9 @@ class GenerateAgent(BaseAgent):
 
             question = self._parse_question_response(response)
 
-            self.logger.info(f"Generated mimic {question.get('question_type', 'unknown')} question")
+            self.logger.info(
+                f"Generated mimic {question.get('question_type', 'unknown')} question"
+            )
 
             return {
                 "success": True,
@@ -276,7 +281,9 @@ class GenerateAgent(BaseAgent):
                 pass
 
         if question is None:
-            raise ValueError(f"Failed to parse question JSON: {parse_error}") from parse_error
+            raise ValueError(
+                f"Failed to parse question JSON: {parse_error}"
+            ) from parse_error
 
         # Validate required fields
         if "question" not in question:
@@ -291,7 +298,9 @@ class GenerateAgent(BaseAgent):
             options = question.get("options")
             if not options:
                 # Create default options if missing
-                self.logger.warning("Choice question missing options, adding placeholder")
+                self.logger.warning(
+                    "Choice question missing options, adding placeholder"
+                )
                 question["options"] = {
                     "A": "Option A (placeholder)",
                     "B": "Option B (placeholder)",
@@ -300,15 +309,20 @@ class GenerateAgent(BaseAgent):
                 }
             elif not isinstance(options, dict):
                 # Convert to dict if it's a list or other format
-                self.logger.warning(f"Options is not a dict: {type(options)}, converting")
+                self.logger.warning(
+                    f"Options is not a dict: {type(options)}, converting"
+                )
                 if isinstance(options, list):
                     question["options"] = {
-                        chr(65 + i): str(opt) for i, opt in enumerate(options[:4])
+                        chr(65 + i): str(opt)
+                        for i, opt in enumerate(options[:4])
                     }
                 else:
                     question["options"] = {"A": str(options)}
             elif len(options) < 2:
-                self.logger.warning(f"Choice question has only {len(options)} options")
+                self.logger.warning(
+                    f"Choice question has only {len(options)} options"
+                )
 
         return question
 
@@ -325,7 +339,9 @@ class GenerateAgent(BaseAgent):
 
         # Remove most control characters but keep \t, \n, \r
         # These can appear in LLM output and break JSON parsing
-        cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", json_str)
+        cleaned = re.sub(
+            r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", json_str
+        )
 
         return cleaned
 

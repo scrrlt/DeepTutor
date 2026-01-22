@@ -8,7 +8,7 @@ Configuration for LLM/Embedding/TTS/Search is handled by the unified config serv
 
 import json
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -17,13 +17,24 @@ router = APIRouter()
 
 # Settings file path for UI preferences (stored in settings folder with other configs)
 SETTINGS_FILE = (
-    Path(__file__).parent.parent.parent.parent / "data" / "user" / "settings" / "interface.json"
+    Path(__file__).parent.parent.parent.parent
+    / "data"
+    / "user"
+    / "settings"
+    / "interface.json"
 )
 
 # Default sidebar navigation order
 DEFAULT_SIDEBAR_NAV_ORDER = {
     "start": ["/", "/history", "/knowledge", "/notebook"],
-    "learnResearch": ["/question", "/solver", "/guide", "/ideagen", "/research", "/co_writer"],
+    "learnResearch": [
+        "/question",
+        "/solver",
+        "/guide",
+        "/ideagen",
+        "/research",
+        "/co_writer",
+    ],
 }
 
 # Default UI settings
@@ -36,15 +47,15 @@ DEFAULT_UI_SETTINGS = {
 
 
 class SidebarNavOrder(BaseModel):
-    start: List[str]
-    learnResearch: List[str]
+    start: list[str]
+    learnResearch: list[str]
 
 
 class UISettings(BaseModel):
     theme: Literal["light", "dark"] = "light"
     language: Literal["zh", "en"] = "en"
-    sidebar_description: Optional[str] = None
-    sidebar_nav_order: Optional[SidebarNavOrder] = None
+    sidebar_description: str | None = None
+    sidebar_nav_order: SidebarNavOrder | None = None
 
 
 class ThemeUpdate(BaseModel):
@@ -142,7 +153,9 @@ async def get_sidebar_settings():
         "description": current_ui.get(
             "sidebar_description", DEFAULT_UI_SETTINGS["sidebar_description"]
         ),
-        "nav_order": current_ui.get("sidebar_nav_order", DEFAULT_UI_SETTINGS["sidebar_nav_order"]),
+        "nav_order": current_ui.get(
+            "sidebar_nav_order", DEFAULT_UI_SETTINGS["sidebar_nav_order"]
+        ),
     }
 
 

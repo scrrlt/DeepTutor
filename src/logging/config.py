@@ -9,7 +9,6 @@ A single `level` parameter controls all logging (including RAG modules).
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
 
 
 @dataclass
@@ -24,10 +23,7 @@ class LoggingConfig:
     file_output: bool = True
 
     # Log directory (relative to project root or absolute)
-    log_dir: Optional[str] = None
-
-    # RAG module logger name mapping
-    rag_logger_names: Optional[Dict[str, str]] = None
+    log_dir: str | None = None
 
     # File rotation settings
     max_bytes: int = 10 * 1024 * 1024  # 10MB
@@ -64,7 +60,10 @@ def load_logging_config() -> LoggingConfig:
         LoggingConfig instance with loaded or default values.
     """
     try:
-        from src.services.config import get_path_from_config, load_config_with_main
+        from src.services.config import (
+            get_path_from_config,
+            load_config_with_main,
+        )
 
         project_root = Path(__file__).resolve().parent.parent.parent
         config = load_config_with_main("solve_config.yaml", project_root)
@@ -77,7 +76,15 @@ def load_logging_config() -> LoggingConfig:
             console_output=logging_config.get("console_output", True),
             file_output=logging_config.get("save_to_file", True),
             log_dir=get_path_from_config(config, "user_log_dir"),
-            rag_logger_names=logging_config.get("rag_logger_names"),
+            lightrag_forwarding_enabled=logging_config.get("lightrag_forwarding", {}).get(
+                "enabled", True
+            ),
+            lightrag_min_level=logging_config.get("lightrag_forwarding", {}).get(
+                "min_level", "INFO"
+            ),
+            lightrag_add_prefix=logging_config.get("lightrag_forwarding", {}).get(
+                "add_prefix", True
+            ),
         )
     except Exception:
         return LoggingConfig()

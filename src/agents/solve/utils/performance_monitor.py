@@ -16,7 +16,13 @@ from typing import Any
 
 from src.logging import get_logger
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
+=======
+>>>>>>> e0a614a (Refactor code execution tools and add workspace management)
 logger = get_logger(__name__)
 
 
@@ -268,13 +274,23 @@ class PerformanceMonitor:
         logger.info(f"Total Tokens: {self.total_tokens}")
         logger.info(f"Total API Calls: {self.total_api_calls}")
         logger.error(f"Total Errors: {self.total_errors}")
+<<<<<<< HEAD
+        logger.info("")
+=======
         logger.info()
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         logger.info("Agent Details:")
         logger.info("-" * 60)
 
         for agent_name, metrics in self.metrics.items():
             logger.info(f"\n{agent_name}:")
+<<<<<<< HEAD
+            logger.info(
+                f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A"
+            )
+=======
             logger.info(f"  Duration: {metrics.duration:.2f}s" if metrics.duration else "  Duration: N/A")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
             logger.info(f"  Tokens: {metrics.total_tokens}")
             logger.info(f"  API Calls: {metrics.api_calls}")
             logger.error(f"  Errors: {metrics.errors}")
@@ -373,8 +389,22 @@ def init_monitor_from_config(config: dict) -> PerformanceMonitor:
 
 if __name__ == "__main__":
     # Test performance monitoring
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+    logger.info("Performance Monitoring Test")
+=======
     print("Performance Monitoring Test")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
     logger.info("=" * 60)
+=======
+    logger.section("Performance Monitoring Test")
+    logger.info("%s", "=" * 60)
+>>>>>>> b97c4c6 (Refactor logging and improve code clarity across multiple modules)
+=======
+    logger.info("Performance Monitoring Test")
+    logger.info("=" * 60)
+>>>>>>> d73408a (refactor: improve logging consistency and clarity in various modules)
 
     # Create monitor
     monitor = PerformanceMonitor(enabled=True)

@@ -13,38 +13,38 @@ import {
   FileText,
   Clock,
   Trash2,
-} from "lucide-react";
+} from 'lucide-react'
 
 interface LogEntry {
-  type: string;
-  content: string;
-  timestamp?: number;
-  level?: string;
+  type: string
+  content: string
+  timestamp?: number
+  level?: string
 }
 
 interface SubFocus {
-  id: string;
-  focus: string;
-  scenario_hint?: string;
+  id: string
+  focus: string
+  scenario_hint?: string
 }
 
 interface LogDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  logs: LogEntry[];
-  stage: string | null;
+  isOpen: boolean
+  onClose: () => void
+  logs: LogEntry[]
+  stage: string | null
   progress?: {
-    current?: number;
-    total?: number;
-    status?: string;
-  };
-  subFocuses?: SubFocus[];
-  mode?: "custom" | "mimic";
-  topic?: string;
-  difficulty?: string;
-  questionType?: string;
-  count?: number;
-  onClearLogs?: () => void;
+    current?: number
+    total?: number
+    status?: string
+  }
+  subFocuses?: SubFocus[]
+  mode?: 'custom' | 'mimic'
+  topic?: string
+  difficulty?: string
+  questionType?: string
+  count?: number
+  onClearLogs?: () => void
 }
 
 export const LogDrawer: React.FC<LogDrawerProps> = ({
@@ -54,7 +54,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
   stage,
   progress,
   subFocuses = [],
-  mode = "custom",
+  mode = 'custom',
   topic,
   difficulty,
   questionType,
@@ -73,13 +73,13 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       id: "init",
       label: t("Initializing"),
       icon: Sparkles,
-      active: stage === "planning" && !progress?.status,
+      active: stage === 'planning' && !progress?.status,
       done:
-        stage === "researching" ||
-        progress?.status === "generating_queries" ||
-        progress?.status === "retrieving" ||
-        progress?.status === "creating_plan" ||
-        progress?.status === "plan_ready" ||
+        stage === 'researching' ||
+        progress?.status === 'generating_queries' ||
+        progress?.status === 'retrieving' ||
+        progress?.status === 'creating_plan' ||
+        progress?.status === 'plan_ready' ||
         isGenerating ||
         isComplete,
     },
@@ -87,14 +87,12 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       id: "query",
       label: t("Generating Search Queries"),
       icon: Search,
-      active:
-        progress?.status === "generating_queries" ||
-        progress?.status === "splitting_queries",
+      active: progress?.status === 'generating_queries' || progress?.status === 'splitting_queries',
       done:
-        stage === "researching" ||
-        progress?.status === "retrieving" ||
-        progress?.status === "creating_plan" ||
-        progress?.status === "plan_ready" ||
+        stage === 'researching' ||
+        progress?.status === 'retrieving' ||
+        progress?.status === 'creating_plan' ||
+        progress?.status === 'plan_ready' ||
         isGenerating ||
         isComplete,
     },
@@ -102,10 +100,10 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       id: "research",
       label: t("Retrieving Knowledge"),
       icon: Database,
-      active: stage === "researching" || progress?.status === "retrieving",
+      active: stage === 'researching' || progress?.status === 'retrieving',
       done:
-        progress?.status === "creating_plan" ||
-        progress?.status === "plan_ready" ||
+        progress?.status === 'creating_plan' ||
+        progress?.status === 'plan_ready' ||
         isGenerating ||
         isComplete,
     },
@@ -113,12 +111,10 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       id: "plan",
       label: t("Creating Question Plan"),
       icon: Target,
-      active:
-        progress?.status === "creating_plan" ||
-        progress?.status === "planning_focuses",
-      done: progress?.status === "plan_ready" || isGenerating || isComplete,
+      active: progress?.status === 'creating_plan' || progress?.status === 'planning_focuses',
+      done: progress?.status === 'plan_ready' || isGenerating || isComplete,
     },
-  ];
+  ]
 
   // Mimic mode steps
   const mimicModeSteps = [
@@ -126,25 +122,21 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       id: "upload",
       label: t("Uploading PDF"),
       icon: Sparkles,
-      active: stage === "uploading",
-      done:
-        stage === "parsing" ||
-        stage === "extracting" ||
-        isGenerating ||
-        isComplete,
+      active: stage === 'uploading',
+      done: stage === 'parsing' || stage === 'extracting' || isGenerating || isComplete,
     },
     {
       id: "parse",
       label: t("Parsing PDF (MinerU)"),
       icon: RefreshCw,
-      active: stage === "parsing",
-      done: stage === "extracting" || isGenerating || isComplete,
+      active: stage === 'parsing',
+      done: stage === 'extracting' || isGenerating || isComplete,
     },
     {
       id: "extract",
       label: t("Extracting Questions"),
       icon: Search,
-      active: stage === "extracting",
+      active: stage === 'extracting',
       done: isGenerating || isComplete,
     },
     {
@@ -154,9 +146,9 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
       active: false,
       done: isGenerating || isComplete,
     },
-  ];
+  ]
 
-  const planningSteps = isMimicMode ? mimicModeSteps : customModeSteps;
+  const planningSteps = isMimicMode ? mimicModeSteps : customModeSteps
 
   return (
     <>
@@ -175,7 +167,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
           border-l border-slate-200 dark:border-slate-700 z-50
           transform transition-transform duration-300 ease-out
           shadow-2xl
-          ${isOpen ? "translate-x-0" : "translate-x-full"}
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
           flex flex-col
         `}
       >
@@ -185,10 +177,10 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
             <div
               className={`p-2 rounded-lg ${
                 isComplete
-                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                   : isIdle
-                    ? "bg-slate-100 dark:bg-slate-700 text-slate-400"
-                    : "bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
+                    ? 'bg-slate-100 dark:bg-slate-700 text-slate-400'
+                    : 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
               }`}
             >
               {isComplete ? (
@@ -208,10 +200,10 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                     : t("Generating")}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {stage || "idle"}
+                {stage || 'idle'}
                 {progress?.current && progress?.total
                   ? ` · ${progress.current}/${progress.total}`
-                  : ""}
+                  : ''}
               </p>
             </div>
           </div>
@@ -231,9 +223,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                 {t("Configuration")}
               </p>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
-                {topic}
-              </p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">{topic}</p>
               <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                 <span>
                   {t("Difficulty:")}{" "}
@@ -279,15 +269,15 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                 {t("Progress")}
               </p>
               <div className="space-y-3">
-                {planningSteps.map((step) => (
+                {planningSteps.map(step => (
                   <div key={step.id} className="flex items-center gap-3">
                     <div
                       className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
                         step.done
-                          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                           : step.active
-                            ? "bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
-                            : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
+                            ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'
                       }`}
                     >
                       {step.done ? (
@@ -301,10 +291,10 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                     <span
                       className={`text-sm ${
                         step.done
-                          ? "text-emerald-700 dark:text-emerald-300"
+                          ? 'text-emerald-700 dark:text-emerald-300'
                           : step.active
-                            ? "text-purple-700 dark:text-purple-300 font-medium"
-                            : "text-slate-400 dark:text-slate-500"
+                            ? 'text-purple-700 dark:text-purple-300 font-medium'
+                            : 'text-slate-400 dark:text-slate-500'
                       }`}
                     >
                       {step.label}
@@ -322,7 +312,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                 {t("Question Focuses ({n})").replace("{n}", String(subFocuses.length))}
               </p>
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {subFocuses.map((focus) => (
+                {subFocuses.map(focus => (
                   <div
                     key={focus.id}
                     className="px-3 py-2 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg border border-slate-100 dark:border-slate-600"
@@ -331,9 +321,7 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                       <Target className="w-3 h-3" />
                       {focus.id}
                     </div>
-                    <p className="text-slate-500 dark:text-slate-400 line-clamp-2">
-                      {focus.focus}
-                    </p>
+                    <p className="text-slate-500 dark:text-slate-400 line-clamp-2">{focus.focus}</p>
                   </div>
                 ))}
               </div>
@@ -368,11 +356,11 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
                   <div
                     key={idx}
                     className={`text-xs px-3 py-2 rounded-lg break-words ${
-                      log.type === "error"
-                        ? "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-800"
-                        : log.type === "success"
-                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800"
-                          : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-600"
+                      log.type === 'error'
+                        ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-800'
+                        : log.type === 'success'
+                          ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800'
+                          : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-600'
                     }`}
                   >
                     {log.content}
@@ -384,5 +372,5 @@ export const LogDrawer: React.FC<LogDrawerProps> = ({
         </div>
       </div>
     </>
-  );
-};
+  )
+}

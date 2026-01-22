@@ -1,10 +1,11 @@
 // API configuration and utility functions
 
-// Get API base URL from environment variable
-// This is automatically set by start_web.py based on config/main.yaml
-// The .env.local file is auto-generated on startup with the correct backend port
+// In Next.js App Router, use environment variables for runtime configuration.
+// NEXT_PUBLIC_API_BASE is injected at build time and available on client/server.
+const runtimeApiBase: string | undefined = process.env.NEXT_PUBLIC_API_BASE;
+
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE ||
+  runtimeApiBase ||
   (() => {
     if (typeof window !== "undefined") {
       console.error("NEXT_PUBLIC_API_BASE is not set.");

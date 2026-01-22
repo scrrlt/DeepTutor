@@ -5,6 +5,11 @@ Anthropic LLM provider implementation.
 
 import anthropic
 
+from src.logging import get_logger
+
+from ..config import LLMConfig
+from ..exceptions import LLMConfigError
+from ..http_client import get_shared_http_client
 from ..registry import register_provider
 from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
@@ -13,12 +18,12 @@ from .base_provider import BaseLLMProvider
 from src.logging import get_logger
 
 
-
 logger = get_logger(__name__)
+
 
 @register_provider("anthropic")
 class AnthropicProvider(BaseLLMProvider):
-    """Anthropic Claude Provider."""
+    """Anthropic Claude Provider with shared HTTP client."""
 
     def __init__(self, config):
         """
@@ -34,10 +39,19 @@ class AnthropicProvider(BaseLLMProvider):
             Exception: Propagates client initialization failures.
         """
         super().__init__(config)
+        self.client: anthropic.AsyncAnthropic | None = None
+        self._client_lock = asyncio.Lock()
 
-        self.client = anthropic.AsyncAnthropic(
-            api_key=self.api_key,
-        )
+    async def _get_client(self) -> anthropic.AsyncAnthropic:
+        if self.client is None:
+            async with self._client_lock:
+                if self.client is None:
+                    http_client = await get_shared_http_client()
+                    self.client = anthropic.AsyncAnthropic(
+                        api_key=self.api_key,
+                        http_client=http_client,
+                    )
+        return self.client
 
     @track_llm_call("anthropic")
     async def complete(self, prompt: str, **kwargs) -> TutorResponse:
@@ -60,7 +74,8 @@ class AnthropicProvider(BaseLLMProvider):
         kwargs.pop("stream", None)
 
         async def _call_api():
-            response = await self.client.messages.create(
+            client = await self._get_client()
+            response = await client.messages.create(
                 model=model,
                 max_tokens=kwargs.pop("max_tokens", 1024),
                 messages=[{"role": "user", "content": prompt}],
@@ -106,7 +121,8 @@ class AnthropicProvider(BaseLLMProvider):
         kwargs.pop("max_retries", None)
 
         async def _create_stream():
-            return await self.client.messages.create(
+            client = await self._get_client()
+            return await client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": prompt}],

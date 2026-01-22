@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TeX Downloader - LaTeX source code download tool
 
@@ -12,15 +11,21 @@ Version: v1.0
 Based on: TODO.md specification
 """
 
+from collections.abc import Generator
 import os
 from pathlib import Path
 import re
 import shutil
 import tarfile
+from tarfile import TarInfo
 import tempfile
 import zipfile
 
-import requests
+import httpx
+
+from src.logging import Logger, get_logger
+
+logger: Logger = get_logger("TexDownloader")
 
 
 class TexDownloadResult:
@@ -70,16 +75,19 @@ class TexDownloader:
             arxiv_id = self._extract_arxiv_id(arxiv_url)
 
         if not arxiv_id:
-            return TexDownloadResult(success=False, error="Unable to extract ArXiv ID")
+            return TexDownloadResult(
+                success=False, error="Unable to extract ArXiv ID"
+            )
 
         try:
             # Build source download URL
             source_url = f"https://arxiv.org/e-print/{arxiv_id}"
 
             # Download source package
-            print(f"  Downloading source: {source_url}")
-            response = requests.get(source_url, timeout=30)
-            response.raise_for_status()
+            logger.info("Downloading source: %s", source_url)
+            with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+                response = client.get(source_url)
+                response.raise_for_status()
 
             # Create temporary directory
             temp_dir = tempfile.mkdtemp(dir=self.workspace_dir)
@@ -105,7 +113,9 @@ class TexDownloader:
             main_tex = self._find_main_tex(extract_dir)
 
             if not main_tex:
-                return TexDownloadResult(success=False, error="Main tex file not found")
+                return TexDownloadResult(
+                    success=False, error="Main tex file not found"
+                )
 
             # Read tex content
             tex_content = self._read_tex_file(main_tex)
@@ -121,13 +131,19 @@ class TexDownloader:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
             return TexDownloadResult(
-                success=True, tex_path=str(final_tex_path), tex_content=tex_content
+                success=True,
+                tex_path=str(final_tex_path),
+                tex_content=tex_content,
             )
 
-        except requests.exceptions.RequestException as e:
-            return TexDownloadResult(success=False, error=f"Download failed: {e!s}")
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            return TexDownloadResult(
+                success=False, error=f"Download failed: {e!s}"
+            )
         except Exception as e:
-            return TexDownloadResult(success=False, error=f"Processing failed: {e!s}")
+            return TexDownloadResult(
+                success=False, error=f"Processing failed: {e!s}"
+            )
 
     def _extract_arxiv_id(self, url: str) -> str | None:
         """Extract ArXiv ID from URL"""
@@ -139,47 +155,76 @@ class TexDownloader:
     def _is_tar_file(self, file_path: Path) -> bool:
         """Check if file is a tar file"""
         try:
-            with tarfile.open(file_path, "r:*") as tar:
+            with tarfile.open(file_path, "r:*"):
                 return True
-        except:
+        except (tarfile.TarError, OSError):
+            logger.debug("Failed to open tar file %s", file_path)
             return False
 
     def _is_zip_file(self, file_path: Path) -> bool:
         """Check if file is a zip file"""
         try:
-            with zipfile.ZipFile(file_path, "r") as zip_file:
+            with zipfile.ZipFile(file_path, "r"):
                 return True
-        except:
+        except (zipfile.BadZipFile, OSError):
+            logger.debug("Failed to open zip file %s", file_path)
             return False
 
-    def _extract_tar(self, tar_path: Path, extract_dir: Path):
+    def _extract_tar(self, tar_path: Path, extract_dir: Path) -> None:
         """Extract tar file safely (prevent ZipSlip/TarSlip)"""
         with tarfile.open(tar_path, "r:*") as tar:
             # Safe extraction filter
-            def is_within_directory(directory, target):
+            def is_within_directory(directory: str, target: str) -> bool:
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
-                prefix = os.path.commonprefix([abs_directory, abs_target])
-                return prefix == abs_directory
+                try:
+                    common = os.path.commonpath([abs_directory, abs_target])
+                    return common == abs_directory
+                except ValueError:
+                    return False
 
-            def safe_members(members):
+            def safe_members(
+                members: list[TarInfo],
+            ) -> Generator[TarInfo, None, None]:
                 for member in members:
                     member_path = os.path.join(extract_dir, member.name)
                     if not is_within_directory(extract_dir, member_path):
-                        print(f"Suspicious file path in tar: {member.name}. Skipping.")
+                        logger.warning(
+                            "Suspicious file path in tar: %s. Skipping.",
+                            member.name,
+                        )
                         continue
                     yield member
 
-            tar.extractall(extract_dir, members=safe_members(tar))
+            tar.extractall(extract_dir, members=safe_members(tar.getmembers()))
 
-    def _extract_zip(self, zip_path: Path, extract_dir: Path):
+    def _is_within_directory(self, directory: str, target: str) -> bool:
+        """Check if target path is within directory (prevent ZipSlip/TarSlip)"""
+        abs_directory = os.path.abspath(directory)
+        abs_target = os.path.abspath(target)
+        try:
+            common = os.path.commonpath([abs_directory, abs_target])
+            return common == abs_directory
+        except ValueError:
+            return False
+
+    def _extract_zip(self, zip_path: Path, extract_dir: Path) -> None:
         """Extract zip file"""
         with zipfile.ZipFile(zip_path, "r") as zip_file:
-            zip_file.extractall(extract_dir)
+            for member in zip_file.namelist():
+                member_path = os.path.join(extract_dir, member)
+                if not self._is_within_directory(
+                    str(extract_dir), member_path
+                ):
+                    logger.warning(
+                        f"Suspicious file path in zip: {member}. Skipping."
+                    )
+                    continue
+                zip_file.extract(member, extract_dir)
 
     def _find_main_tex(self, directory: Path) -> Path | None:
         """
-        Find main tex file
+        Find the main tex file in the extracted directory.
 
         Priority:
         1. main.tex
@@ -201,10 +246,23 @@ class TexDownloader:
         # 2. Find file containing \documentclass
         for tex_file in tex_files:
             try:
-                content = tex_file.read_text(encoding="utf-8", errors="ignore")
+                # Optimized: Read only the beginning of the file to check for \documentclass
+                with open(tex_file, "rb") as f:
+                    head = f.read(4000)
+
+                # Try decoding with multiple encodings
+                content = ""
+                for enc in ["utf-8", "latin-1", "cp1252"]:
+                    try:
+                        content = head.decode(enc)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+
                 if r"\documentclass" in content:
                     return tex_file
-            except:
+            except Exception:
+                logger.debug("Failed to inspect head of %s", tex_file)
                 continue
 
         # 3. Return largest tex file
@@ -212,11 +270,19 @@ class TexDownloader:
         return largest_tex
 
     def _read_tex_file(self, tex_path: Path) -> str:
-        """Read tex file content"""
-        try:
-            return tex_path.read_text(encoding="utf-8", errors="ignore")
-        except Exception as e:
-            raise Exception(f"Failed to read tex file: {e!s}")
+        """Read tex file with encoding fallback."""
+        raw_content = tex_path.read_bytes()
+        for encoding in ["utf-8", "latin-1", "cp1252"]:
+            try:
+                return raw_content.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
+        # Last resort: replace errors to get *something*
+        logger.warning(
+            f"Could not decode {tex_path.name} cleanly. Forcing decode."
+        )
+        return raw_content.decode("utf-8", errors="replace")
 
 
 def read_tex_file(tex_path: str) -> str:
@@ -229,7 +295,14 @@ def read_tex_file(tex_path: str) -> str:
     Returns:
         tex content
     """
-    return Path(tex_path).read_text(encoding="utf-8", errors="ignore")
+    path = Path(tex_path)
+    raw_content = path.read_bytes()
+    for encoding in ["utf-8", "latin-1", "cp1252"]:
+        try:
+            return raw_content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw_content.decode("utf-8", errors="replace")
 
 
 # ========== Usage Example ==========
@@ -245,9 +318,9 @@ if __name__ == "__main__":
     )
 
     if result.success:
-        print("✓ Download successful!")
-        print(f"  File path: {result.tex_path}")
-        print(f"  Content length: {len(result.tex_content)} characters")
-        print(f"  Content preview: {result.tex_content[:500]}...")
+        logger.info("✓ Download successful!")
+        logger.info("File path: %s", result.tex_path)
+        logger.info("Content length: %s characters", len(result.tex_content))
+        logger.info("Content preview: %s...", result.tex_content[:500])
     else:
-        print(f"✗ Download failed: {result.error}")
+        logger.error("✗ Download failed: %s", result.error)

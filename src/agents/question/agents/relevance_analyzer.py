@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 RelevanceAnalyzer - Analyzes the relevance between questions and knowledge base.
 
@@ -104,7 +103,9 @@ class RelevanceAnalyzer(BaseAgent):
 
             result = self._parse_analysis_response(response)
 
-            self.logger.info(f"Relevance analysis completed: {result['relevance']}")
+            self.logger.info(
+                f"Relevance analysis completed: {result['relevance']}"
+            )
 
             return result
 
@@ -160,7 +161,9 @@ class RelevanceAnalyzer(BaseAgent):
                     pass
 
         if result is None:
-            raise ValueError(f"Failed to parse analysis JSON: {parse_error}") from parse_error
+            raise ValueError(
+                f"Failed to parse analysis JSON: {parse_error}"
+            ) from parse_error
 
         # Normalize relevance value
         relevance = result.get("relevance", "partial")

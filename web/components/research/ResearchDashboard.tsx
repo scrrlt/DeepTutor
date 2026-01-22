@@ -28,7 +28,7 @@ import {
   Book,
   Download,
   FileDown,
-} from "lucide-react";
+} from 'lucide-react'
 
 type ProcessTab = "planning" | "researching" | "reporting";
 
@@ -48,13 +48,13 @@ const stageOrder: Record<string, number> = {
 };
 
 interface ResearchDashboardProps {
-  state: ResearchState;
-  selectedTaskId: string | null;
-  onTaskSelect: (taskId: string) => void;
-  onAddToNotebook?: () => void;
-  onExportMarkdown?: () => void;
-  onExportPdf?: () => void;
-  isExportingPdf?: boolean;
+  state: ResearchState
+  selectedTaskId: string | null
+  onTaskSelect: (taskId: string) => void
+  onAddToNotebook?: () => void
+  onExportMarkdown?: () => void
+  onExportPdf?: () => void
+  isExportingPdf?: boolean
 }
 
 export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
@@ -68,47 +68,47 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
 }) => {
   const { t } = useTranslation();
   const { global, tasks, activeTaskIds, planning, reporting } = state;
-  
+
   // Track previous stage to detect changes and reset user selection
   const [prevStage, setPrevStage] = useState(global.stage);
-  
+
   // Ref to track previous stage for useEffect (needed because state updates synchronously)
   const prevStageRef = useRef(global.stage);
-  
+
   // User can override the auto-selected tab
   const [userSelectedTab, setUserSelectedTab] = useState<ProcessTab | null>(null);
-  
+
   // Compute derived tab based on current stage
-  const derivedProcessTab: ProcessTab = 
+  const derivedProcessTab: ProcessTab =
     global.stage === "planning" || global.stage === "researching" || global.stage === "reporting"
       ? global.stage
       : "reporting";
-  
+
   // Detect stage changes and reset user selection
   if (prevStage !== global.stage) {
     setPrevStage(global.stage);
     setUserSelectedTab(null);
   }
-  
+
   // Active tab is user selection or derived
   const activeProcessTab = userSelectedTab ?? derivedProcessTab;
-  
+
   // Handler for user tab selection
   const setActiveProcessTab = (tab: ProcessTab) => {
     setUserSelectedTab(tab);
   };
-  
+
   // View state
   const [activeView, setActiveView] = useState<"process" | "report">("process");
 
-  const currentStageIndex = stageOrder[global.stage] ?? -1;
-  const isCompleted = global.stage === "completed";
+  const currentStageIndex = stageOrder[global.stage] ?? -1
+  const isCompleted = global.stage === 'completed'
 
   // Check if a tab has content (has been reached)
   const isTabAvailable = (tabId: ProcessTab): boolean => {
-    const tabIndex = steps.findIndex((s) => s.id === tabId);
-    return currentStageIndex >= tabIndex;
-  };
+    const tabIndex = steps.findIndex(s => s.id === tabId)
+    return currentStageIndex >= tabIndex
+  }
 
   // Check if a tab is currently active (the system is in this stage)
   const isTabCurrentlyActive = (tabId: ProcessTab): boolean => {
@@ -117,11 +117,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
 
   // Auto-switch to report view when research completes and report is available
   useEffect(() => {
-    if (
-      global.stage === "completed" &&
-      reporting.generatedReport &&
-      activeView === "process"
-    ) {
+    if (global.stage === 'completed' && reporting.generatedReport && activeView === 'process') {
       const timer = setTimeout(() => {
         startTransition(() => {
           setActiveView("report");
@@ -131,7 +127,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
     }
   }, [global.stage, reporting.generatedReport, activeView]);
 
-  // Reset to process view when a new research starts  
+  // Reset to process view when a new research starts
   useEffect(() => {
     if (global.stage === "planning" && prevStageRef.current !== "planning") {
       startTransition(() => {
@@ -145,10 +141,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
   const stepTabsContent = (
     <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
       {steps.map((step, idx) => {
-        const available = isTabAvailable(step.id);
-        const isCurrentStage = isTabCurrentlyActive(step.id);
-        const isSelected = activeProcessTab === step.id;
-        const isPassed = currentStageIndex > idx || isCompleted;
+        const available = isTabAvailable(step.id)
+        const isCurrentStage = isTabCurrentlyActive(step.id)
+        const isSelected = activeProcessTab === step.id
+        const isPassed = currentStageIndex > idx || isCompleted
 
         return (
           <button
@@ -159,10 +155,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
               flex items-center gap-2 px-4 py-2 rounded-lg transition-all relative
               ${
                 isSelected
-                  ? "bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-700 dark:text-indigo-300"
+                  ? 'bg-white dark:bg-slate-700 shadow-sm border border-slate-200 dark:border-slate-600 text-indigo-700 dark:text-indigo-300'
                   : available
-                    ? "hover:bg-white/50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300"
-                    : "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                    ? 'hover:bg-white/50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
+                    : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
               }
             `}
           >
@@ -186,10 +182,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
               </span>
             )}
           </button>
-        );
+        )
       })}
     </div>
-  );
+  )
 
   // Planning Content - rendered as JSX variable
   const isPlanningActive = global.stage === "planning";
@@ -531,11 +527,11 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         <div className="flex items-center gap-4">
           <div
             className={`p-2 rounded-lg ${
-              global.stage === "idle"
-                ? "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500"
-                : global.stage === "completed"
-                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
-                  : "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400"
+              global.stage === 'idle'
+                ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'
+                : global.stage === 'completed'
+                  ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
             }`}
           >
             {isCompleted ? (
@@ -556,7 +552,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
             </h2>
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               <span
-                className={`uppercase font-bold tracking-wider ${isCompleted ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                className={`uppercase font-bold tracking-wider ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
               >
                 {global.stage}
               </span>
@@ -564,12 +560,11 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                 <>
                   <span>•</span>
                   <span>
-                    {global.completedBlocks} / {global.totalBlocks} topics
-                    completed
+                    {global.completedBlocks} / {global.totalBlocks} topics completed
                   </span>
                 </>
               )}
-              {state.executionMode === "parallel" && (
+              {state.executionMode === 'parallel' && (
                 <>
                   <span>•</span>
                   <span className="text-violet-600 dark:text-violet-400 font-medium">
@@ -584,27 +579,25 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         {/* View Switcher */}
         <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
           <button
-            onClick={() => setActiveView("process")}
+            onClick={() => setActiveView('process')}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-              activeView === "process"
-                ? "bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm border border-slate-100 dark:border-slate-500"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              activeView === 'process'
+                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm border border-slate-100 dark:border-slate-500'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
             {t("Process")}
           </button>
           <button
-            onClick={() => setActiveView("report")}
-            disabled={
-              !reporting.generatedReport && global.stage !== "completed"
-            }
+            onClick={() => setActiveView('report')}
+            disabled={!reporting.generatedReport && global.stage !== 'completed'}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-              activeView === "report"
-                ? "bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm border border-slate-100 dark:border-slate-500"
-                : !reporting.generatedReport && global.stage !== "completed"
-                  ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              activeView === 'report'
+                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-300 shadow-sm border border-slate-100 dark:border-slate-500'
+                : !reporting.generatedReport && global.stage !== 'completed'
+                  ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
           >
             <FileOutput className="w-4 h-4" />
@@ -614,10 +607,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
       </div>
 
       {/* Main Content Area */}
-      {activeView === "process" ? (
+      {activeView === 'process' ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Idle State */}
-          {global.stage === "idle" ? (
+          {global.stage === 'idle' ? (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-8 flex flex-col items-center justify-center text-center max-w-lg w-full">
                 <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
@@ -678,7 +671,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <FileDown className="w-4 h-4" />
-                  )}{" "}
+                  )}{' '}
                   PDF
                 </button>
               )}
@@ -725,9 +718,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                           {...props}
                         />
                       ),
-                      li: ({ node, ...props }) => (
-                        <li className="mb-2" {...props} />
-                      ),
+                      li: ({ node, ...props }) => <li className="mb-2" {...props} />,
                       table: ({ node, ...props }) => (
                         <div className="overflow-x-auto my-6">
                           <table
@@ -737,10 +728,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                         </div>
                       ),
                       thead: ({ node, ...props }) => (
-                        <thead
-                          className="bg-slate-50 dark:bg-slate-700"
-                          {...props}
-                        />
+                        <thead className="bg-slate-50 dark:bg-slate-700" {...props} />
                       ),
                       th: ({ node, ...props }) => (
                         <th
@@ -762,35 +750,26 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                       ),
                       a: ({ node, href, ...props }) => {
                         // Handle internal anchor links for smooth scrolling within the container
-                        const handleClick = (
-                          e: React.MouseEvent<HTMLAnchorElement>,
-                        ) => {
-                          if (href?.startsWith("#")) {
-                            e.preventDefault();
-                            const targetId = href.slice(1);
-                            const targetElement =
-                              document.getElementById(targetId);
-                            const scrollContainer = document.getElementById(
-                              "report-scroll-container",
-                            );
+                        const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+                          if (href?.startsWith('#')) {
+                            e.preventDefault()
+                            const targetId = href.slice(1)
+                            const targetElement = document.getElementById(targetId)
+                            const scrollContainer =
+                              document.getElementById('report-scroll-container')
                             if (targetElement && scrollContainer) {
                               // Calculate scroll position within the container
-                              const containerRect =
-                                scrollContainer.getBoundingClientRect();
-                              const targetRect =
-                                targetElement.getBoundingClientRect();
+                              const containerRect = scrollContainer.getBoundingClientRect()
+                              const targetRect = targetElement.getBoundingClientRect()
                               const offset =
-                                targetRect.top -
-                                containerRect.top +
-                                scrollContainer.scrollTop -
-                                20;
+                                targetRect.top - containerRect.top + scrollContainer.scrollTop - 20
                               scrollContainer.scrollTo({
                                 top: offset,
-                                behavior: "smooth",
-                              });
+                                behavior: 'smooth',
+                              })
                             }
                           }
-                        };
+                        }
                         return (
                           <a
                             href={href}
@@ -798,17 +777,17 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                             className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline decoration-indigo-300 dark:decoration-indigo-600 hover:decoration-indigo-500 dark:hover:decoration-indigo-400"
                             {...props}
                           />
-                        );
+                        )
                       },
                       code: ({ node, className, children, ...props }) => {
-                        const match = /language-(\w+)/.exec(className || "");
-                        const language = match ? match[1] : "";
-                        const isInline = !match;
+                        const match = /language-(\w+)/.exec(className || '')
+                        const language = match ? match[1] : ''
+                        const isInline = !match
 
                         // Handle Mermaid diagrams
-                        if (language === "mermaid") {
-                          const chartCode = String(children).replace(/\n$/, "");
-                          return <Mermaid chart={chartCode} />;
+                        if (language === 'mermaid') {
+                          const chartCode = String(children).replace(/\n$/, '')
+                          return <Mermaid chart={chartCode} />
                         }
 
                         return isInline ? (
@@ -825,27 +804,22 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
                           >
                             {children}
                           </code>
-                        );
+                        )
                       },
                       pre: ({ node, children, ...props }) => {
                         // Check if this pre contains a mermaid code block
-                        const child = React.Children.toArray(
-                          children,
-                        )[0] as React.ReactElement<{ className?: string }>;
-                        if (
-                          child?.props?.className?.includes("language-mermaid")
-                        ) {
+                        const child = React.Children.toArray(children)[0] as React.ReactElement<{
+                          className?: string
+                        }>
+                        if (child?.props?.className?.includes('language-mermaid')) {
                           // Mermaid is rendered by the code component, so just return children without pre wrapper
-                          return <>{children}</>;
+                          return <>{children}</>
                         }
                         return (
-                          <pre
-                            className="bg-slate-900 rounded-lg overflow-hidden my-4"
-                            {...props}
-                          >
+                          <pre className="bg-slate-900 rounded-lg overflow-hidden my-4" {...props}>
                             {children}
                           </pre>
-                        );
+                        )
                       },
                     }}
                   >
@@ -863,5 +837,5 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}

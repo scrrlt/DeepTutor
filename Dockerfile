@@ -31,9 +31,9 @@ RUN npm ci --legacy-peer-deps
 # Copy frontend source code
 COPY web/ ./
 
-# Create .env.local with placeholder that will be replaced at runtime
-# Use a unique placeholder that can be safely replaced
-RUN echo "NEXT_PUBLIC_API_BASE=__NEXT_PUBLIC_API_BASE_PLACEHOLDER__" > .env.local
+# Create .env.local with a sensible default
+# Runtime config will override this via publicRuntimeConfig during `next start`
+RUN echo "NEXT_PUBLIC_API_BASE=http://localhost:${BACKEND_PORT}" > .env.local
 
 # Build Next.js for production with standalone output
 # This allows runtime environment variable injection
@@ -238,16 +238,12 @@ fi
 
 echo "[Frontend] 🚀 Starting Next.js frontend on port ${FRONTEND_PORT}..."
 
-# Replace placeholder in built Next.js files
-# This is necessary because NEXT_PUBLIC_* vars are inlined at build time
-find /app/web/.next -type f \( -name "*.js" -o -name "*.json" \) -exec \
-    sed -i "s|__NEXT_PUBLIC_API_BASE_PLACEHOLDER__|${API_BASE}|g" {} \; 2>/dev/null || true
-
-# Also update .env.local for any runtime reads
+export NEXT_PUBLIC_API_BASE="${API_BASE}"
 echo "NEXT_PUBLIC_API_BASE=${API_BASE}" > /app/web/.env.local
 
-# Start Next.js
-cd /app/web && exec node node_modules/next/dist/bin/next start -H 0.0.0.0 -p ${FRONTEND_PORT}
+# Start Next.js with runtime config sourced from environment
+cd /app/web && exec NEXT_PUBLIC_API_BASE="${API_BASE}" \
+    node node_modules/next/dist/bin/next start -H 0.0.0.0 -p ${FRONTEND_PORT}
 EOF
 
 RUN sed -i 's/\r$//' /app/start-frontend.sh && chmod +x /app/start-frontend.sh

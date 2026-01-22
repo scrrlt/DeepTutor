@@ -7,8 +7,6 @@ Pure LightRAG pipeline (text-only, no multimodal processing).
 Faster than RAGAnything for text-heavy documents.
 """
 
-from typing import Optional
-
 from ..components.indexers import LightRAGIndexer
 from ..components.parsers import PDFParser
 from ..components.retrievers import LightRAGRetriever
@@ -17,7 +15,7 @@ from ..components.embedders.openai import OpenAIEmbedder
 from ..pipeline import RAGPipeline
 
 
-def LightRAGPipeline(kb_base_dir: Optional[str] = None) -> RAGPipeline:
+def LightRAGPipeline(kb_base_dir: str | None = None) -> RAGPipeline:
     """
     Create a pure LightRAG pipeline (text-only, no multimodal).
 

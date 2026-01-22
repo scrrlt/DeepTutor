@@ -36,7 +36,7 @@ class RAGAnythingPipeline:
 
     def __init__(
         self,
-        kb_base_dir: Optional[str] = None,
+        kb_base_dir: str | None = None,
         enable_image_processing: bool = True,
         enable_table_processing: bool = True,
         enable_equation_processing: bool = True,
@@ -57,7 +57,7 @@ class RAGAnythingPipeline:
         self.enable_image = enable_image_processing
         self.enable_table = enable_table_processing
         self.enable_equation = enable_equation_processing
-        self._instances: Dict[str, Any] = {}
+        self._instances: dict[str, Any] = {}
 
     def _setup_raganything_path(self):
         """Add RAG-Anything to sys.path if available."""
@@ -110,7 +110,7 @@ class RAGAnythingPipeline:
     async def initialize(
         self,
         kb_name: str,
-        file_paths: List[str],
+        file_paths: list[str],
         extract_numbered_items: bool = True,
         **kwargs,
     ) -> bool:
@@ -258,7 +258,7 @@ class RAGAnythingPipeline:
             # Load all content list files
             all_content_items = []
             for json_file in content_list_dir.glob("*.json"):
-                with open(json_file, "r", encoding="utf-8") as f:
+                with open(json_file, encoding="utf-8") as f:
                     content_items = json.load(f)
                     all_content_items.extend(content_items)
 
@@ -296,7 +296,7 @@ class RAGAnythingPipeline:
         mode: str = "hybrid",
         only_need_context: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using RAG-Anything's aquery().
 

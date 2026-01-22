@@ -3,10 +3,7 @@
 Base Retriever
 ==============
 
-Base class for document retrievers.
-"""
-
-from typing import Any, Dict
+from typing import Any
 
 from ..base import BaseComponent
 
@@ -20,7 +17,9 @@ class BaseRetriever(BaseComponent):
 
     name = "base_retriever"
 
-    async def process(self, query: str, kb_name: str, **kwargs) -> Dict[str, Any]:
+    async def process(
+        self, query: str, kb_name: str, **kwargs
+    ) -> dict[str, Any]:
         """
         Search for documents matching a query.
 

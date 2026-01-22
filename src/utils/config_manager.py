@@ -1,21 +1,22 @@
-import logging
 import os
-from pathlib import Path
+import logging
 import tempfile
-from threading import Lock
-from typing import Any
 
+from pathlib import Path
+from threading import Lock
+from typing import Any, Dict, List
+from threading import RLock
+from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
+import yaml
 from dotenv import dotenv_values, load_dotenv
 from pydantic import ValidationError
-import yaml
 
-from ..config.defaults import DEFAULTS
+from src.config.schema import AppConfig, migrate_config
+from src.config.defaults import DEFAULTS
+from src.core.errors import ConfigError
 
-# Use package-relative imports to avoid PYTHONPATH issues
-from ..config.schema import AppConfig, migrate_config
-from ..core.errors import ConfigError
-
-logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
@@ -32,10 +33,13 @@ class ConfigManager:
     - Layered env: .env, then .env.local (override), then process env.
     """
 
-    _instance: "ConfigManager | None" = None
-    _config_cache: dict[str, Any] = {}
-    _lock = Lock()
 
+    _instance = None
+    _lock = Lock()
+    _instance: Optional["ConfigManager"] = None
+    _lock = RLock()
+
+    def __new__(cls):
     def __new__(cls, project_root: Path | None = None):
         if cls._instance is None:
             with cls._lock:
@@ -55,9 +59,20 @@ class ConfigManager:
         self._initialized = True
 
         # Layered env loading
+        # By default we load .env and .env.local into process-wide os.environ.
+        # Tests (or other callers) that require deterministic environment
+        # variables can disable this behavior by setting the environment
+        # variable CONFIG_MANAGER_SKIP_DOTENV to a truthy value (e.g. "1",
+        # "true", or "yes"). For cases where specific env values are needed
+        # without mutating os.environ, use _load_env_file instead.
+        skip_dotenv = os.getenv("CONFIG_MANAGER_SKIP_DOTENV", "").lower()
+        if skip_dotenv not in {"1", "true", "yes"}:
+            self._initialize_env()
+
+    def _initialize_env(self) -> None:
+        """Initialize process environment from layered .env files."""
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
-
     def _load_env_file(self, path: Path) -> dict[str, str]:
         """Load a .env file and return non-None values as strings."""
         if not path.exists():
@@ -68,7 +83,7 @@ class ConfigManager:
         """Read the main YAML configuration file safely."""
         if not self.config_path.exists():
             return {}
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
 
     def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
@@ -86,7 +101,7 @@ class ConfigManager:
         try:
             return AppConfig(**migrated).dict()
         except ValidationError as e:
-            raise ConfigError("Config validation failed", details={"errors": e.errors()})
+            raise ConfigError("Config validation failed", context={"errors": e.errors()})
 
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
         """
@@ -100,13 +115,13 @@ class ConfigManager:
                 self._last_mtime = 0
                 return {}
 
-            current_mtime = self.config_path.stat().st_mtime
-            if not self._config_cache or force_reload or current_mtime > self._last_mtime:
+            if not self._config_cache or force_reload:
                 try:
                     raw = self._read_yaml()
                     validated = self._validate_and_migrate(raw)
                     self._config_cache = validated
-                    self._last_mtime = current_mtime
+                    # Update mtime for bookkeeping (do not trigger auto reload based on mtime)
+                    self._last_mtime = self.config_path.stat().st_mtime
                 except ConfigError as ce:
                     logger.error("%s", ce, extra={"context": getattr(ce, "context", {})})
                     return {}
@@ -138,9 +153,7 @@ class ConfigManager:
                 )
 
                 # Atomic write with backup
-                fd, tmp_path = tempfile.mkstemp(
-                    prefix="main.yaml.", dir=str(self.config_path.parent)
-                )
+                fd, tmp_path = tempfile.mkstemp(prefix="main.yaml.", dir=str(self.config_path.parent))
                 try:
                     with os.fdopen(fd, "w", encoding="utf-8") as tmp:
                         tmp.write(yaml_str)
@@ -160,14 +173,10 @@ class ConfigManager:
                     if os.path.exists(tmp_path):
                         try:
                             os.remove(tmp_path)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Failed to remove temp file {tmp_path}: {e}")
         except ConfigError as ce:
-            logger.error(
-                "Refusing to save invalid config: %s",
-                ce,
-                extra={"context": getattr(ce, "context", {})},
-            )
+            logger.error("Refusing to save invalid config: %s", ce, extra={"context": getattr(ce, "context", {})})
             return False
         except Exception as e:
             logger.exception("Error saving config: %s", e)
@@ -180,8 +189,11 @@ class ConfigManager:
         """
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env = self._load_env_file(env_path)
-        parsed_env.update(self._load_env_file(local_path))
+        parsed_env: Dict[str, str] = {}
+        if env_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
 
         def _get(key: str, default: str = "") -> str:
             return str(parsed_env.get(key) or os.environ.get(key, default))
@@ -193,15 +205,12 @@ class ConfigManager:
     def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env = self._load_env_file(env_path)
-        parsed_env.update(self._load_env_file(local_path))
+        parsed_env: Dict[str, str] = {}
+        if env_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
+        if local_path.exists():
+            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
         missing = [k for k in keys if not (parsed_env.get(k) or os.environ.get(k))]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})
         return {"missing": missing}
-
-    @classmethod
-    def reset_for_tests(cls) -> None:
-        """Reset singleton to allow re-initialization in tests with a different project_root."""
-        with cls._lock:
-            cls._instance = None

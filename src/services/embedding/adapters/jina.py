@@ -21,6 +21,15 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             "default": 1024,
             "dimensions": [32, 64, 128, 256, 512, 768, 1024],
         },
+    MODELS_INFO: dict[str, dict[str, Any]] = {
+        "jina-embeddings-v3": {
+            "default": 1024,
+            "dimensions": [32, 64, 128, 256, 512, 768, 1024],
+        },
+        "jina-embeddings-v4": {
+            "default": 1024,
+            "dimensions": [32, 64, 128, 256, 512, 768, 1024],
+        },
     }
 
     INPUT_TYPE_TO_TASK = {
@@ -52,8 +61,9 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         }
 
         payload: dict[str, Any] = {
+        payload: dict[str, Any] = {
             "input": request.texts,
-            "model": request.model or self.model,
+            "model": model_name,
         }
 
         if request.dimensions:
@@ -72,7 +82,7 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
         if request.late_chunking:
             payload["late_chunking"] = True
 
-        url = f"{self.base_url}/embeddings"
+        url = f"{base_url}/embeddings"
 
         logger.debug(
             "Sending embedding request to %s with %d texts",

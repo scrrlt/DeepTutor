@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Tools Package - Unified tool collection
 
@@ -17,6 +16,11 @@ Includes:
 import importlib.util
 import sys
 
+from src.logging import get_logger
+
+# Module logger
+tools_logger = get_logger("Tools")
+
 try:
     # Directly load lightrag.utils module without triggering lightrag/__init__.py
     _spec = importlib.util.find_spec("lightrag.utils")
@@ -31,7 +35,9 @@ try:
             "VERBOSE_DEBUG": False,
             "get_env_value": lambda key, default=None: default,
             "safe_unicode_decode": lambda t: (
-                t.decode("utf-8", errors="ignore") if isinstance(t, bytes) else t
+                t.decode("utf-8", errors="ignore")
+                if isinstance(t, bytes)
+                else t
             ),
         }.items():
             if not hasattr(_utils, _k):
@@ -51,41 +57,60 @@ try:
 except Exception as e:
     import traceback
 
-    print(f"Warning: Failed to patch lightrag.utils: {e}")
-    traceback.print_exc()
+    tools_logger.warning("Failed to patch lightrag.utils: %s", e)
+    tools_logger.debug(traceback.format_exc())
 
-from .code_executor import run_code, run_code_sync
-from .query_item_tool import query_numbered_item
-from .rag_tool import rag_search
-from .web_search import web_search
+__all__: list[str] = []
 
-# Paper research related tools
+# Attempt to import lightweight tools lazily; if optional dependencies
+# are missing, skip them and allow importing test utilities without
+# requiring the full dependency stack.
+
+try:
+    from .query_item_tool import query_numbered_item
+
+    __all__.append("query_numbered_item")
+except Exception as e:  # pragma: no cover - optional dependency
+    tools_logger.debug("Optional import query_item_tool unavailable: %s", e)
+
+try:
+    from .web_search import web_search
+
+    __all__.append("web_search")
+except Exception as e:  # pragma: no cover - optional dependency
+    tools_logger.debug("Optional import web_search unavailable: %s", e)
+
+# RAG and run_code are more heavy; import them only if available
+try:
+    from .code_executor import run_code, run_code_sync
+
+    __all__.extend(["run_code", "run_code_sync"])
+except Exception as e:  # pragma: no cover - optional dependency
+    tools_logger.debug("Optional import code_executor unavailable: %s", e)
+
+try:
+    from .rag_tool import rag_search
+
+    __all__.append("rag_search")
+except Exception as e:  # pragma: no cover - optional dependency
+    tools_logger.debug("Optional import rag_tool unavailable: %s", e)
+
+# Paper research related tools (very optional)
 try:
     from .paper_search_tool import PaperSearchTool
     from .tex_chunker import TexChunker
     from .tex_downloader import TexDownloader, read_tex_file
 
-    __all__ = [
-        "PaperSearchTool",
-        "TexChunker",
-        "TexDownloader",
-        "query_numbered_item",
-        "rag_search",
-        "read_tex_file",
-        "run_code",
-        "run_code_sync",
-        "web_search",
-    ]
-except ImportError as e:
-    # If import fails (e.g., missing tiktoken), only export basic tools
-    print(f"⚠️  Some paper tools import failed: {e}")
-    __all__ = [
-        "query_numbered_item",
-        "rag_search",
-        "run_code",
-        "run_code_sync",
-        "web_search",
-    ]
+    __all__.extend(
+        [
+            "PaperSearchTool",
+            "TexChunker",
+            "TexDownloader",
+            "read_tex_file",
+        ]
+    )
+except Exception as e:  # pragma: no cover - optional dependency
+    tools_logger.debug("Optional paper tools unavailable: %s", e)
 
 # Question generation tools (lazy import to avoid circular dependencies)
 # Access via: from src.tools.question import parse_pdf_with_mineru, etc.

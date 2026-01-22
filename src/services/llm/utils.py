@@ -3,10 +3,7 @@
 LLM Utilities
 =============
 
-Utility functions for LLM service:
-- URL handling for local and cloud servers
-- Response content extraction
-- Thinking tags cleaning
+URL handling, response extraction, and thinking-tag cleanup helpers.
 """
 
 from collections.abc import Mapping, Sequence
@@ -58,7 +55,9 @@ V1_SUFFIX_PORTS = {
 }
 
 
-def is_local_llm_server(base_url: str) -> bool:
+def is_local_llm_server(
+    base_url: str, allow_private: bool | None = None
+) -> bool:
     """
     Check if the given URL points to a local LLM server.
 
@@ -70,6 +69,9 @@ def is_local_llm_server(base_url: str) -> bool:
 
     Args:
         base_url: The base URL to check
+        allow_private: Optional override to treat private network IPs as local.
+                       If None, reads the LLM_TREAT_PRIVATE_AS_LOCAL env var
+                       ("1", "true", "yes" => True).
 
     Returns:
         True if the URL appears to be a local LLM server
@@ -77,11 +79,16 @@ def is_local_llm_server(base_url: str) -> bool:
     if not base_url:
         return False
 
-    base_url_lower = base_url.lower()
+    # Resolve allow_private from env if not explicitly provided
+    if allow_private is None:
+        val = os.environ.get("LLM_TREAT_PRIVATE_AS_LOCAL")
+        if val is not None:
+            allow_private = val.strip().lower() in ("1", "true", "yes")
 
-    # First, exclude known cloud providers
-    for domain in CLOUD_DOMAINS:
-        if domain in base_url_lower:
+    try:
+        parsed = urlparse(base_url)
+        hostname = parsed.hostname
+        if not hostname:
             return False
 
     # Extract hostname/IP from URL
@@ -120,54 +127,15 @@ def is_local_llm_server(base_url: str) -> bool:
         if port in base_url_lower:
             return True
 
-    return False
-
-
-def _needs_v1_suffix(url: str) -> bool:
-    """
-    Check if the URL needs /v1 suffix for OpenAI compatibility.
-
-    Most local LLM servers (Ollama, LM Studio, vLLM, llama.cpp) expose
-    OpenAI-compatible endpoints at /v1.
-
-    Args:
-        url: The URL to check
-
-    Returns:
-        True if /v1 should be appended
-    """
-    if not url:
         return False
 
-    url_lower = url.lower()
-
-    # Skip if already has /v1
-    if url_lower.endswith("/v1"):
+    except Exception:
         return False
-
-    # Only add /v1 for local servers with known ports that need it
-    if not is_local_llm_server(url):
-        return False
-
-    # Check if URL contains any port that needs /v1 suffix
-    # Also check for "ollama" in URL (but not ollama.com cloud service)
-    is_ollama = "ollama" in url_lower and "ollama.com" not in url_lower
-    if is_ollama:
-        return True
-
-    return any(port in url_lower for port in V1_SUFFIX_PORTS)
 
 
 def sanitize_url(base_url: str, model: str = "") -> str:
     """
-    Sanitize base URL for OpenAI-compatible APIs, with special handling for local LLM servers.
-
-    Handles:
-    - Ollama (port 11434)
-    - LM Studio (port 1234)
-    - vLLM (port 8000)
-    - llama.cpp (port 8080)
-    - Other localhost OpenAI-compatible servers
+    Normalize URL without guessing based on ports.
 
     Args:
         base_url: The base URL to sanitize
@@ -177,7 +145,11 @@ def sanitize_url(base_url: str, model: str = "") -> str:
         Sanitized URL string
     """
     if not base_url:
-        return base_url
+        return ""
+
+    # Force protocol
+    if not re.match(r"^[a-zA-Z]+://", base_url):
+        base_url = f"http://{base_url}"
 
     url = base_url.rstrip("/")
 
@@ -210,6 +182,8 @@ def clean_thinking_tags(
     content: str,
     binding: str | None = None,
     model: str | None = None,
+    binding: str | None = None,
+    model: str | None = None,
 ) -> str:
     """
     Remove thinking tags from model output.
@@ -226,7 +200,7 @@ def clean_thinking_tags(
         Cleaned content without thinking tags
     """
     if not content:
-        return content
+        return ""
 
     # Check if model produces thinking tags (if binding/model provided)
     if binding:
@@ -237,6 +211,8 @@ def clean_thinking_tags(
             return content
 
     # Remove <think>...</think> blocks
+    # Note: This regex is simple and doesn't handle streaming well.
+    # Future improvements should use a streaming-aware parser.
     if "<think>" in content:
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
 
@@ -255,6 +231,8 @@ def clean_thinking_tags(
 
 def build_chat_url(
     base_url: str,
+    api_version: str | None = None,
+    binding: str | None = None,
     api_version: str | None = None,
     binding: str | None = None,
 ) -> str:
@@ -436,8 +414,23 @@ def collect_model_names(entries: Sequence[object]) -> list[str]:
             names.append(name)
     return names
 
+    # 2. DeepSeek/Reasoning variants (often in 'reasoning_content')
+    # If the user *wants* the reasoning, this logic hides it.
+    # Ensure this aligns with your design goal (hiding vs showing thought).
+    for key in ["reasoning_content", "thought", "reasoning"]:
+        if val := message.get(key):
+            return val
+
+    # 3. Tool Calls (Don't return empty string if it's a tool call)
+    if message.get("tool_calls"):
+        return "<tool_call>"
+
+    return ""
+
 
 def build_auth_headers(
+    api_key: str | None,
+    binding: str | None = None,
     api_key: str | None,
     binding: str | None = None,
 ) -> dict[str, str]:

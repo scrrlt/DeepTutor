@@ -32,7 +32,7 @@ class InvestigateAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="investigate_agent",
@@ -44,11 +44,19 @@ class InvestigateAgent(BaseAgent):
             token_tracker=token_tracker,
         )
         # Read web_search enabled config from tools.web_search.enabled
-        self.enable_web_search = config.get("tools", {}).get("web_search", {}).get("enabled", True)
+        self.enable_web_search = (
+            config.get("tools", {}).get("web_search", {}).get("enabled", True)
+        )
 
         # Read agent-specific config from solve.agents.investigate_agent
-        agent_config = config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
-        self.max_actions_per_round = agent_config.get("max_actions_per_round", 1)
+        agent_config = (
+            config.get("solve", {})
+            .get("agents", {})
+            .get("investigate_agent", {})
+        )
+        self.max_actions_per_round = agent_config.get(
+            "max_actions_per_round", 1
+        )
         self.max_iterations = agent_config.get("max_iterations", 3)
 
     async def process(
@@ -119,7 +127,9 @@ class InvestigateAgent(BaseAgent):
         if not isinstance(tool_plans, list):
             if isinstance(tool_plans, dict):
                 # If plan is a dict, wrap it in a list
-                self.logger.warning("Parse warning: 'plan' field is a dict, wrapping in list")
+                self.logger.warning(
+                    "Parse warning: 'plan' field is a dict, wrapping in list"
+                )
                 tool_plans = [tool_plans]
             else:
                 self.logger.warning(
@@ -177,7 +187,9 @@ class InvestigateAgent(BaseAgent):
                     "tool_type": tool_type,
                     "query": query,
                     "identifier": identifier,
-                    "cite_id": knowledge_item.cite_id if knowledge_item else None,
+                    "cite_id": knowledge_item.cite_id
+                    if knowledge_item
+                    else None,
                 }
             )
 
@@ -196,7 +208,9 @@ class InvestigateAgent(BaseAgent):
             "actions": executed_actions,
         }
 
-    def _build_context(self, question: str, memory: InvestigateMemory) -> dict[str, Any]:
+    def _build_context(
+        self, question: str, memory: InvestigateMemory
+    ) -> dict[str, Any]:
         """Build context (pass full content, no truncation)"""
         knowledge_chain_full = []
         for item in memory.knowledge_chain:
@@ -212,7 +226,9 @@ class InvestigateAgent(BaseAgent):
 
         remaining_questions_full = []
         if memory.reflections and memory.reflections.remaining_questions:
-            remaining_questions_full = memory.reflections.remaining_questions.copy()
+            remaining_questions_full = (
+                memory.reflections.remaining_questions.copy()
+            )
         knowledge_chain_summary = (
             "\n".join(
                 f"- {item.cite_id} ({item.tool_type}): {item.summary or item.raw_result[:200]}"
@@ -249,12 +265,15 @@ class InvestigateAgent(BaseAgent):
         if not self.enable_web_search:
             # Get the web_search disabled prompt if available, otherwise filter out web_search lines
             web_search_disabled_prompt = (
-                self.get_prompt("web_search_disabled") if self.has_prompts() else None
+                self.get_prompt("web_search_disabled")
+                if self.has_prompts()
+                else None
             )
             if web_search_disabled_prompt:
                 # Replace web_search description with disabled message
                 prompt = prompt.replace(
-                    self.get_prompt("web_search_description") or "", web_search_disabled_prompt
+                    self.get_prompt("web_search_description") or "",
+                    web_search_disabled_prompt,
                 )
             else:
                 # Simple filter: remove lines containing web_search tool description
@@ -263,7 +282,9 @@ class InvestigateAgent(BaseAgent):
                 for line in lines:
                     # Skip lines that describe web_search as an available tool
                     if "`web_search`" in line and (
-                        "Use Sparingly" in line or "latest news" in line or "Web Search" in line
+                        "Use Sparingly" in line
+                        or "latest news" in line
+                        or "Web Search" in line
                     ):
                         continue
                     # Also remove web_search from tool list in output format
@@ -283,7 +304,9 @@ class InvestigateAgent(BaseAgent):
 
     def _build_user_prompt(self, context: dict[str, Any]) -> str:
         """Build user prompt (pass full content)"""
-        template = self.get_prompt("user_template") if self.has_prompts() else None
+        template = (
+            self.get_prompt("user_template") if self.has_prompts() else None
+        )
         if not template:
             raise ValueError(
                 "InvestigateAgent missing user prompt template. Configure in prompts/en/analysis_loop/investigate_agent.yaml"
@@ -303,7 +326,11 @@ class InvestigateAgent(BaseAgent):
         import time
 
         start_time = time.time()
-        tool_input = {"query": query, "identifier": identifier, "kb_name": kb_name}
+        tool_input = {
+            "query": query,
+            "identifier": identifier,
+            "kb_name": kb_name,
+        }
 
         try:
             if tool_selection == "rag_naive":
@@ -311,7 +338,9 @@ class InvestigateAgent(BaseAgent):
                 raw_result = result.get("answer", "")
 
             elif tool_selection == "rag_hybrid":
-                result = await self._call_rag_hybrid(query, kb_name, output_dir)
+                result = await self._call_rag_hybrid(
+                    query, kb_name, output_dir
+                )
                 raw_result = result.get("answer", "")
 
             elif tool_selection == "web_search":
@@ -337,7 +366,9 @@ class InvestigateAgent(BaseAgent):
                     )
                     return None
 
-                result = await self._call_query_item(identifier_to_use, kb_name)
+                result = await self._call_query_item(
+                    identifier_to_use, kb_name
+                )
                 raw_result = result.get("content", result.get("answer", ""))
 
             else:
@@ -405,10 +436,16 @@ class InvestigateAgent(BaseAgent):
         """Call RAG Hybrid"""
         return await rag_search(query=query, kb_name=kb_name, mode="hybrid")
 
-    async def _call_web_search(self, query: str, output_dir: str | None) -> dict[str, Any]:
+    async def _call_web_search(
+        self, query: str, output_dir: str | None
+    ) -> dict[str, Any]:
         """Call Web Search"""
-        return web_search(query=query, output_dir=output_dir or "./cache", verbose=False)
+        return web_search(
+            query=query, output_dir=output_dir or "./cache", verbose=False
+        )
 
-    async def _call_query_item(self, identifier: str, kb_name: str) -> dict[str, Any]:
+    async def _call_query_item(
+        self, identifier: str, kb_name: str
+    ) -> dict[str, Any]:
         """Call Query Item"""
         return query_numbered_item(identifier=identifier, kb_name=kb_name)

@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
-"""
-LightRAG Retriever
-==================
+"""Pure LightRAG retriever for text-only queries."""
 
-Pure LightRAG retriever (text-only, no multimodal).
-"""
-
+import asyncio
 from pathlib import Path
 import sys
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar
+
+from src.services.llm.cache import get_cache_client
 
 from ..base import BaseComponent
 
@@ -22,9 +19,10 @@ class LightRAGRetriever(BaseComponent):
     """
 
     name = "lightrag_retriever"
-    _instances: ClassVar[Dict[str, Any]] = {}
+    _instances: ClassVar[dict[str, Any]] = {}
+    _init_locks: ClassVar[dict[str, asyncio.Lock]] = {}
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize LightRAG retriever.
 
@@ -38,46 +36,65 @@ class LightRAGRetriever(BaseComponent):
             / "knowledge_bases"
         )
 
-    def _get_lightrag_instance(self, kb_name: str):
+    async def _get_lightrag_instance(self, kb_name: str):
         """Get or create a pure LightRAG instance (text-only)."""
         working_dir = str(Path(self.kb_base_dir) / kb_name / "rag_storage")
 
         if working_dir in self._instances:
             return self._instances[working_dir]
 
-        # Add LightRAG path
-        project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
-        raganything_path = project_root.parent / "raganything" / "RAG-Anything"
-        if raganything_path.exists() and str(raganything_path) not in sys.path:
-            sys.path.insert(0, str(raganything_path))
+        local_lock = self._init_locks.setdefault(working_dir, asyncio.Lock())
 
-        try:
-            from lightrag import LightRAG
+        async with local_lock:
+            if working_dir in self._instances:
+                return self._instances[working_dir]
 
-            from src.services.embedding import get_embedding_client
-            from src.services.llm import get_llm_client
+            project_root = Path(__file__).resolve().parent.parent.parent.parent.parent.parent
+            raganything_path = project_root.parent / "raganything" / "RAG-Anything"
+            if raganything_path.exists() and str(raganything_path) not in sys.path:
+                sys.path.insert(0, str(raganything_path))
 
-            # Use unified LLM client from src/services/llm
-            llm_client = get_llm_client()
-            embed_client = get_embedding_client()
+            try:
+                from lightrag import LightRAG
 
-            # Get model function from unified LLM client
-            # This handles all provider differences and env var setup for LightRAG
-            llm_model_func = llm_client.get_model_func()
+                from src.services.embedding import get_embedding_client
+                from src.services.llm import get_llm_client
 
-            # Create pure LightRAG instance (no multimodal)
-            rag = LightRAG(
-                working_dir=working_dir,
-                llm_model_func=llm_model_func,
-                embedding_func=embed_client.get_embedding_func(),  # Use proper EmbeddingFunc object
-            )
+                llm_client = get_llm_client()
+                embed_client = get_embedding_client()
 
-            self._instances[working_dir] = rag
-            return rag
+                distributed_lock = None
+                acquired = False
+                cache_client = await get_cache_client()
+                if cache_client:
+                    distributed_lock = cache_client.lock(
+                        f"lightrag:init:{working_dir}",
+                        timeout=120,
+                        blocking_timeout=30,
+                    )
+                    acquired = await distributed_lock.acquire()
 
-        except ImportError as e:
-            self.logger.error(f"Failed to import LightRAG: {e}")
-            raise
+                try:
+                    llm_model_func = llm_client.get_model_func()
+
+                    rag = LightRAG(
+                        working_dir=working_dir,
+                        llm_model_func=llm_model_func,
+                        embedding_func=embed_client.get_embedding_func(),
+                    )
+
+                    self._instances[working_dir] = rag
+                    return rag
+                finally:
+                    if distributed_lock and acquired:
+                        try:
+                            await distributed_lock.release()
+                        except Exception as exc:  # noqa: BLE001
+                            self.logger.warning("Failed to release LightRAG init lock: %s", exc)
+
+            except ImportError as e:
+                self.logger.error(f"Failed to import LightRAG: {e}")
+                raise
 
     async def process(
         self,
@@ -86,7 +103,7 @@ class LightRAGRetriever(BaseComponent):
         mode: str = "hybrid",
         only_need_context: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using pure LightRAG retrieval (text-only).
 
@@ -105,7 +122,7 @@ class LightRAGRetriever(BaseComponent):
         from src.logging.adapters import LightRAGLogContext
 
         with LightRAGLogContext(scene="LightRAG-Search"):
-            rag = self._get_lightrag_instance(kb_name)
+            rag = await self._get_lightrag_instance(kb_name)
 
             # Initialize storages if not already initialized
             await rag.initialize_storages()

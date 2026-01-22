@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Main Solver - Problem-Solving System Controller
@@ -21,7 +20,12 @@ from ...services.config import parse_language
 from .analysis_loop import InvestigateAgent, NoteAgent
 
 # Dual-Loop Architecture
-from .memory import CitationMemory, InvestigateMemory, SolveChainStep, SolveMemory
+from .memory import (
+    CitationMemory,
+    InvestigateMemory,
+    SolveChainStep,
+    SolveMemory,
+)
 from .solve_loop import (
     ManagerAgent,
     PrecisionAnswerAgent,
@@ -119,7 +123,9 @@ class MainSolver:
             # Load main.yaml (solve_config.yaml is optional and will be merged if exists)
             from ...services.config.loader import load_config_with_main_async
 
-            full_config = await load_config_with_main_async("main.yaml", project_root)
+            full_config = await load_config_with_main_async(
+                "main.yaml", project_root
+            )
 
             # Extract solve-specific config and build validator-compatible structure
             solve_config = full_config.get("solve", {})
@@ -128,11 +134,15 @@ class MainSolver:
             # Build config structure expected by ConfigValidator
             self.config = {
                 "system": {
-                    "output_base_dir": paths_config.get("solve_output_dir", "./data/user/solve"),
+                    "output_base_dir": paths_config.get(
+                        "solve_output_dir", "./data/user/solve"
+                    ),
                     "save_intermediate_results": solve_config.get(
                         "save_intermediate_results", True
                     ),
-                    "language": full_config.get("system", {}).get("language", "en"),
+                    "language": full_config.get("system", {}).get(
+                        "language", "en"
+                    ),
                 },
                 "agents": solve_config.get("agents", {}),
                 "logging": full_config.get("logging", {}),
@@ -151,11 +161,15 @@ class MainSolver:
                         with open(path, encoding="utf-8") as f:
                             return yaml.safe_load(f) or {}
 
-                    local_config = await asyncio.to_thread(load_local_config, config_path)
+                    local_config = await asyncio.to_thread(
+                        load_local_config, config_path
+                    )
                 except Exception:
                     # Config loading warning will be handled by config_loader
                     pass
-            self.config = local_config if isinstance(local_config, dict) else {}
+            self.config = (
+                local_config if isinstance(local_config, dict) else {}
+            )
 
         if self.config is None or not isinstance(self.config, dict):
             self.config = {}
@@ -210,7 +224,9 @@ class MainSolver:
         from src.services.llm import is_local_llm_server
 
         if not api_key and not is_local_llm_server(base_url):
-            raise ValueError("API key not set. Provide api_key param or set LLM_API_KEY in .env")
+            raise ValueError(
+                "API key not set. Provide api_key param or set LLM_API_KEY in .env"
+            )
 
         # For local servers, use a placeholder key if none provided
         if not api_key and is_local_llm_server(base_url):
@@ -274,7 +290,11 @@ class MainSolver:
 
         result = base.copy() if base else {}
         for key, value in update.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = self._deep_merge(result[key], value)
             else:
                 result[key] = value
@@ -311,7 +331,9 @@ class MainSolver:
         self.precision_answer_agent = None
         self.logger.info("  Solve Loop agents (lazy init)")
 
-    async def solve(self, question: str, verbose: bool = True) -> dict[str, Any]:
+    async def solve(
+        self, question: str, verbose: bool = True
+    ) -> dict[str, Any]:
         """
         Main solving process - Dual-Loop Architecture
 
@@ -324,7 +346,9 @@ class MainSolver:
         """
         # Create output directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_base_dir = self.config.get("system", {}).get("output_base_dir", "./user/solve")
+        output_base_dir = self.config.get("system", {}).get(
+            "output_base_dir", "./user/solve"
+        )
         output_dir = os.path.join(output_base_dir, f"solve_{timestamp}")
         os.makedirs(output_dir, exist_ok=True)
 
@@ -333,7 +357,9 @@ class MainSolver:
         self.logger.add_task_log_handler(task_log_file)
 
         self.logger.section("Problem Solving Started")
-        self.logger.info(f"Question: {question[:100]}{'...' if len(question) > 100 else ''}")
+        self.logger.info(
+            f"Question: {question[:100]}{'...' if len(question) > 100 else ''}"
+        )
         self.logger.info(f"Output: {output_dir}")
 
         try:
@@ -383,7 +409,9 @@ class MainSolver:
             if hasattr(self, "logger"):
                 self.logger.shutdown()
 
-    async def _run_dual_loop_pipeline(self, question: str, output_dir: str) -> dict[str, Any]:
+    async def _run_dual_loop_pipeline(
+        self, question: str, output_dir: str
+    ) -> dict[str, Any]:
         """
         Dual-Loop Pipeline:
         1) Analysis Loop: Investigate → Note
@@ -393,7 +421,9 @@ class MainSolver:
         self.logger.info("Pipeline: Analysis Loop → Solve Loop")
 
         # ========== Analysis Loop ==========
-        self.logger.stage("Analysis Loop", "start", "Understanding the question")
+        self.logger.stage(
+            "Analysis Loop", "start", "Understanding the question"
+        )
 
         investigate_memory = InvestigateMemory.load_or_create(
             output_dir=output_dir, user_question=question
@@ -402,17 +432,25 @@ class MainSolver:
         citation_memory = CitationMemory.load_or_create(output_dir=output_dir)
 
         # Read max_iterations from solve.agents.investigate_agent config (authoritative source)
-        agent_config = self.config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
+        agent_config = (
+            self.config.get("solve", {})
+            .get("agents", {})
+            .get("investigate_agent", {})
+        )
         max_analysis_iterations = agent_config.get("max_iterations", 5)
         self.logger.log_stage_progress(
-            "AnalysisLoop", "start", f"max_iterations={max_analysis_iterations}"
+            "AnalysisLoop",
+            "start",
+            f"max_iterations={max_analysis_iterations}",
         )
 
         analysis_completed = False
 
         # Analysis Loop iterations
         for i in range(max_analysis_iterations):
-            self.logger.log_stage_progress("AnalysisLoop", "running", f"round={i + 1}")
+            self.logger.log_stage_progress(
+                "AnalysisLoop", "running", f"round={i + 1}"
+            )
 
             # 1. Investigate: Generate queries and call tools
             with self.monitor.track(f"analysis_investigate_{i + 1}"):
@@ -425,16 +463,26 @@ class MainSolver:
                     verbose=False,
                 )
 
-            knowledge_ids: list[str] = investigate_result.get("knowledge_item_ids", [])
+            knowledge_ids: list[str] = investigate_result.get(
+                "knowledge_item_ids", []
+            )
             should_stop = investigate_result.get("should_stop", False)
             reasoning = investigate_result.get("reasoning", "")
             actions = investigate_result.get("actions", [])
 
-            self.logger.debug(f"  [Investigate] Reasoning: {reasoning or 'N/A'}")
+            self.logger.debug(
+                f"  [Investigate] Reasoning: {reasoning or 'N/A'}"
+            )
 
             if hasattr(self, "_send_progress_update"):
-                queries = [action.get("query", "") for action in actions if action.get("query")]
-                self._send_progress_update("investigate", {"round": i + 1, "queries": queries})
+                queries = [
+                    action.get("query", "")
+                    for action in actions
+                    if action.get("query")
+                ]
+                self._send_progress_update(
+                    "investigate", {"round": i + 1, "queries": queries}
+                )
 
             if actions:
                 for action in actions:
@@ -442,7 +490,9 @@ class MainSolver:
                     query = action.get("query") or ""
                     cite_id = action.get("cite_id")
                     suffix = f" → cite_id={cite_id}" if cite_id else ""
-                    self.logger.info(f"  Tool: {tool_label} | {query[:50]}{suffix}")
+                    self.logger.info(
+                        f"  Tool: {tool_label} | {query[:50]}{suffix}"
+                    )
             else:
                 self.logger.debug("  No queries generated this round")
 
@@ -465,7 +515,9 @@ class MainSolver:
                     self.logger.info(f"  Note: {processed} items processed")
                     self.logger.log_stage_progress("Note", "complete")
                 else:
-                    self.logger.warning(f"  Note failed: {note_result.get('reason', 'unknown')}")
+                    self.logger.warning(
+                        f"  Note failed: {note_result.get('reason', 'unknown')}"
+                    )
                     self.logger.log_stage_progress("Note", "error")
 
             # Update Token stats
@@ -500,7 +552,9 @@ class MainSolver:
             investigate_memory.metadata["avg_confidence"] = 0.9
         else:
             coverage = min(
-                1.0, len(investigate_memory.knowledge_chain) / max(1, max_analysis_iterations)
+                1.0,
+                len(investigate_memory.knowledge_chain)
+                / max(1, max_analysis_iterations),
             )
             investigate_memory.metadata["coverage_rate"] = coverage
             investigate_memory.metadata["avg_confidence"] = 0.6
@@ -510,7 +564,9 @@ class MainSolver:
         # ========== Solve Loop ==========
         self.logger.stage("Solve Loop", "start", "Generating solution")
 
-        solve_memory = SolveMemory.load_or_create(output_dir=output_dir, user_question=question)
+        solve_memory = SolveMemory.load_or_create(
+            output_dir=output_dir, user_question=question
+        )
 
         # Initialize Solve Loop Agents (if not yet initialized)
         if self.manager_agent is None:
@@ -571,19 +627,29 @@ class MainSolver:
                         solve_memory=solve_memory,
                         verbose=(attempt > 0),
                     )
-                num_steps = plan_result.get("num_steps") or plan_result.get("steps_count", 0)
-                self.logger.log_stage_progress("Plan", "complete", f"steps={num_steps}")
-                self.logger.update_token_stats(self.token_tracker.get_summary())
+                num_steps = plan_result.get("num_steps") or plan_result.get(
+                    "steps_count", 0
+                )
+                self.logger.log_stage_progress(
+                    "Plan", "complete", f"steps={num_steps}"
+                )
+                self.logger.update_token_stats(
+                    self.token_tracker.get_summary()
+                )
                 break
             except Exception as e:
                 if attempt == 0:
-                    self.logger.error(f"ManagerAgent attempt {attempt + 1} failed: {e!s}")
+                    self.logger.error(
+                        f"ManagerAgent attempt {attempt + 1} failed: {e!s}"
+                    )
                     self.logger.warning("Retrying plan generation...")
                     solve_memory = SolveMemory.load_or_create(
                         output_dir=output_dir, user_question=question
                     )
                 else:
-                    self.logger.error(f"ManagerAgent attempt {attempt + 1} also failed")
+                    self.logger.error(
+                        f"ManagerAgent attempt {attempt + 1} also failed"
+                    )
                     raise ValueError(f"ManagerAgent failed after retry: {e!s}")
 
         if plan_result is None:
@@ -618,17 +684,23 @@ class MainSolver:
                     },
                 )
 
-            self.logger.log_stage_progress("SolveLoop", "running", f"step={step.step_id}")
+            self.logger.log_stage_progress(
+                "SolveLoop", "running", f"step={step.step_id}"
+            )
 
             if self._has_pending_tool_calls(step):
-                await self._execute_tool_calls(step, solve_memory, citation_memory, output_dir)
+                await self._execute_tool_calls(
+                    step, solve_memory, citation_memory, output_dir
+                )
 
             iteration = 0
             while iteration < max_correction_iterations:
                 iteration += 1
                 current_step = solve_memory.get_step(step.step_id) or step
 
-                with self.monitor.track(f"solve_execute_{step.step_id}_iter_{iteration}"):
+                with self.monitor.track(
+                    f"solve_execute_{step.step_id}_iter_{iteration}"
+                ):
                     solve_result = await self.solve_agent.process(
                         question=question,
                         current_step=current_step,
@@ -642,7 +714,9 @@ class MainSolver:
 
                 if solve_result.get("raw_llm_response"):
                     self.logger.log_stage_progress(
-                        "SolveLoop", "running", f"step={step.step_id}, iteration={iteration}"
+                        "SolveLoop",
+                        "running",
+                        f"step={step.step_id}, iteration={iteration}",
                     )
 
                 if solve_result.get("requested_calls"):
@@ -650,21 +724,31 @@ class MainSolver:
                         current_step, solve_memory, citation_memory, output_dir
                     )
 
-                self.logger.update_token_stats(self.token_tracker.get_summary())
+                self.logger.update_token_stats(
+                    self.token_tracker.get_summary()
+                )
 
                 if solve_result.get("finish_requested"):
                     current_step = solve_memory.get_step(step.step_id) or step
                     if self._has_pending_tool_calls(current_step):
-                        self.logger.debug("  Finish triggered but tools pending, continuing...")
+                        self.logger.debug(
+                            "  Finish triggered but tools pending, continuing..."
+                        )
                         continue
-                    solve_memory.mark_step_waiting_response(current_step.step_id)
+                    solve_memory.mark_step_waiting_response(
+                        current_step.step_id
+                    )
                     solve_memory.save()
                     self.logger.log_stage_progress(
-                        "SolveLoop", "complete", f"step={current_step.step_id} ready for response"
+                        "SolveLoop",
+                        "complete",
+                        f"step={current_step.step_id} ready for response",
                     )
                     break
             else:
-                self.logger.warning(f"  Step {step.step_id} max iterations reached")
+                self.logger.warning(
+                    f"  Step {step.step_id} max iterations reached"
+                )
                 solve_memory.mark_step_waiting_response(step.step_id)
                 solve_memory.save()
 
@@ -674,15 +758,21 @@ class MainSolver:
             if s.status not in ("waiting_response", "done")
         ]
         if pending_steps:
-            self.logger.warning(f"Steps not ready for response: {', '.join(pending_steps)}")
+            self.logger.warning(
+                f"Steps not ready for response: {', '.join(pending_steps)}"
+            )
 
         self.logger.log_stage_progress(
-            "SolveLoop", "complete", f"steps_processed={total_planned_steps - len(pending_steps)}"
+            "SolveLoop",
+            "complete",
+            f"steps_processed={total_planned_steps - len(pending_steps)}",
         )
 
         # 3. Response: Generate responses for each step
         self.logger.info("Response: Generating step responses...")
-        self.logger.log_stage_progress("ResponseLoop", "start", "Generating responses")
+        self.logger.log_stage_progress(
+            "ResponseLoop", "start", "Generating responses"
+        )
 
         accumulated_response = ""
         for step in solve_memory.solve_chains:
@@ -730,12 +820,16 @@ class MainSolver:
 
             if response_result.get("raw_response"):
                 self.logger.log_stage_progress(
-                    "ResponseLoop", "running", f"step={step.step_id} response generated"
+                    "ResponseLoop",
+                    "running",
+                    f"step={step.step_id} response generated",
                 )
 
             self.logger.update_token_stats(self.token_tracker.get_summary())
 
-        self.logger.log_stage_progress("ResponseLoop", "complete", "All responses generated")
+        self.logger.log_stage_progress(
+            "ResponseLoop", "complete", "All responses generated"
+        )
 
         # 4. Finalize: Compile final answer
         self.logger.info("Finalize: Compiling final answer...")
@@ -752,7 +846,9 @@ class MainSolver:
         solve_memory.metadata["total_steps"] = actual_total_steps
         solve_memory.metadata["completed_steps"] = completed_steps
         solve_memory.save()
-        self.logger.info(f"  Stats: {completed_steps}/{actual_total_steps} steps completed")
+        self.logger.info(
+            f"  Stats: {completed_steps}/{actual_total_steps} steps completed"
+        )
 
         used_cite_ids = []
         for step in completed_step_objs:
@@ -763,11 +859,13 @@ class MainSolver:
         final_answer = "\n\n".join(step_responses)
 
         # Get language setting from config (unified in config/main.yaml system.language)
-        language = self.config.get("system", {}).get("language", "zh")
+        language = self.config.get("system", {}).get("language", "en")
         lang_code = parse_language(language)
 
         # Check if citations are enabled
-        enable_citations = self.config.get("system", {}).get("enable_citations", True)
+        enable_citations = self.config.get("system", {}).get(
+            "enable_citations", True
+        )
 
         citations_section = ""
         if enable_citations and citation_memory:
@@ -787,12 +885,16 @@ class MainSolver:
             },
         }
 
-        self.logger.info(f"  Final answer: {len(format_result['final_answer'])} chars")
+        self.logger.info(
+            f"  Final answer: {len(format_result['final_answer'])} chars"
+        )
         self.logger.info(f"  Citations: {len(format_result['citations'])}")
 
         # 5. Precision Answer (if enabled)
         precision_answer_enabled = (
-            self.config.get("agents", {}).get("precision_answer_agent", {}).get("enabled", False)
+            self.config.get("agents", {})
+            .get("precision_answer_agent", {})
+            .get("enabled", False)
         )
         final_answer_content = format_result["final_answer"]
 
@@ -800,11 +902,15 @@ class MainSolver:
             self.logger.info("PrecisionAnswer: Generating concise answer...")
             with self.monitor.track("precision_answer"):
                 precision_result = await self.precision_answer_agent.process(
-                    question=question, detailed_answer=format_result["final_answer"], verbose=False
+                    question=question,
+                    detailed_answer=format_result["final_answer"],
+                    verbose=False,
                 )
             if precision_result.get("needs_precision"):
                 precision_answer = precision_result.get("precision_answer", "")
-                self.logger.info(f"  Precision answer: {len(precision_answer)} chars")
+                self.logger.info(
+                    f"  Precision answer: {len(precision_answer)} chars"
+                )
                 final_answer_content = f"## Concise Answer\n\n{precision_answer}\n\n---\n\n## Detailed Answer\n\n{format_result['final_answer']}"
             else:
                 self.logger.debug("  No precision answer needed")
@@ -815,7 +921,9 @@ class MainSolver:
             f.write(final_answer_content)
 
         self.logger.success(f"Final answer saved: {final_answer_file}")
-        self.logger.log_stage_progress("Format", "complete", f"output={final_answer_file}")
+        self.logger.log_stage_progress(
+            "Format", "complete", f"output={final_answer_file}"
+        )
 
         return {
             "question": question,
@@ -827,11 +935,17 @@ class MainSolver:
             "citations": format_result["citations"],
             "pipeline": "reworked",
             "total_steps": solve_memory.metadata["total_steps"],
-            "analysis_iterations": investigate_memory.metadata.get("total_iterations", 0),
+            "analysis_iterations": investigate_memory.metadata.get(
+                "total_iterations", 0
+            ),
             "solve_steps": solve_memory.metadata["completed_steps"],
             "metadata": {
-                "coverage_rate": investigate_memory.metadata.get("coverage_rate", 0.0),
-                "avg_confidence": investigate_memory.metadata.get("avg_confidence", 0.0),
+                "coverage_rate": investigate_memory.metadata.get(
+                    "coverage_rate", 0.0
+                ),
+                "avg_confidence": investigate_memory.metadata.get(
+                    "avg_confidence", 0.0
+                ),
                 "total_steps": solve_memory.metadata["total_steps"],
             },
         }
@@ -855,7 +969,9 @@ class MainSolver:
 
     @staticmethod
     def _has_pending_tool_calls(step: SolveChainStep) -> bool:
-        return any(call.status in {"pending", "running"} for call in step.tool_calls)
+        return any(
+            call.status in {"pending", "running"} for call in step.tool_calls
+        )
 
 
 if __name__ == "__main__":
@@ -865,7 +981,9 @@ if __name__ == "__main__":
 
     async def test():
         solver = MainSolver(kb_name="ai_textbook")
-        result = await solver.solve(question="What is linear convolution?", verbose=True)
-        print(f"Output file: {result['output_md']}")
+        result = await solver.solve(
+            question="What is linear convolution?", verbose=True
+        )
+        logger.info(f"Output file: {result['output_md']}")
 
     asyncio.run(test())

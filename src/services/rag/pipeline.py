@@ -9,7 +9,7 @@ Composable RAG pipeline with fluent API.
 import asyncio
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.logging import get_logger
 
@@ -19,7 +19,9 @@ from .types import Document
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
-    Path(__file__).resolve().parent.parent.parent.parent / "data" / "knowledge_bases"
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "data"
+    / "knowledge_bases"
 )
 
 
@@ -42,7 +44,7 @@ class RAGPipeline:
         result = await pipeline.search("query", "kb_name")
     """
 
-    def __init__(self, name: str = "default", kb_base_dir: Optional[str] = None):
+    def __init__(self, name: str = "default", kb_base_dir: str | None = None):
         """
         Initialize RAG pipeline.
 
@@ -53,11 +55,11 @@ class RAGPipeline:
         self.name = name
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
         self.logger = get_logger(f"Pipeline:{name}")
-        self._parser: Optional[Component] = None
-        self._chunkers: List[Component] = []
-        self._embedder: Optional[Component] = None
-        self._indexers: List[Component] = []
-        self._retriever: Optional[Component] = None
+        self._parser: Component | None = None
+        self._chunkers: list[Component] = []
+        self._embedder: Component | None = None
+        self._indexers: list[Component] = []
+        self._retriever: Component | None = None
 
     # Fluent API methods
     def parser(self, p: Component) -> "RAGPipeline":
@@ -85,7 +87,9 @@ class RAGPipeline:
         self._retriever = r
         return self
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+    async def initialize(
+        self, kb_name: str, file_paths: list[str], **kwargs
+    ) -> bool:
         """
         Run full initialization pipeline.
 
@@ -101,7 +105,9 @@ class RAGPipeline:
         Returns:
             True if successful
         """
-        self.logger.info(f"Initializing KB '{kb_name}' with {len(file_paths)} files")
+        self.logger.info(
+            f"Initializing KB '{kb_name}' with {len(file_paths)} files"
+        )
 
         if not self._parser:
             raise ValueError("No parser configured. Use .parser() to set one")
@@ -161,13 +167,18 @@ class RAGPipeline:
         if self._indexers:
             self.logger.info("Stage 4: Indexing...")
             await asyncio.gather(
-                *[indexer.process(kb_name, documents, **kwargs) for indexer in self._indexers]
+                *[
+                    indexer.process(kb_name, documents, **kwargs)
+                    for indexer in self._indexers
+                ]
             )
 
         self.logger.info(f"KB '{kb_name}' initialized successfully")
         return True
 
-    async def search(self, query: str, kb_name: str, **kwargs) -> Dict[str, Any]:
+    async def search(
+        self, query: str, kb_name: str, **kwargs
+    ) -> dict[str, Any]:
         """
         Search the knowledge base.
 
@@ -180,7 +191,9 @@ class RAGPipeline:
             Search results dictionary
         """
         if not self._retriever:
-            raise ValueError("No retriever configured. Use .retriever() to set one")
+            raise ValueError(
+                "No retriever configured. Use .retriever() to set one"
+            )
 
         return await self._retriever.process(query, kb_name=kb_name, **kwargs)
 
@@ -195,7 +208,12 @@ class RAGPipeline:
             True if successful
         """
         # Validate kb_name to prevent path traversal
-        if not kb_name or kb_name in (".", "..") or "/" in kb_name or "\\" in kb_name:
+        if (
+            not kb_name
+            or kb_name in (".", "..")
+            or "/" in kb_name
+            or "\\" in kb_name
+        ):
             raise ValueError(f"Invalid knowledge base name: {kb_name}")
 
         self.logger.info(f"Deleting KB '{kb_name}'")
@@ -205,7 +223,9 @@ class RAGPipeline:
         kb_dir = kb_dir.resolve()
         base_dir = Path(self.kb_base_dir).resolve()
         if not kb_dir.is_relative_to(base_dir):
-            raise ValueError(f"Knowledge base path outside allowed directory: {kb_name}")
+            raise ValueError(
+                f"Knowledge base path outside allowed directory: {kb_name}"
+            )
 
         if kb_dir.exists():
             shutil.rmtree(kb_dir)

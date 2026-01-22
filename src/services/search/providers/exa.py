@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -113,7 +114,9 @@ class ExaProvider(BaseSearchProvider):
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
+                response = await client.post(
+                    self.BASE_URL, headers=headers, json=payload, timeout=timeout
+                )
             except httpx.RequestError as e:
                 self.logger.error(f"Exa request failed: {e}")
                 raise Exception(f"Exa request failed: {e}")

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 AgentCoordinator - Orchestrates question generation workflow.
 
@@ -22,6 +21,10 @@ sys.path.insert(0, str(project_root))
 
 from src.logging import Logger, get_logger
 from src.services.config import load_config_with_main
+
+# Test seam: expose a module-level 'llm_complete' that tests can patch. If not
+# patched, the real implementation will be imported lazily within the function.
+llm_complete: Callable[..., Any] | None = None
 
 from .agents.generate_agent import GenerateAgent
 from .agents.relevance_analyzer import RelevanceAnalyzer
@@ -71,18 +74,24 @@ class AgentCoordinator:
         self._api_version = api_version
 
         # Load configuration
-        self.config = load_config_with_main("question_config.yaml", project_root)
+        self.config = load_config_with_main(
+            "question_config.yaml", project_root
+        )
 
         # Initialize logger
-        log_dir = self.config.get("paths", {}).get("user_log_dir") or self.config.get(
-            "logging", {}
-        ).get("log_dir")
-        self.logger: Logger = get_logger("QuestionCoordinator", log_dir=log_dir)
+        log_dir = self.config.get("paths", {}).get(
+            "user_log_dir"
+        ) or self.config.get("logging", {}).get("log_dir")
+        self.logger: Logger = get_logger(
+            "QuestionCoordinator", log_dir=log_dir
+        )
 
         # Get config values
         question_cfg = self.config.get("question", {})
         self.rag_query_count = question_cfg.get("rag_query_count", 3)
-        self.max_parallel_questions = question_cfg.get("max_parallel_questions", 1)
+        self.max_parallel_questions = question_cfg.get(
+            "max_parallel_questions", 1
+        )
         self.rag_mode = question_cfg.get("rag_mode", "naive")
 
         # Token tracking - will be updated from BaseAgent shared stats
@@ -182,10 +191,13 @@ class AgentCoordinator:
                 - rounds: Always 1 (no iteration)
         """
         self.logger.section("Single Question Generation")
-        self.logger.info(f"Knowledge point: {requirement.get('knowledge_point', 'N/A')}")
+        self.logger.info(
+            f"Knowledge point: {requirement.get('knowledge_point', 'N/A')}"
+        )
 
         await self._send_ws_update(
-            "progress", {"stage": "generating", "progress": {"status": "initializing"}}
+            "progress",
+            {"stage": "generating", "progress": {"status": "initializing"}},
         )
 
         # Step 1: Retrieve knowledge
@@ -218,7 +230,9 @@ class AgentCoordinator:
         )
 
         if not gen_result.get("success"):
-            self.logger.error(f"Question generation failed: {gen_result.get('error')}")
+            self.logger.error(
+                f"Question generation failed: {gen_result.get('error')}"
+            )
             return {
                 "success": False,
                 "error": gen_result.get("error", "Generation failed"),
@@ -233,7 +247,9 @@ class AgentCoordinator:
             knowledge_context=knowledge_context,
         )
 
-        self.logger.success(f"Question generated with {analysis['relevance']} relevance")
+        self.logger.success(
+            f"Question generated with {analysis['relevance']} relevance"
+        )
 
         # Build result (compatible with old format)
         result = {
@@ -280,11 +296,17 @@ class AgentCoordinator:
         if num_questions <= 0:
             raise ValueError("num_questions must be greater than zero")
 
-        self.logger.section(f"Custom Mode Generation: {num_questions} question(s)")
+        self.logger.section(
+            f"Custom Mode Generation: {num_questions} question(s)"
+        )
 
         # Create batch directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        batch_dir = Path(self.output_dir) / f"batch_{timestamp}" if self.output_dir else None
+        batch_dir = (
+            Path(self.output_dir) / f"batch_{timestamp}"
+            if self.output_dir
+            else None
+        )
         if batch_dir:
             batch_dir.mkdir(parents=True, exist_ok=True)
 
@@ -294,7 +316,11 @@ class AgentCoordinator:
         self.logger.stage("Stage 1: Researching")
         await self._send_ws_update(
             "progress",
-            {"stage": "researching", "progress": {"status": "retrieving"}, "total": num_questions},
+            {
+                "stage": "researching",
+                "progress": {"status": "retrieving"},
+                "total": num_questions,
+            },
         )
 
         retrieve_agent = self._create_retrieve_agent()
@@ -326,17 +352,22 @@ class AgentCoordinator:
         # =====================================================================
         self.logger.stage("Stage 2: Planning")
         await self._send_ws_update(
-            "progress", {"stage": "planning", "progress": {"status": "creating_plan"}}
+            "progress",
+            {"stage": "planning", "progress": {"status": "creating_plan"}},
         )
 
-        plan = await self._generate_question_plan(requirement, knowledge_context, num_questions)
+        plan = await self._generate_question_plan(
+            requirement, knowledge_context, num_questions
+        )
         focuses = plan.get("focuses", [])
 
         # Save plan.json
         if batch_dir:
             self._save_plan_json(batch_dir, plan)
 
-        await self._send_ws_update("plan_ready", {"plan": plan, "focuses": focuses})
+        await self._send_ws_update(
+            "plan_ready", {"plan": plan, "focuses": focuses}
+        )
 
         # =====================================================================
         # Stage 3: Generating
@@ -344,7 +375,10 @@ class AgentCoordinator:
         self.logger.stage("Stage 3: Generating")
         await self._send_ws_update(
             "progress",
-            {"stage": "generating", "progress": {"current": 0, "total": num_questions}},
+            {
+                "stage": "generating",
+                "progress": {"current": 0, "total": num_questions},
+            },
         )
 
         results = []
@@ -382,7 +416,8 @@ class AgentCoordinator:
                     }
                 )
                 await self._send_ws_update(
-                    "question_update", {"question_id": question_id, "status": "error"}
+                    "question_update",
+                    {"question_id": question_id, "status": "error"},
                 )
                 continue
 
@@ -390,7 +425,8 @@ class AgentCoordinator:
 
             # Analyze relevance
             await self._send_ws_update(
-                "question_update", {"question_id": question_id, "status": "analyzing"}
+                "question_update",
+                {"question_id": question_id, "status": "analyzing"},
             )
 
             analysis = await analyzer.process(
@@ -421,7 +457,8 @@ class AgentCoordinator:
             results.append(result)
 
             await self._send_ws_update(
-                "question_update", {"question_id": question_id, "status": "done"}
+                "question_update",
+                {"question_id": question_id, "status": "done"},
             )
             await self._send_ws_update(
                 "result",
@@ -435,7 +472,10 @@ class AgentCoordinator:
             )
             await self._send_ws_update(
                 "progress",
-                {"stage": "generating", "progress": {"current": idx + 1, "total": num_questions}},
+                {
+                    "stage": "generating",
+                    "progress": {"current": idx + 1, "total": num_questions},
+                },
             )
 
         # =====================================================================
@@ -499,7 +539,13 @@ class AgentCoordinator:
         Returns:
             Plan dict with focuses array
         """
-        from src.services.llm import complete as llm_complete
+        # Allow tests to patch 'llm_complete' at module level. If not patched, import
+        # the real one lazily.
+        global llm_complete
+        if llm_complete is not None:
+            _llm = llm_complete
+        else:
+            from src.services.llm import complete as _llm
         from src.services.llm.config import get_llm_config
 
         llm_config = get_llm_config()
@@ -516,9 +562,13 @@ class AgentCoordinator:
 
         # Truncate knowledge context consistently (4000 chars across all agents)
         truncated_knowledge = (
-            knowledge_context[:4000] if len(knowledge_context) > 4000 else knowledge_context
+            knowledge_context[:4000]
+            if len(knowledge_context) > 4000
+            else knowledge_context
         )
-        truncation_suffix = "...[truncated]" if len(knowledge_context) > 4000 else ""
+        truncation_suffix = (
+            "...[truncated]" if len(knowledge_context) > 4000 else ""
+        )
 
         user_prompt = (
             f"Topic: {requirement.get('knowledge_point', '')}\n"
@@ -530,7 +580,7 @@ class AgentCoordinator:
         )
 
         try:
-            response = await llm_complete(
+            response = await _llm(
                 prompt=user_prompt,
                 system_prompt=system_prompt,
                 model=llm_config.model,

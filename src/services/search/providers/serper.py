@@ -18,7 +18,7 @@ from datetime import datetime
 import json
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -85,7 +85,12 @@ class SerperProvider(BaseSearchProvider):
         }
 
         url = f"{self.BASE_URL}/{mode}"
-        response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        response = httpx.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=timeout,
+        )
 
         if response.status_code != 200:
             try:
@@ -124,9 +129,19 @@ class SerperProvider(BaseSearchProvider):
             sitelinks = []
             if result.get("sitelinks"):
                 for sl in result["sitelinks"]:
-                    sitelinks.append({"title": sl.get("title", ""), "link": sl.get("link", "")})
+                    sitelinks.append(
+                        {
+                            "title": sl.get("title", ""),
+                            "link": sl.get("link", ""),
+                        }
+                    )
 
-            # Build attributes dict with scholar-specific fields
+                response = httpx.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout,
+                )
             attributes: dict[str, Any] = result.get("attributes", {})
 
             # Scholar mode: extract publication info, citations, PDF URL, year

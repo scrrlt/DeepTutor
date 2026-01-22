@@ -6,8 +6,6 @@ Numbered Item Extractor
 Extracts numbered items (definitions, theorems, equations) from documents.
 """
 
-from typing import List
-
 from ...types import Chunk, Document
 from ..base import BaseComponent
 
@@ -34,7 +32,7 @@ class NumberedItemExtractor(BaseComponent):
         self.batch_size = batch_size
         self.max_concurrent = max_concurrent
 
-    async def process(self, doc: Document, **kwargs) -> List[Chunk]:
+    async def process(self, doc: Document, **kwargs) -> list[Chunk]:
         """
         Extract numbered items from a document.
 
@@ -46,10 +44,14 @@ class NumberedItemExtractor(BaseComponent):
             List of Chunks representing numbered items
         """
         if not doc.content_items:
-            self.logger.warning("No content_items in document, skipping extraction")
+            self.logger.warning(
+                "No content_items in document, skipping extraction"
+            )
             return []
 
-        self.logger.info(f"Extracting numbered items from {len(doc.content_items)} content items")
+        self.logger.info(
+            f"Extracting numbered items from {len(doc.content_items)} content items"
+        )
 
         try:
             from src.knowledge.extract_numbered_items import (
@@ -74,7 +76,9 @@ class NumberedItemExtractor(BaseComponent):
                 chunks.append(
                     Chunk(
                         content=item_data["text"],
-                        chunk_type=item_data["type"],  # Definition, Theorem, Equation...
+                        chunk_type=item_data[
+                            "type"
+                        ],  # Definition, Theorem, Equation...
                         metadata={
                             "identifier": identifier,
                             "page": item_data.get("page", 0),

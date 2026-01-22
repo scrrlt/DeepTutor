@@ -30,8 +30,12 @@ router = APIRouter()
 
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
-config = load_config_with_main("solve_config.yaml", project_root)  # Use any config to get main.yaml
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
+config = load_config_with_main(
+    "solve_config.yaml", project_root
+)  # Use any config to get main.yaml
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+    "logging", {}
+).get("log_dir")
 logger = get_logger("CoWriter", level="INFO", log_dir=log_dir)
 
 # Singleton agent instances - use refresh_config() before each request
@@ -193,7 +197,9 @@ async def export_markdown(content: dict):
         return Response(
             content=markdown_content,
             media_type="text/markdown",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -271,7 +277,9 @@ async def generate_script_only(request: ScriptOnlyRequest):
     """
     try:
         narrator = get_narrator_agent()
-        result = await narrator.generate_script(content=request.content, style=request.style)
+        result = await narrator.generate_script(
+            content=request.content, style=request.style
+        )
         return result
     except Exception as e:
         traceback.print_exc()

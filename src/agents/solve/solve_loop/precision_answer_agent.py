@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 PrecisionAnswerAgent - Precision answer generator (two-stage)
 """
 
 from pathlib import Path
 import sys
-from typing import Any, Dict
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent.parent
 if str(project_root) not in sys.path:
@@ -20,13 +19,13 @@ class PrecisionAnswerAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         api_key: str,
         base_url: str,
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="precision_answer_agent",
@@ -40,7 +39,7 @@ class PrecisionAnswerAgent(BaseAgent):
 
     async def process(
         self, question: str, detailed_answer: str, verbose: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         decision = await self._should_generate(question, verbose)
         if not decision["needs_precision"]:
             return {
@@ -58,39 +57,62 @@ class PrecisionAnswerAgent(BaseAgent):
             "final_answer": detailed_answer,
         }
 
-    async def _should_generate(self, question: str, verbose: bool) -> Dict[str, Any]:
-        system_prompt = self.get_prompt("decision_system") if self.has_prompts() else None
+    async def _should_generate(
+        self, question: str, verbose: bool
+    ) -> dict[str, Any]:
+        system_prompt = (
+            self.get_prompt("decision_system") if self.has_prompts() else None
+        )
         if not system_prompt:
             raise ValueError(
                 "PrecisionAnswerAgent missing decision_system prompt, please configure decision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        template = self.get_prompt("decision_user_template") if self.has_prompts() else None
+        template = (
+            self.get_prompt("decision_user_template")
+            if self.has_prompts()
+            else None
+        )
         if not template:
             raise ValueError(
                 "PrecisionAnswerAgent missing decision_user_template, please configure decision_user_template in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
         user_prompt = template.format(question=question)
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, verbose=verbose
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            verbose=verbose,
         )
         needs_precision = response.strip().upper().startswith("Y")
-        return {"needs_precision": needs_precision, "raw_decision": response.strip()}
+        return {
+            "needs_precision": needs_precision,
+            "raw_decision": response.strip(),
+        }
 
     async def _generate_precision_answer(
         self, question: str, detailed_answer: str, verbose: bool
     ) -> str:
-        system_prompt = self.get_prompt("precision_system") if self.has_prompts() else None
+        system_prompt = (
+            self.get_prompt("precision_system") if self.has_prompts() else None
+        )
         if not system_prompt:
             raise ValueError(
                 "PrecisionAnswerAgent missing precision_system prompt, please configure precision_system in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        template = self.get_prompt("precision_user_template") if self.has_prompts() else None
+        template = (
+            self.get_prompt("precision_user_template")
+            if self.has_prompts()
+            else None
+        )
         if not template:
             raise ValueError(
                 "PrecisionAnswerAgent missing precision_user_template, please configure precision_user_template in prompts/{lang}/solve_loop/precision_answer_agent.yaml"
             )
-        user_prompt = template.format(question=question, detailed_answer=detailed_answer)
+        user_prompt = template.format(
+            question=question, detailed_answer=detailed_answer
+        )
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, verbose=verbose
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            verbose=verbose,
         )
         return response.strip()

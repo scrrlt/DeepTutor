@@ -3,10 +3,10 @@ Error Rate Tracker - Track error rates per provider with alerting.
 """
 
 from collections import defaultdict, deque
+from collections.abc import Callable
 import logging
 import threading
 import time
-from typing import Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +20,17 @@ class ErrorRateTracker:
         self,
         window_size: int = 60,
         threshold: float = 0.5,
-        alert_callback: Optional[Callable[[str, float], None]] = None,
+        alert_callback: Callable[[str, float], None] | None = None,
     ):
         self.window_size = window_size  # seconds
         self.threshold = threshold  # failure rate threshold
         self.alert_callback = alert_callback
         self._lock = threading.RLock()  # Use RLock to allow reentrant locking
-        self._errors: Dict[str, deque[float]] = defaultdict(deque)
-        self._total_calls: Dict[str, deque[float]] = defaultdict(deque)
-        self._alerted: Dict[str, bool] = defaultdict(bool)  # to avoid repeated alerts
+        self._errors: dict[str, deque[float]] = defaultdict(deque)
+        self._total_calls: dict[str, deque[float]] = defaultdict(deque)
+        self._alerted: dict[str, bool] = defaultdict(
+            bool
+        )  # to avoid repeated alerts
 
     def record_call(self, provider: str, success: bool):
         """Record a call for the provider."""
@@ -71,7 +73,10 @@ class ErrorRateTracker:
     def _cleanup_old_entries(self, provider: str, now: float):
         """Remove entries older than window_size."""
         cutoff = now - self.window_size
-        while self._total_calls[provider] and self._total_calls[provider][0] <= cutoff:
+        while (
+            self._total_calls[provider]
+            and self._total_calls[provider][0] <= cutoff
+        ):
             self._total_calls[provider].popleft()
         while self._errors[provider] and self._errors[provider][0] <= cutoff:
             self._errors[provider].popleft()

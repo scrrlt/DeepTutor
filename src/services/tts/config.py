@@ -10,7 +10,6 @@ Simplified version - loads from unified config service or falls back to .env.
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -22,7 +21,7 @@ load_dotenv(PROJECT_ROOT / "DeepTutor.env", override=False)
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 
-def _strip_value(value: Optional[str]) -> Optional[str]:
+def _strip_value(value: str | None) -> str | None:
     """Remove leading/trailing whitespace and quotes from string."""
     if value is None:
         return None

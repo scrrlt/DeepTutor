@@ -5,7 +5,7 @@ Analyzes notebook content and generates progressive knowledge point learning pla
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
 
@@ -18,7 +18,7 @@ class LocateAgent(BaseAgent):
         api_key: str,
         base_url: str,
         language: str = "zh",
-        api_version: Optional[str] = None,
+        api_version: str | None = None,
         binding: str = "openai",
     ):
         super().__init__(
@@ -59,7 +59,10 @@ class LocateAgent(BaseAgent):
         return "\n".join(formatted)
 
     async def process(
-        self, notebook_id: str, notebook_name: str, records: list[dict[str, Any]]
+        self,
+        notebook_id: str,
+        notebook_name: str,
+        records: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Analyze notebook content and generate knowledge point learning plan
@@ -73,7 +76,11 @@ class LocateAgent(BaseAgent):
             Dictionary containing knowledge point list
         """
         if not records:
-            return {"success": False, "error": "No records in notebook", "knowledge_points": []}
+            return {
+                "success": False,
+                "error": "No records in notebook",
+                "knowledge_points": [],
+            }
 
         system_prompt = self.get_prompt("system")
         if not system_prompt:
@@ -124,10 +131,15 @@ class LocateAgent(BaseAgent):
                         validated_points.append(
                             {
                                 "knowledge_title": point.get(
-                                    "knowledge_title", "Unnamed knowledge point"
+                                    "knowledge_title",
+                                    "Unnamed knowledge point",
                                 ),
-                                "knowledge_summary": point.get("knowledge_summary", ""),
-                                "user_difficulty": point.get("user_difficulty", ""),
+                                "knowledge_summary": point.get(
+                                    "knowledge_summary", ""
+                                ),
+                                "user_difficulty": point.get(
+                                    "user_difficulty", ""
+                                ),
                             }
                         )
 

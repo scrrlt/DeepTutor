@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react'
 import {
   X,
   BookOpen,
@@ -16,28 +16,28 @@ import { useTranslation } from "react-i18next";
 import { apiUrl } from "@/lib/api";
 
 interface Notebook {
-  id: string;
-  name: string;
-  description: string;
-  record_count: number;
-  color: string;
-  updated_at?: string;
+  id: string
+  name: string
+  description: string
+  record_count: number
+  color: string
+  updated_at?: string
 }
 
 interface NotebookRecord {
-  id: string;
-  title: string;
-  user_query: string;
-  output: string;
-  type: string;
-  created_at?: string;
+  id: string
+  title: string
+  user_query: string
+  output: string
+  type: string
+  created_at?: string
 }
 
 interface NotebookImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onImport: (content: string, records: NotebookRecord[]) => void;
-  title?: string;
+  isOpen: boolean
+  onClose: () => void
+  onImport: (content: string, records: NotebookRecord[]) => void
+  title?: string
 }
 
 export default function NotebookImportModal({
@@ -66,100 +66,91 @@ export default function NotebookImportModal({
 
   useEffect(() => {
     if (isOpen) {
-      fetchNotebooks();
+      fetchNotebooks()
     } else {
       // Reset state on close
-      setSelectedRecords(new Set());
-      setSelectedRecordsData([]);
-      setExpandedNotebooks(new Set());
+      setSelectedRecords(new Set())
+      setSelectedRecordsData([])
+      setExpandedNotebooks(new Set())
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   const fetchNotebooks = async () => {
     try {
-      setLoading(true);
-      const res = await fetch(apiUrl("/api/v1/notebook/list"));
+      setLoading(true)
+      const res = await fetch(apiUrl('/api/v1/notebook/list'))
       if (res.ok) {
-        const data = await res.json();
-        const validNotebooks = (data.notebooks || []).filter(
-          (nb: Notebook) => nb.record_count > 0,
-        );
-        setNotebooks(validNotebooks);
+        const data = await res.json()
+        const validNotebooks = (data.notebooks || []).filter((nb: Notebook) => nb.record_count > 0)
+        setNotebooks(validNotebooks)
       }
     } catch (error) {
-      console.error("Failed to fetch notebooks:", error);
+      console.error('Failed to fetch notebooks:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const fetchRecords = async (notebookId: string) => {
-    if (notebookRecords.has(notebookId)) return;
+    if (notebookRecords.has(notebookId)) return
 
-    setLoadingRecords((prev) => new Set(prev).add(notebookId));
+    setLoadingRecords(prev => new Set(prev).add(notebookId))
     try {
-      const res = await fetch(apiUrl(`/api/v1/notebook/${notebookId}`));
+      const res = await fetch(apiUrl(`/api/v1/notebook/${notebookId}`))
       if (res.ok) {
-        const data = await res.json();
-        setNotebookRecords((prev) =>
-          new Map(prev).set(notebookId, data.records || []),
-        );
+        const data = await res.json()
+        setNotebookRecords(prev => new Map(prev).set(notebookId, data.records || []))
       }
     } catch (error) {
-      console.error(
-        `Failed to fetch records for notebook ${notebookId}:`,
-        error,
-      );
+      console.error(`Failed to fetch records for notebook ${notebookId}:`, error)
     } finally {
-      setLoadingRecords((prev) => {
-        const next = new Set(prev);
-        next.delete(notebookId);
-        return next;
-      });
+      setLoadingRecords(prev => {
+        const next = new Set(prev)
+        next.delete(notebookId)
+        return next
+      })
     }
-  };
+  }
 
   const toggleNotebook = (notebookId: string) => {
-    setExpandedNotebooks((prev) => {
-      const next = new Set(prev);
+    setExpandedNotebooks(prev => {
+      const next = new Set(prev)
       if (next.has(notebookId)) {
-        next.delete(notebookId);
+        next.delete(notebookId)
       } else {
-        next.add(notebookId);
-        fetchRecords(notebookId);
+        next.add(notebookId)
+        fetchRecords(notebookId)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   const toggleRecordSelection = (record: NotebookRecord) => {
-    setSelectedRecords((prev) => {
-      const next = new Set(prev);
+    setSelectedRecords(prev => {
+      const next = new Set(prev)
       if (next.has(record.id)) {
-        next.delete(record.id);
-        setSelectedRecordsData((current) =>
-          current.filter((r) => r.id !== record.id),
-        );
+        next.delete(record.id)
+        setSelectedRecordsData(current => current.filter(r => r.id !== record.id))
       } else {
-        next.add(record.id);
-        setSelectedRecordsData((current) => [...current, record]);
+        next.add(record.id)
+        setSelectedRecordsData(current => [...current, record])
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   const handleImport = () => {
     // Merge content: combine outputs or user_queries + outputs
     // For now, let's combine title + output
     const mergedContent = selectedRecordsData
-      .map((r) => `# ${r.title}\n\n${r.output}`)
-      .join("\n\n---\n\n");
+      .map(r => `# ${r.title}\n\n${r.output}`)
+      .join('\n\n---\n\n')
 
-    onImport(mergedContent, selectedRecordsData);
-    onClose();
-  };
+    onImport(mergedContent, selectedRecordsData)
+    onClose()
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -198,14 +189,14 @@ export default function NotebookImportModal({
                 {t("No notebooks found")}
               </div>
             ) : (
-              notebooks.map((nb) => (
+              notebooks.map(nb => (
                 <div
                   key={nb.id}
                   onClick={() => toggleNotebook(nb.id)}
                   className={`p-3 rounded-xl cursor-pointer transition-all border ${
                     expandedNotebooks.has(nb.id)
-                      ? "bg-white border-blue-200 shadow-sm"
-                      : "hover:bg-white border-transparent hover:border-slate-200"
+                      ? 'bg-white border-blue-200 shadow-sm'
+                      : 'hover:bg-white border-transparent hover:border-slate-200'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -216,7 +207,7 @@ export default function NotebookImportModal({
                     )}
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: nb.color || "#94a3b8" }}
+                      style={{ backgroundColor: nb.color || '#94a3b8' }}
                     />
                     <span className="font-medium text-sm text-slate-700 truncate flex-1">
                       {nb.name}
@@ -239,18 +230,15 @@ export default function NotebookImportModal({
               </div>
             ) : (
               <div className="space-y-4">
-                {Array.from(expandedNotebooks).map((nbId) => {
-                  const nb = notebooks.find((n) => n.id === nbId);
-                  const records = notebookRecords.get(nbId);
-                  const isLoading = loadingRecords.has(nbId);
+                {Array.from(expandedNotebooks).map(nbId => {
+                  const nb = notebooks.find(n => n.id === nbId)
+                  const records = notebookRecords.get(nbId)
+                  const isLoading = loadingRecords.has(nbId)
 
-                  if (!nb) return null;
+                  if (!nb) return null
 
                   return (
-                    <div
-                      key={nbId}
-                      className="animate-in fade-in slide-in-from-bottom-2"
-                    >
+                    <div key={nbId} className="animate-in fade-in slide-in-from-bottom-2">
                       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 pl-1 sticky top-0 bg-white py-2 z-10 flex items-center gap-2">
                         <div
                           className="w-2 h-2 rounded-full"
@@ -269,22 +257,22 @@ export default function NotebookImportModal({
                         </div>
                       ) : (
                         <div className="grid gap-2">
-                          {records.map((record) => (
+                          {records.map(record => (
                             <div
                               key={record.id}
                               onClick={() => toggleRecordSelection(record)}
                               className={`p-3 rounded-xl border cursor-pointer transition-all group ${
                                 selectedRecords.has(record.id)
-                                  ? "bg-blue-50 border-blue-200 ring-1 ring-blue-200"
-                                  : "bg-white border-slate-200 hover:border-blue-200 hover:shadow-sm"
+                                  ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200'
+                                  : 'bg-white border-slate-200 hover:border-blue-200 hover:shadow-sm'
                               }`}
                             >
                               <div className="flex items-start gap-3">
                                 <div
                                   className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
                                     selectedRecords.has(record.id)
-                                      ? "bg-blue-500 border-blue-500 text-white"
-                                      : "border-slate-300 group-hover:border-blue-300"
+                                      ? 'bg-blue-500 border-blue-500 text-white'
+                                      : 'border-slate-300 group-hover:border-blue-300'
                                   }`}
                                 >
                                   {selectedRecords.has(record.id) && (
@@ -305,9 +293,7 @@ export default function NotebookImportModal({
                                     {record.created_at && (
                                       <span className="flex items-center gap-1 text-[10px] text-slate-400">
                                         <Calendar className="w-3 h-3" />
-                                        {new Date(
-                                          record.created_at,
-                                        ).toLocaleDateString()}
+                                        {new Date(record.created_at).toLocaleDateString()}
                                       </span>
                                     )}
                                   </div>
@@ -318,7 +304,7 @@ export default function NotebookImportModal({
                         </div>
                       )}
                     </div>
-                  );
+                  )
                 })}
               </div>
             )}
@@ -349,5 +335,5 @@ export default function NotebookImportModal({
         </div>
       </div>
     </div>
-  );
+  )
 }

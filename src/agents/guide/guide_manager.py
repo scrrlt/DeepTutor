@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 GuideManager - Guided Learning Session Manager
 Manages the complete lifecycle of learning sessions
@@ -88,20 +87,24 @@ class GuideManager:
                 config = {}
 
         # Initialize logger (from config)
-        log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-            "log_dir"
-        )
+        log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+            "logging", {}
+        ).get("log_dir")
         self.logger = get_logger("Guide", log_dir=log_dir)
 
         if language is None:
             # Get language config (unified in config/main.yaml system.language)
-            lang_config = config.get("system", {}).get("language", "zh")
+            lang_config = config.get("system", {}).get("language", "en")
             self.language = parse_language(lang_config)
-            self.logger.info(f"Language setting loaded from config: {self.language}")
+            self.logger.info(
+                f"Language setting loaded from config: {self.language}"
+            )
         else:
             # If explicitly specified, also parse it to ensure consistency
             self.language = parse_language(language)
-            self.logger.info(f"Using explicitly specified language setting: {self.language}")
+            self.logger.info(
+                f"Using explicitly specified language setting: {self.language}"
+            )
 
         if output_dir:
             self.output_dir = Path(output_dir)
@@ -173,7 +176,10 @@ class GuideManager:
         return None
 
     async def create_session(
-        self, notebook_id: str, notebook_name: str, records: list[dict[str, Any]]
+        self,
+        notebook_id: str,
+        notebook_name: str,
+        records: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Create new learning session
@@ -189,13 +195,17 @@ class GuideManager:
         session_id = str(uuid.uuid4())[:8]
 
         locate_result = await self.locate_agent.process(
-            notebook_id=notebook_id, notebook_name=notebook_name, records=records
+            notebook_id=notebook_id,
+            notebook_name=notebook_name,
+            records=records,
         )
 
         if not locate_result.get("success"):
             return {
                 "success": False,
-                "error": locate_result.get("error", "Failed to analyze knowledge points"),
+                "error": locate_result.get(
+                    "error", "Failed to analyze knowledge points"
+                ),
                 "session_id": None,
             }
 
@@ -244,7 +254,11 @@ class GuideManager:
         total_points = len(knowledge_points)
 
         if total_points == 0:
-            return {"success": False, "error": "No knowledge points to learn", "status": "empty"}
+            return {
+                "success": False,
+                "error": "No knowledge points to learn",
+                "status": "empty",
+            }
 
         if current_index >= total_points:
             return {
@@ -294,7 +308,9 @@ class GuideManager:
 
         current_knowledge = state.get("current_knowledge")
 
-        interactive_result = await self.interactive_agent.process(knowledge=current_knowledge)
+        interactive_result = await self.interactive_agent.process(
+            knowledge=current_knowledge
+        )
 
         session.current_index = 0
         session.status = "learning"
@@ -357,7 +373,8 @@ class GuideManager:
                 {
                     "role": "system",
                     "content": state.get(
-                        "message", "Congratulations on completing all knowledge points!"
+                        "message",
+                        "Congratulations on completing all knowledge points!",
                     ),
                     "timestamp": time.time(),
                 }
@@ -375,7 +392,9 @@ class GuideManager:
 
         current_knowledge = state.get("current_knowledge")
 
-        interactive_result = await self.interactive_agent.process(knowledge=current_knowledge)
+        interactive_result = await self.interactive_agent.process(
+            knowledge=current_knowledge
+        )
 
         session.current_index = new_index
         session.current_html = interactive_result.get("html", "")
@@ -420,7 +439,10 @@ class GuideManager:
             return {"success": False, "error": "Session does not exist"}
 
         if session.status != "learning":
-            return {"success": False, "error": "Not currently in learning state"}
+            return {
+                "success": False,
+                "error": "Not currently in learning state",
+            }
 
         current_knowledge = session.knowledge_points[session.current_index]
 
@@ -439,7 +461,9 @@ class GuideManager:
         session.chat_history.append(user_msg)
 
         chat_result = await self.chat_agent.process(
-            knowledge=current_knowledge, chat_history=current_history, user_question=user_message
+            knowledge=current_knowledge,
+            chat_history=current_history,
+            user_question=user_message,
         )
 
         assistant_msg = {
@@ -458,7 +482,9 @@ class GuideManager:
             "knowledge_index": session.current_index,
         }
 
-    async def fix_html(self, session_id: str, bug_description: str) -> dict[str, Any]:
+    async def fix_html(
+        self, session_id: str, bug_description: str
+    ) -> dict[str, Any]:
         """
         Fix HTML page bug
 

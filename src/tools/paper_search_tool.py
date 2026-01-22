@@ -17,6 +17,10 @@ import re
 
 import arxiv
 
+from src.logging import get_logger
+
+logger = get_logger("PaperSearchTool")
+
 
 class PaperSearchTool:
     """ArXiv paper search tool"""
@@ -150,21 +154,24 @@ async def main():
     tool = PaperSearchTool()
 
     # Test search
-    print("Search: transformer attention mechanism")
+    logger.info("Search: transformer attention mechanism")
     papers = await tool.search_papers(
-        query="transformer attention mechanism", max_results=3, years_limit=3, sort_by="relevance"
+        query="transformer attention mechanism",
+        max_results=3,
+        years_limit=3,
+        sort_by="relevance",
     )
 
-    print(f"\nFound {len(papers)} papers:\n")
+    logger.info("Found %d papers", len(papers))
 
     for i, paper in enumerate(papers, 1):
-        print(f"{i}. {paper['title']}")
-        print(f"   Authors: {', '.join(paper['authors'][:3])}")
-        print(f"   Year: {paper['year']}")
-        print(f"   Citation: {tool.format_paper_citation(paper)}")
-        print(f"   URL: {paper['url']}")
-        print(f"   ArXiv ID: {paper['arxiv_id']}")
-        print()
+        logger.info("%d. %s", i, paper["title"])
+        logger.info("   Authors: %s", ", ".join(paper["authors"][:3]))
+        logger.info("   Year: %s", paper["year"])
+        logger.info("   Citation: %s", tool.format_paper_citation(paper))
+        logger.info("   URL: %s", paper["url"])
+        logger.info("   ArXiv ID: %s", paper["arxiv_id"])
+        logger.info("")
 
 
 if __name__ == "__main__":

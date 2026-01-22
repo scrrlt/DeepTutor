@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import {
   BookOpen,
@@ -17,23 +17,19 @@ import {
 import { useTranslation } from "react-i18next";
 
 interface NotebookSelectorProps {
-  notebooks: Notebook[];
-  expandedNotebooks: Set<string>;
-  notebookRecordsMap: Map<string, NotebookRecord[]>;
-  selectedRecords: Map<string, SelectedRecord>;
-  loadingNotebooks: boolean;
-  loadingRecordsFor: Set<string>;
-  isLoading: boolean;
-  onToggleExpanded: (notebookId: string) => void;
-  onToggleRecord: (
-    record: NotebookRecord,
-    notebookId: string,
-    notebookName: string,
-  ) => void;
-  onSelectAll: (notebookId: string, notebookName: string) => void;
-  onDeselectAll: (notebookId: string) => void;
-  onClearAll: () => void;
-  onCreateSession: () => void;
+  notebooks: Notebook[]
+  expandedNotebooks: Set<string>
+  notebookRecordsMap: Map<string, NotebookRecord[]>
+  selectedRecords: Map<string, SelectedRecord>
+  loadingNotebooks: boolean
+  loadingRecordsFor: Set<string>
+  isLoading: boolean
+  onToggleExpanded: (notebookId: string) => void
+  onToggleRecord: (record: NotebookRecord, notebookId: string, notebookName: string) => void
+  onSelectAll: (notebookId: string, notebookName: string) => void
+  onDeselectAll: (notebookId: string) => void
+  onClearAll: () => void
+  onCreateSession: () => void
 }
 
 export default function NotebookSelector({
@@ -80,13 +76,11 @@ export default function NotebookSelector({
           </div>
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {notebooks.map((notebook) => {
-              const isExpanded = expandedNotebooks.has(notebook.id);
-              const records = notebookRecordsMap.get(notebook.id) || [];
-              const isLoadingRecords = loadingRecordsFor.has(notebook.id);
-              const selectedFromThis = records.filter((r) =>
-                selectedRecords.has(r.id),
-              ).length;
+            {notebooks.map(notebook => {
+              const isExpanded = expandedNotebooks.has(notebook.id)
+              const records = notebookRecordsMap.get(notebook.id) || []
+              const isLoadingRecords = loadingRecordsFor.has(notebook.id)
+              const selectedFromThis = records.filter(r => selectedRecords.has(r.id)).length
 
               return (
                 <div key={notebook.id}>
@@ -103,7 +97,7 @@ export default function NotebookSelector({
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{
-                        backgroundColor: notebook.color || "#94a3b8",
+                        backgroundColor: notebook.color || '#94a3b8',
                       }}
                     />
                     <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
@@ -134,18 +128,18 @@ export default function NotebookSelector({
                         <>
                           <div className="flex gap-2 mb-2">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectAll(notebook.id, notebook.name);
+                              onClick={e => {
+                                e.stopPropagation()
+                                onSelectAll(notebook.id, notebook.name)
                               }}
                               className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                             >
                               {t("Select All")}
                             </button>
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeselectAll(notebook.id);
+                              onClick={e => {
+                                e.stopPropagation()
+                                onDeselectAll(notebook.id)
                               }}
                               className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                             >
@@ -153,29 +147,25 @@ export default function NotebookSelector({
                             </button>
                           </div>
                           <div className="space-y-1">
-                            {records.map((record) => (
+                            {records.map(record => (
                               <div
                                 key={record.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onToggleRecord(
-                                    record,
-                                    notebook.id,
-                                    notebook.name,
-                                  );
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  onToggleRecord(record, notebook.id, notebook.name)
                                 }}
                                 className={`p-2 rounded-lg cursor-pointer transition-all border ${
                                   selectedRecords.has(record.id)
-                                    ? "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700"
-                                    : "hover:bg-white dark:hover:bg-slate-700 border-transparent hover:border-slate-200 dark:hover:border-slate-600"
+                                    ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700'
+                                    : 'hover:bg-white dark:hover:bg-slate-700 border-transparent hover:border-slate-200 dark:hover:border-slate-600'
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
                                   <div
                                     className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                                       selectedRecords.has(record.id)
-                                        ? "bg-indigo-500 border-indigo-500 text-white"
-                                        : "border-slate-300 dark:border-slate-500"
+                                        ? 'bg-indigo-500 border-indigo-500 text-white'
+                                        : 'border-slate-300 dark:border-slate-500'
                                     }`}
                                   >
                                     {selectedRecords.has(record.id) && (
@@ -201,7 +191,7 @@ export default function NotebookSelector({
                     </div>
                   )}
                 </div>
-              );
+              )
             })}
           </div>
         )}
@@ -231,5 +221,5 @@ export default function NotebookSelector({
         </button>
       </div>
     </div>
-  );
+  )
 }

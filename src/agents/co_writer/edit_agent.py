@@ -13,7 +13,9 @@ from src.agents.base_agent import BaseAgent
 from src.tools.rag_tool import rag_search
 from src.tools.web_search import web_search
 
-USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer"
+USER_DIR = (
+    Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer"
+)
 HISTORY_FILE = USER_DIR / "history.json"
 TOOL_CALLS_DIR = USER_DIR / "tool_calls"
 
@@ -89,7 +91,11 @@ class EditAgent(BaseAgent):
                 - edited_text: Edited text
                 - operation_id: Operation ID
         """
-        operation_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+        operation_id = (
+            datetime.now().strftime("%Y%m%d_%H%M%S")
+            + "_"
+            + uuid.uuid4().hex[:6]
+        )
 
         context = ""
         tool_call_file = None
@@ -102,13 +108,20 @@ class EditAgent(BaseAgent):
                 )
                 source = None
             else:
-                self.logger.info(f"Searching RAG in KB: {kb_name} for: {instruction}")
+                self.logger.info(
+                    f"Searching RAG in KB: {kb_name} for: {instruction}"
+                )
                 try:
                     search_result = await rag_search(
-                        query=instruction, kb_name=kb_name, mode="naive", only_need_context=True
+                        query=instruction,
+                        kb_name=kb_name,
+                        mode="naive",
+                        only_need_context=True,
                     )
                     context = search_result.get("answer", "")
-                    self.logger.info(f"RAG context found: {len(context)} chars")
+                    self.logger.info(
+                        f"RAG context found: {len(context)} chars"
+                    )
 
                     tool_call_data = {
                         "type": "rag",
@@ -120,9 +133,13 @@ class EditAgent(BaseAgent):
                         "context": context,
                         "raw_result": search_result,
                     }
-                    tool_call_file = save_tool_call(operation_id, "rag", tool_call_data)
+                    tool_call_file = save_tool_call(
+                        operation_id, "rag", tool_call_data
+                    )
                 except Exception as e:
-                    self.logger.error(f"RAG search failed: {e}, continuing without context")
+                    self.logger.error(
+                        f"RAG search failed: {e}, continuing without context"
+                    )
                     source = None
 
         elif source == "web":
@@ -142,32 +159,53 @@ class EditAgent(BaseAgent):
                     "search_results": search_result.get("search_results", []),
                     "usage": search_result.get("usage", {}),
                 }
-                tool_call_file = save_tool_call(operation_id, "web", tool_call_data)
+                tool_call_file = save_tool_call(
+                    operation_id, "web", tool_call_data
+                )
             except Exception as e:
-                self.logger.error(f"Web search failed: {e}, continuing without context")
+                self.logger.error(
+                    f"Web search failed: {e}, continuing without context"
+                )
                 source = None
 
         # Build prompts
-        system_prompt = self.get_prompt("system", "You are an expert editor and writing assistant.")
+        system_prompt = self.get_prompt(
+            "system", "You are an expert editor and writing assistant."
+        )
 
-        action_verbs = {"rewrite": "Rewrite", "shorten": "Shorten", "expand": "Expand"}
+        action_verbs = {
+            "rewrite": "Rewrite",
+            "shorten": "Shorten",
+            "expand": "Expand",
+        }
         action_verb = action_verbs.get(action, "Rewrite")
 
-        action_template = self.get_prompt(
-            "action_template",
-            "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n",
+        action_template = (
+            self.get_prompt(
+                "action_template",
+                "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n",
+            )
+            or "{action_verb} the following text based on the user's instruction.\n\nUser Instruction: {instruction}\n\n"
         )
-        user_prompt = action_template.format(action_verb=action_verb, instruction=instruction)
+        user_prompt = action_template.format(
+            action_verb=action_verb, instruction=instruction
+        )
 
         if context:
-            context_template = self.get_prompt(
-                "context_template", "Reference Context:\n{context}\n\n"
+            context_template = (
+                self.get_prompt(
+                    "context_template", "Reference Context:\n{context}\n\n"
+                )
+                or "Reference Context:\n{context}\n\n"
             )
             user_prompt += context_template.format(context=context)
 
-        text_template = self.get_prompt(
-            "user_template",
-            "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations.",
+        text_template = (
+            self.get_prompt(
+                "user_template",
+                "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations.",
+            )
+            or "Target Text to Edit:\n{text}\n\nOutput only the edited text, without quotes or explanations."
         )
         user_prompt += text_template.format(text=text)
 
@@ -208,7 +246,11 @@ class EditAgent(BaseAgent):
                 - marked_text: Text with annotations
                 - operation_id: Operation ID
         """
-        operation_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+        operation_id = (
+            datetime.now().strftime("%Y%m%d_%H%M%S")
+            + "_"
+            + uuid.uuid4().hex[:6]
+        )
 
         system_prompt = self.get_prompt("auto_mark_system", "")
         user_template = self.get_prompt(
@@ -239,7 +281,9 @@ class EditAgent(BaseAgent):
         history.append(operation_record)
         save_history(history)
 
-        self.logger.info(f"Auto-mark operation {operation_id} recorded successfully")
+        self.logger.info(
+            f"Auto-mark operation {operation_id} recorded successfully"
+        )
 
         return {"marked_text": response, "operation_id": operation_id}
 

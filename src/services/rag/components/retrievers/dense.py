@@ -1,15 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Dense Retriever
-===============
-
-Dense vector-based retriever using FAISS or cosine similarity.
-"""
+"""Dense vector retriever using FAISS or cosine similarity."""
 
 import json
 from pathlib import Path
-import pickle
-from typing import Any, Dict, Optional
+import pickle  # nosec B403
+from typing import Any
 
 import numpy as np
 
@@ -26,7 +20,7 @@ class DenseRetriever(BaseComponent):
 
     name = "dense_retriever"
 
-    def __init__(self, kb_base_dir: Optional[str] = None, top_k: int = 5):
+    def __init__(self, kb_base_dir: str | None = None, top_k: int = 5):
         """
         Initialize dense retriever.
 
@@ -52,7 +46,7 @@ class DenseRetriever(BaseComponent):
         except ImportError:
             self.logger.warning("FAISS not available, using simple cosine similarity")
 
-    async def process(self, query: str, kb_name: str, **kwargs) -> Dict[str, Any]:
+    async def process(self, query: str, kb_name: str, **kwargs) -> dict[str, Any]:
         """
         Search using dense embeddings with FAISS or cosine similarity.
 
@@ -90,11 +84,11 @@ class DenseRetriever(BaseComponent):
             }
 
         # Load metadata and info (info.json is optional)
-        with open(metadata_file, "r", encoding="utf-8") as f:
+        with open(metadata_file, encoding="utf-8") as f:
             metadata = json.load(f)
 
         if info_file.exists():
-            with open(info_file, "r", encoding="utf-8") as f:
+            with open(info_file, encoding="utf-8") as f:
                 info = json.load(f)
         else:
             info = {"use_faiss": False}
@@ -135,7 +129,7 @@ class DenseRetriever(BaseComponent):
                 return self._empty_response(query)
 
             with open(embeddings_file, "rb") as f:
-                embeddings = pickle.load(f)
+                embeddings = pickle.load(f)  # nosec B301
 
             # Normalize for cosine similarity (avoid division by zero)
             query_norm = np.linalg.norm(query_embedding)
@@ -189,7 +183,7 @@ class DenseRetriever(BaseComponent):
             "results": sources,
         }
 
-    def _empty_response(self, query: str) -> Dict[str, Any]:
+    def _empty_response(self, query: str) -> dict[str, Any]:
         """Return empty response when no results found."""
         return {
             "query": query,

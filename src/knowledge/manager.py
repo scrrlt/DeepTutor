@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Knowledge Base Manager
 
@@ -73,6 +72,7 @@ class KnowledgeBaseManager:
         # Config file to track knowledge bases
         self.config_file = self.base_dir / "kb_config.json"
         self.config = self._load_config()
+        self.logger = get_logger("Knowledge")
 
     def _load_config(self) -> dict:
         """Load knowledge base configuration (kb_config.json only stores KB list)"""
@@ -204,7 +204,10 @@ class KnowledgeBaseManager:
         if "knowledge_bases" not in self.config:
             self.config["knowledge_bases"] = {}
 
-        self.config["knowledge_bases"][name] = {"path": name, "description": description}
+        self.config["knowledge_bases"][name] = {
+            "path": name,
+            "description": description,
+        }
 
         # Only set default if explicitly requested
         if set_default:
@@ -517,7 +520,7 @@ class KnowledgeBaseManager:
         rag_storage_dir = kb_dir / "rag_storage"
 
         if not rag_storage_dir.exists():
-            print(f"RAG storage does not exist for '{kb_name}'")
+            self.logger.info(f"RAG storage does not exist for '{kb_name}'")
             return False
 
         # Backup if requested
@@ -525,13 +528,13 @@ class KnowledgeBaseManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_dir = kb_dir / f"rag_storage_backup_{timestamp}"
             shutil.copytree(rag_storage_dir, backup_dir)
-            print(f"✓ Backed up to: {backup_dir}")
+            self.logger.success(f"Backed up to: {backup_dir}")
 
         # Delete RAG storage
         shutil.rmtree(rag_storage_dir)
         rag_storage_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"✓ RAG storage cleaned for '{kb_name}'")
+        self.logger.success(f"RAG storage cleaned for '{kb_name}'")
         return True
 
     def link_folder(self, kb_name: str, folder_path: str) -> dict:
@@ -847,7 +850,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="Knowledge Base Manager")
     parser.add_argument(
-        "--base-dir", default="./knowledge_bases", help="Base directory for knowledge bases"
+        "--base-dir",
+        default="./knowledge_bases",
+        help="Base directory for knowledge bases",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -858,7 +863,9 @@ def main():
     # Info command
     info_parser = subparsers.add_parser("info", help="Show knowledge base information")
     info_parser.add_argument(
-        "name", nargs="?", help="Knowledge base name (default if not specified)"
+        "name",
+        nargs="?",
+        help="Knowledge base name (default if not specified)",
     )
 
     # Set default command
@@ -875,7 +882,9 @@ def main():
         "clean-rag", help="Clean RAG storage (useful for corrupted data)"
     )
     clean_parser.add_argument(
-        "name", nargs="?", help="Knowledge base name (default if not specified)"
+        "name",
+        nargs="?",
+        help="Knowledge base name (default if not specified)",
     )
     clean_parser.add_argument(
         "--no-backup", action="store_true", help="Don't backup before cleaning"

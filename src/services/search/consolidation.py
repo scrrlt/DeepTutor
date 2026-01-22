@@ -184,7 +184,9 @@ class AnswerConsolidator:
         self.max_results = max_results
         # Security: autoescape defaults to True (set in function signature above).
         # When True, Jinja2 auto-escapes HTML to prevent XSS.
-        self.jinja_env = Environment(loader=BaseLoader(), autoescape=autoescape)  # nosec B701
+        self.jinja_env = Environment(
+            loader=BaseLoader(), autoescape=autoescape
+        )  # nosec B701
 
         if self.custom_template is not None and autoescape:
             _logger.warning(
@@ -214,13 +216,21 @@ class AnswerConsolidator:
 
         if self.consolidation_type == "template":
             response.answer = self._consolidate_with_template(response)
-            _logger.success(f"Template consolidation completed ({len(response.answer)} chars)")
+            _logger.success(
+                f"Template consolidation completed ({len(response.answer)} chars)"
+            )
         elif self.consolidation_type == "llm":
             response.answer = self._consolidate_with_llm(response)
-            _logger.success(f"LLM consolidation completed ({len(response.answer)} chars)")
+            _logger.success(
+                f"LLM consolidation completed ({len(response.answer)} chars)"
+            )
         else:
-            _logger.error(f"Unknown consolidation type: {self.consolidation_type}")
-            raise ValueError(f"Unknown consolidation type: {self.consolidation_type}")
+            _logger.error(
+                f"Unknown consolidation type: {self.consolidation_type}"
+            )
+            raise ValueError(
+                f"Unknown consolidation type: {self.consolidation_type}"
+            )
 
         return response
 
@@ -242,7 +252,9 @@ class AnswerConsolidator:
         """
         # 1. Custom template takes highest priority
         if self.custom_template:
-            _logger.debug(f"Using custom template ({len(self.custom_template)} chars)")
+            _logger.debug(
+                f"Using custom template ({len(self.custom_template)} chars)"
+            )
             return self.custom_template
 
         # 2. Get provider-specific template
@@ -253,14 +265,18 @@ class AnswerConsolidator:
 
         # 3. No template exists for this provider - fail explicitly
         available = list(PROVIDER_TEMPLATES.keys())
-        _logger.error(f"No template for provider '{provider}'. Available: {available}")
+        _logger.error(
+            f"No template for provider '{provider}'. Available: {available}"
+        )
         raise ValueError(
             f"No template consolidation available for provider '{provider}'. "
             f"Template consolidation only works with: {available}. "
             f"Use consolidation='llm' or provide a custom_template for other providers."
         )
 
-    def _build_provider_context(self, response: WebSearchResponse) -> dict[str, Any]:
+    def _build_provider_context(
+        self, response: WebSearchResponse
+    ) -> dict[str, Any]:
         """
         Build template context with provider-specific fields.
 

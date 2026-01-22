@@ -44,21 +44,29 @@ if __name__ == "__main__":
     reload_excludes = [
         str(project_root / "venv"),  # Virtual environment
         str(project_root / ".venv"),  # Virtual environment (alternative name)
-        str(project_root / "data"),  # Data directory (includes knowledge_bases, user data, logs)
+        str(
+            project_root / "data"
+        ),  # Data directory (includes knowledge_bases, user data, logs)
         str(project_root / "node_modules"),  # Node modules (if any at root)
         str(project_root / "web" / "node_modules"),  # Web node modules
         str(project_root / "web" / ".next"),  # Next.js build
         str(project_root / ".git"),  # Git directory
-        str(project_root / "scripts"),  # Scripts directory - don't reload on launcher changes
+        str(
+            project_root / "scripts"
+        ),  # Scripts directory - don't reload on launcher changes
     ]
 
     # Filter out non-existent directories to avoid warnings
     reload_excludes = [d for d in reload_excludes if Path(d).exists()]
 
     # Start uvicorn server with reload enabled
+    # Bind explicitly to 127.0.0.1 so the development server is only accessible
+    # from localhost and not from other machines or containers. For externally
+    # accessible deployments, use a separate production entry point that binds
+    # to 0.0.0.0 or is fronted by a reverse proxy.
     uvicorn.run(
         "src.api.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=backend_port,
         reload=True,
         reload_excludes=reload_excludes,

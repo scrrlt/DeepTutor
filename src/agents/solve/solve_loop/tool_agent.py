@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ToolAgent - Tool executor
 Responsible for reading tool calls in solve-chain, actually executing tools and producing summary
@@ -35,7 +34,7 @@ class ToolAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="tool_agent",
@@ -71,7 +70,9 @@ Rules:
             verbose=False,
         )
         if "```" in code:
-            raise ValueError("LLM returned markdown code fences, which is forbidden")
+            raise ValueError(
+                "LLM returned markdown code fences, which is forbidden"
+            )
         if len(code) > 8000:
             raise ValueError("Generated code too large")
 
@@ -89,19 +90,24 @@ Rules:
         pending = [
             call
             for call in step.tool_calls
-            if call.tool_type not in {"none", "finish"} and call.status in {"pending", "running"}
+            if call.tool_type not in {"none", "finish"}
+            and call.status in {"pending", "running"}
         ]
 
         if not pending:
             return {"step_id": step.step_id, "executed": [], "status": "idle"}
 
         logs: list[dict[str, Any]] = []
-        base_dir = Path(output_dir).resolve() if output_dir else Path().resolve()
+        base_dir = (
+            Path(output_dir).resolve() if output_dir else Path().resolve()
+        )
         artifacts_dir = base_dir / "artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
         self.logger.log_stage_progress(
-            "Tool", "start", f"step={step.step_id}, pending_calls={len(pending)}"
+            "Tool",
+            "start",
+            f"step={step.step_id}, pending_calls={len(pending)}",
         )
 
         for record in pending:
@@ -128,7 +134,9 @@ Rules:
                         is_failed = True
 
                 summary = await self._summarize_tool_result(
-                    tool_type=record.tool_type, query=record.query, raw_answer=raw_answer
+                    tool_type=record.tool_type,
+                    query=record.query,
+                    raw_answer=raw_answer,
                 )
 
                 # Set correct status based on execution result
@@ -203,7 +211,9 @@ Rules:
                     cite_id=record.cite_id,
                 )
                 self.logger.log_stage_progress(
-                    "Tool", "warning", f"step={step.step_id}, call={call_label}, error={error_msg}"
+                    "Tool",
+                    "warning",
+                    f"step={step.step_id}, call={call_label}, error={error_msg}",
                 )
                 logs.append(
                     {
@@ -222,7 +232,11 @@ Rules:
             "Tool", "complete", f"step={step.step_id}, executed={len(logs)}"
         )
 
-        return {"step_id": step.step_id, "executed": logs, "status": "completed"}
+        return {
+            "step_id": step.step_id,
+            "executed": logs,
+            "status": "completed",
+        }
 
     async def _execute_single_call(
         self,
@@ -236,25 +250,44 @@ Rules:
         query = record.query
 
         if tool_type == "rag_naive":
-            result = await rag_search(query=query, kb_name=kb_name, mode="naive")
+            result = await rag_search(
+                query=query, kb_name=kb_name, mode="naive"
+            )
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
-            metadata = {"source": source, "auto_sources": auto_sources, "mode": "naive"}
+            metadata = {
+                "source": source,
+                "auto_sources": auto_sources,
+                "mode": "naive",
+            }
             return answer, metadata
 
         if tool_type == "rag_hybrid":
-            result = await rag_search(query=query, kb_name=kb_name, mode="hybrid")
+            result = await rag_search(
+                query=query, kb_name=kb_name, mode="hybrid"
+            )
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
-            metadata = {"source": source, "auto_sources": auto_sources, "mode": "hybrid"}
+            metadata = {
+                "source": source,
+                "auto_sources": auto_sources,
+                "mode": "hybrid",
+            }
             return answer, metadata
 
         if tool_type == "web_search":
-            result = web_search(query=query, output_dir=output_dir, verbose=verbose)
+            result = web_search(
+                query=query, output_dir=output_dir, verbose=verbose
+            )
             answer = result.get("answer") or result.get("summary") or ""
             used_citation_ids = self._extract_answer_citations(answer)
-            filtered_citations = self._select_web_citations(used_citation_ids, result)
-            metadata = {"result_file": result.get("result_file"), "citations": filtered_citations}
+            filtered_citations = self._select_web_citations(
+                used_citation_ids, result
+            )
+            metadata = {
+                "result_file": result.get("result_file"),
+                "citations": filtered_citations,
+            }
             return answer, metadata
 
         if tool_type == "code_execution":
@@ -314,7 +347,9 @@ Rules:
 
         raise ValueError(f"Unknown tool type: {tool_type}")
 
-    def _format_code_answer(self, exec_result: dict[str, Any], artifacts_dir: str) -> str:
+    def _format_code_answer(
+        self, exec_result: dict[str, Any], artifacts_dir: str
+    ) -> str:
         stdout = exec_result.get("stdout", "")
         stderr = exec_result.get("stderr", "")
         artifacts = exec_result.get("artifacts", [])
@@ -346,14 +381,20 @@ Rules:
 
         return "\n".join(lines)
 
-    async def _summarize_tool_result(self, tool_type: str, query: str, raw_answer: str) -> str:
-        system_prompt = self.get_prompt("system") if self.has_prompts() else None
+    async def _summarize_tool_result(
+        self, tool_type: str, query: str, raw_answer: str
+    ) -> str:
+        system_prompt = (
+            self.get_prompt("system") if self.has_prompts() else None
+        )
         if not system_prompt:
             raise ValueError(
                 "ToolAgent missing system prompt, please configure system in prompts/{lang}/solve_loop/tool_agent.yaml"
             )
 
-        template = self.get_prompt("user_template") if self.has_prompts() else None
+        template = (
+            self.get_prompt("user_template") if self.has_prompts() else None
+        )
         if not template:
             raise ValueError(
                 "ToolAgent missing user_template, please configure user_template in prompts/{lang}/solve_loop/tool_agent.yaml"
@@ -397,13 +438,17 @@ Rules:
             return []
         raw_citations = result.get("citations") or []
         search_results = result.get("search_results") or []
-        search_map = {item.get("url"): item for item in search_results if item.get("url")}
+        search_map = {
+            item.get("url"): item for item in search_results if item.get("url")
+        }
 
         selected: list[dict[str, Any]] = []
         for cid in used_ids:
             matched = None
             for raw in raw_citations:
-                ref_id = str(raw.get("id")) if raw.get("id") is not None else ""
+                ref_id = (
+                    str(raw.get("id")) if raw.get("id") is not None else ""
+                )
                 ref_token = (raw.get("reference") or "").strip()
                 normalized_token = ref_token.strip("[]")
                 if cid == ref_id or cid == normalized_token:
@@ -420,7 +465,8 @@ Rules:
 
             selected.append(
                 {
-                    "id": matched.get("id") or (int(cid) if cid.isdigit() else cid),
+                    "id": matched.get("id")
+                    or (int(cid) if cid.isdigit() else cid),
                     "reference": matched.get("reference") or f"[{cid}]",
                     "url": matched.get("url"),
                     "title": matched.get("title", ""),
@@ -438,12 +484,18 @@ Rules:
             return set()
         snapshot = set()
         for file_path in artifacts_path.rglob("*"):
-            if file_path.is_file() and file_path.suffix.lower() in self.IMAGE_SUFFIXES:
+            if (
+                file_path.is_file()
+                and file_path.suffix.lower() in self.IMAGE_SUFFIXES
+            ):
                 snapshot.add(file_path.resolve())
         return snapshot
 
     def _collect_new_image_artifacts(
-        self, artifacts_path: Path, before_snapshot: set, output_dir: str | None
+        self,
+        artifacts_path: Path,
+        before_snapshot: set,
+        output_dir: str | None,
     ) -> list[str]:
         after_snapshot = self._snapshot_image_artifacts(artifacts_path)
         new_files = sorted(after_snapshot - before_snapshot)
@@ -457,12 +509,16 @@ Rules:
             rel_path: str | None = None
             if output_base:
                 try:
-                    rel_path = str(file_path.relative_to(output_base)).replace("\\", "/")
+                    rel_path = str(file_path.relative_to(output_base)).replace(
+                        "\\", "/"
+                    )
                 except ValueError:
                     rel_path = None
             if rel_path is None:
                 try:
-                    rel_path = str(file_path.relative_to(artifacts_path.parent)).replace("\\", "/")
+                    rel_path = str(
+                        file_path.relative_to(artifacts_path.parent)
+                    ).replace("\\", "/")
                 except ValueError:
                     rel_path = str(Path("artifacts") / file_path.name)
             rel_paths.append(rel_path)

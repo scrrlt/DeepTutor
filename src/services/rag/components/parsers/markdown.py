@@ -7,7 +7,6 @@ Parser for Markdown documents.
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...types import Document
 from ..base import BaseComponent
@@ -22,7 +21,7 @@ class MarkdownParser(BaseComponent):
 
     name = "markdown_parser"
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, file_path: str | Path, **kwargs) -> Document:
         """
         Parse a Markdown file into a Document.
 

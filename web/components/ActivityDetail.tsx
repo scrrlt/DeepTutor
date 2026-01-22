@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -22,8 +22,8 @@ function useIsClient() {
 }
 
 interface ActivityDetailProps {
-  activity: any;
-  onClose: () => void;
+  activity: any
+  onClose: () => void
 }
 
 export default function ActivityDetail({
@@ -36,44 +36,41 @@ export default function ActivityDetail({
   // Handle escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
+      if (e.key === 'Escape') {
+        onClose()
       }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [onClose]);
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
 
-  if (!activity || !mounted) return null;
+  if (!activity || !mounted) return null
 
   const modalContent = (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
         className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-300"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                activity.type === "solve"
-                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                  : activity.type === "question"
-                    ? "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-                    : "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                activity.type === 'solve'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : activity.type === 'question'
+                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                    : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
               }`}
             >
-              {activity.type === "solve" && <HelpCircle className="w-5 h-5" />}
-              {activity.type === "question" && <FileText className="w-5 h-5" />}
-              {activity.type === "research" && <Search className="w-5 h-5" />}
+              {activity.type === 'solve' && <HelpCircle className="w-5 h-5" />}
+              {activity.type === 'question' && <FileText className="w-5 h-5" />}
+              {activity.type === 'research' && <Search className="w-5 h-5" />}
             </div>
             <div>
               <h2 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
@@ -119,7 +116,7 @@ export default function ActivityDetail({
           {/* Activity Specific Content */}
 
           {/* 1. SOLVE */}
-          {activity.type === "solve" && (
+          {activity.type === 'solve' && (
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
@@ -148,7 +145,7 @@ export default function ActivityDetail({
           )}
 
           {/* 2. QUESTION */}
-          {activity.type === "question" && (
+          {activity.type === 'question' && (
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
@@ -188,33 +185,29 @@ export default function ActivityDetail({
                     <div className="space-y-2">
                       {Array.isArray(activity.content.question.options)
                         ? // Array format
-                          activity.content.question.options.map(
-                            (opt: string, i: number) => (
-                              <div
-                                key={i}
-                                className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300"
-                              >
-                                <span className="font-bold text-purple-600 dark:text-purple-400 mr-2">
-                                  {String.fromCharCode(65 + i)}.
-                                </span>
-                                {opt}
-                              </div>
-                            ),
-                          )
+                          activity.content.question.options.map((opt: string, i: number) => (
+                            <div
+                              key={i}
+                              className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300"
+                            >
+                              <span className="font-bold text-purple-600 dark:text-purple-400 mr-2">
+                                {String.fromCharCode(65 + i)}.
+                              </span>
+                              {opt}
+                            </div>
+                          ))
                         : // Object format { "A": "...", "B": "..." }
-                          Object.entries(activity.content.question.options).map(
-                            ([key, value]) => (
-                              <div
-                                key={key}
-                                className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300"
-                              >
-                                <span className="font-bold text-purple-600 dark:text-purple-400 mr-2">
-                                  {key}.
-                                </span>
-                                {value as string}
-                              </div>
-                            ),
-                          )}
+                          Object.entries(activity.content.question.options).map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300"
+                            >
+                              <span className="font-bold text-purple-600 dark:text-purple-400 mr-2">
+                                {key}.
+                              </span>
+                              {value as string}
+                            </div>
+                          ))}
                     </div>
                   )}
                 </div>
@@ -241,7 +234,7 @@ export default function ActivityDetail({
           )}
 
           {/* 3. RESEARCH */}
-          {activity.type === "research" && (
+          {activity.type === 'research' && (
             <>
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100">
@@ -274,7 +267,7 @@ export default function ActivityDetail({
         </div>
       </div>
     </div>
-  );
+  )
 
-  return createPortal(modalContent, document.body);
+  return createPortal(modalContent, document.body)
 }

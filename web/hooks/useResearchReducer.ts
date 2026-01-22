@@ -7,7 +7,9 @@ import {
   ResearchLogEntry,
   TopicBlock,
   ReportOutline,
+  ResearchLogEntry,
 } from "../types/research";
+import { LogEntry } from "../types/common";
 
 export const initialResearchState: ResearchState = {
   global: {
@@ -35,6 +37,8 @@ export const initialResearchState: ResearchState = {
 // Helper to create a log entry
 const createLog = (
   message: string,
+  type: ResearchLogEntry["type"] = "info",
+): ResearchLogEntry => ({
   type: ResearchLogEntry["type"] = "info",
 ): ResearchLogEntry => ({
   id: Math.random().toString(36).substring(7),

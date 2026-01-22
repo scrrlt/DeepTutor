@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { processLatexContent } from "@/lib/latex";
 
 interface CompletionSummaryProps {
-  summary: string;
+  summary: string
 }
 
 export default function CompletionSummary({ summary }: CompletionSummaryProps) {
@@ -19,15 +19,10 @@ export default function CompletionSummary({ summary }: CompletionSummaryProps) {
   const tableComponents = {
     table: ({ node, ...props }: any) => (
       <div className="overflow-x-auto my-6 rounded-lg border border-slate-200 shadow-sm">
-        <table
-          className="min-w-full divide-y divide-slate-200 text-sm"
-          {...props}
-        />
+        <table className="min-w-full divide-y divide-slate-200 text-sm" {...props} />
       </div>
     ),
-    thead: ({ node, ...props }: any) => (
-      <thead className="bg-slate-50" {...props} />
-    ),
+    thead: ({ node, ...props }: any) => <thead className="bg-slate-50" {...props} />,
     th: ({ node, ...props }: any) => (
       <th
         className="px-4 py-3 text-left font-semibold text-slate-700 whitespace-nowrap border-b border-slate-200"
@@ -38,15 +33,12 @@ export default function CompletionSummary({ summary }: CompletionSummaryProps) {
       <tbody className="divide-y divide-slate-100 bg-white" {...props} />
     ),
     td: ({ node, ...props }: any) => (
-      <td
-        className="px-4 py-3 text-slate-600 border-b border-slate-100"
-        {...props}
-      />
+      <td className="px-4 py-3 text-slate-600 border-b border-slate-100" {...props} />
     ),
     tr: ({ node, ...props }: any) => (
       <tr className="hover:bg-slate-50/50 transition-colors" {...props} />
     ),
-  };
+  }
 
   return (
     <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden relative">
@@ -65,10 +57,10 @@ export default function CompletionSummary({ summary }: CompletionSummaryProps) {
             rehypePlugins={[rehypeKatex]}
             components={tableComponents}
           >
-            {processLatexContent(summary || "")}
+            {processLatexContent(summary || '')}
           </ReactMarkdown>
         </div>
       </div>
     </div>
-  );
+  )
 }

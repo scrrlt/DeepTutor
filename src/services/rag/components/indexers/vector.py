@@ -1,16 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Vector Indexer
-==============
-
-Vector-based indexer using dense embeddings with FAISS.
-Provides fast similarity search for RAG retrieval.
-"""
+"""Vector-based indexer using dense embeddings with FAISS."""
 
 import json
 from pathlib import Path
-import pickle
-from typing import List, Optional
+import pickle  # nosec B403
 
 import numpy as np
 
@@ -28,7 +20,7 @@ class VectorIndexer(BaseComponent):
 
     name = "vector_indexer"
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize vector indexer.
 
@@ -53,7 +45,7 @@ class VectorIndexer(BaseComponent):
         except ImportError:
             self.logger.warning("FAISS not available, using simple vector storage")
 
-    async def process(self, kb_name: str, documents: List[Document], **kwargs) -> bool:
+    async def process(self, kb_name: str, documents: list[Document], **kwargs) -> bool:
         """
         Index documents using vector embeddings.
 

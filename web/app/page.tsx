@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from 'react'
 import {
   Send,
   Loader2,
@@ -34,8 +34,8 @@ import AddToNotebookModal from "@/components/AddToNotebookModal";
 import { useTranslation } from "react-i18next";
 
 interface KnowledgeBase {
-  name: string;
-  is_default?: boolean;
+  name: string
+  is_default?: boolean
 }
 
 export default function HomePage() {
@@ -48,19 +48,18 @@ export default function HomePage() {
   } = useGlobal();
   const { t } = useTranslation();
 
-  const [inputMessage, setInputMessage] = useState("");
-  const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [showNotebookModal, setShowNotebookModal] = useState(false);
+  const [inputMessage, setInputMessage] = useState('')
+  const [kbs, setKbs] = useState<KnowledgeBase[]>([])
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [showNotebookModal, setShowNotebookModal] = useState(false)
 
   // Format chat history for notebook
   const formatChatForNotebook = () => {
-    if (chatState.messages.length === 0)
-      return { title: "", userQuery: "", output: "" };
+    if (chatState.messages.length === 0) return { title: '', userQuery: '', output: '' }
 
     // Use the first user message as title
-    const firstUserMsg = chatState.messages.find((m) => m.role === "user");
+    const firstUserMsg = chatState.messages.find(m => m.role === 'user')
     const title =
       firstUserMsg?.content.slice(0, 50) +
         (firstUserMsg && firstUserMsg.content.length > 50 ? "..." : "") ||
@@ -75,20 +74,20 @@ export default function HomePage() {
             : `🤖 **${t("Assistant")}**`;
         return `### ${roleLabel}\n\n${msg.content}`;
       })
-      .join("\n\n---\n\n");
+      .join('\n\n---\n\n')
 
     // User query is the concatenation of all user messages
     const userQueries = chatState.messages
-      .filter((m) => m.role === "user")
-      .map((m) => m.content)
-      .join("\n\n");
+      .filter(m => m.role === 'user')
+      .map(m => m.content)
+      .join('\n\n')
 
     return {
       title: `Chat: ${title}`,
       userQuery: userQueries,
       output: formattedMessages,
-    };
-  };
+    }
+  }
 
   // Fetch knowledge bases
   useEffect(() => {
@@ -107,29 +106,29 @@ export default function HomePage() {
           }
         }
       })
-      .catch((err) => console.error("Failed to fetch KBs:", err));
+      .catch(err => console.error('Failed to fetch KBs:', err))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [chatState.messages]);
+  }, [chatState.messages])
 
   const handleSend = () => {
-    if (!inputMessage.trim() || chatState.isLoading) return;
-    sendChatMessage(inputMessage);
-    setInputMessage("");
-  };
+    if (!inputMessage.trim() || chatState.isLoading) return
+    sendChatMessage(inputMessage)
+    setInputMessage('')
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
     }
-  };
+  }
 
   const quickActions = [
     {
@@ -174,9 +173,9 @@ export default function HomePage() {
       color: "pink",
       description: t("Collaborative writing"),
     },
-  ];
+  ]
 
-  const hasMessages = chatState.messages.length > 0;
+  const hasMessages = chatState.messages.length > 0
 
   return (
     <div className="h-screen flex flex-col animate-fade-in">
@@ -185,10 +184,10 @@ export default function HomePage() {
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           <div className="text-center max-w-2xl mx-auto mb-8">
             <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-3 tracking-tight">
-              {t("Welcome to DeepTutor")}
+              {t('Welcome to DeepTutor')}
             </h1>
             <p className="text-lg text-slate-500 dark:text-slate-400">
-              {t("How can I help you today?")}
+              {t('How can I help you today?')}
             </p>
           </div>
 
@@ -200,37 +199,37 @@ export default function HomePage() {
                 {/* RAG Toggle */}
                 <button
                   onClick={() =>
-                    setChatState((prev) => ({
+                    setChatState(prev => ({
                       ...prev,
                       enableRag: !prev.enableRag,
                     }))
                   }
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                     chatState.enableRag
-                      ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   <Database className="w-3.5 h-3.5" />
-                  {t("RAG")}
+                  {t('RAG')}
                 </button>
 
                 {/* Web Search Toggle */}
                 <button
                   onClick={() =>
-                    setChatState((prev) => ({
+                    setChatState(prev => ({
                       ...prev,
                       enableWebSearch: !prev.enableWebSearch,
                     }))
                   }
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                     chatState.enableWebSearch
-                      ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   <Globe className="w-3.5 h-3.5" />
-                  {t("Web Search")}
+                  {t('Web Search')}
                 </button>
               </div>
 
@@ -238,15 +237,15 @@ export default function HomePage() {
               {chatState.enableRag && (
                 <select
                   value={chatState.selectedKb}
-                  onChange={(e) =>
-                    setChatState((prev) => ({
+                  onChange={e =>
+                    setChatState(prev => ({
                       ...prev,
                       selectedKb: e.target.value,
                     }))
                   }
                   className="text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 dark:text-slate-200"
                 >
-                  {kbs.map((kb) => (
+                  {kbs.map(kb => (
                     <option key={kb.name} value={kb.name}>
                       {kb.name}
                     </option>
@@ -261,9 +260,9 @@ export default function HomePage() {
                 ref={inputRef}
                 type="text"
                 className="w-full px-5 py-4 pr-14 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-200 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/50"
-                placeholder={t("Ask anything...")}
+                placeholder={t('Ask anything...')}
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={e => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={chatState.isLoading}
               />
@@ -284,7 +283,7 @@ export default function HomePage() {
           {/* Quick Actions Grid */}
           <div className="w-full max-w-3xl mx-auto">
             <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 text-center">
-              {t("Explore Modules")}
+              {t('Explore Modules')}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {quickActions.map((action, i) => (
@@ -303,9 +302,7 @@ export default function HomePage() {
                   <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mb-1">
                     {action.label}
                   </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {action.description}
-                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{action.description}</p>
                 </Link>
               ))}
             </div>
@@ -322,50 +319,50 @@ export default function HomePage() {
               {/* Mode Toggles */}
               <button
                 onClick={() =>
-                  setChatState((prev) => ({
+                  setChatState(prev => ({
                     ...prev,
                     enableRag: !prev.enableRag,
                   }))
                 }
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   chatState.enableRag
-                    ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}
               >
                 <Database className="w-3 h-3" />
-                {t("RAG")}
+                {t('RAG')}
               </button>
 
               <button
                 onClick={() =>
-                  setChatState((prev) => ({
+                  setChatState(prev => ({
                     ...prev,
                     enableWebSearch: !prev.enableWebSearch,
                   }))
                 }
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   chatState.enableWebSearch
-                    ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                    ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}
               >
                 <Globe className="w-3 h-3" />
-                {t("Web Search")}
+                {t('Web Search')}
               </button>
 
               {chatState.enableRag && (
                 <select
                   value={chatState.selectedKb}
-                  onChange={(e) =>
-                    setChatState((prev) => ({
+                  onChange={e =>
+                    setChatState(prev => ({
                       ...prev,
                       selectedKb: e.target.value,
                     }))
                   }
                   className="text-xs bg-slate-100 dark:bg-slate-800 border-0 rounded-lg px-2 py-1 outline-none dark:text-slate-200"
                 >
-                  {kbs.map((kb) => (
+                  {kbs.map(kb => (
                     <option key={kb.name} value={kb.name}>
                       {kb.name}
                     </option>
@@ -378,17 +375,17 @@ export default function HomePage() {
               <button
                 onClick={() => setShowNotebookModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                title={t("Save to Notebook")}
+                title={t('Save to Notebook')}
               >
                 <Save className="w-3.5 h-3.5" />
-                {t("Save to Notebook")}
+                {t('Save to Notebook')}
               </button>
               <button
                 onClick={newChatSession}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {t("New Chat")}
+                {t('New Chat')}
               </button>
             </div>
           </div>
@@ -400,7 +397,7 @@ export default function HomePage() {
                 key={idx}
                 className="flex gap-4 w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-2"
               >
-                {msg.role === "user" ? (
+                {msg.role === 'user' ? (
                   <>
                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -429,16 +426,14 @@ export default function HomePage() {
                         {msg.isStreaming && (
                           <div className="flex items-center gap-2 mt-3 text-blue-600 dark:text-blue-400 text-sm">
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>{t("Generating response...")}</span>
+                            <span>{t('Generating response...')}</span>
                           </div>
                         )}
                       </div>
 
                       {/* Sources */}
                       {msg.sources &&
-                        (msg.sources.rag?.length ?? 0) +
-                          (msg.sources.web?.length ?? 0) >
-                          0 && (
+                        (msg.sources.rag?.length ?? 0) + (msg.sources.web?.length ?? 0) > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {msg.sources.rag?.map((source, i) => (
                               <div
@@ -484,15 +479,11 @@ export default function HomePage() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
                     </span>
-                    {chatState.currentStage === "rag" &&
-                      t("Searching knowledge base...")}
-                    {chatState.currentStage === "web" &&
-                      t("Searching the web...")}
-                    {chatState.currentStage === "generating" &&
-                      t("Generating response...")}
-                    {!["rag", "web", "generating"].includes(
-                      chatState.currentStage,
-                    ) && chatState.currentStage}
+                    {chatState.currentStage === 'rag' && t('Searching knowledge base...')}
+                    {chatState.currentStage === 'web' && t('Searching the web...')}
+                    {chatState.currentStage === 'generating' && t('Generating response...')}
+                    {!['rag', 'web', 'generating'].includes(chatState.currentStage) &&
+                      chatState.currentStage}
                   </div>
                 </div>
               </div>
@@ -508,9 +499,9 @@ export default function HomePage() {
                 ref={inputRef}
                 type="text"
                 className="w-full px-5 py-3.5 pr-14 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-700 dark:text-slate-200"
-                placeholder={t("Type your message...")}
+                placeholder={t('Type your message...')}
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={e => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={chatState.isLoading}
               />
@@ -547,5 +538,5 @@ export default function HomePage() {
         kbName={chatState.enableRag ? chatState.selectedKb : undefined}
       />
     </div>
-  );
+  )
 }

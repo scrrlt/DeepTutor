@@ -25,9 +25,16 @@ from .adapters import (
     OllamaEmbeddingAdapter,
     OpenAICompatibleEmbeddingAdapter,
 )
-from .client import EmbeddingClient, get_embedding_client, reset_embedding_client
+from .client import (
+    EmbeddingClient,
+    get_embedding_client,
+    reset_embedding_client,
+)
 from .config import EmbeddingConfig, get_embedding_config
-from .provider import get_embedding_provider_manager, reset_embedding_provider_manager
+from .provider import (
+    get_embedding_provider_manager,
+    reset_embedding_provider_manager,
+)
 
 __all__ = [
     "EmbeddingClient",

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Document Validator - Validation utilities for document uploads
 """
@@ -59,7 +58,9 @@ class DocumentValidator:
 
     @staticmethod
     def validate_upload_safety(
-        filename: str, file_size: int | None, allowed_extensions: set[str] | None = None
+        filename: str,
+        file_size: int | None,
+        allowed_extensions: set[str] | None = None,
     ) -> str:
         """
         Validate file upload safety
@@ -76,14 +77,21 @@ class DocumentValidator:
             ValueError: If validation fails
         """
         # Check file size (skip if size is None)
-        if file_size is not None and file_size > DocumentValidator.MAX_FILE_SIZE:
+        if (
+            file_size is not None
+            and file_size > DocumentValidator.MAX_FILE_SIZE
+        ):
             raise ValueError(
                 f"File too large: {file_size} bytes. Maximum allowed: {DocumentValidator.MAX_FILE_SIZE} bytes"
             )
 
         # Additional size check for PDFs to prevent resource exhaustion
         _, ext = os.path.splitext(filename.lower())
-        if ext == ".pdf" and file_size is not None and file_size > DocumentValidator.MAX_PDF_SIZE:
+        if (
+            ext == ".pdf"
+            and file_size is not None
+            and file_size > DocumentValidator.MAX_PDF_SIZE
+        ):
             raise ValueError(
                 f"PDF file too large: {file_size} bytes. Maximum allowed for PDFs: {DocumentValidator.MAX_PDF_SIZE} bytes"
             )
@@ -96,11 +104,17 @@ class DocumentValidator:
         # Replace problematic characters
         safe_name = re.sub(r'[<>:"/\\|?*]', "_", safe_name)
 
-        if not safe_name or safe_name in (".", "..") or safe_name.strip("_") == "":
+        if (
+            not safe_name
+            or safe_name in (".", "..")
+            or safe_name.strip("_") == ""
+        ):
             raise ValueError("Invalid filename")
 
         # Check file extension
-        exts_to_check = allowed_extensions or DocumentValidator.ALLOWED_EXTENSIONS
+        exts_to_check = (
+            allowed_extensions or DocumentValidator.ALLOWED_EXTENSIONS
+        )
         if ext not in exts_to_check:
             raise ValueError(
                 f"Unsupported file type: {ext}. Allowed types: {', '.join(exts_to_check)}"
@@ -108,7 +122,10 @@ class DocumentValidator:
 
         # Additional MIME type validation for security
         guessed_mime, _ = mimetypes.guess_type(filename)
-        if guessed_mime and guessed_mime not in DocumentValidator.ALLOWED_MIME_TYPES:
+        if (
+            guessed_mime
+            and guessed_mime not in DocumentValidator.ALLOWED_MIME_TYPES
+        ):
             raise ValueError(
                 f"MIME type validation failed: {guessed_mime}. File may be malicious or corrupted."
             )

@@ -4,13 +4,13 @@ Provides a standardized way to distinguish between bugs, recoverable errors,
 and configuration issues.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class DeepTutorError(Exception):
     """Base class for all application errors in DeepTutor."""
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(message)
         self.message = message
         self.details = details or {}

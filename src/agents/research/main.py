@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 DR-in-KG 2.0 - Main Entry
 Deep research system based on dynamic topic queue
@@ -20,7 +19,9 @@ from src.agents.research.research_pipeline import ResearchPipeline
 from src.services.llm import get_llm_config
 
 
-def load_config(config_path: str = None, preset: str = None) -> dict:
+def load_config(
+    config_path: str | None = None, preset: str | None = None
+) -> dict:
     """
     Load configuration file (with main.yaml merge)
 
@@ -40,7 +41,9 @@ def load_config(config_path: str = None, preset: str = None) -> dict:
         # If custom config path provided, load it directly (for backward compatibility)
         config_file = Path(config_path)
         if not config_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_file}")
+            raise FileNotFoundError(
+                f"Configuration file not found: {config_file}"
+            )
         with open(config_file, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
 
@@ -66,8 +69,12 @@ def display_config(config: dict):
     reporting = config.get("reporting", {})
 
     print("【Planning Configuration】")
-    print(f"  Initial subtopics: {planning.get('decompose', {}).get('initial_subtopics', 5)}")
-    print(f"  Max subtopics: {planning.get('decompose', {}).get('max_subtopics', 10)}")
+    print(
+        f"  Initial subtopics: {planning.get('decompose', {}).get('initial_subtopics', 5)}"
+    )
+    print(
+        f"  Max subtopics: {planning.get('decompose', {}).get('max_subtopics', 10)}"
+    )
 
     print("\n【Researching Configuration】")
     print(f"  Max iterations: {researching.get('max_iterations', 5)}")
@@ -75,11 +82,17 @@ def display_config(config: dict):
     print("  Enabled tools:")
     print(f"    - RAG: {researching.get('enable_rag_hybrid', True)}")
     print(f"    - Web Search: {researching.get('enable_web_search', True)}")
-    print(f"    - Paper Search: {researching.get('enable_paper_search', True)}")
+    print(
+        f"    - Paper Search: {researching.get('enable_paper_search', True)}"
+    )
 
     print("\n【Reporting Configuration】")
-    print(f"  Min section length: {reporting.get('min_section_length', 500)} characters")
-    print(f"  Enable topic deduplication: {reporting.get('enable_deduplication', True)}")
+    print(
+        f"  Min section length: {reporting.get('min_section_length', 500)} characters"
+    )
+    print(
+        f"  Enable topic deduplication: {reporting.get('enable_deduplication', True)}"
+    )
 
     print("=" * 70 + "\n")
 
@@ -103,7 +116,9 @@ Examples:
         """,
     )
 
-    parser.add_argument("--topic", type=str, required=True, help="Research topic")
+    parser.add_argument(
+        "--topic", type=str, required=True, help="Research topic"
+    )
 
     parser.add_argument(
         "--config",
@@ -119,7 +134,11 @@ Examples:
         help="Preset configuration (quick: fast, standard: standard, deep: deep)",
     )
 
-    parser.add_argument("--output-dir", type=str, help="Output directory (overrides config file)")
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        help="Output directory (overrides config file)",
+    )
 
     args = parser.parse_args()
 

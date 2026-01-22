@@ -12,7 +12,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 import uuid
 
 from dotenv import load_dotenv
@@ -48,9 +48,23 @@ PROVIDER_OPTIONS = {
         "lm_studio",
         "vllm",
     ],
-    ConfigType.EMBEDDING: ["openai", "azure_openai", "ollama", "jina", "cohere", "huggingface"],
+    ConfigType.EMBEDDING: [
+        "openai",
+        "azure_openai",
+        "ollama",
+        "jina",
+        "cohere",
+        "huggingface",
+    ],
     ConfigType.TTS: ["openai", "azure_openai"],
-    ConfigType.SEARCH: ["perplexity", "tavily", "exa", "jina", "serper", "baidu"],
+    ConfigType.SEARCH: [
+        "perplexity",
+        "tavily",
+        "exa",
+        "jina",
+        "serper",
+        "baidu",
+    ],
 }
 
 # Environment variable mappings for each service type
@@ -98,7 +112,7 @@ def _resolve_env_value(value: Any) -> Any:
     return value
 
 
-def _get_env_value(env_var: str) -> Optional[str]:
+def _get_env_value(env_var: str) -> str | None:
     """Get and strip an environment variable value."""
     value = os.environ.get(env_var)
     if value:
@@ -124,6 +138,15 @@ class UnifiedConfigManager:
             cls._instance._initialized = False
         return cls._instance
 
+    @classmethod
+    def reset_for_tests(cls) -> None:
+        """Reset the singleton for tests.
+
+        Tests should call this method instead of manipulating the private
+        _instance attribute directly to avoid breaking encapsulation.
+        """
+        cls._instance = None
+
     def __init__(self):
         if getattr(self, "_initialized", False):
             return
@@ -147,7 +170,9 @@ class UnifiedConfigManager:
             try:
                 self._ensure_default_config_for_type(config_type)
             except Exception as e:
-                logger.warning(f"Failed to ensure default config for {config_type.value}: {e}")
+                logger.warning(
+                    f"Failed to ensure default config for {config_type.value}: {e}"
+                )
 
     def _ensure_default_config_for_type(self, config_type: ConfigType) -> None:
         """Ensure default config exists and is synced for a specific config type."""
@@ -164,7 +189,9 @@ class UnifiedConfigManager:
                 break
 
         # Build the default config to store
-        stored_default = self._build_stored_default_config(config_type, env_mapping)
+        stored_default = self._build_stored_default_config(
+            config_type, env_mapping
+        )
 
         if default_config is None:
             # Add default config to the list
@@ -176,19 +203,33 @@ class UnifiedConfigManager:
             # Update only the dynamic fields (model, provider) from env
             # Keep other fields unchanged (they reference env vars)
             if config_type == ConfigType.LLM:
-                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
-                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
+                default_config["model"] = (
+                    _get_env_value(env_mapping.get("model")) or ""
+                )
+                default_config["provider"] = (
+                    _get_env_value(env_mapping.get("provider")) or "openai"
+                )
             elif config_type == ConfigType.EMBEDDING:
-                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
-                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
+                default_config["model"] = (
+                    _get_env_value(env_mapping.get("model")) or ""
+                )
+                default_config["provider"] = (
+                    _get_env_value(env_mapping.get("provider")) or "openai"
+                )
                 dim_str = _get_env_value(env_mapping.get("dimensions"))
                 default_config["dimensions"] = (
                     int(dim_str) if dim_str and dim_str.isdigit() else 3072
                 )
             elif config_type == ConfigType.TTS:
-                default_config["model"] = _get_env_value(env_mapping.get("model")) or ""
-                default_config["provider"] = _get_env_value(env_mapping.get("provider")) or "openai"
-                default_config["voice"] = _get_env_value(env_mapping.get("voice")) or "alloy"
+                default_config["model"] = (
+                    _get_env_value(env_mapping.get("model")) or ""
+                )
+                default_config["provider"] = (
+                    _get_env_value(env_mapping.get("provider")) or "openai"
+                )
+                default_config["voice"] = (
+                    _get_env_value(env_mapping.get("voice")) or "alloy"
+                )
             elif config_type == ConfigType.SEARCH:
                 default_config["provider"] = (
                     _get_env_value(env_mapping.get("provider")) or "perplexity"
@@ -200,8 +241,8 @@ class UnifiedConfigManager:
         self._save_configs(config_type, data)
 
     def _build_stored_default_config(
-        self, config_type: ConfigType, env_mapping: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, config_type: ConfigType, env_mapping: dict[str, str]
+    ) -> dict[str, Any]:
         """Build the default configuration to be stored in JSON (with env references)."""
         base_config = {
             "id": "default",
@@ -212,7 +253,8 @@ class UnifiedConfigManager:
         if config_type == ConfigType.LLM:
             return {
                 **base_config,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "model": _get_env_value(env_mapping.get("model")) or "",
                 "base_url": {"use_env": "LLM_HOST"},
                 "api_key": {"use_env": "LLM_API_KEY"},
@@ -223,9 +265,12 @@ class UnifiedConfigManager:
             dim_str = _get_env_value(env_mapping.get("dimensions"))
             return {
                 **base_config,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "model": _get_env_value(env_mapping.get("model")) or "",
-                "dimensions": int(dim_str) if dim_str and dim_str.isdigit() else 3072,
+                "dimensions": int(dim_str)
+                if dim_str and dim_str.isdigit()
+                else 3072,
                 "base_url": {"use_env": "EMBEDDING_HOST"},
                 "api_key": {"use_env": "EMBEDDING_API_KEY"},
                 "api_version": {"use_env": "EMBEDDING_API_VERSION"},
@@ -234,7 +279,8 @@ class UnifiedConfigManager:
         elif config_type == ConfigType.TTS:
             return {
                 **base_config,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "model": _get_env_value(env_mapping.get("model")) or "",
                 "voice": _get_env_value(env_mapping.get("voice")) or "alloy",
                 "base_url": {"use_env": "TTS_URL"},
@@ -245,7 +291,8 @@ class UnifiedConfigManager:
         elif config_type == ConfigType.SEARCH:
             return {
                 **base_config,
-                "provider": _get_env_value(env_mapping.get("provider")) or "perplexity",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "perplexity",
                 "api_key": {"use_env": "SEARCH_API_KEY"},
             }
 
@@ -255,29 +302,33 @@ class UnifiedConfigManager:
         """Get the storage file path for a config type."""
         return SETTINGS_DIR / f"{config_type.value}_configs.json"
 
-    def _load_configs(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _load_configs(self, config_type: ConfigType) -> dict[str, Any]:
         """Load configurations from storage."""
         path = self._get_storage_path(config_type)
         if path.exists():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.warning(f"Failed to load {config_type.value} configs: {e}")
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning(
+                    f"Failed to load {config_type.value} configs: {e}"
+                )
         return {"configs": [], "active_id": "default"}
 
-    def _save_configs(self, config_type: ConfigType, data: Dict[str, Any]) -> bool:
+    def _save_configs(
+        self, config_type: ConfigType, data: dict[str, Any]
+    ) -> bool:
         """Save configurations to storage."""
         path = self._get_storage_path(config_type)
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             return True
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save {config_type.value} configs: {e}")
             return False
 
-    def _build_default_config(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _build_default_config(self, config_type: ConfigType) -> dict[str, Any]:
         """Build the default configuration from environment variables."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
 
@@ -286,7 +337,8 @@ class UnifiedConfigManager:
                 "id": "default",
                 "name": "Default (from .env)",
                 "is_default": True,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": "***",  # Hidden for security
                 "model": _get_env_value(env_mapping.get("model")) or "",
@@ -299,11 +351,14 @@ class UnifiedConfigManager:
                 "id": "default",
                 "name": "Default (from .env)",
                 "is_default": True,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": "***",
                 "model": _get_env_value(env_mapping.get("model")) or "",
-                "dimensions": int(dim_str) if dim_str and dim_str.isdigit() else 3072,
+                "dimensions": int(dim_str)
+                if dim_str and dim_str.isdigit()
+                else 3072,
                 "api_version": _get_env_value(env_mapping.get("api_version")),
             }
 
@@ -312,7 +367,8 @@ class UnifiedConfigManager:
                 "id": "default",
                 "name": "Default (from .env)",
                 "is_default": True,
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": "***",
                 "model": _get_env_value(env_mapping.get("model")) or "",
@@ -321,7 +377,9 @@ class UnifiedConfigManager:
             }
 
         elif config_type == ConfigType.SEARCH:
-            provider = _get_env_value(env_mapping.get("provider")) or "perplexity"
+            provider = (
+                _get_env_value(env_mapping.get("provider")) or "perplexity"
+            )
             return {
                 "id": "default",
                 "name": "Default (from .env)",
@@ -330,16 +388,23 @@ class UnifiedConfigManager:
                 "api_key": "***",
             }
 
-        return {"id": "default", "name": "Default (from .env)", "is_default": True}
+        return {
+            "id": "default",
+            "name": "Default (from .env)",
+            "is_default": True,
+        }
 
-    def _get_default_config_resolved(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _get_default_config_resolved(
+        self, config_type: ConfigType
+    ) -> dict[str, Any]:
         """Get the default configuration with actual values resolved (for internal use)."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
 
         if config_type == ConfigType.LLM:
             return {
                 "id": "default",
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": _get_env_value(env_mapping.get("api_key")) or "",
                 "model": _get_env_value(env_mapping.get("model")) or "",
@@ -350,18 +415,22 @@ class UnifiedConfigManager:
             dim_str = _get_env_value(env_mapping.get("dimensions"))
             return {
                 "id": "default",
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": _get_env_value(env_mapping.get("api_key")) or "",
                 "model": _get_env_value(env_mapping.get("model")) or "",
-                "dimensions": int(dim_str) if dim_str and dim_str.isdigit() else 3072,
+                "dimensions": int(dim_str)
+                if dim_str and dim_str.isdigit()
+                else 3072,
                 "api_version": _get_env_value(env_mapping.get("api_version")),
             }
 
         elif config_type == ConfigType.TTS:
             return {
                 "id": "default",
-                "provider": _get_env_value(env_mapping.get("provider")) or "openai",
+                "provider": _get_env_value(env_mapping.get("provider"))
+                or "openai",
                 "base_url": _get_env_value(env_mapping.get("base_url")) or "",
                 "api_key": _get_env_value(env_mapping.get("api_key")) or "",
                 "model": _get_env_value(env_mapping.get("model")) or "",
@@ -370,7 +439,9 @@ class UnifiedConfigManager:
             }
 
         elif config_type == ConfigType.SEARCH:
-            provider = _get_env_value(env_mapping.get("provider")) or "perplexity"
+            provider = (
+                _get_env_value(env_mapping.get("provider")) or "perplexity"
+            )
             return {
                 "id": "default",
                 "provider": provider,
@@ -379,7 +450,9 @@ class UnifiedConfigManager:
 
         return {"id": "default"}
 
-    def _resolve_config(self, config: Dict[str, Any], config_type: ConfigType) -> Dict[str, Any]:
+    def _resolve_config(
+        self, config: dict[str, Any], config_type: ConfigType
+    ) -> dict[str, Any]:
         """Resolve all {"use_env": ...} references in a configuration."""
         resolved = {}
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
@@ -393,11 +466,11 @@ class UnifiedConfigManager:
 
         return resolved
 
-    def get_provider_options(self, config_type: ConfigType) -> List[str]:
+    def get_provider_options(self, config_type: ConfigType) -> list[str]:
         """Get available provider options for a config type."""
         return PROVIDER_OPTIONS.get(config_type, [])
 
-    def list_configs(self, config_type: ConfigType) -> List[Dict[str, Any]]:
+    def list_configs(self, config_type: ConfigType) -> list[dict[str, Any]]:
         """
         List all configurations for a service type.
         Includes the default config (from .env) and user-defined configs.
@@ -442,7 +515,9 @@ class UnifiedConfigManager:
 
         return result
 
-    def get_config(self, config_type: ConfigType, config_id: str) -> Optional[Dict[str, Any]]:
+    def get_config(
+        self, config_type: ConfigType, config_id: str
+    ) -> dict[str, Any] | None:
         """Get a specific configuration by ID."""
         if config_id == "default":
             return self._build_default_config(config_type)
@@ -453,7 +528,9 @@ class UnifiedConfigManager:
                 return cfg
         return None
 
-    def get_active_config(self, config_type: ConfigType) -> Optional[Dict[str, Any]]:
+    def get_active_config(
+        self, config_type: ConfigType
+    ) -> dict[str, Any] | None:
         """
         Get the currently active configuration with all values resolved.
         This is used internally when services need actual configuration values.
@@ -471,7 +548,9 @@ class UnifiedConfigManager:
         # Fallback to default if active config not found
         return self._get_default_config_resolved(config_type)
 
-    def add_config(self, config_type: ConfigType, config: Dict[str, Any]) -> Dict[str, Any]:
+    def add_config(
+        self, config_type: ConfigType, config: dict[str, Any]
+    ) -> dict[str, Any]:
         """Add a new configuration."""
         data = self._load_configs(config_type)
 
@@ -489,8 +568,8 @@ class UnifiedConfigManager:
         return config
 
     def update_config(
-        self, config_type: ConfigType, config_id: str, updates: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, config_type: ConfigType, config_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Update an existing configuration."""
         if config_id == "default":
             return None  # Cannot update default config
@@ -516,7 +595,9 @@ class UnifiedConfigManager:
 
         data = self._load_configs(config_type)
         original_len = len(data.get("configs", []))
-        data["configs"] = [c for c in data.get("configs", []) if c.get("id") != config_id]
+        data["configs"] = [
+            c for c in data.get("configs", []) if c.get("id") != config_id
+        ]
 
         if len(data["configs"]) < original_len:
             # If deleted config was active, switch to default
@@ -527,13 +608,17 @@ class UnifiedConfigManager:
 
         return False
 
-    def set_active_config(self, config_type: ConfigType, config_id: str) -> bool:
+    def set_active_config(
+        self, config_type: ConfigType, config_id: str
+    ) -> bool:
         """Set a configuration as active."""
         data = self._load_configs(config_type)
 
         # Verify config exists
         if config_id != "default":
-            found = any(c.get("id") == config_id for c in data.get("configs", []))
+            found = any(
+                c.get("id") == config_id for c in data.get("configs", [])
+            )
             if not found:
                 return False
 
@@ -585,25 +670,29 @@ class UnifiedConfigManager:
         except Exception as e:
             logger.warning(f"Failed to update OpenAI env vars: {e}")
 
-    def get_env_status(self, config_type: ConfigType) -> Dict[str, bool]:
+    def get_env_status(self, config_type: ConfigType) -> dict[str, bool]:
         """Check which environment variables are configured for a service type."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
         status = {}
 
         for field, env_var in env_mapping.items():
-            if not env_var.endswith("_key"):  # Skip individual search provider keys
+            if not env_var.endswith(
+                "_key"
+            ):  # Skip individual search provider keys
                 status[field] = bool(_get_env_value(env_var))
 
         return status
 
-    def get_default_config(self, config_type: ConfigType) -> Dict[str, Any]:
+    def get_default_config(self, config_type: ConfigType) -> dict[str, Any]:
         """
         Get the default configuration with actual values resolved.
         Used for testing the default configuration.
         """
         return self._get_default_config_resolved(config_type)
 
-    def resolve_config_env_values(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def resolve_config_env_values(
+        self, config: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Resolve all {"use_env": "VAR_NAME"} references in a user configuration.
         Returns a copy with actual values from environment variables.
@@ -616,34 +705,32 @@ class UnifiedConfigManager:
         return resolved
 
 
-# Global instance
-_config_manager: Optional[UnifiedConfigManager] = None
-
-
 def get_config_manager() -> UnifiedConfigManager:
-    """Get the global config manager instance."""
-    global _config_manager
-    if _config_manager is None:
-        _config_manager = UnifiedConfigManager()
-    return _config_manager
+    """Get the global config manager instance.
+
+    Always return the current UnifiedConfigManager singleton. Avoid caching a
+    module-level variable that can get out-of-sync with the class-level
+    singleton (e.g., when tests reset UnifiedConfigManager._instance).
+    """
+    return UnifiedConfigManager()
 
 
 # Convenience functions for services
-def get_active_llm_config() -> Optional[Dict[str, Any]]:
+def get_active_llm_config() -> dict[str, Any] | None:
     """Get the active LLM configuration."""
     return get_config_manager().get_active_config(ConfigType.LLM)
 
 
-def get_active_embedding_config() -> Optional[Dict[str, Any]]:
+def get_active_embedding_config() -> dict[str, Any] | None:
     """Get the active embedding configuration."""
     return get_config_manager().get_active_config(ConfigType.EMBEDDING)
 
 
-def get_active_tts_config() -> Optional[Dict[str, Any]]:
+def get_active_tts_config() -> dict[str, Any] | None:
     """Get the active TTS configuration."""
     return get_config_manager().get_active_config(ConfigType.TTS)
 
 
-def get_active_search_config() -> Optional[Dict[str, Any]]:
+def get_active_search_config() -> dict[str, Any] | None:
     """Get the active search configuration."""
     return get_config_manager().get_active_config(ConfigType.SEARCH)

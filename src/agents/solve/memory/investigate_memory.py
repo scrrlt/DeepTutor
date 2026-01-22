@@ -69,7 +69,10 @@ class InvestigateMemory:
         user_question: str = "",
         output_dir: str | None = None,
     ):
-        self.task_id = task_id or f"investigate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.task_id = (
+            task_id
+            or f"investigate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        )
         self.user_question = user_question
         self.output_dir = output_dir
 
@@ -91,13 +94,18 @@ class InvestigateMemory:
 
         # File path
         if output_dir:
-            self.file_path = Path(output_dir) / "investigate_memory.json"
+            self.file_path: Path | None = (
+                Path(output_dir) / "investigate_memory.json"
+            )
         else:
             self.file_path = None
 
     @classmethod
     def load_or_create(
-        cls, output_dir: str, user_question: str = "", task_id: str | None = None
+        cls,
+        output_dir: str,
+        user_question: str = "",
+        task_id: str | None = None,
     ) -> "InvestigateMemory":
         """Load existing memory or create new memory (supports v1.0/v2.0 backward compatibility)"""
         file_path = Path(output_dir) / "investigate_memory.json"
@@ -129,7 +137,9 @@ class InvestigateMemory:
                 # Merge notes summary into knowledge_chain
                 notes_data = data.get("notes", [])
                 for note in notes_data:
-                    related_knowledge_ids = note.get("related_knowledge_ids", [])
+                    related_knowledge_ids = note.get(
+                        "related_knowledge_ids", []
+                    )
 
                     # Prioritize using related_knowledge_ids
                     for knowledge_id in related_knowledge_ids:
@@ -150,12 +160,16 @@ class InvestigateMemory:
                     remaining_questions.extend(gaps)
 
                 # Deduplicate
-                memory.reflections.remaining_questions = list(set(remaining_questions))
+                memory.reflections.remaining_questions = list(
+                    set(remaining_questions)
+                )
             else:
                 # v2.0/v3.0 format
                 reflections_data = data.get("reflections", {})
                 if isinstance(reflections_data, dict):
-                    memory.reflections = Reflections.from_dict(reflections_data)
+                    memory.reflections = Reflections.from_dict(
+                        reflections_data
+                    )
                 else:
                     memory.reflections = Reflections()
 
@@ -164,7 +178,9 @@ class InvestigateMemory:
 
             return memory
         # Create new memory
-        return cls(task_id=task_id, user_question=user_question, output_dir=output_dir)
+        return cls(
+            task_id=task_id, user_question=user_question, output_dir=output_dir
+        )
 
     def add_knowledge(self, item: KnowledgeItem):
         """Add knowledge item"""
@@ -182,7 +198,9 @@ class InvestigateMemory:
         raise ValueError(f"cite_id not found: {cite_id}")
 
     def get_available_knowledge(
-        self, tool_types: list[str] | None = None, cite_ids: list[str] | None = None
+        self,
+        tool_types: list[str] | None = None,
+        cite_ids: list[str] | None = None,
     ) -> list[KnowledgeItem]:
         """Get available knowledge (supports filtering)"""
         results = self.knowledge_chain
@@ -220,7 +238,9 @@ class InvestigateMemory:
             "user_question": self.user_question,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "knowledge_chain": [item.to_dict() for item in self.knowledge_chain],
+            "knowledge_chain": [
+                item.to_dict() for item in self.knowledge_chain
+            ],
             "reflections": self.reflections.to_dict(),
             "metadata": self.metadata,
         }

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Query Numbered Item Tool - Query definitions, theorems, formulas, figures, etc.
 """
@@ -11,6 +10,10 @@ import sys
 # Add parent directory to path (insert at front to prioritize project modules)
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from src.logging import get_logger
+
+logger = get_logger("QueryItemTool")
 
 
 def query_numbered_item(
@@ -58,7 +61,11 @@ def query_numbered_item(
 
             project_root = Path(__file__).parent.parent.parent
             config = load_config_with_main("main.yaml", project_root)
-            max_results = config.get("tools", {}).get("query_item", {}).get("max_results", 5)
+            max_results = (
+                config.get("tools", {})
+                .get("query_item", {})
+                .get("max_results", 5)
+            )
         except Exception:
             max_results = 5  # Default value
 
@@ -67,7 +74,9 @@ def query_numbered_item(
         # __file__ = DeepTutor/tools/query_item_tool.py
         # .parent = DeepTutor/tools
         # .parent = DeepTutor
-        kb_base_dir = Path(__file__).parent.parent.parent / "data/knowledge_bases"
+        kb_base_dir = (
+            Path(__file__).parent.parent.parent / "data/knowledge_bases"
+        )
     else:
         kb_base_dir = Path(kb_base_dir)
 
@@ -81,8 +90,8 @@ def query_numbered_item(
                 with open(config_file, encoding="utf-8") as f:
                     config = json.load(f)
                     kb_name = config.get("default")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load kb_config.json: {e}")
 
         if not kb_name:
             return {
@@ -163,12 +172,18 @@ def query_numbered_item(
         item_type = "example"
     elif "remark" in identifier_lower:
         item_type = "remark"
-    elif identifier.strip().startswith("(") and identifier.strip().endswith(")"):
+    elif identifier.strip().startswith("(") and identifier.strip().endswith(
+        ")"
+    ):
         item_type = "formula"
 
     # 1. Exact match (highest priority)
     if identifier in items:
-        matched_item = {"identifier": identifier, "type": item_type, "content": items[identifier]}
+        matched_item = {
+            "identifier": identifier,
+            "type": item_type,
+            "content": items[identifier],
+        }
         return {
             "identifier": identifier,
             "type": item_type,
@@ -182,7 +197,9 @@ def query_numbered_item(
     exact_matches = []
     for key, value in items.items():
         if key.lower() == identifier_lower:
-            exact_matches.append({"identifier": key, "type": item_type, "content": value})
+            exact_matches.append(
+                {"identifier": key, "type": item_type, "content": value}
+            )
 
     if exact_matches:
         # Limit results
@@ -194,7 +211,10 @@ def query_numbered_item(
             exact_matches[0]["content"]
             if len(exact_matches) == 1
             else "\n\n".join(
-                [f"[{item['identifier']}]\n{item['content']}" for item in exact_matches]
+                [
+                    f"[{item['identifier']}]\n{item['content']}"
+                    for item in exact_matches
+                ]
             )
         )
 
@@ -209,7 +229,9 @@ def query_numbered_item(
 
     # 3. Prefix match (e.g., "2.1" matches "(2.1.1)", "(2.1.2)", etc.)
     prefix_matches = []
-    identifier_clean = identifier.strip().strip("()")  # Remove parentheses, extract pure numbers
+    identifier_clean = identifier.strip().strip(
+        "()"
+    )  # Remove parentheses, extract pure numbers
 
     for key, value in items.items():
         key_clean = key.strip().strip("()")
@@ -219,7 +241,9 @@ def query_numbered_item(
             or key_clean == identifier_clean
             or key.lower().startswith(identifier_lower)
         ):
-            prefix_matches.append({"identifier": key, "type": item_type, "content": value})
+            prefix_matches.append(
+                {"identifier": key, "type": item_type, "content": value}
+            )
 
     # Limit results
     if max_results and len(prefix_matches) > max_results:
@@ -231,7 +255,10 @@ def query_numbered_item(
             prefix_matches[0]["content"]
             if len(prefix_matches) == 1
             else "\n\n".join(
-                [f"[{item['identifier']}]\n{item['content']}" for item in prefix_matches]
+                [
+                    f"[{item['identifier']}]\n{item['content']}"
+                    for item in prefix_matches
+                ]
             )
         )
 
@@ -248,7 +275,9 @@ def query_numbered_item(
     partial_matches = []
     for key, value in items.items():
         if identifier_lower in key.lower():
-            partial_matches.append({"identifier": key, "type": item_type, "content": value})
+            partial_matches.append(
+                {"identifier": key, "type": item_type, "content": value}
+            )
 
     # Limit results
     if max_results and len(partial_matches) > max_results:
@@ -259,7 +288,10 @@ def query_numbered_item(
             partial_matches[0]["content"]
             if len(partial_matches) == 1
             else "\n\n".join(
-                [f"[{item['identifier']}]\n{item['content']}" for item in partial_matches]
+                [
+                    f"[{item['identifier']}]\n{item['content']}"
+                    for item in partial_matches
+                ]
             )
         )
 
@@ -276,7 +308,9 @@ def query_numbered_item(
     suggestions = [k for k in items if identifier_lower in k.lower()][:5]
     error_msg = f"Numbered item '{identifier}' not found"
     if suggestions:
-        error_msg += "\n\nSimilar items:\n" + "\n".join(f"  • {s}" for s in suggestions)
+        error_msg += "\n\nSimilar items:\n" + "\n".join(
+            f"  • {s}" for s in suggestions
+        )
 
     return {
         "identifier": identifier,
@@ -298,13 +332,15 @@ if __name__ == "__main__":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
     # Test
-    print("Testing query_numbered_item\n" + "=" * 60)
+    logger.section("Testing query_numbered_item")
 
     # Test 1
-    print("\n[Test 1] Query formula (1.2.1):")
+    logger.info("[Test 1] Query formula (1.2.1):")
     result = query_numbered_item("(1.2.1)", kb_name="ai_textbook")
-    print(f"Status: {result['status']}")
-    print(f"Type: {result['type']}")
-    print(f"Content: {result.get('content', result.get('error'))[:200]}...")
+    logger.info("Status: %s", result["status"])
+    logger.info("Type: %s", result["type"])
+    logger.info(
+        "Content: %s...", result.get("content", result.get("error"))[:200]
+    )
 
-    print("\n" + "=" * 60)
+    logger.info("%s", "=" * 60)

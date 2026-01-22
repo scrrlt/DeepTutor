@@ -8,7 +8,7 @@ True LlamaIndex integration using official llama-index library.
 
 import asyncio
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from llama_index.core import (
     Document,
@@ -26,7 +26,9 @@ from ..pipeline import RAGPipeline
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
-    Path(__file__).resolve().parent.parent.parent.parent.parent / "data" / "knowledge_bases"
+    Path(__file__).resolve().parent.parent.parent.parent.parent
+    / "data"
+    / "knowledge_bases"
 )
 
 
@@ -51,17 +53,17 @@ class CustomEmbedding(BaseEmbedding):
     def class_name(cls) -> str:
         return "custom_embedding"
 
-    async def _aget_query_embedding(self, query: str) -> List[float]:
+    async def _aget_query_embedding(self, query: str) -> list[float]:
         """Get embedding for a query."""
         embeddings = await self._client.embed([query])
         return embeddings[0]
 
-    async def _aget_text_embedding(self, text: str) -> List[float]:
+    async def _aget_text_embedding(self, text: str) -> list[float]:
         """Get embedding for a text."""
         embeddings = await self._client.embed([text])
         return embeddings[0]
 
-    def _get_query_embedding(self, query: str) -> List[float]:
+    def _get_query_embedding(self, query: str) -> list[float]:
         """Sync version - called by LlamaIndex sync API."""
         # Use nest_asyncio to allow nested event loops
         import nest_asyncio
@@ -69,7 +71,7 @@ class CustomEmbedding(BaseEmbedding):
         nest_asyncio.apply()
         return asyncio.run(self._aget_query_embedding(query))
 
-    def _get_text_embedding(self, text: str) -> List[float]:
+    def _get_text_embedding(self, text: str) -> list[float]:
         """Sync version - called by LlamaIndex sync API."""
         # Use nest_asyncio to allow nested event loops
         import nest_asyncio
@@ -77,7 +79,9 @@ class CustomEmbedding(BaseEmbedding):
         nest_asyncio.apply()
         return asyncio.run(self._aget_text_embedding(text))
 
-    async def _aget_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def _aget_text_embeddings(
+        self, texts: list[str]
+    ) -> list[list[float]]:
         """Get embeddings for multiple texts."""
         return await self._client.embed(texts)
 
@@ -92,7 +96,7 @@ class LlamaIndexPipeline(RAGPipeline):
     semantics and attributes such as _parser, _chunkers, etc.).
     """
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize LlamaIndex pipeline.
 
@@ -143,7 +147,9 @@ class LlamaIndexPipeline(RAGPipeline):
             f"({embedding_cfg.dim}D, {embedding_cfg.binding}), chunk_size=512"
         )
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+    async def initialize(
+        self, kb_name: str, file_paths: list[str], **kwargs
+    ) -> bool:
         """
         Initialize KB using real LlamaIndex components.
 
@@ -174,7 +180,7 @@ class LlamaIndexPipeline(RAGPipeline):
                 if file_path.suffix.lower() == ".pdf":
                     text = self._extract_pdf_text(file_path)
                 else:
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         text = f.read()
 
                 if text.strip():
@@ -186,29 +192,39 @@ class LlamaIndexPipeline(RAGPipeline):
                         },
                     )
                     documents.append(doc)
-                    self.logger.info(f"Loaded: {file_path.name} ({len(text)} chars)")
+                    self.logger.info(
+                        f"Loaded: {file_path.name} ({len(text)} chars)"
+                    )
                 else:
-                    self.logger.warning(f"Skipped empty document: {file_path.name}")
+                    self.logger.warning(
+                        f"Skipped empty document: {file_path.name}"
+                    )
 
             if not documents:
                 self.logger.error("No valid documents found")
                 return False
 
             # Create index with LlamaIndex (run sync code in thread pool to avoid blocking)
-            self.logger.info(f"Creating VectorStoreIndex with {len(documents)} documents...")
+            self.logger.info(
+                f"Creating VectorStoreIndex with {len(documents)} documents..."
+            )
 
             # Run sync LlamaIndex code in thread pool to avoid blocking async event loop
             loop = asyncio.get_event_loop()
             index = await loop.run_in_executor(
                 None,  # Use default ThreadPoolExecutor
-                lambda: VectorStoreIndex.from_documents(documents, show_progress=True),
+                lambda: VectorStoreIndex.from_documents(
+                    documents, show_progress=True
+                ),
             )
 
             # Persist index
             index.storage_context.persist(persist_dir=str(storage_dir))
             self.logger.info(f"Index persisted to {storage_dir}")
 
-            self.logger.info(f"KB '{kb_name}' initialized successfully with LlamaIndex")
+            self.logger.info(
+                f"KB '{kb_name}' initialized successfully with LlamaIndex"
+            )
             return True
 
         except Exception as e:
@@ -230,7 +246,9 @@ class LlamaIndexPipeline(RAGPipeline):
             doc.close()
             return "\n\n".join(texts)
         except ImportError:
-            self.logger.warning("PyMuPDF not installed. Cannot extract PDF text.")
+            self.logger.warning(
+                "PyMuPDF not installed. Cannot extract PDF text."
+            )
             return ""
         except Exception as e:
             self.logger.error(f"Failed to extract PDF text: {e}")
@@ -242,7 +260,7 @@ class LlamaIndexPipeline(RAGPipeline):
         kb_name: str,
         mode: str = "hybrid",
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using LlamaIndex query engine.
 
@@ -255,13 +273,17 @@ class LlamaIndexPipeline(RAGPipeline):
         Returns:
             Search results dictionary
         """
-        self.logger.info(f"Searching KB '{kb_name}' with query: {query[:50]}...")
+        self.logger.info(
+            f"Searching KB '{kb_name}' with query: {query[:50]}..."
+        )
 
         kb_dir = Path(self.kb_base_dir) / kb_name
         storage_dir = kb_dir / "llamaindex_storage"
 
         if not storage_dir.exists():
-            self.logger.warning(f"No LlamaIndex storage found at {storage_dir}")
+            self.logger.warning(
+                f"No LlamaIndex storage found at {storage_dir}"
+            )
             return {
                 "query": query,
                 "answer": "No documents indexed. Please upload documents first.",
@@ -275,7 +297,9 @@ class LlamaIndexPipeline(RAGPipeline):
             loop = asyncio.get_event_loop()
 
             def load_and_retrieve():
-                storage_context = StorageContext.from_defaults(persist_dir=str(storage_dir))
+                storage_context = StorageContext.from_defaults(
+                    persist_dir=str(storage_dir)
+                )
                 index = load_index_from_storage(storage_context)
                 top_k = kwargs.get("top_k", 5)
 

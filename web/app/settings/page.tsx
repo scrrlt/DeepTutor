@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react'
 import {
   Settings as SettingsIcon,
   Brain,
@@ -33,42 +33,42 @@ export default function SettingsPage() {
     setStorageStats(getStorageStats());
   }, []);
 
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [status, setStatus] = useState<FullStatus | null>(null);
-  const [ports, setPorts] = useState<PortsInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [status, setStatus] = useState<FullStatus | null>(null)
+  const [ports, setPorts] = useState<PortsInfo | null>(null)
+  const [loading, setLoading] = useState(true)
 
   // Load initial data
   useEffect(() => {
-    loadStatus();
-    loadPorts();
-  }, []);
+    loadStatus()
+    loadPorts()
+  }, [])
 
   const loadStatus = async () => {
     try {
-      const res = await fetch(apiUrl("/api/v1/config/status"));
+      const res = await fetch(apiUrl('/api/v1/config/status'))
       if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
+        const data = await res.json()
+        setStatus(data)
       }
     } catch (e) {
-      console.error("Failed to load config status:", e);
+      console.error('Failed to load config status:', e)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const loadPorts = async () => {
     try {
-      const res = await fetch(apiUrl("/api/v1/config/ports"));
+      const res = await fetch(apiUrl('/api/v1/config/ports'))
       if (res.ok) {
-        const data = await res.json();
-        setPorts(data);
+        const data = await res.json()
+        setPorts(data)
       }
     } catch (e) {
-      console.error("Failed to load ports:", e);
+      console.error('Failed to load ports:', e)
     }
-  };
+  }
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     {
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
-    );
+    )
   }
 
   return (
@@ -118,7 +118,7 @@ export default function SettingsPage() {
             {/* Theme Toggle */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                {uiSettings.theme === "dark" ? (
+                {uiSettings.theme === 'dark' ? (
                   <Moon className="w-4 h-4" />
                 ) : (
                   <Sun className="w-4 h-4" />
@@ -127,22 +127,22 @@ export default function SettingsPage() {
               </div>
               <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-lg">
                 <button
-                  onClick={() => updateTheme("light")}
+                  onClick={() => updateTheme('light')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
-                    uiSettings.theme === "light"
-                      ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                    uiSettings.theme === 'light'
+                      ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
                   <Sun className="w-3.5 h-3.5" />
                   {t("Light")}
                 </button>
                 <button
-                  onClick={() => updateTheme("dark")}
+                  onClick={() => updateTheme('dark')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
-                    uiSettings.theme === "dark"
-                      ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                    uiSettings.theme === 'dark'
+                      ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
                   <Moon className="w-3.5 h-3.5" />
@@ -161,14 +161,14 @@ export default function SettingsPage() {
                 <span>{t("Language")}</span>
               </div>
               <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                {LANGUAGE_OPTIONS.map((lang) => (
+                {LANGUAGE_OPTIONS.map(lang => (
                   <button
                     key={lang.value}
                     onClick={() => updateLanguage(lang.value)}
                     className={`px-3 py-1.5 rounded-md text-sm transition-all ${
                       uiSettings.language === lang.value
-                        ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                        ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                   >
                     {lang.label}
@@ -247,14 +247,14 @@ export default function SettingsPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               {tab.icon}
@@ -268,7 +268,7 @@ export default function SettingsPage() {
           {activeTab === "overview" && (
             <OverviewTab status={status} ports={ports} onRefresh={loadStatus} t={t} />
           )}
-          {activeTab === "llm" && (
+          {activeTab === 'llm' && (
             <ConfigTab
               configType="llm"
               title={t("LLM Configuration")}
@@ -277,7 +277,7 @@ export default function SettingsPage() {
               t={t}
             />
           )}
-          {activeTab === "embedding" && (
+          {activeTab === 'embedding' && (
             <ConfigTab
               configType="embedding"
               title={t("Embedding Configuration")}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
               t={t}
             />
           )}
-          {activeTab === "tts" && (
+          {activeTab === 'tts' && (
             <ConfigTab
               configType="tts"
               title={t("TTS Configuration")}
@@ -297,7 +297,7 @@ export default function SettingsPage() {
               t={t}
             />
           )}
-          {activeTab === "search" && (
+          {activeTab === 'search' && (
             <ConfigTab
               configType="search"
               title={t("Search Configuration")}
@@ -310,5 +310,5 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

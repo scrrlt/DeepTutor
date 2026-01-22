@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Knowledge Base Initialization Script
 
@@ -25,6 +24,10 @@ from src.services.rag.components.routing import FileTypeRouter
 from src.services.rag.service import RAGService
 
 logger = get_logger("KnowledgeInit")
+
+# Set PyTorch CUDA allocation config to prevent GPU fragmentation on Windows
+# This must be set at import time before PyTorch is imported to take effect
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 # Import numbered items extraction functionality
 from src.knowledge.extract_numbered_items import process_content_list
@@ -190,7 +193,9 @@ class KnowledgeBaseInitializer:
         if not doc_files:
             logger.warning("No documents found to process")
             self.progress_tracker.update(
-                ProgressStage.ERROR, "No documents found to process", error="No documents found"
+                ProgressStage.ERROR,
+                "No documents found to process",
+                error="No documents found",
             )
             return
 
@@ -241,7 +246,7 @@ class KnowledgeBaseInitializer:
                     error="RAG pipeline returned failure",
                 )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_msg = "Processing timeout (>10 minutes)"
             logger.error("✗ Timeout processing documents")
             logger.error("Possible causes: Large files, slow embedding API, network issues")
@@ -406,7 +411,9 @@ class KnowledgeBaseInitializer:
 
             traceback.print_exc()
             self.progress_tracker.update(
-                ProgressStage.ERROR, "Numbered items extraction failed", error=error_msg
+                ProgressStage.ERROR,
+                "Numbered items extraction failed",
+                error=error_msg,
             )
 
     async def display_statistics(self, rag):
@@ -565,7 +572,10 @@ Example usage:
     logger.info(f"{'=' * 60}\n")
 
     initializer = KnowledgeBaseInitializer(
-        kb_name=args.name, base_dir=args.base_dir, api_key=args.api_key, base_url=args.base_url
+        kb_name=args.name,
+        base_dir=args.base_dir,
+        api_key=args.api_key,
+        base_url=args.base_url,
     )
 
     # Create directory structure

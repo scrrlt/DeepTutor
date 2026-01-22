@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -69,7 +69,9 @@ class TavilyProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(f"Calling Tavily API depth={search_depth}, max_results={max_results}")
+        self.logger.debug(
+            f"Calling Tavily API depth={search_depth}, max_results={max_results}"
+        )
         payload: dict[str, Any] = {
             "api_key": self.api_key,
             "query": query,
@@ -88,21 +90,29 @@ class TavilyProvider(BaseSearchProvider):
         if exclude_domains:
             payload["exclude_domains"] = exclude_domains
 
-        response = requests.post(self.BASE_URL, json=payload, timeout=timeout)
+        response = httpx.post(
+            self.BASE_URL,
+            json=payload,
+            timeout=timeout,
+        )
 
         if response.status_code != 200:
             try:
                 error_data = response.json()
             except (json.JSONDecodeError, ValueError):
                 error_data = {"error": response.text}
-            self.logger.error(f"Tavily API error: {response.status_code} - {error_data}")
+            self.logger.error(
+                f"Tavily API error: {response.status_code} - {error_data}"
+            )
             raise Exception(
                 f"Tavily API error: {response.status_code} - "
                 f"{error_data.get('error', response.text)}"
             )
 
         data = response.json()
-        self.logger.debug(f"Tavily returned {len(data.get('results', []))} results")
+        self.logger.debug(
+            f"Tavily returned {len(data.get('results', []))} results"
+        )
 
         # Extract answer
         answer = data.get("answer", "")

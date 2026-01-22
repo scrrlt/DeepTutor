@@ -8,7 +8,6 @@ Parser for PDF documents using MinerU/RAG-Anything.
 
 import json
 from pathlib import Path
-from typing import Optional, Union
 
 from ...types import Document
 from ..base import BaseComponent
@@ -23,7 +22,7 @@ class PDFParser(BaseComponent):
 
     name = "pdf_parser"
 
-    def __init__(self, use_mineru: bool = True, output_dir: Optional[str] = None):
+    def __init__(self, use_mineru: bool = True, output_dir: str | None = None):
         """
         Initialize PDF parser.
 
@@ -35,7 +34,7 @@ class PDFParser(BaseComponent):
         self.use_mineru = use_mineru
         self.output_dir = output_dir
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, file_path: str | Path, **kwargs) -> Document:
         """
         Parse a PDF file into a Document.
 
@@ -54,7 +53,9 @@ class PDFParser(BaseComponent):
         self.logger.info(f"Parsing PDF: {file_path.name}")
 
         # Check for existing parsed content
-        output_dir = Path(kwargs.get("output_dir", self.output_dir or file_path.parent))
+        output_dir = Path(
+            kwargs.get("output_dir", self.output_dir or file_path.parent)
+        )
         content_list_file = output_dir / f"{file_path.stem}.json"
 
         content_items = []
@@ -62,8 +63,10 @@ class PDFParser(BaseComponent):
 
         if content_list_file.exists():
             # Load existing parsed content
-            self.logger.info(f"Loading existing parsed content from {content_list_file}")
-            with open(content_list_file, "r", encoding="utf-8") as f:
+            self.logger.info(
+                f"Loading existing parsed content from {content_list_file}"
+            )
+            with open(content_list_file, encoding="utf-8") as f:
                 content_items = json.load(f)
 
             # Extract text content
@@ -109,7 +112,9 @@ class PDFParser(BaseComponent):
             doc.close()
             return "\n\n".join(texts)
         except ImportError:
-            self.logger.warning("PyMuPDF not installed. Cannot extract PDF text.")
+            self.logger.warning(
+                "PyMuPDF not installed. Cannot extract PDF text."
+            )
             return ""
         except Exception as e:
             self.logger.error(f"Failed to extract PDF text: {e}")

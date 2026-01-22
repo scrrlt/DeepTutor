@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WebSocket Log Handler
 =====================
@@ -11,7 +10,7 @@ import logging
 from typing import Optional
 
 
-class WebSocketLogHandler(logging.Handler):
+class WebSocketLogHandler(stdlib_logging.Handler):
     """
     A logging handler that streams log records to a WebSocket via asyncio Queue.
 
@@ -46,9 +45,18 @@ class WebSocketLogHandler(logging.Handler):
         self.service_prefix = service_prefix
         self.setFormatter(logging.Formatter("%(message)s"))
 
-    def emit(self, record: logging.LogRecord):
-        """Emit a log record to the queue."""
+    def emit(self, record: stdlib_logging.LogRecord) -> None:
+        """Emit a log record to the queue.
+
+        Optimized for high throughput: checks queue space BEFORE formatting
+        to avoid allocating strings that are immediately dropped.
+        """
+        # HARDENING: Fail fast if queue is full to avoid formatting cost
+        if self.queue.full():
+            return
+
         try:
+            # Formatting is expensive; do it only if we have queue space
             msg = self.format(record)
 
             # Get display level
@@ -85,7 +93,8 @@ class WebSocketLogHandler(logging.Handler):
             try:
                 self.queue.put_nowait(log_entry)
             except asyncio.QueueFull:
-                pass  # Drop log if queue is full
+                # Race: queue filled between check and put; acceptable drop
+                pass
 
         except Exception:
             self.handleError(record)
@@ -106,7 +115,7 @@ class LogInterceptor:
 
     def __init__(
         self,
-        logger: logging.Logger,
+        logger: stdlib_logging.Logger,
         queue: asyncio.Queue,
         include_module: bool = True,
     ):

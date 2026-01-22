@@ -1,29 +1,29 @@
-# -*- coding: utf-8 -*-
-"""
-LLM Telemetry
-=============
+"""LLM telemetry helpers.
 
-Basic telemetry tracking for LLM calls.
+Provides basic decorators for telemetry on LLM calls with minimal overhead.
+Uses lazy logging to avoid string formatting when log level is disabled.
 """
 
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import Callable
 import functools
 import inspect
 import logging
 import time
 from typing import Any, TypeVar
 
-from src.logging.stats import llm_stats
-
 logger = logging.getLogger(__name__)
 
-# TypeVar for preserving decorated function type information
-F = TypeVar("F", bound=Callable[..., Any])
+# TypeVar for preserving return type through decorator
+R = TypeVar("R")
 
 
-def track_llm_call(provider_name: str) -> Callable[[F], F]:
-    """
-    Decorator to track LLM calls for telemetry.
+def track_llm_call(provider_name: str) -> Callable:
+    """Track LLM calls for telemetry.
+
+    Optimized to minimize overhead on the event loop by:
+    - Checking if logging is enabled before string formatting
+    - Using lazy %s formatting instead of f-strings
+    - Tracking duration to detect slow/hanging calls
 
     Args:
         provider_name: Name of the provider being called
@@ -35,32 +35,37 @@ def track_llm_call(provider_name: str) -> Callable[[F], F]:
         None.
     """
 
-    def decorator(func: Any) -> Any:
-        if inspect.isasyncgenfunction(func):
-
-            @functools.wraps(func)
-            async def generator_wrapper(*args, **kwargs):
-                start_time = time.perf_counter()
-                logger.debug("LLM call to %s: %s", provider_name, func.__name__)
-                # Instantiation errors are rare; iteration errors are handled in _wrap_stream.
-                stream = func(*args, **kwargs)
-
-                async for chunk in _wrap_stream(provider_name, stream, start_time):
-                    yield chunk
-
-            return generator_wrapper
-
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Fast fail: avoid string formatting if logging is disabled
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "LLM_START provider=%s func=%s",
+                    provider_name,
+                    func.__name__,
+                )
+
             start_time = time.perf_counter()
-            logger.debug("LLM call to %s: %s", provider_name, func.__name__)
             try:
-                result = func(*args, **kwargs)
-                if inspect.isawaitable(result):
-                    result = await result
+                result = await func(*args, **kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(
+                        "LLM_SUCCESS provider=%s duration_ms=%.2f",
+                        provider_name,
+                        duration_ms,
+                    )
+                return result
             except Exception as e:
-                llm_stats.record_error(provider_name, type(e).__name__)
-                logger.warning("LLM call to %s failed: %s", provider_name, e)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.warning(
+                    "LLM_FAILURE provider=%s duration_ms=%.2f error=%s",
+                    provider_name,
+                    duration_ms,
+                    str(e),
+                )
                 raise
 
             duration = time.perf_counter() - start_time

@@ -106,7 +106,7 @@ def get_pipeline(name: str = "raganything", kb_base_dir: Optional[str] = None, *
         ) from e
 
 
-def list_pipelines() -> List[Dict[str, str]]:
+def list_pipelines() -> list[dict[str, str]]:
     """
     List available pipelines.
 
@@ -169,7 +169,7 @@ def has_pipeline(name: str) -> bool:
 
 
 # Backward compatibility with old plugin API
-def get_plugin(name: str) -> Dict[str, Callable]:
+def get_plugin(name: str) -> dict[str, Callable]:
     """
     DEPRECATED: Use get_pipeline() instead.
 
@@ -189,7 +189,7 @@ def get_plugin(name: str) -> Dict[str, Callable]:
     }
 
 
-def list_plugins() -> List[Dict[str, str]]:
+def list_plugins() -> list[dict[str, str]]:
     """
     DEPRECATED: Use list_pipelines() instead.
     """

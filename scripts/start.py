@@ -58,7 +58,9 @@ class AITutorStarter:
             self.base_url = llm_config.base_url
         except ValueError as e:
             logger.error(str(e))
-            logger.error("Please configure LLM settings in .env or DeepTutor.env file")
+            logger.error(
+                "Please configure LLM settings in .env or DeepTutor.env file"
+            )
             sys.exit(1)
 
         # Load knowledge base list
@@ -66,7 +68,9 @@ class AITutorStarter:
 
         logger.section("DeepTutor Intelligent Teaching Assistant System")
         logger.success("API configuration loaded")
-        logger.info(f"Available knowledge bases: {', '.join(self.available_kbs)}")
+        logger.info(
+            f"Available knowledge bases: {', '.join(self.available_kbs)}"
+        )
         logger.separator()
 
     def _load_available_kbs(self) -> list:
@@ -95,14 +99,24 @@ class AITutorStarter:
     def show_main_menu(self) -> str:
         """Display main menu and get user selection"""
         logger.section("Please select a function:")
-        print("1. 🧠 Solver System (Solve)        - Intelligent academic problem solving")
+        print(
+            "1. 🧠 Solver System (Solve)        - Intelligent academic problem solving"
+        )
         print(
             "2. 📝 Question Generator (Question)     - Generate questions based on knowledge base"
         )
-        print("3. 🔬 Deep Research (Research)     - Multi-round deep knowledge research")
-        print("4. 💡 Idea Generation (IdeaGen)      - Extract research ideas from notes")
-        print("5. 🌐 Start Web Service (Web)       - Start frontend and backend services")
-        print("6. ⚙️  System Settings (Settings)     - View/modify configuration")
+        print(
+            "3. 🔬 Deep Research (Research)     - Multi-round deep knowledge research"
+        )
+        print(
+            "4. 💡 Idea Generation (IdeaGen)      - Extract research ideas from notes"
+        )
+        print(
+            "5. 🌐 Start Web Service (Web)       - Start frontend and backend services"
+        )
+        print(
+            "6. ⚙️  System Settings (Settings)     - View/modify configuration"
+        )
         print("7. 🚪 Exit")
         logger.separator()
 
@@ -136,7 +150,9 @@ class AITutorStarter:
                 idx = int(choice) - 1
                 if 0 <= idx < len(self.available_kbs):
                     return self.available_kbs[idx]
-                logger.warning(f"Please enter a number between 1 and {len(self.available_kbs)}")
+                logger.warning(
+                    f"Please enter a number between 1 and {len(self.available_kbs)}"
+                )
             except ValueError:
                 logger.warning("Please enter a valid number")
 
@@ -194,16 +210,22 @@ class AITutorStarter:
             result = await solver.solve(question=question, verbose=True)
 
             logger.section("Solving completed!")
-            logger.info(f"Output directory: {result['metadata']['output_dir']}")
+            logger.info(
+                f"Output directory: {result['metadata']['output_dir']}"
+            )
 
             logger.info("Solving statistics:")
             logger.info(f"   Execution mode: {result['metadata']['mode']}")
             logger.info(f"   Pipeline: {result.get('pipeline', 'dual_loop')}")
 
             if "analysis_iterations" in result:
-                logger.info(f"   Analysis loop iterations: {result['analysis_iterations']} rounds")
+                logger.info(
+                    f"   Analysis loop iterations: {result['analysis_iterations']} rounds"
+                )
             if "solve_steps" in result:
-                logger.info(f"   Solve steps completed: {result['solve_steps']} steps")
+                logger.info(
+                    f"   Solve steps completed: {result['solve_steps']} steps"
+                )
             if "total_steps" in result:
                 logger.info(f"   Total planned steps: {result['total_steps']}")
             if "citations" in result:
@@ -223,7 +245,9 @@ class AITutorStarter:
                 preview_lines = formatted_solution.split("\n")[:20]
                 preview = "\n".join(preview_lines)
                 if len(formatted_solution) > len(preview):
-                    preview += "\n\n... (more content available in output file) ..."
+                    preview += (
+                        "\n\n... (more content available in output file) ..."
+                    )
                 print(preview)
                 logger.separator()
 
@@ -231,7 +255,9 @@ class AITutorStarter:
             try:
                 history_manager.add_entry(
                     activity_type=ActivityType.SOLVE,
-                    title=question[:50] + "..." if len(question) > 50 else question,
+                    title=question[:50] + "..."
+                    if len(question) > 50
+                    else question,
                     content={
                         "question": question,
                         "answer": result.get("formatted_solution", ""),
@@ -288,7 +314,9 @@ class AITutorStarter:
 
         difficulty_map = {"1": "easy", "2": "medium", "3": "hard"}
         while True:
-            diff_choice = input("\nPlease select difficulty (1-3) [default: 2]: ").strip()
+            diff_choice = input(
+                "\nPlease select difficulty (1-3) [default: 2]: "
+            ).strip()
             if not diff_choice:
                 difficulty = "medium"
                 break
@@ -306,7 +334,9 @@ class AITutorStarter:
         print("-" * 70)
 
         while True:
-            type_choice = input("\nPlease select question type (1/2) [default: 1]: ").strip()
+            type_choice = input(
+                "\nPlease select question type (1/2) [default: 1]: "
+            ).strip()
             if not type_choice or type_choice == "1":
                 question_type = "choice"
                 break
@@ -353,7 +383,9 @@ class AITutorStarter:
                     for key, value in question_data.get("options", {}).items():
                         print(f"  {key}. {value}")
 
-                print(f"\n✅ Answer: {question_data.get('correct_answer', '')}")
+                print(
+                    f"\n✅ Answer: {question_data.get('correct_answer', '')}"
+                )
                 print("\n💡 Explanation:")
                 print(question_data.get("explanation", ""))
 
@@ -384,7 +416,9 @@ class AITutorStarter:
                     print(f"\n⚠️  History save failed: {hist_error!s}")
             else:
                 print("\n" + "=" * 70)
-                print(f"❌ Question generation failed: {result.get('error', 'Unknown error')}")
+                print(
+                    f"❌ Question generation failed: {result.get('error', 'Unknown error')}"
+                )
                 if result.get("reason"):
                     print(f"Reason: {result['reason']}")
                 print("=" * 70)
@@ -430,7 +464,9 @@ class AITutorStarter:
 
         preset_map = {"1": "quick", "2": "standard", "3": "deep", "4": "auto"}
         while True:
-            mode_choice = input("\nPlease select mode (1-4) [default: 1]: ").strip()
+            mode_choice = input(
+                "\nPlease select mode (1-4) [default: 1]: "
+            ).strip()
             if not mode_choice:
                 preset = "quick"
                 break
@@ -456,9 +492,13 @@ class AITutorStarter:
             if "planning" not in config:
                 config["planning"] = research_config.get("planning", {}).copy()
             if "researching" not in config:
-                config["researching"] = research_config.get("researching", {}).copy()
+                config["researching"] = research_config.get(
+                    "researching", {}
+                ).copy()
             if "reporting" not in config:
-                config["reporting"] = research_config.get("reporting", {}).copy()
+                config["reporting"] = research_config.get(
+                    "reporting", {}
+                ).copy()
             if "rag" not in config:
                 config["rag"] = research_config.get("rag", {}).copy()
             if "queue" not in config:
@@ -476,19 +516,27 @@ class AITutorStarter:
             # Apply preset mode configuration
             preset_configs = {
                 "quick": {
-                    "planning": {"decompose": {"initial_subtopics": 2, "mode": "manual"}},
+                    "planning": {
+                        "decompose": {"initial_subtopics": 2, "mode": "manual"}
+                    },
                     "researching": {"max_iterations": 2},
                 },
                 "standard": {
-                    "planning": {"decompose": {"initial_subtopics": 5, "mode": "manual"}},
+                    "planning": {
+                        "decompose": {"initial_subtopics": 5, "mode": "manual"}
+                    },
                     "researching": {"max_iterations": 5},
                 },
                 "deep": {
-                    "planning": {"decompose": {"initial_subtopics": 8, "mode": "manual"}},
+                    "planning": {
+                        "decompose": {"initial_subtopics": 8, "mode": "manual"}
+                    },
                     "researching": {"max_iterations": 7},
                 },
                 "auto": {
-                    "planning": {"decompose": {"mode": "auto", "auto_max_subtopics": 8}},
+                    "planning": {
+                        "decompose": {"mode": "auto", "auto_max_subtopics": 8}
+                    },
                     "researching": {"max_iterations": 6},
                 },
             }
@@ -514,7 +562,10 @@ class AITutorStarter:
 
             # Create research pipeline
             pipeline = ResearchPipeline(
-                config=config, api_key=self.api_key, base_url=self.base_url, kb_name=kb_name
+                config=config,
+                api_key=self.api_key,
+                base_url=self.base_url,
+                kb_name=kb_name,
             )
 
             # Execute research
@@ -529,7 +580,9 @@ class AITutorStarter:
             metadata = result.get("metadata", {})
             if metadata:
                 print("\n📈 Research statistics:")
-                print(f"   Report word count: {metadata.get('report_word_count', 0)}")
+                print(
+                    f"   Report word count: {metadata.get('report_word_count', 0)}"
+                )
                 stats = metadata.get("statistics", {})
                 if stats:
                     print(f"   Topic blocks: {stats.get('total_blocks', 0)}")
@@ -542,8 +595,13 @@ class AITutorStarter:
             try:
                 # Read report content
                 report_content = ""
-                if result.get("final_report_path") and Path(result["final_report_path"]).exists():
-                    with open(result["final_report_path"], encoding="utf-8") as f:
+                if (
+                    result.get("final_report_path")
+                    and Path(result["final_report_path"]).exists()
+                ):
+                    with open(
+                        result["final_report_path"], encoding="utf-8"
+                    ) as f:
                         report_content = f.read()
 
                 history_manager.add_entry(
@@ -611,14 +669,22 @@ class AITutorStarter:
 
         try:
             # Import ideagen module
-            from src.agents.ideagen.idea_generation_workflow import IdeaGenerationWorkflow
-            from src.agents.ideagen.material_organizer_agent import MaterialOrganizerAgent
+            from src.agents.ideagen.idea_generation_workflow import (
+                IdeaGenerationWorkflow,
+            )
+            from src.agents.ideagen.material_organizer_agent import (
+                MaterialOrganizerAgent,
+            )
 
             # Organize materials
-            organizer = MaterialOrganizerAgent(api_key=self.api_key, base_url=self.base_url)
+            organizer = MaterialOrganizerAgent(
+                api_key=self.api_key, base_url=self.base_url
+            )
 
             print("📊 Extracting knowledge points...")
-            knowledge_points = await organizer.extract_knowledge_points(materials)
+            knowledge_points = await organizer.extract_knowledge_points(
+                materials
+            )
             print(f"✅ Extracted {len(knowledge_points)} knowledge points")
 
             if not knowledge_points:
@@ -626,7 +692,9 @@ class AITutorStarter:
                 return
 
             # Generate ideas
-            workflow = IdeaGenerationWorkflow(api_key=self.api_key, base_url=self.base_url)
+            workflow = IdeaGenerationWorkflow(
+                api_key=self.api_key, base_url=self.base_url
+            )
 
             print("🔍 Generating research ideas...")
             result = await workflow.process(knowledge_points)
@@ -660,9 +728,11 @@ class AITutorStarter:
             choice = input("\nPlease select (1-4): ").strip()
             if choice == "1":
                 print("\n🚀 Starting backend service...")
-                print("Command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload")
+                print(
+                    "Command: python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload"
+                )
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 subprocess.run(
                     [
@@ -671,19 +741,20 @@ class AITutorStarter:
                         "uvicorn",
                         "api.main:app",
                         "--host",
-                        "0.0.0.0",
+                        "127.0.0.1",
                         "--port",
                         "8000",
                         "--reload",
                     ],
                     check=False,
+                    shell=False,
                 )
                 break
             if choice == "2":
                 print("\n🚀 Starting frontend service...")
                 print("Command: cd web && npm run dev")
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 web_dir = Path(__file__).parent / "web"
                 subprocess.run(["npm", "run", "dev"], check=False, cwd=web_dir)
@@ -692,7 +763,7 @@ class AITutorStarter:
                 print("\n🚀 Starting both frontend and backend services...")
                 print("Command: python start_web.py")
                 print("-" * 70)
-                import subprocess
+                import subprocess  # nosec B404
 
                 subprocess.run([sys.executable, "start_web.py"], check=False)
                 break
@@ -712,7 +783,9 @@ class AITutorStarter:
             print("\n📦 LLM Configuration:")
             print(f"   Model: {llm_config.model or 'N/A'}")
             print(f"   API Endpoint: {llm_config.base_url or 'N/A'}")
-            print(f"   API Key: {'Configured' if llm_config.api_key else 'Not configured'}")
+            print(
+                f"   API Key: {'Configured' if llm_config.api_key else 'Not configured'}"
+            )
         except Exception as e:
             print(f"   ❌ Load failed: {e}")
 
@@ -761,16 +834,24 @@ class AITutorStarter:
                     continue  # Don't ask to continue after settings
                 elif choice == "7":
                     print("\n" + "=" * 70)
-                    print("👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!")
+                    print(
+                        "👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!"
+                    )
                     print("=" * 70)
                     break
 
                 # Ask if continue
                 print("\n" + "-" * 70)
-                continue_choice = input("Continue using? (y/n) [default: y]: ").strip().lower()
+                continue_choice = (
+                    input("Continue using? (y/n) [default: y]: ")
+                    .strip()
+                    .lower()
+                )
                 if continue_choice == "n":
                     print("\n" + "=" * 70)
-                    print("👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!")
+                    print(
+                        "👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!"
+                    )
                     print("=" * 70)
                     break
 

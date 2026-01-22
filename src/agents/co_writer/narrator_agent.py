@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 NarratorAgent - Note narration agent.
 Inherits from unified BaseAgent with special TTS configuration.
@@ -10,7 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 import uuid
 
@@ -22,7 +21,13 @@ from src.services.tts import get_tts_config
 # Import shared stats from edit_agent for legacy compatibility
 
 # Define storage path (unified under user/co-writer/ directory)
-USER_DIR = Path(__file__).parent.parent.parent.parent / "data" / "user" / "co-writer" / "audio"
+USER_DIR = (
+    Path(__file__).parent.parent.parent.parent
+    / "data"
+    / "user"
+    / "co-writer"
+    / "audio"
+)
 
 
 def ensure_dirs():
@@ -70,7 +75,9 @@ class NarratorAgent(BaseAgent):
             self.tts_config = get_tts_config()
             # Get voice from unified config (defaults to "alloy")
             self.default_voice = self.tts_config.get("voice", "alloy")
-            self.logger.info(f"TTS settings loaded: voice={self.default_voice}")
+            self.logger.info(
+                f"TTS settings loaded: voice={self.default_voice}"
+            )
             # Validate TTS configuration
             self._validate_tts_config()
         except Exception as e:
@@ -85,9 +92,13 @@ class NarratorAgent(BaseAgent):
 
         # Check required keys
         required_keys = ["model", "api_key", "base_url"]
-        missing_keys = [key for key in required_keys if key not in self.tts_config]
+        missing_keys = [
+            key for key in required_keys if key not in self.tts_config
+        ]
         if missing_keys:
-            raise ValueError(f"TTS config missing required keys: {missing_keys}")
+            raise ValueError(
+                f"TTS config missing required keys: {missing_keys}"
+            )
 
         # Validate base_url format
         base_url = self.tts_config["base_url"]
@@ -95,7 +106,9 @@ class NarratorAgent(BaseAgent):
             raise ValueError("TTS config 'base_url' is empty")
 
         if not isinstance(base_url, str):
-            raise ValueError(f"TTS config 'base_url' must be a string, got {type(base_url)}")
+            raise ValueError(
+                f"TTS config 'base_url' must be a string, got {type(base_url)}"
+            )
 
         # Validate URL format
         if not base_url.startswith(("http://", "https://")):
@@ -106,7 +119,9 @@ class NarratorAgent(BaseAgent):
         try:
             parsed = urlparse(base_url)
             if not parsed.netloc:
-                raise ValueError(f"TTS config 'base_url' has invalid format: {base_url}")
+                raise ValueError(
+                    f"TTS config 'base_url' has invalid format: {base_url}"
+                )
         except Exception as e:
             raise ValueError(f"TTS config 'base_url' parsing error: {e}")
 
@@ -124,7 +139,11 @@ class NarratorAgent(BaseAgent):
             raise ValueError("TTS config 'model' is empty")
 
         # Log configuration info (hide sensitive information)
-        api_key_preview = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "*" * 10
+        api_key_preview = (
+            f"{api_key[:8]}...{api_key[-4:]}"
+            if len(api_key) > 12
+            else "*" * 10
+        )
         self.logger.info("TTS Configuration Loaded (OpenAI API):")
         self.logger.info(f"  Model: {model}")
         self.logger.info(f"  Base URL: {base_url}")
@@ -135,7 +154,7 @@ class NarratorAgent(BaseAgent):
         self,
         content: str,
         style: str = "friendly",
-        voice: Optional[str] = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
@@ -152,7 +171,9 @@ class NarratorAgent(BaseAgent):
         """
         return await self.narrate(content, style, voice, skip_audio)
 
-    async def generate_script(self, content: str, style: str = "friendly") -> dict[str, Any]:
+    async def generate_script(
+        self, content: str, style: str = "friendly"
+    ) -> dict[str, Any]:
         """
         Generate narration script
 
@@ -180,7 +201,9 @@ class NarratorAgent(BaseAgent):
             else self.get_prompt("length_instruction_short", "")
         )
 
-        system_template = self.get_prompt("generate_script_system_template", "")
+        system_template = self.get_prompt(
+            "generate_script_system_template", ""
+        )
         system_prompt = system_template.format(
             style_prompt=style_prompts.get(style, style_prompts["friendly"]),
             length_instruction=length_instruction,
@@ -257,7 +280,9 @@ class NarratorAgent(BaseAgent):
             self.logger.warning(f"Failed to extract key points: {e}")
             return []
 
-    async def generate_audio(self, script: str, voice: str = None) -> dict[str, Any]:
+    async def generate_audio(
+        self, script: str, voice: str | None = None
+    ) -> dict[str, Any]:
         """
         Convert narration script to audio using OpenAI TTS API
 
@@ -278,8 +303,7 @@ class NarratorAgent(BaseAgent):
             )
 
         # Use default voice if not specified
-        if voice is None:
-            voice = self.default_voice
+        voice = voice or self.default_voice
 
         # Validate input parameters
         if not script or not script.strip():
@@ -290,7 +314,9 @@ class NarratorAgent(BaseAgent):
         # Truncate overly long scripts (OpenAI TTS supports up to 4096 characters)
         original_script_length = len(script)
         if len(script) > 4096:
-            self.logger.warning(f"Script length {len(script)} exceeds 4096 limit. Truncating...")
+            self.logger.warning(
+                f"Script length {len(script)} exceeds 4096 limit. Truncating..."
+            )
             truncated = script[:4093]
             last_period = max(
                 truncated.rfind("。"),
@@ -308,11 +334,17 @@ class NarratorAgent(BaseAgent):
                 f"Script truncated from {original_script_length} to {len(script)} characters"
             )
 
-        audio_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+        audio_id = (
+            datetime.now().strftime("%Y%m%d_%H%M%S")
+            + "_"
+            + uuid.uuid4().hex[:6]
+        )
         audio_filename = f"narration_{audio_id}.mp3"
         audio_path = USER_DIR / audio_filename
 
-        self.logger.info(f"Starting TTS audio generation - ID: {audio_id}, Voice: {voice}")
+        self.logger.info(
+            f"Starting TTS audio generation - ID: {audio_id}, Voice: {voice}"
+        )
 
         try:
             binding = os.getenv("TTS_BINDING", "openai")
@@ -320,7 +352,9 @@ class NarratorAgent(BaseAgent):
 
             # Only use Azure client if binding is explicitly Azure,
             # OR if binding is generic 'openai' but an Azure-specific api_version is present.
-            if binding == "azure_openai" or (binding == "openai" and api_version):
+            if binding == "azure_openai" or (
+                binding == "openai" and api_version
+            ):
                 client = AsyncAzureOpenAI(
                     api_key=self.tts_config["api_key"],
                     azure_endpoint=self.tts_config["base_url"],
@@ -329,7 +363,8 @@ class NarratorAgent(BaseAgent):
             else:
                 # Create OpenAI client with custom base_url
                 client = AsyncOpenAI(
-                    base_url=self.tts_config["base_url"], api_key=self.tts_config["api_key"]
+                    base_url=self.tts_config["base_url"],
+                    api_key=self.tts_config["api_key"],
                 )
 
             # Call OpenAI TTS API
@@ -354,14 +389,17 @@ class NarratorAgent(BaseAgent):
             }
 
         except Exception as e:
-            self.logger.error(f"TTS generation failed: {type(e).__name__}: {e}", exc_info=True)
+            self.logger.error(
+                f"TTS generation failed: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
             raise ValueError(f"TTS generation failed: {type(e).__name__}: {e}")
 
     async def narrate(
         self,
         content: str,
         style: str = "friendly",
-        voice: str = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
@@ -385,8 +423,7 @@ class NarratorAgent(BaseAgent):
         script_result = await self.generate_script(content, style)
 
         # Use default voice if not specified
-        if voice is None:
-            voice = self.default_voice
+        voice = voice or self.default_voice
 
         result = {
             "script": script_result["script"],
@@ -398,7 +435,9 @@ class NarratorAgent(BaseAgent):
 
         if not skip_audio and self.tts_config:
             try:
-                audio_result = await self.generate_audio(script_result["script"], voice=voice)
+                audio_result = await self.generate_audio(
+                    script_result["script"], voice=voice
+                )
                 result.update(
                     {
                         "audio_url": audio_result["audio_url"],

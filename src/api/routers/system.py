@@ -34,7 +34,10 @@ async def get_system_status():
         Dictionary containing status of backend, LLM, embeddings, and TTS
     """
     result = {
-        "backend": {"status": "online", "timestamp": datetime.now().isoformat()},
+        "backend": {
+            "status": "online",
+            "timestamp": datetime.now().isoformat(),
+        },
         "llm": {"status": "unknown", "model": None, "testable": True},
         "embeddings": {"status": "unknown", "model": None, "testable": True},
         "tts": {"status": "unknown", "model": None, "testable": True},
@@ -108,7 +111,9 @@ async def test_llm_connection():
             api_key = "sk-no-key-required"
 
         # Send a minimal test request with a prompt that guarantees output
-        test_prompt = "Say 'OK' to confirm you are working. Do not produce long output."
+        test_prompt = (
+            "Say 'OK' to confirm you are working. Do not produce long output."
+        )
         token_kwargs = get_token_limit_kwargs(model, max_tokens=200)
 
         response = await llm_complete(
@@ -139,7 +144,11 @@ async def test_llm_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"LLM configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=f"LLM configuration error: {e!s}",
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(
@@ -173,7 +182,11 @@ async def test_embeddings_connection():
 
         response_time = (time.time() - start_time) * 1000
 
-        if embeddings is not None and len(embeddings) > 0 and len(embeddings[0]) > 0:
+        if (
+            embeddings is not None
+            and len(embeddings) > 0
+            and len(embeddings[0]) > 0
+        ):
             return TestResponse(
                 success=True,
                 message=f"Embeddings connection successful ({binding} provider)",
@@ -189,7 +202,9 @@ async def test_embeddings_connection():
 
     except ValueError as e:
         return TestResponse(
-            success=False, message=f"Embeddings configuration error: {e!s}", error=str(e)
+            success=False,
+            message=f"Embeddings configuration error: {e!s}",
+            error=str(e),
         )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
@@ -241,7 +256,11 @@ async def test_tts_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"TTS configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=f"TTS configuration error: {e!s}",
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(

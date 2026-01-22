@@ -79,7 +79,9 @@ class MaterialOrganizerAgent(BaseAgent):
 
         user_thoughts_text = ""
         if user_thoughts and user_thoughts.strip():
-            user_thoughts_text = f"\n\nUser Additional Thoughts:\n{user_thoughts}"
+            user_thoughts_text = (
+                f"\n\nUser Additional Thoughts:\n{user_thoughts}"
+            )
 
         system_prompt = self._prompts.get("system", "")
         user_template = self._prompts.get("user_template", "")
@@ -101,7 +103,9 @@ class MaterialOrganizerAgent(BaseAgent):
         try:
             result = json.loads(response)
             knowledge_points = result.get("knowledge_points", [])
-            self.logger.info(f"Extracted {len(knowledge_points)} knowledge points")
+            self.logger.info(
+                f"Extracted {len(knowledge_points)} knowledge points"
+            )
 
             validated_points = []
             for point in knowledge_points:
@@ -109,12 +113,16 @@ class MaterialOrganizerAgent(BaseAgent):
                     kp = str(point["knowledge_point"]).strip()
                     desc = str(point["description"]).strip()
                     if kp and desc and len(desc) >= 10:
-                        validated_points.append({"knowledge_point": kp, "description": desc})
+                        validated_points.append(
+                            {"knowledge_point": kp, "description": desc}
+                        )
 
             if not validated_points and records:
                 return await self._fallback_extract(records, user_thoughts)
 
-            self.logger.info(f"Validated {len(validated_points)} knowledge points")
+            self.logger.info(
+                f"Validated {len(validated_points)} knowledge points"
+            )
             return validated_points
         except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error: {e}")
@@ -127,13 +135,13 @@ class MaterialOrganizerAgent(BaseAgent):
         """Fallback extraction method using more lenient strategy"""
         materials_text = ""
         for i, record in enumerate(records, 1):
-            materials_text += (
-                f"\nRecord {i}: {record.get('title', '')} - {record.get('user_query', '')[:100]}"
-            )
+            materials_text += f"\nRecord {i}: {record.get('title', '')} - {record.get('user_query', '')[:100]}"
 
         system_prompt = self._prompts.get("fallback_system", "")
         user_template = self._prompts.get("fallback_user_template", "")
-        user_thoughts_str = f"User thoughts: {user_thoughts}" if user_thoughts else ""
+        user_thoughts_str = (
+            f"User thoughts: {user_thoughts}" if user_thoughts else ""
+        )
         user_prompt = user_template.format(
             materials_text=materials_text,
             user_thoughts=user_thoughts_str,
@@ -154,7 +162,9 @@ class MaterialOrganizerAgent(BaseAgent):
                     kp = str(point["knowledge_point"]).strip()
                     desc = str(point["description"]).strip()
                     if kp and desc:
-                        validated_points.append({"knowledge_point": kp, "description": desc})
+                        validated_points.append(
+                            {"knowledge_point": kp, "description": desc}
+                        )
 
             return (
                 validated_points

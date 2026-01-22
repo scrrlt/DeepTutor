@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Token Tracker - LLM Token usage and cost tracking system (DR-in-KG version)
 References student_TA/solve_agents/utils/token_tracker.py, with minor trimming and added global singleton getter method.
@@ -51,7 +50,11 @@ def get_tiktoken_encoding(model_name: str):
             return tiktoken.encoding_for_model("gpt-4o")
         return tiktoken.get_encoding("cl100k_base")
     except Exception:
-        return tiktoken.get_encoding("cl100k_base") if TIKTOKEN_AVAILABLE else None
+        return (
+            tiktoken.get_encoding("cl100k_base")
+            if TIKTOKEN_AVAILABLE
+            else None
+        )
 
 
 def count_tokens_with_tiktoken(text: str, model_name: str) -> int:
@@ -63,12 +66,18 @@ def count_tokens_with_tiktoken(text: str, model_name: str) -> int:
     return len(enc.encode(text))
 
 
-def count_tokens_with_litellm(messages: list[dict], model_name: str) -> dict[str, int]:
+def count_tokens_with_litellm(
+    messages: list[dict], model_name: str
+) -> dict[str, int]:
     if not LITELLM_AVAILABLE:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
         token_count = token_counter(model=model_name, messages=messages)  # type: ignore
-        return {"prompt_tokens": token_count, "completion_tokens": 0, "total_tokens": token_count}
+        return {
+            "prompt_tokens": token_count,
+            "completion_tokens": 0,
+            "total_tokens": token_count,
+        }
     except Exception:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
@@ -95,11 +104,13 @@ def get_model_pricing(model_name: str) -> dict[str, float]:
     return MODEL_PRICING["gpt-4o-mini"]
 
 
-def calculate_cost(model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
+def calculate_cost(
+    model_name: str, prompt_tokens: int, completion_tokens: int
+) -> float:
     pricing = get_model_pricing(model_name)
-    return (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
-        "output"
-    ]
+    return (prompt_tokens / 1000.0) * pricing["input"] + (
+        completion_tokens / 1000.0
+    ) * pricing["output"]
 
 
 @dataclass
@@ -119,7 +130,9 @@ class TokenUsage:
 
 
 class TokenTracker:
-    def __init__(self, prefer_tiktoken: bool = True, prefer_litellm: bool = False):
+    def __init__(
+        self, prefer_tiktoken: bool = True, prefer_litellm: bool = False
+    ):
         self.usage_records: list[TokenUsage] = []
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
@@ -144,12 +157,16 @@ class TokenTracker:
         method = "api"
         if token_counts:
             prompt_tokens = token_counts.get("prompt_tokens", prompt_tokens)
-            completion_tokens = token_counts.get("completion_tokens", completion_tokens)
+            completion_tokens = token_counts.get(
+                "completion_tokens", completion_tokens
+            )
             method = "api"
         elif self.prefer_tiktoken and (system_prompt or user_prompt):
             prompt_text = (system_prompt or "") + "\n" + (user_prompt or "")
             prompt_tokens = count_tokens_with_tiktoken(prompt_text, model)
-            completion_tokens = count_tokens_with_tiktoken(response_text or "", model)
+            completion_tokens = count_tokens_with_tiktoken(
+                response_text or "", model
+            )
             method = "tiktoken"
         elif self.prefer_litellm and messages:
             res = count_tokens_with_litellm(messages, model)
@@ -159,10 +176,17 @@ class TokenTracker:
         else:
             # Estimate: approximate by word count * 1.3
             est_prompt = int(
-                (((system_prompt or "") + "\n" + (user_prompt or "")).split().__len__()) * 1.3
+                (
+                    ((system_prompt or "") + "\n" + (user_prompt or ""))
+                    .split()
+                    .__len__()
+                )
+                * 1.3
             )
             prompt_tokens = est_prompt
-            completion_tokens = int(((response_text or "").split().__len__()) * 1.3)
+            completion_tokens = int(
+                ((response_text or "").split().__len__()) * 1.3
+            )
             method = "estimated"
 
         total = prompt_tokens + completion_tokens
@@ -281,7 +305,10 @@ class TokenTracker:
         self.total_cost_usd = 0.0
 
     def save(self, filepath: str):
-        data = {"summary": self.get_summary(), "records": [u.to_dict() for u in self.usage_records]}
+        data = {
+            "summary": self.get_summary(),
+            "records": [u.to_dict() for u in self.usage_records],
+        }
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 

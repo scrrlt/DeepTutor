@@ -30,6 +30,7 @@ class EmbeddingConfig:
     model: str
     api_key: str
     base_url: str | None = None
+    base_url: str | None = None
     binding: str = "openai"
     api_version: str | None = None
     dim: int | None = None
@@ -168,22 +169,14 @@ def get_embedding_config() -> EmbeddingConfig:
     elif model == "text-embedding-3-large":
         dim = 3072
     max_tokens = _to_int(_strip_value(os.getenv("EMBEDDING_MAX_TOKENS")), 8192)
-    request_timeout = _to_int(
-        _strip_value(os.getenv("EMBEDDING_REQUEST_TIMEOUT")), 30
-    )
+    request_timeout = _to_int(_strip_value(os.getenv("EMBEDDING_REQUEST_TIMEOUT")), 30)
     input_type = _strip_value(os.getenv("EMBEDDING_INPUT_TYPE"))  # Optional
 
     # Provider-specific optional settings
-    encoding_format = (
-        _strip_value(os.getenv("EMBEDDING_ENCODING_FORMAT")) or "float"
-    )
-    normalized = _to_bool(
-        _strip_value(os.getenv("EMBEDDING_NORMALIZED")), True
-    )
+    encoding_format = _strip_value(os.getenv("EMBEDDING_ENCODING_FORMAT")) or "float"
+    normalized = _to_bool(_strip_value(os.getenv("EMBEDDING_NORMALIZED")), True)
     truncate = _to_bool(_strip_value(os.getenv("EMBEDDING_TRUNCATE")), True)
-    late_chunking = _to_bool(
-        _strip_value(os.getenv("EMBEDDING_LATE_CHUNKING")), False
-    )
+    late_chunking = _to_bool(_strip_value(os.getenv("EMBEDDING_LATE_CHUNKING")), False)
 
     return EmbeddingConfig(
         binding=binding or "openai",

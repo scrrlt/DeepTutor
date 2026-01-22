@@ -21,8 +21,7 @@ _PROVIDER_ALIASES = {
 
 
 def register_provider(name: str):
-    """
-    Decorator to register an LLM provider class.
+    """Register an LLM provider class.
 
     Args:
         name: Name to register the provider under
@@ -41,7 +40,7 @@ def register_provider(name: str):
     return decorator
 
 
-def get_provider_class(name: str) -> Type:
+def get_provider_class(name: str) -> type:
     """
     Get a registered provider class by name.
 

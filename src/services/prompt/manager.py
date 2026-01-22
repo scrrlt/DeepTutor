@@ -31,7 +31,14 @@ class PromptManager:
     }
 
     # Supported modules
-    MODULES = ["research", "solve", "guide", "question", "ideagen", "co_writer"]
+    MODULES = [
+        "research",
+        "solve",
+        "guide",
+        "question",
+        "ideagen",
+        "co_writer",
+    ]
 
     def __new__(cls) -> "PromptManager":
         if cls._instance is None:
@@ -96,6 +103,7 @@ class PromptManager:
                     with open(prompt_file, encoding="utf-8") as f:
                         return yaml.safe_load(f) or {}
                 except Exception as e:
+                    logger.error(f"Warning: Failed to load {prompt_file}: {e}")
                     logger.error(f"Warning: Failed to load {prompt_file}: {e}")
                     continue
 

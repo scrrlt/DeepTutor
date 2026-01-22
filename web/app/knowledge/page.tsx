@@ -1,23 +1,20 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 // Type declarations for FileSystem Entry API (drag & drop folder support)
 interface FileSystemEntry {
-  isFile: boolean;
-  isDirectory: boolean;
-  name: string;
+  isFile: boolean
+  isDirectory: boolean
+  name: string
 }
 
 interface FileSystemFileEntry extends FileSystemEntry {
-  file(
-    successCallback: (file: File) => void,
-    errorCallback?: (error: Error) => void,
-  ): void;
+  file(successCallback: (file: File) => void, errorCallback?: (error: Error) => void): void
 }
 
 interface FileSystemDirectoryEntry extends FileSystemEntry {
-  createReader(): FileSystemDirectoryReader;
+  createReader(): FileSystemDirectoryReader
 }
 
 interface FileSystemDirectoryReader {
@@ -75,19 +72,19 @@ interface KnowledgeBase {
     status?: string;
     progress?: ProgressInfo;
     rag?: {
-      chunks?: number;
-      entities?: number;
-      relations?: number;
-    };
-  };
+      chunks?: number
+      entities?: number
+      relations?: number
+    }
+  }
 }
 
 interface UploadFile {
-  file: File;
-  id: string;
-  name: string;
-  type: string;
-  size: number;
+  file: File
+  id: string
+  name: string
+  type: string
+  size: number
 }
 
 export default function KnowledgePage() {
@@ -105,25 +102,23 @@ export default function KnowledgePage() {
   const [ragProvider, setRagProvider] = useState<string>("llamaindex");
   const [ragProviders, setRagProviders] = useState<
     Array<{ id: string; name: string; description: string }>
-  >([]);
-  const [progressMap, setProgressMap] = useState<Record<string, ProgressInfo>>(
-    {},
-  );
+  >([])
+  const [progressMap, setProgressMap] = useState<Record<string, ProgressInfo>>({})
 
   // Toast notification system
   const [toast, setToast] = useState<{
-    message: string;
-    type: "success" | "error" | "info";
-  } | null>(null);
+    message: string
+    type: 'success' | 'error' | 'info'
+  } | null>(null)
 
   // Helper function to generate unique ID
-  const generateFileId = () => Math.random().toString(36).substring(2, 15);
+  const generateFileId = () => Math.random().toString(36).substring(2, 15)
 
   // Helper function to get file extension
   const getFileExtension = (filename: string): string => {
-    const parts = filename.split(".");
-    return parts.length > 1 ? parts.pop()?.toLowerCase() || "" : "";
-  };
+    const parts = filename.split('.')
+    return parts.length > 1 ? parts.pop()?.toLowerCase() || '' : ''
+  }
 
   // Supported file extensions per RAG provider (based on actual backend capabilities)
   const PROVIDER_SUPPORTED_EXTENSIONS: Record<string, string[]> = {
@@ -232,84 +227,78 @@ export default function KnowledgePage() {
     name: file.name,
     type: getFileExtension(file.name),
     size: file.size,
-  });
+  })
 
   // Helper function to add files (avoiding duplicates)
   const addFiles = (newFiles: File[]) => {
-    setUploadFiles((prev) => {
-      const existingNames = new Set(prev.map((f) => f.name));
-      const uniqueNewFiles = newFiles
-        .filter((f) => !existingNames.has(f.name))
-        .map(fileToUploadFile);
-      return [...prev, ...uniqueNewFiles];
-    });
-  };
+    setUploadFiles(prev => {
+      const existingNames = new Set(prev.map(f => f.name))
+      const uniqueNewFiles = newFiles.filter(f => !existingNames.has(f.name)).map(fileToUploadFile)
+      return [...prev, ...uniqueNewFiles]
+    })
+  }
 
   // Helper function to remove a file
   const removeFile = (fileId: string) => {
-    setUploadFiles((prev) => prev.filter((f) => f.id !== fileId));
-  };
+    setUploadFiles(prev => prev.filter(f => f.id !== fileId))
+  }
 
   // Helper function to clear all files
   const clearAllFiles = () => {
-    setUploadFiles([]);
-  };
+    setUploadFiles([])
+  }
 
   // Helper function to recursively read directory entries
-  const readDirectoryRecursively = async (
-    dirEntry: FileSystemDirectoryEntry,
-  ): Promise<File[]> => {
-    const files: File[] = [];
-    const reader = dirEntry.createReader();
+  const readDirectoryRecursively = async (dirEntry: FileSystemDirectoryEntry): Promise<File[]> => {
+    const files: File[] = []
+    const reader = dirEntry.createReader()
 
     const readEntries = (): Promise<FileSystemEntry[]> => {
       return new Promise((resolve, reject) => {
-        reader.readEntries(resolve, reject);
-      });
-    };
+        reader.readEntries(resolve, reject)
+      })
+    }
 
     const getFile = (fileEntry: FileSystemFileEntry): Promise<File> => {
       return new Promise((resolve, reject) => {
-        fileEntry.file(resolve, reject);
-      });
-    };
+        fileEntry.file(resolve, reject)
+      })
+    }
 
-    let entries: FileSystemEntry[];
+    let entries: FileSystemEntry[]
     do {
-      entries = await readEntries();
+      entries = await readEntries()
       for (const entry of entries) {
         if (entry.isFile) {
-          const file = await getFile(entry as FileSystemFileEntry);
+          const file = await getFile(entry as FileSystemFileEntry)
           // Filter supported file types
           if (isSupportedFile(file.name)) {
-            files.push(file);
+            files.push(file)
           }
         } else if (entry.isDirectory) {
-          const subFiles = await readDirectoryRecursively(
-            entry as FileSystemDirectoryEntry,
-          );
-          files.push(...subFiles);
+          const subFiles = await readDirectoryRecursively(entry as FileSystemDirectoryEntry)
+          files.push(...subFiles)
         }
       }
-    } while (entries.length > 0);
+    } while (entries.length > 0)
 
-    return files;
-  };
+    return files
+  }
 
   // Helper function to process dropped items (files and folders)
   const processDroppedItems = async (dataTransfer: DataTransfer) => {
-    const items = dataTransfer.items;
-    const allFiles: File[] = [];
+    const items = dataTransfer.items
+    const allFiles: File[] = []
 
     const processItem = async (item: DataTransferItem): Promise<File[]> => {
-      const entry = item.webkitGetAsEntry?.();
+      const entry = (item as any).webkitGetAsEntry?.()
       if (!entry) {
         // Fallback: try to get as file
-        const file = item.getAsFile();
+        const file = item.getAsFile()
         if (file && isSupportedFile(file.name)) {
-          return [file];
+          return [file]
         }
-        return [];
+        return []
       }
 
       if (entry.isFile) {
@@ -317,247 +306,238 @@ export default function KnowledgePage() {
           (entry as unknown as FileSystemFileEntry).file(
             (file) => {
               if (isSupportedFile(file.name)) {
-                resolve([file]);
+                resolve([file])
               } else {
-                resolve([]);
+                resolve([])
               }
             },
-            () => resolve([]),
-          );
-        });
+            () => resolve([])
+          )
+        })
       } else if (entry.isDirectory) {
         return readDirectoryRecursively(
           entry as unknown as FileSystemDirectoryEntry,
         );
       }
-      return [];
-    };
-
-    // Process all items in parallel
-    const promises: Promise<File[]>[] = [];
-    for (let i = 0; i < items.length; i++) {
-      promises.push(processItem(items[i]));
+      return []
     }
 
-    const results = await Promise.all(promises);
-    results.forEach((files) => allFiles.push(...files));
+    // Process all items in parallel
+    const promises: Promise<File[]>[] = []
+    for (let i = 0; i < items.length; i++) {
+      promises.push(processItem(items[i]))
+    }
 
-    return allFiles;
-  };
+    const results = await Promise.all(promises)
+    results.forEach(files => allFiles.push(...files))
+
+    return allFiles
+  }
 
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  }
 
   // Helper function to get file icon based on type
   const getFileIcon = (type: string) => {
     switch (type) {
-      case "pdf":
-        return <FileText className="w-4 h-4 text-red-500" />;
-      case "md":
-        return <FileText className="w-4 h-4 text-blue-500" />;
-      case "txt":
-        return <FileText className="w-4 h-4 text-slate-500" />;
-      case "doc":
-      case "docx":
-      case "rtf":
-        return <FileText className="w-4 h-4 text-blue-600" />;
-      case "html":
-      case "htm":
-      case "xml":
-        return <FileText className="w-4 h-4 text-orange-500" />;
-      case "json":
-        return <FileText className="w-4 h-4 text-yellow-600" />;
-      case "csv":
-      case "xlsx":
-      case "xls":
-        return <FileText className="w-4 h-4 text-green-600" />;
-      case "pptx":
-      case "ppt":
-        return <FileText className="w-4 h-4 text-orange-600" />;
+      case 'pdf':
+        return <FileText className="w-4 h-4 text-red-500" />
+      case 'md':
+        return <FileText className="w-4 h-4 text-blue-500" />
+      case 'txt':
+        return <FileText className="w-4 h-4 text-slate-500" />
+      case 'doc':
+      case 'docx':
+      case 'rtf':
+        return <FileText className="w-4 h-4 text-blue-600" />
+      case 'html':
+      case 'htm':
+      case 'xml':
+        return <FileText className="w-4 h-4 text-orange-500" />
+      case 'json':
+        return <FileText className="w-4 h-4 text-yellow-600" />
+      case 'csv':
+      case 'xlsx':
+      case 'xls':
+        return <FileText className="w-4 h-4 text-green-600" />
+      case 'pptx':
+      case 'ppt':
+        return <FileText className="w-4 h-4 text-orange-600" />
       default:
-        return <FileText className="w-4 h-4 text-slate-400" />;
+        return <FileText className="w-4 h-4 text-slate-400" />
     }
-  };
+  }
 
   // Helper function to get file type label
   const getFileTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      pdf: "PDF",
-      md: "Markdown",
-      txt: "Text",
-      doc: "Word",
-      docx: "Word",
-      rtf: "RTF",
-      html: "HTML",
-      htm: "HTML",
-      xml: "XML",
-      json: "JSON",
-      csv: "CSV",
-      xlsx: "Excel",
-      xls: "Excel",
-      pptx: "PowerPoint",
-      ppt: "PowerPoint",
-    };
-    return labels[type] || type.toUpperCase();
-  };
+      pdf: 'PDF',
+      md: 'Markdown',
+      txt: 'Text',
+      doc: 'Word',
+      docx: 'Word',
+      rtf: 'RTF',
+      html: 'HTML',
+      htm: 'HTML',
+      xml: 'XML',
+      json: 'JSON',
+      csv: 'CSV',
+      xlsx: 'Excel',
+      xls: 'Excel',
+      pptx: 'PowerPoint',
+      ppt: 'PowerPoint',
+    }
+    return labels[type] || type.toUpperCase()
+  }
 
-  const showToast = (
-    message: string,
-    type: "success" | "error" | "info" = "info",
-  ) => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   // Use ref only for WebSocket connections (no need for state as it's not used in render)
-  const wsConnectionsRef = useRef<Record<string, WebSocket>>({});
-  const kbsNamesRef = useRef<string[]>([]);
+  const wsConnectionsRef = useRef<Record<string, WebSocket>>({})
+  const kbsNamesRef = useRef<string[]>([])
 
   // Restore progress state from localStorage (with cleanup of stuck states)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("kb_progress_map");
+      const saved = localStorage.getItem('kb_progress_map')
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed = JSON.parse(saved)
 
         // Clean up stuck progress states (older than 30 minutes and not completed/error)
-        const now = new Date().getTime();
-        const thirtyMinutes = 30 * 60 * 1000;
-        const cleaned: Record<string, ProgressInfo> = {};
+        const now = new Date().getTime()
+        const thirtyMinutes = 30 * 60 * 1000
+        const cleaned: Record<string, ProgressInfo> = {}
 
         Object.entries(parsed).forEach(([kbName, progress]: [string, any]) => {
           if (progress.timestamp) {
-            const progressTime = new Date(progress.timestamp).getTime();
-            const age = now - progressTime;
+            const progressTime = new Date(progress.timestamp).getTime()
+            const age = now - progressTime
 
             // Keep if: completed, error, or recent (< 30 min)
             if (
-              progress.stage === "completed" ||
-              progress.stage === "error" ||
+              progress.stage === 'completed' ||
+              progress.stage === 'error' ||
               age < thirtyMinutes
             ) {
-              cleaned[kbName] = progress;
+              cleaned[kbName] = progress
             } else {
               console.log(
-                `[KB Progress] Clearing stuck progress for ${kbName} (age: ${Math.round(age / 60000)} min)`,
-              );
+                `[KB Progress] Clearing stuck progress for ${kbName} (age: ${Math.round(age / 60000)} min)`
+              )
             }
           } else {
             // No timestamp, keep completed/error, clear others
-            if (progress.stage === "completed" || progress.stage === "error") {
-              cleaned[kbName] = progress;
+            if (progress.stage === 'completed' || progress.stage === 'error') {
+              cleaned[kbName] = progress
             }
           }
-        });
+        })
 
-        setProgressMap(cleaned);
-        localStorage.setItem("kb_progress_map", JSON.stringify(cleaned));
+        setProgressMap(cleaned)
+        localStorage.setItem('kb_progress_map', JSON.stringify(cleaned))
       }
     } catch (e) {
-      console.error("Failed to load progress from localStorage:", e);
+      console.error('Failed to load progress from localStorage:', e)
     }
-  }, []);
+  }, [])
 
   // Persist progress state to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("kb_progress_map", JSON.stringify(progressMap));
+      localStorage.setItem('kb_progress_map', JSON.stringify(progressMap))
     } catch (e) {
-      console.error("Failed to save progress to localStorage:", e);
+      console.error('Failed to save progress to localStorage:', e)
     }
-  }, [progressMap]);
+  }, [progressMap])
 
   // Define fetchKnowledgeBases using useCallback to ensure it's available
   const fetchKnowledgeBases = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
-      const baseUrl = apiUrl("");
-      const listUrl = apiUrl("/api/v1/knowledge/list");
-      const healthUrl = apiUrl("/api/v1/knowledge/health");
+      const baseUrl = apiUrl('')
+      const listUrl = apiUrl('/api/v1/knowledge/list')
+      const healthUrl = apiUrl('/api/v1/knowledge/health')
 
-      console.log("🔍 Fetching knowledge bases...");
-      console.log("  Base URL:", baseUrl);
-      console.log("  List URL:", listUrl);
-      console.log("  Health URL:", healthUrl);
+      console.log('🔍 Fetching knowledge bases...')
+      console.log('  Base URL:', baseUrl)
+      console.log('  List URL:', listUrl)
+      console.log('  Health URL:', healthUrl)
 
       // Test health check endpoint first
       try {
-        const healthRes = await fetch(healthUrl);
-        const healthData = await healthRes.json();
-        console.log("✅ Health check response:", healthData);
+        const healthRes = await fetch(healthUrl)
+        const healthData = await healthRes.json()
+        console.log('✅ Health check response:', healthData)
       } catch (healthErr) {
-        console.warn("⚠️ Health check failed:", healthErr);
+        console.warn('⚠️ Health check failed:', healthErr)
       }
 
       // Fetch knowledge base list
       const res = await fetch(listUrl, {
-        method: "GET",
+        method: 'GET',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-      });
+      })
 
-      console.log("📡 Response status:", res.status, res.statusText);
-      console.log(
-        "📡 Response headers:",
-        Object.fromEntries(res.headers.entries()),
-      );
+      console.log('📡 Response status:', res.status, res.statusText)
+      console.log('📡 Response headers:', Object.fromEntries(res.headers.entries()))
 
       if (!res.ok) {
-        let errorMessage = `HTTP ${res.status}: Failed to fetch knowledge bases`;
-        let errorDetail = "";
+        let errorMessage = `HTTP ${res.status}: Failed to fetch knowledge bases`
+        let errorDetail = ''
         try {
-          const errorData = await res.json();
-          errorDetail = errorData.detail || errorData.message || "";
-          errorMessage = errorDetail || errorMessage;
-          console.error("❌ Error response:", errorData);
+          const errorData = await res.json()
+          errorDetail = errorData.detail || errorData.message || ''
+          errorMessage = errorDetail || errorMessage
+          console.error('❌ Error response:', errorData)
         } catch (parseErr) {
-          const text = await res.text();
-          console.error("❌ Error response (text):", text);
-          errorMessage = `${errorMessage}. Response: ${text.substring(0, 200)}`;
+          const text = await res.text()
+          console.error('❌ Error response (text):', text)
+          errorMessage = `${errorMessage}. Response: ${text.substring(0, 200)}`
         }
-        throw new Error(errorMessage);
+        throw new Error(errorMessage)
       }
 
-      const data = await res.json();
-      console.log("✅ Received knowledge bases:", data);
-      console.log("✅ Data type:", Array.isArray(data) ? "array" : typeof data);
-      console.log("✅ Data length:", Array.isArray(data) ? data.length : "N/A");
+      const data = await res.json()
+      console.log('✅ Received knowledge bases:', data)
+      console.log('✅ Data type:', Array.isArray(data) ? 'array' : typeof data)
+      console.log('✅ Data length:', Array.isArray(data) ? data.length : 'N/A')
 
       if (!Array.isArray(data)) {
-        throw new Error(
-          `Invalid response format: expected array, got ${typeof data}`,
-        );
+        throw new Error(`Invalid response format: expected array, got ${typeof data}`)
       }
 
-      setKbs(data);
-      setError(null); // Clear previous error - empty list is not an error, it's just empty state
+      setKbs(data)
+      setError(null) // Clear previous error - empty list is not an error, it's just empty state
     } catch (err: any) {
-      console.error("❌ Error fetching knowledge bases:", err);
-      console.error("❌ Error stack:", err.stack);
+      console.error('❌ Error fetching knowledge bases:', err)
+      console.error('❌ Error stack:', err.stack)
 
       let errorMessage =
-        err.message ||
-        "Failed to load knowledge bases. Please ensure the backend is running.";
+        err.message || 'Failed to load knowledge bases. Please ensure the backend is running.'
 
       // Provide more detailed message for network errors
-      if (err.name === "TypeError" && err.message.includes("fetch")) {
-        errorMessage = `Network error: Cannot connect to backend at ${apiUrl("")}. Please ensure the backend is running.`;
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = `Network error: Cannot connect to backend at ${apiUrl('')}. Please ensure the backend is running.`
       }
 
-      setError(errorMessage);
+      setError(errorMessage)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
     fetchKnowledgeBases();
@@ -587,308 +567,273 @@ export default function KnowledgePage() {
   useEffect(() => {
     const fetchRagProviders = async () => {
       try {
-        const res = await fetch(apiUrl("/api/v1/knowledge/rag-providers"));
+        const res = await fetch(apiUrl('/api/v1/knowledge/rag-providers'))
         if (res.ok) {
-          const data = await res.json();
-          setRagProviders(data.providers || []);
+          const data = await res.json()
+          setRagProviders(data.providers || [])
         }
       } catch (err) {
-        console.error("Failed to fetch RAG providers:", err);
+        console.error('Failed to fetch RAG providers:', err)
       }
-    };
-    fetchRagProviders();
-  }, []);
+    }
+    fetchRagProviders()
+  }, [])
 
   // Establish WebSocket connections for all KBs to receive progress updates (only when KB names change)
   useEffect(() => {
     // Skip if still loading or kbs is not yet loaded
     if (loading || !kbs) {
-      return;
+      return
     }
 
     // Only re-establish connections if KB names actually changed
-    const currentKbNames = [...kbs.map((kb) => kb.name)].sort();
-    const currentKbNamesStr = currentKbNames.join(",");
-    const prevKbNames = [...(kbsNamesRef.current || [])].sort();
-    const prevKbNamesStr = prevKbNames.join(",");
+    const currentKbNames = [...kbs.map(kb => kb.name)].sort()
+    const currentKbNamesStr = currentKbNames.join(',')
+    const prevKbNames = [...(kbsNamesRef.current || [])].sort()
+    const prevKbNamesStr = prevKbNames.join(',')
 
     // If KB names haven't changed, don't re-establish connections
     if (
       currentKbNamesStr === prevKbNamesStr &&
-      currentKbNamesStr !== "" &&
+      currentKbNamesStr !== '' &&
       Object.keys(wsConnectionsRef.current).length > 0
     ) {
       // Update statistics in existing connections context, but don't reconnect
-      return;
+      return
     }
 
     // If kbs is empty and we have connections, close them all
     if (kbs.length === 0) {
       if (Object.keys(wsConnectionsRef.current).length > 0) {
-        Object.values(wsConnectionsRef.current).forEach((ws) => {
-          if (
-            ws &&
-            (ws.readyState === WebSocket.OPEN ||
-              ws.readyState === WebSocket.CONNECTING)
-          ) {
-            ws.close();
+        Object.values(wsConnectionsRef.current).forEach(ws => {
+          if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            ws.close()
           }
-        });
-        wsConnectionsRef.current = {};
+        })
+        wsConnectionsRef.current = {}
       }
-      kbsNamesRef.current = [];
-      return;
+      kbsNamesRef.current = []
+      return
     }
 
     // Close old connections that are no longer needed
     Object.entries(wsConnectionsRef.current).forEach(([kbName, ws]) => {
-      if (!kbs.find((kb) => kb.name === kbName)) {
-        if (
-          ws &&
-          (ws.readyState === WebSocket.OPEN ||
-            ws.readyState === WebSocket.CONNECTING)
-        ) {
-          ws.close();
+      if (!kbs.find(kb => kb.name === kbName)) {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          ws.close()
         }
-        delete wsConnectionsRef.current[kbName];
+        delete wsConnectionsRef.current[kbName]
       }
-    });
+    })
 
     const connections: Record<string, WebSocket> = {
       ...wsConnectionsRef.current,
-    };
+    }
 
-    kbs.forEach((kb) => {
+    kbs.forEach(kb => {
       // Only create new connection if one doesn't exist
-      if (
-        connections[kb.name] &&
-        connections[kb.name].readyState !== WebSocket.CLOSED
-      ) {
-        return;
+      if (connections[kb.name] && connections[kb.name].readyState !== WebSocket.CLOSED) {
+        return
       }
       // Connect to all KBs (not just uninitialized ones)
       // This allows receiving progress updates when adding documents
-      const ws = new WebSocket(
-        wsUrl(`/api/v1/knowledge/${kb.name}/progress/ws`),
-      );
+      const ws = new WebSocket(wsUrl(`/api/v1/knowledge/${kb.name}/progress/ws`))
 
       ws.onopen = () => {
-        console.log(`[Progress WS] Connected for KB: ${kb.name}`);
-      };
+        console.log(`[Progress WS] Connected for KB: ${kb.name}`)
+      }
 
-      ws.onmessage = (event) => {
+      ws.onmessage = event => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === "progress" && data.data) {
+          const data = JSON.parse(event.data)
+          if (data.type === 'progress' && data.data) {
             // If KB is already initialized (ready), ignore stale in-progress updates
             // Only accept 'completed' or 'error' or recent updates (within 5 minutes)
             if (kb.statistics.rag_initialized) {
-              const progressStage = data.data.stage;
-              const progressTime = data.data.timestamp
-                ? new Date(data.data.timestamp).getTime()
-                : 0;
-              const now = new Date().getTime();
-              const fiveMinutes = 5 * 60 * 1000;
+              const progressStage = data.data.stage
+              const progressTime = data.data.timestamp ? new Date(data.data.timestamp).getTime() : 0
+              const now = new Date().getTime()
+              const fiveMinutes = 5 * 60 * 1000
 
               // Skip stale in-progress updates for already-ready KBs
-              if (progressStage !== "completed" && progressStage !== "error") {
+              if (progressStage !== 'completed' && progressStage !== 'error') {
                 if (!progressTime || now - progressTime > fiveMinutes) {
-                  console.log(
-                    `[Progress WS] Ignoring stale progress for ready KB: ${kb.name}`,
-                  );
-                  return;
+                  console.log(`[Progress WS] Ignoring stale progress for ready KB: ${kb.name}`)
+                  return
                 }
               }
             }
 
-            setProgressMap((prev) => {
+            setProgressMap(prev => {
               const updated = {
                 ...prev,
                 [kb.name]: data.data,
-              };
+              }
               // Auto-persist to localStorage
               try {
-                localStorage.setItem(
-                  "kb_progress_map",
-                  JSON.stringify(updated),
-                );
+                localStorage.setItem('kb_progress_map', JSON.stringify(updated))
               } catch (e) {
-                console.error("Failed to save progress to localStorage:", e);
+                console.error('Failed to save progress to localStorage:', e)
               }
-              return updated;
-            });
+              return updated
+            })
 
             // Don't auto-refresh KB list when completed or error
             // User can manually refresh using the refresh button
-          } else if (data.type === "error") {
-            console.error(
-              `[Progress WS] Error for KB ${kb.name}:`,
-              data.message,
-            );
+          } else if (data.type === 'error') {
+            console.error(`[Progress WS] Error for KB ${kb.name}:`, data.message)
           }
         } catch (e) {
-          console.error(
-            `[Progress WS] Error parsing message for ${kb.name}:`,
-            e,
-          );
+          console.error(`[Progress WS] Error parsing message for ${kb.name}:`, e)
         }
-      };
+      }
 
-      ws.onerror = (error) => {
-        console.error(`[Progress WS] Error for ${kb.name}:`, error);
-      };
+      ws.onerror = error => {
+        console.error(`[Progress WS] Error for ${kb.name}:`, error)
+      }
 
       ws.onclose = () => {
-        console.log(`[Progress WS] Closed for KB: ${kb.name}`);
-      };
+        console.log(`[Progress WS] Closed for KB: ${kb.name}`)
+      }
 
-      connections[kb.name] = ws;
-      wsConnectionsRef.current[kb.name] = ws;
-    });
+      connections[kb.name] = ws
+      wsConnectionsRef.current[kb.name] = ws
+    })
 
     kbsNamesRef.current = kbs.map((kb) => kb.name);
-     
+
   }, [kbs, loading]);
 
   // Cleanup all connections on component unmount
   useEffect(() => {
     return () => {
-      Object.values(wsConnectionsRef.current).forEach((ws) => {
-        if (
-          ws &&
-          (ws.readyState === WebSocket.OPEN ||
-            ws.readyState === WebSocket.CONNECTING)
-        ) {
-          ws.close();
+      Object.values(wsConnectionsRef.current).forEach(ws => {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          ws.close()
         }
-      });
-      wsConnectionsRef.current = {};
-    };
-  }, []);
+      })
+      wsConnectionsRef.current = {}
+    }
+  }, [])
 
   const handleDelete = async (name: string) => {
     if (
-      !confirm(
-        `Are you sure you want to delete knowledge base "${name}"? This cannot be undone.`,
-      )
+      !confirm(`Are you sure you want to delete knowledge base "${name}"? This cannot be undone.`)
     )
-      return;
+      return
 
     try {
       const res = await fetch(apiUrl(`/api/v1/knowledge/${name}`), {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete knowledge base");
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to delete knowledge base')
 
       // Also clear progress state for this KB
-      clearProgress(name);
+      clearProgress(name)
 
-      fetchKnowledgeBases();
+      fetchKnowledgeBases()
     } catch (err) {
-      console.error(err);
-      showToast("Failed to delete knowledge base", "error");
+      console.error(err)
+      showToast('Failed to delete knowledge base', 'error')
     }
-  };
+  }
 
   // Clear progress state for a specific KB (frontend + backend)
   const clearProgress = async (kbName: string) => {
     // Clear frontend state
-    setProgressMap((prev) => {
-      const updated = { ...prev };
-      delete updated[kbName];
+    setProgressMap(prev => {
+      const updated = { ...prev }
+      delete updated[kbName]
       try {
-        localStorage.setItem("kb_progress_map", JSON.stringify(updated));
+        localStorage.setItem('kb_progress_map', JSON.stringify(updated))
       } catch (e) {
-        console.error("Failed to save progress to localStorage:", e);
+        console.error('Failed to save progress to localStorage:', e)
       }
-      return updated;
-    });
+      return updated
+    })
 
     // Clear backend progress file
     try {
       await fetch(apiUrl(`/api/v1/knowledge/${kbName}/progress/clear`), {
-        method: "POST",
-      });
-      console.log(`[Progress] Cleared backend progress for KB: ${kbName}`);
+        method: 'POST',
+      })
+      console.log(`[Progress] Cleared backend progress for KB: ${kbName}`)
     } catch (e) {
-      console.error("Failed to clear backend progress:", e);
+      console.error('Failed to clear backend progress:', e)
     }
-  };
+  }
 
   // Clear all stuck progress states
   const clearAllStuckProgress = () => {
-    setProgressMap((prev) => {
-      const cleaned: Record<string, ProgressInfo> = {};
+    setProgressMap(prev => {
+      const cleaned: Record<string, ProgressInfo> = {}
       Object.entries(prev).forEach(([kbName, progress]) => {
         // Only keep completed and error states
-        if (progress.stage === "completed" || progress.stage === "error") {
-          cleaned[kbName] = progress;
+        if (progress.stage === 'completed' || progress.stage === 'error') {
+          cleaned[kbName] = progress
         }
-      });
+      })
       try {
-        localStorage.setItem("kb_progress_map", JSON.stringify(cleaned));
+        localStorage.setItem('kb_progress_map', JSON.stringify(cleaned))
       } catch (e) {
-        console.error("Failed to save progress to localStorage:", e);
+        console.error('Failed to save progress to localStorage:', e)
       }
-      return cleaned;
-    });
-  };
+      return cleaned
+    })
+  }
 
   const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (uploadFiles.length === 0 || !targetKb) return;
+    e.preventDefault()
+    if (uploadFiles.length === 0 || !targetKb) return
 
-    setUploading(true);
-    const formData = new FormData();
-    uploadFiles.forEach((uploadFile) => {
-      formData.append("files", uploadFile.file);
-    });
+    setUploading(true)
+    const formData = new FormData()
+    uploadFiles.forEach(uploadFile => {
+      formData.append('files', uploadFile.file)
+    })
 
     // Add rag_provider to form data if user selected one different from KB's existing provider
     if (ragProvider) {
-      formData.append("rag_provider", ragProvider);
+      formData.append('rag_provider', ragProvider)
     }
 
     try {
       const res = await fetch(apiUrl(`/api/v1/knowledge/${targetKb}/upload`), {
-        method: "POST",
+        method: 'POST',
         body: formData,
       });
       if (!res.ok) throw new Error(t("Upload failed"));
 
-      setUploadModalOpen(false);
-      clearAllFiles();
+      setUploadModalOpen(false)
+      clearAllFiles()
       // Refresh immediately to establish WebSocket connection
-      await fetchKnowledgeBases();
-      showToast(
-        "Files uploaded successfully! Processing started in background.",
-        "success",
-      );
+      await fetchKnowledgeBases()
+      showToast('Files uploaded successfully! Processing started in background.', 'success')
     } catch (err) {
-      console.error(err);
-      showToast("Failed to upload files", "error");
+      console.error(err)
+      showToast('Failed to upload files', 'error')
     } finally {
-      setUploading(false);
+      setUploading(false)
     }
-  };
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKbName || uploadFiles.length === 0) return;
+    e.preventDefault()
+    if (!newKbName || uploadFiles.length === 0) return
 
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("name", newKbName);
-    formData.append("rag_provider", ragProvider);
-    uploadFiles.forEach((uploadFile) => {
-      formData.append("files", uploadFile.file);
-    });
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('name', newKbName)
+    formData.append('rag_provider', ragProvider)
+    uploadFiles.forEach(uploadFile => {
+      formData.append('files', uploadFile.file)
+    })
 
     try {
-      const res = await fetch(apiUrl("/api/v1/knowledge/create"), {
-        method: "POST",
+      const res = await fetch(apiUrl('/api/v1/knowledge/create'), {
+        method: 'POST',
         body: formData,
-      });
+      })
       if (!res.ok) {
         const errorData = await res.json();
         showToast(errorData.detail || "Creation failed", "error");
@@ -898,52 +843,50 @@ export default function KnowledgePage() {
 
       const result = await res.json();
 
-      setCreateModalOpen(false);
-      clearAllFiles();
-      setNewKbName("");
-      setRagProvider("llamaindex"); // Reset to default
+      setCreateModalOpen(false)
+      clearAllFiles()
+      setNewKbName('')
+      setRagProvider('llamaindex') // Reset to default
 
       // Immediately refresh to get the new KB from backend
       // (Backend now registers KB to kb_config.json immediately with status)
       await fetchKnowledgeBases();
 
-      showToast("Knowledge base created successfully!", "success");
+      showToast('Knowledge base created successfully!', 'success')
     } catch (err: any) {
-      console.error(err);
-      showToast(`Failed to create knowledge base: ${err.message}`, "error");
+      console.error(err)
+      showToast(`Failed to create knowledge base: ${err.message}`, 'error')
     } finally {
-      setUploading(false);
+      setUploading(false)
     }
-  };
+  }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
     }
-  }, []);
+  }, [])
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
 
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       // Use the new folder-aware processing
-      const droppedFiles = await processDroppedItems(e.dataTransfer);
+      const droppedFiles = await processDroppedItems(e.dataTransfer)
       if (droppedFiles.length > 0) {
-        addFiles(droppedFiles);
+        addFiles(droppedFiles)
       }
     } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       // Fallback for browsers that don't support DataTransferItem
-      const validFiles = Array.from(e.dataTransfer.files).filter((file) =>
-        isSupportedFile(file.name),
-      );
+      const validFiles = Array.from(e.dataTransfer.files).filter(file => isSupportedFile(file.name))
       if (validFiles.length > 0) {
-        addFiles(validFiles);
+        addFiles(validFiles)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Helper functions are stable
@@ -965,8 +908,8 @@ export default function KnowledgePage() {
         <div className="flex gap-3">
           <button
             onClick={async () => {
-              setLoading(true);
-              await fetchKnowledgeBases();
+              setLoading(true)
+              await fetchKnowledgeBases()
             }}
             className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-600 shadow-sm hover:shadow"
             title={t("Refresh knowledge bases")}
@@ -976,10 +919,10 @@ export default function KnowledgePage() {
           </button>
           <button
             onClick={() => {
-              clearAllFiles();
-              setNewKbName("");
-              setRagProvider("llamaindex");
-              setCreateModalOpen(true);
+              clearAllFiles()
+              setNewKbName('')
+              setRagProvider('llamaindex')
+              setCreateModalOpen(true)
             }}
             className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors flex items-center gap-2 shadow-lg shadow-slate-900/20"
           >
@@ -1000,7 +943,7 @@ export default function KnowledgePage() {
       {/* Loading State */}
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map(i => (
             <div
               key={i}
               className="bg-white dark:bg-slate-800 h-48 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse"
@@ -1012,7 +955,7 @@ export default function KnowledgePage() {
       {/* KB Grid */}
       {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {kbs.map((kb) => (
+          {kbs.map(kb => (
             <div
               key={kb.name}
               className="group bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-all duration-300 hover:-translate-y-1 overflow-hidden flex flex-col"
@@ -1024,9 +967,7 @@ export default function KnowledgePage() {
                     <Database className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100">
-                      {kb.name}
-                    </h3>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100">{kb.name}</h3>
                     <div className="flex items-center gap-1.5 mt-1">
                       {kb.is_default && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wide border border-blue-100 dark:border-blue-800">
@@ -1036,11 +977,11 @@ export default function KnowledgePage() {
                       {kb.statistics.rag_provider && (
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                            kb.statistics.rag_provider === "raganything"
-                              ? "bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800"
-                              : kb.statistics.rag_provider === "lightrag"
-                                ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800"
-                                : "bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800"
+                            kb.statistics.rag_provider === 'raganything'
+                              ? 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800'
+                              : kb.statistics.rag_provider === 'lightrag'
+                                ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
+                                : 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800'
                           }`}
                         >
                           {kb.statistics.rag_provider === "raganything"
@@ -1060,24 +1001,15 @@ export default function KnowledgePage() {
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch(
-                            apiUrl(`/api/v1/knowledge/default/${kb.name}`),
-                            {
-                              method: "PUT",
-                            },
-                          );
-                          if (!res.ok) throw new Error("Failed to set default");
-                          showToast(
-                            `Set "${kb.name}" as default knowledge base`,
-                            "success",
-                          );
-                          fetchKnowledgeBases();
+                          const res = await fetch(apiUrl(`/api/v1/knowledge/default/${kb.name}`), {
+                            method: 'PUT',
+                          })
+                          if (!res.ok) throw new Error('Failed to set default')
+                          showToast(`Set "${kb.name}" as default knowledge base`, 'success')
+                          fetchKnowledgeBases()
                         } catch (err) {
-                          console.error(err);
-                          showToast(
-                            "Failed to set default knowledge base",
-                            "error",
-                          );
+                          console.error(err)
+                          showToast('Failed to set default knowledge base', 'error')
                         }
                       }}
                       className="p-2 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
@@ -1088,13 +1020,11 @@ export default function KnowledgePage() {
                   )}
                   <button
                     onClick={() => {
-                      setTargetKb(kb.name);
-                      clearAllFiles();
+                      setTargetKb(kb.name)
+                      clearAllFiles()
                       // Set RAG provider to KB's existing provider or default
-                      setRagProvider(
-                        kb.statistics.rag_provider || "llamaindex",
-                      );
-                      setUploadModalOpen(true);
+                      setRagProvider(kb.statistics.rag_provider || 'llamaindex')
+                      setUploadModalOpen(true)
                     }}
                     className="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     title={t("Upload Documents")}
@@ -1190,15 +1120,15 @@ export default function KnowledgePage() {
                         <span
                           className={
                             kb.statistics.rag_initialized
-                              ? "text-emerald-600 dark:text-emerald-400 font-bold"
-                              : "text-slate-400 dark:text-slate-500"
+                              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                              : 'text-slate-400 dark:text-slate-500'
                           }
                         >
                           {kb.statistics.rag_initialized
                             ? t("Ready")
                             : t("Not Indexed")}
                         </span>
-                      );
+                      )
                     })()}
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
@@ -1234,13 +1164,13 @@ export default function KnowledgePage() {
                               width: `${Math.max(percent, status === "initializing" ? 5 : 0)}%`,
                             }}
                           />
-                        );
+                        )
                       }
                       return (
                         <div
-                          className={`h-full rounded-full ${kb.statistics.rag_initialized ? "bg-emerald-500 w-full" : "bg-slate-300 w-0"}`}
+                          className={`h-full rounded-full ${kb.statistics.rag_initialized ? 'bg-emerald-500 w-full' : 'bg-slate-300 w-0'}`}
                         />
-                      );
+                      )
                     })()}
                   </div>
                   {(() => {
@@ -1279,9 +1209,7 @@ export default function KnowledgePage() {
                           {progress?.file_name && (
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                               <FileText className="w-3 h-3" />
-                              <span className="truncate">
-                                {progress.file_name}
-                              </span>
+                              <span className="truncate">{progress.file_name}</span>
                             </div>
                           )}
                           {progress &&
@@ -1297,7 +1225,7 @@ export default function KnowledgePage() {
                             </div>
                           )}
                         </div>
-                      );
+                      )
                     }
                     if (kb.statistics.rag) {
                       return (
@@ -1309,26 +1237,26 @@ export default function KnowledgePage() {
                           </div>
                           {kb.statistics.rag_provider && (
                             <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                              Provider:{" "}
+                              Provider:{' '}
                               <span className="font-semibold text-slate-600 dark:text-slate-300">
                                 {kb.statistics.rag_provider}
                               </span>
                             </div>
                           )}
                         </div>
-                      );
+                      )
                     }
                     if (kb.statistics.rag_provider) {
                       return (
                         <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400">
-                          Provider:{" "}
+                          Provider:{' '}
                           <span className="font-semibold text-slate-600 dark:text-slate-300">
                             {kb.statistics.rag_provider}
                           </span>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   })()}
                 </div>
               </div>
@@ -1382,11 +1310,11 @@ export default function KnowledgePage() {
                 </label>
                 <select
                   value={ragProvider}
-                  onChange={(e) => setRagProvider(e.target.value)}
+                  onChange={e => setRagProvider(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 >
                   {ragProviders.length > 0 ? (
-                    ragProviders.map((provider) => (
+                    ragProviders.map(provider => (
                       <option key={provider.id} value={provider.id}>
                         {provider.name}
                       </option>
@@ -1403,11 +1331,9 @@ export default function KnowledgePage() {
                 <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-600">
                   <p className="text-xs text-slate-600 dark:text-slate-300">
                     {(() => {
-                      const selectedProvider = ragProviders.find(
-                        (p) => p.id === ragProvider,
-                      );
+                      const selectedProvider = ragProviders.find(p => p.id === ragProvider)
                       if (selectedProvider?.description) {
-                        return selectedProvider.description;
+                        return selectedProvider.description
                       }
                       // Fallback descriptions
                       const fallbackDescriptions: Record<string, string> = {
@@ -1438,8 +1364,8 @@ export default function KnowledgePage() {
                 <div
                   className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
                     dragActive
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                      : "border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-700/50"
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-700/50'
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
@@ -1451,14 +1377,14 @@ export default function KnowledgePage() {
                     multiple
                     className="hidden"
                     id="kb-file-upload"
-                    onChange={(e) => {
+                    onChange={e => {
                       if (e.target.files) {
-                        const validFiles = Array.from(e.target.files).filter(
-                          (file) => isSupportedFile(file.name),
-                        );
-                        addFiles(validFiles);
+                        const validFiles = Array.from(e.target.files).filter(file =>
+                          isSupportedFile(file.name)
+                        )
+                        addFiles(validFiles)
                       }
-                      e.target.value = ""; // Reset input to allow re-selecting same files
+                      e.target.value = '' // Reset input to allow re-selecting same files
                     }}
                     accept={getAcceptAttribute(ragProvider)}
                   />
@@ -1466,10 +1392,10 @@ export default function KnowledgePage() {
                   {/* Drop zone / Click to upload area */}
                   <label
                     htmlFor="kb-file-upload"
-                    className={`cursor-pointer flex flex-col items-center gap-2 ${uploadFiles.length > 0 ? "p-4" : "p-8"}`}
+                    className={`cursor-pointer flex flex-col items-center gap-2 ${uploadFiles.length > 0 ? 'p-4' : 'p-8'}`}
                   >
                     <Upload
-                      className={`w-6 h-6 ${dragActive ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
+                      className={`w-6 h-6 ${dragActive ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}
                     />
                     <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                       {uploadFiles.length > 0
@@ -1498,9 +1424,9 @@ export default function KnowledgePage() {
                         </span>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            clearAllFiles();
+                          onClick={e => {
+                            e.preventDefault()
+                            clearAllFiles()
                           }}
                           className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                         >
@@ -1508,7 +1434,7 @@ export default function KnowledgePage() {
                         </button>
                       </div>
                       <div className="space-y-1">
-                        {uploadFiles.map((file) => (
+                        {uploadFiles.map(file => (
                           <div
                             key={file.id}
                             className="flex items-center justify-between gap-2 p-2 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600 group"
@@ -1523,16 +1449,15 @@ export default function KnowledgePage() {
                                   {file.name}
                                 </p>
                                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                                  {getFileTypeLabel(file.type)} •{" "}
-                                  {formatFileSize(file.size)}
+                                  {getFileTypeLabel(file.type)} • {formatFileSize(file.size)}
                                 </p>
                               </div>
                             </div>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                removeFile(file.id);
+                              onClick={e => {
+                                e.preventDefault()
+                                removeFile(file.id)
                               }}
                               className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                               title={t("Remove file")}
@@ -1601,11 +1526,11 @@ export default function KnowledgePage() {
                 </label>
                 <select
                   value={ragProvider}
-                  onChange={(e) => setRagProvider(e.target.value)}
+                  onChange={e => setRagProvider(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 >
                   {ragProviders.length > 0 ? (
-                    ragProviders.map((provider) => (
+                    ragProviders.map(provider => (
                       <option key={provider.id} value={provider.id}>
                         {provider.name}
                       </option>
@@ -1622,11 +1547,9 @@ export default function KnowledgePage() {
                 <div className="mt-2 p-2.5 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-600">
                   <p className="text-xs text-slate-600 dark:text-slate-300">
                     {(() => {
-                      const selectedProvider = ragProviders.find(
-                        (p) => p.id === ragProvider,
-                      );
+                      const selectedProvider = ragProviders.find(p => p.id === ragProvider)
                       if (selectedProvider?.description) {
-                        return selectedProvider.description;
+                        return selectedProvider.description
                       }
                       const fallbackDescriptions: Record<string, string> = {
                         llamaindex:
@@ -1655,8 +1578,8 @@ export default function KnowledgePage() {
               <div
                 className={`border-2 border-dashed rounded-xl transition-colors ${
                   dragActive
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-                    : "border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-700/50"
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                    : 'border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-700/50'
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -1668,14 +1591,14 @@ export default function KnowledgePage() {
                   multiple
                   className="hidden"
                   id="file-upload"
-                  onChange={(e) => {
+                  onChange={e => {
                     if (e.target.files) {
-                      const validFiles = Array.from(e.target.files).filter(
-                        (file) => isSupportedFile(file.name),
-                      );
-                      addFiles(validFiles);
+                      const validFiles = Array.from(e.target.files).filter(file =>
+                        isSupportedFile(file.name)
+                      )
+                      addFiles(validFiles)
                     }
-                    e.target.value = ""; // Reset input to allow re-selecting same files
+                    e.target.value = '' // Reset input to allow re-selecting same files
                   }}
                   accept={getAcceptAttribute(ragProvider)}
                 />
@@ -1683,10 +1606,10 @@ export default function KnowledgePage() {
                 {/* Drop zone / Click to upload area */}
                 <label
                   htmlFor="file-upload"
-                  className={`cursor-pointer flex flex-col items-center gap-2 ${uploadFiles.length > 0 ? "p-4" : "p-8"}`}
+                  className={`cursor-pointer flex flex-col items-center gap-2 ${uploadFiles.length > 0 ? 'p-4' : 'p-8'}`}
                 >
                   <Upload
-                    className={`w-6 h-6 ${dragActive ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
+                    className={`w-6 h-6 ${dragActive ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`}
                   />
                   <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                     {uploadFiles.length > 0
@@ -1704,13 +1627,13 @@ export default function KnowledgePage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                         {uploadFiles.length} file
-                        {uploadFiles.length > 1 ? "s" : ""} selected
+                        {uploadFiles.length > 1 ? 's' : ''} selected
                       </span>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          clearAllFiles();
+                        onClick={e => {
+                          e.preventDefault()
+                          clearAllFiles()
                         }}
                         className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium"
                       >
@@ -1718,7 +1641,7 @@ export default function KnowledgePage() {
                       </button>
                     </div>
                     <div className="space-y-1">
-                      {uploadFiles.map((file) => (
+                      {uploadFiles.map(file => (
                         <div
                           key={file.id}
                           className="flex items-center justify-between gap-2 p-2 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600 group"
@@ -1733,16 +1656,15 @@ export default function KnowledgePage() {
                                 {file.name}
                               </p>
                               <p className="text-xs text-slate-400 dark:text-slate-500">
-                                {getFileTypeLabel(file.type)} •{" "}
-                                {formatFileSize(file.size)}
+                                {getFileTypeLabel(file.type)} • {formatFileSize(file.size)}
                               </p>
                             </div>
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              removeFile(file.id);
+                            onClick={e => {
+                              e.preventDefault()
+                              removeFile(file.id)
                             }}
                             className="p-1 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                             title={t("Remove file")}
@@ -1769,11 +1691,7 @@ export default function KnowledgePage() {
                   disabled={uploadFiles.length === 0 || uploading}
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {uploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Upload"
-                  )}
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
                 </button>
               </div>
             </form>
@@ -1781,5 +1699,5 @@ export default function KnowledgePage() {
         </div>
       )}
     </div>
-  );
+  )
 }

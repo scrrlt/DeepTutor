@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Error Utilities - Error formatting and handling utilities
 """
 
 import json
-from typing import Optional
 
 
-def _find_json_block(message: str) -> Optional[str]:
+def _find_json_block(message: str) -> str | None:
     """Extract potential JSON block from message by matching braces."""
     start_idx = message.find("{")
     if start_idx == -1:

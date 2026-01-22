@@ -1,14 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Hybrid Retriever
-================
-
-Hybrid retriever combining multiple retrieval strategies.
-"""
+"""Hybrid retriever combining multiple retrieval strategies."""
 
 from pathlib import Path
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..base import BaseComponent
 
@@ -21,9 +15,9 @@ class HybridRetriever(BaseComponent):
     """
 
     name = "hybrid_retriever"
-    _instances: Dict[str, Any] = {}
+    _instances: dict[str, Any] = {}
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize hybrid retriever.
 
@@ -60,9 +54,49 @@ class HybridRetriever(BaseComponent):
             llm_client = get_llm_client()
             embed_client = get_embedding_client()
 
-            # Get model function from unified LLM client
-            # This handles all provider differences and env var setup for LightRAG
-            llm_model_func = llm_client.get_model_func()
+            # Create AsyncOpenAI client directly
+            openai_client = AsyncOpenAI(
+                api_key=llm_client.config.api_key,
+                base_url=llm_client.config.base_url,
+            )
+
+            # LLM function using services (ASYNC - LightRAG expects async functions)
+            async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
+                """Call OpenAI chat completion directly for LightRAG."""
+                if history_messages is None:
+                    history_messages = []
+
+                # Build messages
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.extend(history_messages)
+                messages.append({"role": "user", "content": prompt})
+
+                # Whitelist only valid OpenAI parameters
+                valid_params = {
+                    "temperature",
+                    "top_p",
+                    "n",
+                    "stream",
+                    "stop",
+                    "max_tokens",
+                    "presence_penalty",
+                    "frequency_penalty",
+                    "logit_bias",
+                    "user",
+                    "seed",
+                }
+                clean_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
+
+                # Call OpenAI API directly (async)
+                response = await openai_client.chat.completions.create(
+                    model=llm_client.config.model,
+                    messages=messages,
+                    **clean_kwargs,
+                )
+
+                return response.choices[0].message.content
 
             config = RAGAnythingConfig(
                 working_dir=working_dir,
@@ -91,7 +125,7 @@ class HybridRetriever(BaseComponent):
         mode: str = "hybrid",
         only_need_context: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using hybrid retrieval.
 

@@ -35,7 +35,6 @@ export interface SolverState {
   question: string;
   selectedKb: string;
   agentStatus: AgentStatus;
-  tokenStats: TokenStats;
   progress: SolverProgressInfo;
 }
 
@@ -74,7 +73,6 @@ export const INITIAL_SOLVER_STATE: SolverState = {
   question: "",
   selectedKb: "",
   agentStatus: DEFAULT_SOLVER_AGENT_STATUS,
-  tokenStats: DEFAULT_TOKEN_STATS,
   progress: {
     stage: null,
     progress: {},

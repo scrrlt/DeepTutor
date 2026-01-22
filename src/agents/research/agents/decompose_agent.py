@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 DecomposeAgent - Topic decomposition Agent
 Responsible for decomposing topics into multiple subtopics and generating overviews for each subtopic
@@ -16,7 +15,10 @@ import json
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import ToolTrace
+from src.logging import get_logger
 from src.tools.rag_tool import rag_search
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -32,7 +34,7 @@ class DecomposeAgent(BaseAgent):
         api_version: str | None = None,
         kb_name: str = "ai_textbook",
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="decompose_agent",
@@ -94,7 +96,9 @@ class DecomposeAgent(BaseAgent):
         self.logger.info(f"RAG Enabled: {self.enable_rag}")
         if mode == "auto":
             self.logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
+            self.logger.info(f"Max Subtopic Limit: {num_subtopics}\n")
         else:
+            self.logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
             self.logger.info(f"Expected Subtopic Count: {num_subtopics}\n")
 
         # If RAG is disabled, use direct LLM generation without RAG context
@@ -163,7 +167,11 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         )
 
         # Parse JSON output
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import (
+            ensure_json_dict,
+            ensure_keys,
+            extract_json_from_text,
+        )
 
         data = extract_json_from_text(response)
         try:
@@ -198,12 +206,12 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
     async def _process_manual_mode(self, topic: str, num_subtopics: int) -> dict[str, Any]:
         """Manual mode: generate subtopics based on specified count"""
         # Step 1: Generate sub-queries
-        print("\n🔍 Step 1: Generating sub-queries...")
+        logger.info("\n🔍 Step 1: Generating sub-queries...")
         sub_queries = await self._generate_sub_queries(topic, num_subtopics)
         self.logger.info(f"✓ Generated {len(sub_queries)} sub-queries")
 
         # Step 2: Execute RAG retrieval to get background knowledge
-        print("\n🔍 Step 2: Executing RAG retrieval...")
+        logger.info("\n🔍 Step 2: Executing RAG retrieval...")
         rag_contexts = {}
         for i, query in enumerate(sub_queries, 1):
             try:
@@ -251,7 +259,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
         )
 
         # Step 3: Generate subtopics based on RAG background
-        print("\n🎯 Step 3: Generating subtopics...")
+        logger.info("\n🎯 Step 3: Generating subtopics...")
         sub_topics = await self._generate_sub_topics(
             topic=topic, rag_context=combined_rag_context, num_subtopics=num_subtopics
         )
@@ -271,7 +279,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
     async def _process_auto_mode(self, topic: str, max_subtopics: int) -> dict[str, Any]:
         """Auto mode: autonomously generate subtopics based on topic and RAG context"""
         # Step 1: First perform a broad RAG retrieval to get topic-related background knowledge
-        print("\n🔍 Step 1: Executing RAG retrieval to get background knowledge...")
+        logger.info("\n🔍 Step 1: Executing RAG retrieval to get background knowledge...")
         try:
             # Use topic itself as query to get related background
             result = await rag_search(query=topic, kb_name=self.kb_name, mode=self.rag_mode)
@@ -312,7 +320,7 @@ Generate exactly {num_subtopics} subtopics. Please ensure exactly {num_subtopics
             rag_context = ""
 
         # Step 2: Autonomously generate subtopics based on topic and RAG context
-        print("\n🎯 Step 2: Autonomously generating subtopics...")
+        logger.info("\n🎯 Step 2: Autonomously generating subtopics...")
         sub_topics = await self._generate_sub_topics_auto(
             topic=topic, rag_context=rag_context, max_subtopics=max_subtopics
         )
@@ -373,7 +381,11 @@ Dynamically generate no more than {max_subtopics} subtopics. Please carefully an
         )
 
         # Parse JSON output (strict validation)
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import (
+            ensure_json_dict,
+            ensure_keys,
+            extract_json_from_text,
+        )
 
         data = extract_json_from_text(response)
         try:
@@ -482,7 +494,11 @@ Explicitly generate {num_subtopics} subtopics. Please ensure exactly {num_subtop
         )
 
         # Parse JSON output (strict validation)
-        from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+        from ..utils.json_utils import (
+            ensure_json_dict,
+            ensure_keys,
+            extract_json_from_text,
+        )
 
         data = extract_json_from_text(response)
         try:

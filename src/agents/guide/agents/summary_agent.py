@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 SummaryAgent - Learning Summary Generation Agent
 Generates personalized learning summary reports after users complete learning
@@ -56,7 +55,10 @@ class SummaryAgent(BaseAgent):
             content = msg.get("content", "")
             knowledge_index = msg.get("knowledge_index")
 
-            if knowledge_index is not None and knowledge_index != current_knowledge:
+            if (
+                knowledge_index is not None
+                and knowledge_index != current_knowledge
+            ):
                 current_knowledge = knowledge_index
                 formatted.append(
                     f"\n--- During learning knowledge point {knowledge_index + 1} ---\n"
@@ -130,7 +132,9 @@ class SummaryAgent(BaseAgent):
                 "summary": cleaned_summary,
                 "notebook_name": notebook_name,
                 "total_points": len(knowledge_points),
-                "total_interactions": len([m for m in chat_history if m.get("role") == "user"]),
+                "total_interactions": len(
+                    [m for m in chat_history if m.get("role") == "user"]
+                ),
             }
 
         except Exception as e:

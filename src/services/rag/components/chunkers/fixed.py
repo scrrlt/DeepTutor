@@ -6,8 +6,6 @@ Fixed Size Chunker
 Chunker that splits documents into fixed-size pieces.
 """
 
-from typing import List
-
 from ...types import Chunk, Document
 from ..base import BaseComponent
 
@@ -33,7 +31,7 @@ class FixedSizeChunker(BaseComponent):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    async def process(self, doc: Document, **kwargs) -> List[Chunk]:
+    async def process(self, doc: Document, **kwargs) -> list[Chunk]:
         """
         Chunk a document into fixed-size pieces.
 

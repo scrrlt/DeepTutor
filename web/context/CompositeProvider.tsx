@@ -1,12 +1,12 @@
-"use client";
+'use client'
 
-import React from "react";
-import { SolverProvider } from "./solver";
-import { QuestionProvider } from "./question";
-import { ResearchProvider } from "./research";
-import { ChatProvider } from "./chat";
-import { UISettingsProvider, SidebarProvider } from "./settings";
-import { IdeaGenProvider } from "./ideagen";
+import React from 'react'
+import { SolverProvider } from './solver'
+import { QuestionProvider } from './question'
+import { ResearchProvider } from './research'
+import { ChatProvider } from './chat'
+import { UISettingsProvider, SidebarProvider } from './settings'
+import { IdeaGenProvider } from './ideagen'
 
 /**
  * CompositeProvider combines all context providers into a single component.
@@ -27,5 +27,5 @@ export function CompositeProvider({ children }: { children: React.ReactNode }) {
         </SolverProvider>
       </SidebarProvider>
     </UISettingsProvider>
-  );
+  )
 }

@@ -1,12 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Base Indexer
-============
-
-Base class for document indexers.
-"""
-
-from typing import List
+"""Base class for document indexers."""
 
 from ...types import Document
 from ..base import BaseComponent
@@ -21,7 +13,7 @@ class BaseIndexer(BaseComponent):
 
     name = "base_indexer"
 
-    async def process(self, kb_name: str, documents: List[Document], **kwargs) -> bool:
+    async def process(self, kb_name: str, documents: list[Document], **kwargs) -> bool:
         """
         Index documents into a knowledge base.
 

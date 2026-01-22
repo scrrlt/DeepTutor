@@ -10,7 +10,6 @@ Determines the appropriate processing method for each document type.
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List
 
 from src.logging import get_logger
 
@@ -39,9 +38,9 @@ class FileClassification:
         unsupported: Files with unsupported formats
     """
 
-    needs_mineru: List[str]
-    text_files: List[str]
-    unsupported: List[str]
+    needs_mineru: list[str]
+    text_files: list[str]
+    unsupported: list[str]
 
 
 class FileTypeRouter:
@@ -136,7 +135,16 @@ class FileTypeRouter:
     DOCX_EXTENSIONS = {".docx", ".doc"}
 
     # Image extensions (may need OCR)
-    IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif"}
+    IMAGE_EXTENSIONS = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tiff",
+        ".tif",
+    }
 
     @classmethod
     def get_document_type(cls, file_path: str) -> DocumentType:
@@ -188,11 +196,11 @@ class FileTypeRouter:
             # Try to decode as UTF-8
             chunk.decode("utf-8")
             return True
-        except (UnicodeDecodeError, IOError, OSError):
+        except (UnicodeDecodeError, OSError):
             return False
 
     @classmethod
-    def classify_files(cls, file_paths: List[str]) -> FileClassification:
+    def classify_files(cls, file_paths: list[str]) -> FileClassification:
         """
         Classify a list of files by processing method.
 
@@ -245,11 +253,19 @@ class FileTypeRouter:
         Returns:
             File content as string
         """
-        encodings = ["utf-8", "utf-8-sig", "gbk", "gb2312", "gb18030", "latin-1", "cp1252"]
+        encodings = [
+            "utf-8",
+            "utf-8-sig",
+            "gbk",
+            "gb2312",
+            "gb18030",
+            "latin-1",
+            "cp1252",
+        ]
 
         for encoding in encodings:
             try:
-                with open(file_path, "r", encoding=encoding) as f:
+                with open(file_path, encoding=encoding) as f:
                     return f.read()
             except UnicodeDecodeError:
                 continue
@@ -270,7 +286,11 @@ class FileTypeRouter:
             True if file requires MinerU
         """
         doc_type = cls.get_document_type(file_path)
-        return doc_type in (DocumentType.PDF, DocumentType.DOCX, DocumentType.IMAGE)
+        return doc_type in (
+            DocumentType.PDF,
+            DocumentType.DOCX,
+            DocumentType.IMAGE,
+        )
 
     @classmethod
     def is_text_readable(cls, file_path: str) -> bool:

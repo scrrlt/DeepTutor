@@ -9,7 +9,7 @@ Stores KB-specific settings like RAG provider, search mode, etc.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from src.logging import get_logger
 
@@ -35,22 +35,24 @@ class KnowledgeBaseConfigService:
 
     _instance: Optional["KnowledgeBaseConfigService"] = None
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self.config_path = config_path or DEFAULT_CONFIG_PATH
-        self._config: Dict[str, Any] = self._load_config()
+        self._config: dict[str, Any] = self._load_config()
 
     @classmethod
-    def get_instance(cls, config_path: Optional[Path] = None) -> "KnowledgeBaseConfigService":
+    def get_instance(
+        cls, config_path: Path | None = None
+    ) -> "KnowledgeBaseConfigService":
         """Get singleton instance."""
         if cls._instance is None:
             cls._instance = cls(config_path)
         return cls._instance
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load configuration from file."""
         if self.config_path.exists():
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
                 logger.warning(f"Failed to load KB config: {e}")
@@ -59,7 +61,10 @@ class KnowledgeBaseConfigService:
         return {
             "configs": {},
             "default_kb": None,
-            "global_defaults": {"rag_provider": "llamaindex", "search_mode": "hybrid"},
+            "global_defaults": {
+                "rag_provider": "llamaindex",
+                "search_mode": "hybrid",
+            },
         }
 
     def _save_config(self):
@@ -71,7 +76,7 @@ class KnowledgeBaseConfigService:
         except Exception as e:
             logger.error(f"Failed to save KB config: {e}")
 
-    def get_kb_config(self, kb_name: str) -> Dict[str, Any]:
+    def get_kb_config(self, kb_name: str) -> dict[str, Any]:
         """
         Get configuration for a specific knowledge base.
 
@@ -88,11 +93,12 @@ class KnowledgeBaseConfigService:
         return {
             "rag_provider": kb_config.get("rag_provider")
             or defaults.get("rag_provider", "llamaindex"),
-            "search_mode": kb_config.get("search_mode") or defaults.get("search_mode", "hybrid"),
+            "search_mode": kb_config.get("search_mode")
+            or defaults.get("search_mode", "hybrid"),
             **kb_config,
         }
 
-    def set_kb_config(self, kb_name: str, config: Dict[str, Any]):
+    def set_kb_config(self, kb_name: str, config: dict[str, Any]):
         """
         Set configuration for a specific knowledge base.
 
@@ -134,11 +140,11 @@ class KnowledgeBaseConfigService:
             self._save_config()
             logger.info(f"Deleted config for KB '{kb_name}'")
 
-    def get_all_configs(self) -> Dict[str, Any]:
+    def get_all_configs(self) -> dict[str, Any]:
         """Get all knowledge base configurations."""
         return self._config
 
-    def set_global_defaults(self, defaults: Dict[str, Any]):
+    def set_global_defaults(self, defaults: dict[str, Any]):
         """Set global default values."""
         if "global_defaults" not in self._config:
             self._config["global_defaults"] = {}
@@ -147,13 +153,13 @@ class KnowledgeBaseConfigService:
         self._save_config()
         logger.info(f"Updated global defaults: {defaults}")
 
-    def set_default_kb(self, kb_name: Optional[str]):
+    def set_default_kb(self, kb_name: str | None):
         """Set the default knowledge base."""
         self._config["default_kb"] = kb_name
         self._save_config()
         logger.info(f"Set default KB: {kb_name}")
 
-    def get_default_kb(self) -> Optional[str]:
+    def get_default_kb(self) -> str | None:
         """Get the default knowledge base name."""
         return self._config.get("default_kb")
 
@@ -173,7 +179,7 @@ class KnowledgeBaseConfigService:
             return
 
         try:
-            with open(metadata_file, "r", encoding="utf-8") as f:
+            with open(metadata_file, encoding="utf-8") as f:
                 metadata = json.load(f)
 
             # Extract relevant config from metadata
@@ -183,10 +189,14 @@ class KnowledgeBaseConfigService:
 
             if config:
                 self.set_kb_config(kb_name, config)
-                logger.info(f"Synced config for KB '{kb_name}' from metadata.json")
+                logger.info(
+                    f"Synced config for KB '{kb_name}' from metadata.json"
+                )
 
         except Exception as e:
-            logger.warning(f"Failed to sync config from metadata for '{kb_name}': {e}")
+            logger.warning(
+                f"Failed to sync config from metadata for '{kb_name}': {e}"
+            )
 
     def sync_all_from_metadata(self, kb_base_dir: Path):
         """

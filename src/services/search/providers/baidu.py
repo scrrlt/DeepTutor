@@ -15,7 +15,7 @@ Features:
 from datetime import datetime
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -68,11 +68,15 @@ class BaiduProvider(BaseSearchProvider):
         Returns:
             WebSearchResponse: Standardized search response.
         """
-        self.logger.debug(f"Calling Baidu API with model={model}, deep_search={enable_deep_search}")
+        self.logger.debug(
+            f"Calling Baidu API with model={model}, deep_search={enable_deep_search}"
+        )
         headers = {
             "Content-Type": "application/json",
             "Authorization": (
-                f"Bearer {self.api_key}" if not self.api_key.startswith("Bearer ") else self.api_key
+                f"Bearer {self.api_key}"
+                if not self.api_key.startswith("Bearer ")
+                else self.api_key
             ),
         }
 
@@ -95,7 +99,9 @@ class BaiduProvider(BaseSearchProvider):
         if instruction:
             payload["instruction"] = instruction
 
-        response = requests.post(self.BASE_URL, headers=headers, json=payload, timeout=timeout)
+        response = httpx.post(
+            self.BASE_URL, headers=headers, json=payload, timeout=timeout
+        )
 
         if response.status_code != 200:
             try:

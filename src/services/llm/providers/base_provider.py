@@ -1,115 +1,182 @@
-# -*- coding: utf-8 -*-
-"""
-Base LLM Provider - Unified interface and configuration.
-"""
+"""Base LLM provider with unified configuration and retries."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from collections.abc import Awaitable, Callable
 import logging
-from typing import Any, Callable, Coroutine, Dict, TypeVar
-import warnings
+from typing import Any
 
-from ..traffic_control import TrafficController
+import tenacity
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt
 
-T = TypeVar("T")
-
-from ....utils.error_rate_tracker import record_provider_call
-from ....utils.network.circuit_breaker import (
+from src.utils.error_rate_tracker import record_provider_call
+from src.utils.network.circuit_breaker import (
     is_call_allowed,
     record_call_failure,
     record_call_success,
 )
+
+from ..config import LLMConfig
 from ..error_mapping import map_error
 from ..exceptions import (
+    LLMAPIError,
+    LLMCircuitBreakerError,
     LLMError,
 )
+from ..traffic_control import TrafficController
 from ..types import AsyncStreamGenerator, TutorResponse
 
 logger = logging.getLogger(__name__)
+
+# Cap retry delays to avoid excessive waits during outages.
+MAX_RETRY_DELAY_SECONDS = 60.0
+BASE_RETRY_DELAY_SECONDS = 1.0
 
 
 class BaseLLMProvider(ABC):
     """Base class for all LLM providers with unified config and retries."""
 
-    def __init__(self, config):
+    def __init__(self, config: LLMConfig) -> None:
+        """Initialize provider with shared configuration and traffic control."""
         self.config = config
         self.provider_name = config.provider_name
-        self.api_key = config.api_key
-        self.base_url = getattr(config, "base_url", "")
+        self.api_key = getattr(config, "get_api_key", lambda: config.api_key)()
+        self.base_url = config.base_url or config.effective_url
 
         # Isolation: Each provider gets its own traffic controller instance
-        self.traffic_controller = getattr(config, "traffic_controller", None)
-        if self.traffic_controller is None:
-            self.traffic_controller = TrafficController(provider_name=self.provider_name)
-
-    def _check_deprecated_kwargs(self, kwargs: dict[str, Any]) -> None:
-        """Check for and warn about deprecated parameters."""
-        if "max_retries" in kwargs:
-            warnings.warn(
-                "The 'max_retries' parameter is deprecated and ignored in the provider. "
-                "Retries are now handled by the factory/tenacity.",
-                DeprecationWarning,
-                stacklevel=3,
+        self.traffic_controller: TrafficController
+        traffic_controller = getattr(config, "traffic_controller", None)
+        if isinstance(traffic_controller, TrafficController):
+            self.traffic_controller = traffic_controller
+        else:
+            self.traffic_controller = TrafficController(
+                provider_name=self.provider_name,
+                max_concurrency=getattr(config, "max_concurrency", 20),
+                requests_per_minute=getattr(config, "requests_per_minute", 600),
             )
-            kwargs.pop("max_retries")
 
-    @abstractmethod
-    async def complete(self, prompt: str, **kwargs) -> TutorResponse:
-        pass
+    async def complete(self, prompt: str, **kwargs: Any) -> TutorResponse:
+        """Run a completion call for the provider."""
+        raise NotImplementedError
 
-    @abstractmethod
-    async def stream(self, prompt: str, **kwargs) -> AsyncStreamGenerator:
-        pass
+    async def stream(self, prompt: str, **kwargs: Any) -> AsyncStreamGenerator:
+        """Stream completion chunks for the provider."""
+        raise NotImplementedError
 
     def _map_exception(self, e: Exception) -> LLMError:
         return map_error(e, provider=self.provider_name)
 
-    def calculate_cost(self, usage: Dict[str, Any]) -> float:
-        """Placeholder for cost calculation logic."""
+    def calculate_cost(self, usage: dict[str, Any]) -> float:
+        """Calculate cost estimate for a provider call."""
         return 0.0
 
-    async def execute_guarded(
-        self,
-        func: Callable[..., Coroutine[Any, Any, T]],
-        *args,
-        **kwargs,
-    ) -> T:
-        """
-        Execute provider call with circuit breaker and traffic control.
-        Renamed from 'execute_with_retry' since retry logic is external.
-
-        Args:
-            func: Coroutine function to execute.
-            *args: Positional arguments for func.
-            **kwargs: Keyword arguments for func.
-
-        Returns:
-            Result of the wrapped call.
-
-        Raises:
-            LLMError: If the circuit breaker is open or the call fails.
-        """
-        self._check_deprecated_kwargs(kwargs)
-        # 1. Circuit Breaker Check
+    def _check_circuit_breaker(self) -> None:
+        """Raise when the circuit breaker is open for this provider."""
         if not is_call_allowed(self.provider_name):
             record_provider_call(self.provider_name, success=False)
-            raise LLMError(f"Circuit breaker open for provider {self.provider_name}")
+            error = LLMCircuitBreakerError(
+                f"Circuit breaker open for provider {self.provider_name}",
+                provider=self.provider_name,
+            )
+            setattr(error, "is_circuit_breaker", True)
+            raise error
+
+    def _should_record_failure(self, error: LLMError) -> bool:
+        if isinstance(error, (LLMRateLimitError, LLMTimeoutError)):
+            return True
+        if isinstance(error, LLMAPIError):
+            status_code = getattr(error, "status_code", None)
+            return status_code is not None and status_code >= 500
+        return False
+
+    def _should_retry_error(self, error: BaseException) -> bool:
+        if isinstance(error, (LLMRateLimitError, LLMTimeoutError)):
+            return True
+        if isinstance(error, LLMAPIError):
+            status_code = getattr(error, "status_code", None)
+            return status_code is not None and status_code >= 500
+        return False
+
+    def _wait_strategy(self, retry_state: tenacity.RetryCallState) -> float:
+        exc = retry_state.outcome.exception()
+        if isinstance(exc, LLMRateLimitError):
+            retry_after = getattr(exc, "retry_after", None)
+            retry_after_value: float | None = None
+            if retry_after is not None:
+                try:
+                    retry_after_value = float(retry_after)
+                except (TypeError, ValueError):
+                    retry_after_value = None
+            if retry_after_value is not None:
+                return max(0.0, min(retry_after_value, MAX_RETRY_DELAY_SECONDS))
+
+        wait_fn = tenacity.wait_exponential(
+            multiplier=1.5,
+            min=BASE_RETRY_DELAY_SECONDS,
+            max=MAX_RETRY_DELAY_SECONDS,
+        )
+        return float(wait_fn(retry_state))
+
+    async def _execute_core(
+        self,
+        func: Callable[..., Awaitable[Any]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Core execution pipeline:
+        1) circuit breaker check
+        2) traffic control context
+        3) call execution
+        4) mapping + metrics
+        """
+        self._check_circuit_breaker()
 
         try:
-            # 2. Traffic Control (Semaphore/Rate Limiter)
             async with self.traffic_controller:
                 result = await func(*args, **kwargs)
-
-                # 3. Success Telemetry
                 record_provider_call(self.provider_name, success=True)
                 record_call_success(self.provider_name)
                 return result
-
-        except Exception as e:
-            # 4. Error Mapping & Telemetry
-            mapped_e = self._map_exception(e)
+        except Exception as exc:
+            mapped_exc = self._map_exception(exc)
             record_provider_call(self.provider_name, success=False)
-            # FIX: Properly record failure for circuit breaker
-            record_call_failure(self.provider_name)
+            if isinstance(mapped_exc, LLMError):
+                if self._should_record_failure(mapped_exc):
+                    record_call_failure(self.provider_name)
+                raise mapped_exc from exc
+            # Internal/runtime errors should bubble up without being rewrapped.
+            raise mapped_exc
 
-            # Raise mapped exception up to Factory for retry decision
-            raise mapped_e from e
+    async def execute(
+        self,
+        func: Callable[..., Awaitable[Any]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute a single attempt without retry."""
+        return await self._execute_core(func, *args, **kwargs)
+
+    async def execute_with_retry(
+        self,
+        func: Callable[..., Awaitable[Any]],
+        *args: Any,
+        max_retries: int = 3,
+        sleep: Callable[[float], Awaitable[None] | None] | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute with automatic retries using tenacity."""
+        retry_kwargs: dict[str, Any] = {
+            "stop": stop_after_attempt(max_retries + 1),
+            "wait": self._wait_strategy,
+            "retry": retry_if_exception(self._should_retry_error),
+            "reraise": True,
+            "before_sleep": tenacity.before_sleep_log(logger, logging.WARNING),
+        }
+        if sleep is not None:
+            retry_kwargs["sleep"] = sleep
+
+        retrying = AsyncRetrying(**retry_kwargs)
+
+        async for attempt in retrying:
+            with attempt:
+                return await self._execute_core(func, *args, **kwargs)

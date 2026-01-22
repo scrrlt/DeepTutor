@@ -1,24 +1,102 @@
-# -*- coding: utf-8 -*-
-"""
-TeX Chunker - LaTeX text chunking tool
-
-Features:
-1. Intelligent chunking of LaTeX content (by section or token count)
-2. Token estimation (based on GPT tokenizer)
-3. Maintain context coherence (overlap between chunks)
-
-Author: DeepTutor Team
-Version: v1.0
-Based on: TODO.md specification
-"""
-
-import logging
+from collections.abc import Generator
 import os
 import re
 
 import tiktoken
 
-logger = logging.getLogger(__name__)
+from src.logging import get_logger
+
+logger = get_logger("TexChunker")
+
+
+class TokenBuffer:
+    """
+    Accumulates text until a token limit is reached, then yields chunks
+    with perfect token-level overlap handling.
+    """
+
+    def __init__(self, encoder: tiktoken.Encoding, max_tokens: int, overlap: int):
+        self.encoder = encoder
+        self.max_tokens = max_tokens
+        self.overlap = overlap
+        self._buffer_text: list[str] = []
+        self._buffer_tokens = 0
+
+    def add_text(self, text: str) -> Generator[str, None, None]:
+        """
+        Add text to buffer. Yields chunks if limit exceeded.
+        """
+        if not text:
+            return
+
+        text_tokens = len(self.encoder.encode(text))
+
+        # If adding this text exceeds limit, we might need to flush
+        if self._buffer_tokens + text_tokens > self.max_tokens:
+            # If the buffer is not empty, flush it first
+            if self._buffer_text:
+                yield self._flush()
+
+            # If the new text ITSELF is bigger than max_tokens,
+            # we must split it aggressively (this handles the "giant paragraph" case)
+            if text_tokens > self.max_tokens:
+                yield from self._split_large_text(text)
+                return
+
+        self._buffer_text.append(text)
+        self._buffer_tokens += text_tokens
+
+    def _flush(self) -> str:
+        """Combine buffer, return chunk, and set up overlap for next chunk."""
+        full_text = "".join(self._buffer_text)
+
+        # Calculate overlap for the NEXT buffer
+        # We decode the last N tokens of the current text to be the start of the next
+        tokens = self.encoder.encode(full_text)
+        if len(tokens) > self.overlap:
+            overlap_tokens = tokens[-self.overlap :]
+            overlap_text = self.encoder.decode(overlap_tokens)
+            self._buffer_text = [overlap_text]
+            self._buffer_tokens = len(overlap_tokens)
+        else:
+            self._buffer_text = []
+            self._buffer_tokens = 0
+
+        return full_text
+
+    def _split_large_text(self, text: str) -> Generator[str, None, None]:
+        """Fallback for atomic units larger than context window."""
+        tokens = self.encoder.encode(text)
+        for i in range(0, len(tokens), self.max_tokens - self.overlap):
+            chunk_tokens = tokens[i : i + self.max_tokens]
+            yield self.encoder.decode(chunk_tokens)
+
+    def finish(self) -> Generator[str, None, None]:
+        """Yield the remaining content in the buffer."""
+        if self._buffer_text:
+            yield "".join(self._buffer_text)
+
+
+_ENCODER_CACHE: dict[str | None, tiktoken.Encoding] = {}
+
+
+def _get_encoder(model: str | None) -> tiktoken.Encoding:
+    """Return a cached tiktoken encoder for the requested model."""
+    key = model or "__default__"
+    cached = _ENCODER_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        if model:
+            encoder = tiktoken.encoding_for_model(model)
+        else:
+            encoder = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        encoder = tiktoken.get_encoding("cl100k_base")
+
+    _ENCODER_CACHE[key] = encoder
+    return encoder
 
 
 class TexChunker:
@@ -34,16 +112,7 @@ class TexChunker:
         # Read model configuration from environment variables
         if model is None:
             model = os.getenv("LLM_MODEL")
-
-        try:
-            if model:
-                self.encoder = tiktoken.encoding_for_model(model)
-            else:
-                # Use cl100k_base as default encoding if no model specified
-                self.encoder = tiktoken.get_encoding("cl100k_base")
-        except Exception:
-            # If model not supported, use cl100k_base (GPT-4 encoding)
-            self.encoder = tiktoken.get_encoding("cl100k_base")
+        self.encoder = _get_encoder(model)
 
     def estimate_tokens(self, text: str) -> int:
         """
@@ -56,26 +125,12 @@ class TexChunker:
             Token count
         """
         try:
-            cleaned_text = self._clean_text(text)
-            tokens = self.encoder.encode(cleaned_text)
+            tokens = self.encoder.encode(text)
             return len(tokens)
         except Exception as e:
             # If encoding fails, use rough estimate: 1 token ≈ 4 chars
             logger.warning("Token estimation failed, using rough estimate: %s", e)
             return len(text) // 4
-
-    def _clean_text(self, text: str) -> str:
-        """
-        Clean text to prevent token estimation anomalies by:
-        - Removing overly long repeated character sequences
-        - Limiting single line length
-        """
-        import re
-
-        # Remove overly long repeated characters (e.g., consecutive spaces, newlines, etc.)
-        text = re.sub(r'(.)\1{10,}', r'\1\1', text)  # Collapse sequences longer than 10
-        text = re.sub(r'\s+', ' ', text)  # Normalize whitespace
-        return text.strip()
 
     def split_tex_into_chunks(
         self, tex_content: str, max_tokens: int = 8000, overlap: int = 500
@@ -96,192 +151,54 @@ class TexChunker:
         Returns:
             List of chunks
         """
-        total_tokens = self.estimate_tokens(tex_content)
-
-        # If total length doesn't exceed max_tokens, return directly
-        if total_tokens <= max_tokens:
-            return [tex_content]
-
-        logger.info(
-            "LaTeX content needs chunking: %s tokens > %s tokens",
-            f"{total_tokens:,}",
-            f"{max_tokens:,}",
-        )
-
-        logger.info(
-            f"File character count: {len(tex_content):,}, line count: {len(tex_content.splitlines()):,}"
-        )
-
-        # 1. Try splitting by sections
-        sections = self._split_by_sections(tex_content)
-
-        # 2. Merge sections into chunks
+        buffer = TokenBuffer(self.encoder, max_tokens, overlap)
         chunks = []
-        current_chunk = ""
-        current_tokens = 0
 
-        for section in sections:
-            section_tokens = self.estimate_tokens(section)
+        # 1. Split by logical LaTeX sections
+        # Use a non-greedy regex that tolerates some nesting but relies on newlines
+        # assuming logical breaks usually happen at line starts in source code.
+        section_pattern = r"(^|\n)(\\(?:sub)*section\*?\{.*?\})"
 
-            if section_tokens > max_tokens:
-                # Single section too long, need further splitting
-                if current_chunk:
-                    chunks.append(current_chunk)
-                    current_chunk = ""
-                    current_tokens = 0
-
-                # Split overly long section by paragraphs
-                sub_chunks = self._split_by_paragraphs(section, max_tokens, overlap)
-                chunks.extend(sub_chunks)
-            # Check if can merge into current chunk
-            elif current_tokens + section_tokens <= max_tokens:
-                current_chunk += section
-                current_tokens += section_tokens
-            else:
-                # Save current chunk, start new chunk
-                if current_chunk:
-                    chunks.append(current_chunk)
-
-                # Add overlap (take part from end of current chunk)
-                if chunks and overlap > 0:
-                    overlap_text = self._get_overlap_text(chunks[-1], overlap)
-                    current_chunk = overlap_text + section
-                    current_tokens = self.estimate_tokens(current_chunk)
-                else:
-                    current_chunk = section
-                    current_tokens = section_tokens
-
-        # Save last chunk
-        if current_chunk:
-            chunks.append(current_chunk)
-
-        logger.info(f"Chunking completed: {len(chunks)} chunks")
-        return chunks
-
-    def _split_by_sections(self, tex_content: str) -> list[str]:
-        """
-        Split LaTeX content by sections
-
-        Recognizes:
-        - \\section{...}
-        - \\subsection{...}
-        - \\subsubsection{...}
-
-        Returns:
-            List of sections
-        """
-        # Regex match section markers
-        pattern = r"(\\(?:sub)*section\{[^}]*\})"
-
-        # Split text
-        parts = re.split(pattern, tex_content)
-
-        if len(parts) <= 1:
-            # No section markers found, split by paragraphs
-            return self._split_by_paragraphs(tex_content, max_tokens=10000, overlap=0)
+        parts = re.split(section_pattern, tex_content, flags=re.MULTILINE)
 
         # Recombine: merge section markers and content
-        sections = []
-        for i in range(1, len(parts), 2):
-            if i < len(parts):
-                section = parts[i]  # Section marker
-                if i + 1 < len(parts):
-                    section += parts[i + 1]  # Section content
-                sections.append(section)
+        current_block = ""
 
-        # Add preamble part (first element)
+        # re.split with groups returns [text, prefix, delimiter, text...]
+        # parts index: 0=preamble, 1=newline/start, 2=delimiter, 3=content...
+
+        # Initial preamble (parts[0])
         if parts[0].strip():
-            sections.insert(0, parts[0])
+            chunks.extend(buffer.add_text(parts[0]))
 
-        return sections
+        i = 1
+        while i < len(parts):
+            prefix = parts[i] or ""
+            delimiter = parts[i + 1] if i + 1 < len(parts) else ""
+            content = parts[i + 2] if i + 2 < len(parts) else ""
 
-    def _split_by_paragraphs(self, text: str, max_tokens: int, overlap: int) -> list[str]:
-        """
-        Split text by paragraphs (for overly long sections)
+            section_full = prefix + delimiter
 
-        Args:
-            text: Input text
-            max_tokens: Maximum tokens per chunk
-            overlap: Overlap tokens
+            # Level 2: Split by Paragraphs within the section
+            paragraphs = re.split(r"\n\n+", content)
 
-        Returns:
-            List of paragraph chunks
-        """
-        # Split paragraphs by double newlines
-        paragraphs = re.split(r"\n\n+", text)
+            # Combine section header with first paragraph
+            if paragraphs:
+                paragraphs[0] = section_full + paragraphs[0]
 
-        chunks = []
-        current_chunk = ""
-        current_tokens = 0
+            for para in paragraphs:
+                if not para.strip():
+                    continue
+                # Re-attach the double newline we lost
+                clean_para = para + "\n\n"
+                chunks.extend(buffer.add_text(clean_para))
 
-        for para in paragraphs:
-            para_tokens = self.estimate_tokens(para)
+            i += 3
 
-            if para_tokens > max_tokens:
-                # Single paragraph too long, split by sentences
-                if current_chunk:
-                    chunks.append(current_chunk)
-                    current_chunk = ""
-                    current_tokens = 0
+        chunks.extend(buffer.finish())
 
-                # Split by sentences (simple method: split by periods)
-                sentences = re.split(r"(?<=[.!?])\s+", para)
-                for sentence in sentences:
-                    sentence_tokens = self.estimate_tokens(sentence)
-                    if current_tokens + sentence_tokens <= max_tokens:
-                        current_chunk += sentence + " "
-                        current_tokens += sentence_tokens
-                    else:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = sentence + " "
-                        current_tokens = sentence_tokens
-            # Check if can merge
-            elif current_tokens + para_tokens <= max_tokens:
-                current_chunk += para + "\n\n"
-                current_tokens += para_tokens
-            else:
-                # Save current chunk
-                if current_chunk:
-                    chunks.append(current_chunk)
-
-                # Add overlap
-                if chunks and overlap > 0:
-                    overlap_text = self._get_overlap_text(chunks[-1], overlap)
-                    current_chunk = overlap_text + para + "\n\n"
-                    current_tokens = self.estimate_tokens(current_chunk)
-                else:
-                    current_chunk = para + "\n\n"
-                    current_tokens = para_tokens
-
-        # Save last chunk
-        if current_chunk:
-            chunks.append(current_chunk)
-
+        logger.info("Chunking completed: %d chunks", len(chunks))
         return chunks
-
-    def _get_overlap_text(self, previous_chunk: str, overlap_tokens: int) -> str:
-        """
-        Extract overlap portion from end of previous chunk
-
-        Args:
-            previous_chunk: Previous chunk
-            overlap_tokens: Number of overlap tokens
-
-        Returns:
-            Overlap text
-        """
-        # Encode entire chunk
-        tokens = self.encoder.encode(previous_chunk)
-
-        # Take last overlap_tokens tokens
-        if len(tokens) <= overlap_tokens:
-            return previous_chunk
-
-        overlap_token_ids = tokens[-overlap_tokens:]
-        overlap_text = self.encoder.decode(overlap_token_ids)
-
-        return overlap_text
 
 
 # ========== Usage Example ==========
@@ -323,14 +240,14 @@ The results demonstrate the effectiveness of our approach.
 
     # Estimate tokens
     total_tokens = chunker.estimate_tokens(test_tex)
-    print(f"Total tokens: {total_tokens}")
+    logger.info("Total tokens: %d", total_tokens)
 
     # Chunk (set smaller max_tokens for demonstration)
     chunks = chunker.split_tex_into_chunks(tex_content=test_tex, max_tokens=200, overlap=50)
 
-    print(f"\nChunking result: {len(chunks)} chunks\n")
+    logger.info("Chunking result: %d chunks", len(chunks))
 
     for i, chunk in enumerate(chunks, 1):
         chunk_tokens = chunker.estimate_tokens(chunk)
-        print(f"Chunk {i} ({chunk_tokens} tokens):")
-        print(chunk[:200] + "...\n")
+        logger.info("Chunk %d (%d tokens):", i, chunk_tokens)
+        logger.debug(chunk[:200] + "...\n")

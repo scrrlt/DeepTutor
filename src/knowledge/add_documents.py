@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Incrementally add documents to existing knowledge base.
 Improved version with Hash-based duplicate checking, robust error handling,
@@ -17,7 +16,7 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
 
@@ -120,7 +119,11 @@ class DocumentAdder:
         self._ensure_working_directories()
 
     def _ensure_working_directories(self):
-        for directory in [self.raw_dir, self.images_dir, self.content_list_dir]:
+        for directory in [
+            self.raw_dir,
+            self.images_dir,
+            self.content_list_dir,
+        ]:
             directory.mkdir(parents=True, exist_ok=True)
 
     def _get_file_hash(self, file_path: Path) -> str:
@@ -135,11 +138,11 @@ class DocumentAdder:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    def get_ingested_hashes(self) -> Dict[str, str]:
+    def get_ingested_hashes(self) -> dict[str, str]:
         """Get map of filename -> hash from metadata."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, "r", encoding="utf-8") as f:
+                with open(self.metadata_file, encoding="utf-8") as f:
                     data = json.load(f)
                     return data.get("file_hashes", {})
             except Exception:
@@ -202,7 +205,7 @@ class DocumentAdder:
 
         return files_to_process
 
-    async def process_new_documents(self, new_files: List[Path]):
+    async def process_new_documents(self, new_files: list[Path]):
         """
         Async phase: Ingests files into the RAG system.
 
@@ -357,7 +360,7 @@ class DocumentAdder:
         try:
             metadata = {}
             if self.metadata_file.exists():
-                with open(self.metadata_file, "r", encoding="utf-8") as f:
+                with open(self.metadata_file, encoding="utf-8") as f:
                     metadata = json.load(f)
 
             if "file_hashes" not in metadata:
@@ -457,7 +460,7 @@ class DocumentAdder:
         if not self.metadata_file.exists():
             return
         try:
-            with open(self.metadata_file, "r", encoding="utf-8") as f:
+            with open(self.metadata_file, encoding="utf-8") as f:
                 metadata = json.load(f)
 
             metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

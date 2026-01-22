@@ -1,17 +1,17 @@
-"use client";
+'use client'
 
 import { Loader2, Play, ChevronRight, CheckCircle2 } from "lucide-react";
 import { SessionState } from "../types";
 import { useTranslation } from "react-i18next";
 
 interface ProgressPanelProps {
-  sessionState: SessionState;
-  isLoading: boolean;
-  canStart: boolean;
-  canNext: boolean;
-  isLastKnowledge: boolean;
-  onStartLearning: () => void;
-  onNextKnowledge: () => void;
+  sessionState: SessionState
+  isLoading: boolean
+  canStart: boolean
+  canNext: boolean
+  isLastKnowledge: boolean
+  onStartLearning: () => void
+  onNextKnowledge: () => void
 }
 
 export default function ProgressPanel({
@@ -30,9 +30,7 @@ export default function ProgressPanel({
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           {t("Learning Progress")}
         </span>
-        <span className="text-xs text-slate-400 dark:text-slate-500">
-          {sessionState.progress}%
-        </span>
+        <span className="text-xs text-slate-400 dark:text-slate-500">{sessionState.progress}%</span>
       </div>
       <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
         <div
@@ -111,5 +109,5 @@ export default function ProgressPanel({
         )}
       </div>
     </div>
-  );
+  )
 }

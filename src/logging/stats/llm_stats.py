@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LLM Stats Tracker
 =================
@@ -25,7 +24,11 @@ Usage:
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Model pricing per 1K tokens (USD)
 MODEL_PRICING = {
@@ -47,7 +50,9 @@ def get_pricing(model: str) -> dict[str, float]:
     for key, pricing in MODEL_PRICING.items():
         if key in model_lower or model_lower in key:
             return pricing
-    return MODEL_PRICING.get("gpt-4o-mini", {"input": 0.00015, "output": 0.0006})
+    return MODEL_PRICING.get(
+        "gpt-4o-mini", {"input": 0.00015, "output": 0.0006}
+    )
 
 
 def estimate_tokens(text: str) -> int:
@@ -63,6 +68,7 @@ class LLMCall:
     prompt_tokens: int
     completion_tokens: int
     cost: float
+    stage: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -81,21 +87,23 @@ class LLMStats:
         """
         self.module_name = module_name
         self.calls: list[LLMCall] = []
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0
-        self.model_used: Optional[str] = None
+        self.model_used: str | None = None
 
     def add_call(
         self,
         model: str,
-        prompt_tokens: Optional[int] = None,
-        completion_tokens: Optional[int] = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
         # Alternative: estimate from text
-        system_prompt: Optional[str] = None,
-        user_prompt: Optional[str] = None,
-        response: Optional[str] = None,
-    ):
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        response: str | None = None,
+        stage: str | None = None,
+    ) -> None:
         """
         Add an LLM call to the stats.
 
@@ -106,6 +114,7 @@ class LLMStats:
             system_prompt: System prompt text (for estimation)
             user_prompt: User prompt text (for estimation)
             response: Response text (for estimation)
+            stage: Optional stage label for the call
         """
         # Estimate tokens if not provided
         if prompt_tokens is None and (system_prompt or user_prompt):
@@ -120,15 +129,20 @@ class LLMStats:
 
         # Calculate cost
         pricing = get_pricing(model)
-        cost = (prompt_tokens / 1000.0) * pricing["input"] + (completion_tokens / 1000.0) * pricing[
-            "output"
-        ]
+        cost = (prompt_tokens / 1000.0) * pricing["input"] + (
+            completion_tokens / 1000.0
+        ) * pricing["output"]
 
         # Record call
         call = LLMCall(
-            model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost=cost,
+            stage=stage,
         )
         self.calls.append(call)
+        self.total_calls += 1
 
         # Update totals
         self.total_prompt_tokens += prompt_tokens
@@ -147,7 +161,8 @@ class LLMStats:
             "calls": len(self.calls),
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
-            "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
+            "total_tokens": self.total_prompt_tokens
+            + self.total_completion_tokens,
             "cost_usd": self.total_cost,
         }
 
@@ -169,22 +184,23 @@ class LLMStats:
 
         total_tokens = self.total_prompt_tokens + self.total_completion_tokens
 
-        print()
-        print("=" * 60)
-        print(f"📊 [{self.module_name}] LLM Usage Summary")
-        print("=" * 60)
-        print(f"  Model       : {self.model_used or 'Unknown'}")
-        print(f"  API Calls   : {len(self.calls)}")
-        print(
+        logger.info()
+        logger.info("=" * 60)
+        logger.info(f"📊 [{self.module_name}] LLM Usage Summary")
+        logger.info("=" * 60)
+        logger.info(f"  Model       : {self.model_used or 'Unknown'}")
+        logger.info(f"  API Calls   : {len(self.calls)}")
+        logger.info(
             f"  Tokens      : {total_tokens:,} (Input: {self.total_prompt_tokens:,}, Output: {self.total_completion_tokens:,})"
         )
-        print(f"  Cost        : ${self.total_cost:.6f} USD")
-        print("=" * 60)
-        print()
+        logger.info(f"  Cost        : ${self.total_cost:.6f} USD")
+        logger.info("=" * 60)
+        logger.info()
 
     def reset(self):
         """Reset all statistics."""
         self.calls.clear()
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0

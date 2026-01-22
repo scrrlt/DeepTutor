@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Reference-based exam-question generation system
 
@@ -12,12 +11,13 @@ Workflow:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import datetime
 import json
 import os
 from pathlib import Path
 import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.agents.question import AgentCoordinator
@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 # Project root is 3 levels up from src/tools/question/
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from src.logging import get_logger
+
+logger = get_logger("ExamMimic")
 
 # Note: AgentCoordinator is imported inside functions to avoid circular import
 from src.services.llm.config import get_llm_config
@@ -36,7 +40,9 @@ WsCallback = Callable[[str, dict[str, Any]], Any]
 
 
 async def generate_question_from_reference(
-    reference_question: dict[str, Any], coordinator: AgentCoordinator, kb_name: str
+    reference_question: dict[str, Any],
+    coordinator: AgentCoordinator,
+    kb_name: str,
 ) -> dict[str, Any]:
     """
     Generate a new question based on a reference entry.
@@ -74,7 +80,7 @@ async def generate_question_from_reference(
 async def mimic_exam_questions(
     pdf_path: str | None = None,
     paper_dir: str | None = None,
-    kb_name: str = None,
+    kb_name: str | None = None,
     output_dir: str | None = None,
     max_questions: int | None = None,
     ws_callback: WsCallback | None = None,
@@ -98,20 +104,26 @@ async def mimic_exam_questions(
             try:
                 await ws_callback(event_type, data)
             except Exception as e:
-                print(f"WebSocket callback error: {e}")
+                logger.warning("WebSocket callback error: %s", e)
 
-    print("=" * 80)
-    print("📚 Reference-based question generation system")
-    print("=" * 80)
-    print()
+    logger.section("Reference-based question generation system")
 
     # Validate arguments
     if not pdf_path and not paper_dir:
-        await send_progress("error", {"content": "Either pdf_path or paper_dir must be provided."})
-        return {"success": False, "error": "Either pdf_path or paper_dir must be provided."}
+        await send_progress(
+            "error",
+            {"content": "Either pdf_path or paper_dir must be provided."},
+        )
+        return {
+            "success": False,
+            "error": "Either pdf_path or paper_dir must be provided.",
+        }
 
     if pdf_path and paper_dir:
-        await send_progress("error", {"content": "pdf_path and paper_dir cannot be used together."})
+        await send_progress(
+            "error",
+            {"content": "pdf_path and paper_dir cannot be used together."},
+        )
         return {
             "success": False,
             "error": "pdf_path and paper_dir cannot be used together. Choose only one.",
@@ -130,15 +142,13 @@ async def mimic_exam_questions(
             },
         )
 
-        print("🔍 Using parsed exam directory")
-        print("-" * 80)
+        logger.info("Using parsed exam directory")
+        logger.info("%s", "-" * 80)
 
         # Resolve relative names against reference_papers
         # SECURITY FIX: Prevent Path Injection / Traversal
         if os.path.isabs(paper_dir) or ".." in paper_dir:
-            error_msg = (
-                f"Invalid paper_dir: Absolute paths and traversal are not allowed. ({paper_dir})"
-            )
+            error_msg = f"Invalid paper_dir: Absolute paths and traversal are not allowed. ({paper_dir})"
             await send_progress("error", {"content": error_msg})
             return {"success": False, "error": error_msg}
 
@@ -152,7 +162,8 @@ async def mimic_exam_questions(
             / "question"
             / "mimic_papers"
             / paper_dir,  # New primary location
-            Path("question_agents/reference_papers") / paper_dir,  # Legacy location
+            Path("question_agents/reference_papers")
+            / paper_dir,  # Legacy location
             Path("reference_papers") / paper_dir,
         ]
 
@@ -166,31 +177,32 @@ async def mimic_exam_questions(
                     # This is a basic check; for robust security, whitelist allowed parents explicitly if needed.
                     latest_dir = resolved_p
                     break
-                except Exception:
-                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to resolve path {p}: {e}")
 
-        if not latest_dir:
-            error_msg = f"Exam directory not found: {paper_dir}"
+        if latest_dir is None:
+            error_msg = f"Paper directory not found: {paper_dir}"
             await send_progress("error", {"content": error_msg})
             return {
                 "success": False,
                 "error": f"{error_msg}\nSearched paths: {[str(p) for p in possible_paths]}",
             }
-        # Note: latest_dir was already resolved in the loop above, no need to override
 
         # Ensure auto subdirectory exists
         auto_dir = latest_dir / "auto"
         if not auto_dir.exists():
-            error_msg = f"Invalid exam directory (missing auto folder): {latest_dir}"
+            error_msg = (
+                f"Invalid exam directory (missing auto folder): {latest_dir}"
+            )
             await send_progress("error", {"content": error_msg})
             return {
                 "success": False,
                 "error": error_msg,
             }
 
-        print(f"✓ Exam directory detected: {latest_dir.name}")
-        print(f"   Full path: {latest_dir}")
-        print()
+        logger.info("Exam directory detected: %s", latest_dir.name)
+        logger.debug("Full path: %s", latest_dir)
+        logger.info("")
 
         await send_progress(
             "progress",
@@ -206,29 +218,39 @@ async def mimic_exam_questions(
         # Stage 1: Parsing PDF
         await send_progress(
             "progress",
-            {"stage": "parsing", "status": "running", "message": "Parsing PDF with MinerU..."},
+            {
+                "stage": "parsing",
+                "status": "running",
+                "message": "Parsing PDF with MinerU...",
+            },
         )
 
-        print("🔄 Step 1: parse the PDF exam")
-        print("-" * 80)
+        logger.info("Step 1: parse the PDF exam")
+        logger.info("%s", "-" * 80)
 
         # Use provided output_dir or default to mimic_papers
         if output_dir:
             output_base = Path(output_dir)
         else:
-            output_base = project_root / "data" / "user" / "question" / "mimic_papers"
+            output_base = (
+                project_root / "data" / "user" / "question" / "mimic_papers"
+            )
         output_base.mkdir(parents=True, exist_ok=True)
 
-        success = parse_pdf_with_mineru(pdf_path=pdf_path, output_base_dir=str(output_base))
+        success = parse_pdf_with_mineru(
+            pdf_path=pdf_path, output_base_dir=str(output_base)
+        )
 
         if not success:
-            await send_progress("error", {"content": "Failed to parse PDF with MinerU"})
+            await send_progress(
+                "error", {"content": "Failed to parse PDF with MinerU"}
+            )
             return {"success": False, "error": "Failed to parse PDF"}
 
-        print()
+        logger.info("")
 
-        print("🔍 Step 2: locating parsed results")
-        print("-" * 80)
+        logger.info("Step 2: locating parsed results")
+        logger.info("%s", "-" * 80)
 
         # Look in the new output directory (user/question/mimic_papers)
         reference_papers_dir = output_base
@@ -239,12 +261,14 @@ async def mimic_exam_questions(
         )
 
         if not subdirs:
-            await send_progress("error", {"content": "No parsed outputs were found"})
+            await send_progress(
+                "error", {"content": "No parsed outputs were found"}
+            )
             return {"success": False, "error": "No parsed outputs were found"}
 
         latest_dir = subdirs[0]
-        print(f"✓ Parsed folder: {latest_dir.name}")
-        print()
+        logger.info("Parsed folder: %s", latest_dir.name)
+        logger.info("")
 
         await send_progress(
             "progress",
@@ -265,29 +289,37 @@ async def mimic_exam_questions(
         },
     )
 
-    print("🔄 Step 3: extract reference questions")
-    print("-" * 80)
+    logger.info("Step 3: extract reference questions")
+    logger.info("%s", "-" * 80)
 
     json_files = list(latest_dir.glob("*_questions.json"))
 
     if json_files:
-        print(f"✓ Found existing question file: {json_files[0].name}")
+        logger.info("Found existing question file: %s", json_files[0].name)
         with open(json_files[0], encoding="utf-8") as f:
             questions_data = json.load(f)
     else:
-        print("📄 No question file found, starting extraction...")
-        success = extract_questions_from_paper(paper_dir=str(latest_dir), output_dir=None)
+        logger.info("No question file found, starting extraction...")
+        success = extract_questions_from_paper(
+            paper_dir=str(latest_dir), output_dir=None
+        )
 
         if not success:
-            await send_progress("error", {"content": "Question extraction failed"})
+            await send_progress(
+                "error", {"content": "Question extraction failed"}
+            )
             return {"success": False, "error": "Question extraction failed"}
 
         json_files = list(latest_dir.glob("*_questions.json"))
         if not json_files:
             await send_progress(
-                "error", {"content": "Question JSON file not found after extraction"}
+                "error",
+                {"content": "Question JSON file not found after extraction"},
             )
-            return {"success": False, "error": "Question JSON file not found after extraction"}
+            return {
+                "success": False,
+                "error": "Question JSON file not found after extraction",
+            }
 
         with open(json_files[0], encoding="utf-8") as f:
             questions_data = json.load(f)
@@ -297,8 +329,8 @@ async def mimic_exam_questions(
     if max_questions:
         reference_questions = reference_questions[:max_questions]
 
-    print(f"✓ Loaded {len(reference_questions)} reference questions")
-    print()
+    logger.info("Loaded %d reference questions", len(reference_questions))
+    logger.info("")
 
     # Send reference questions info
     await send_progress(
@@ -334,8 +366,8 @@ async def mimic_exam_questions(
         },
     )
 
-    print("🔄 Step 4: generate new questions from references (parallel)")
-    print("-" * 80)
+    logger.info("Step 4: generate new questions from references (parallel)")
+    logger.info("%s", "-" * 80)
 
     # Lazy import to avoid circular import
     from src.agents.question import AgentCoordinator
@@ -346,7 +378,11 @@ async def mimic_exam_questions(
     question_cfg = config.get("question", {})
     max_parallel = question_cfg.get("max_parallel_questions", 3)
 
-    print(f"📊 Processing {len(reference_questions)} questions with max {max_parallel} parallel")
+    logger.info(
+        "Processing %d questions with max %d parallel",
+        len(reference_questions),
+        max_parallel,
+    )
 
     # Create semaphore for parallel control
     semaphore = asyncio.Semaphore(max_parallel)
@@ -371,18 +407,23 @@ async def mimic_exam_questions(
                     "index": index,
                     "status": "generating",
                     "reference_number": ref_number,
-                    "reference_preview": ref_question["question_text"][:80] + "...",
+                    "reference_preview": ref_question["question_text"][:80]
+                    + "...",
                 },
             )
 
-            print(f"\n📝 [{question_id}] Starting - Reference: {ref_number}")
-            print(f"   Preview: {ref_question['question_text'][:80]}...")
+            logger.info(
+                "[%s] Starting - Reference: %s", question_id, ref_number
+            )
+            logger.debug(
+                "Preview: %s", ref_question["question_text"][:80] + "..."
+            )
 
             # Create a fresh coordinator for each question
             llm_config = get_llm_config()
             coordinator = AgentCoordinator(
-                api_key=llm_config.api_key,
-                base_url=llm_config.base_url,
+                api_key=getattr(llm_config, "api_key", None),
+                base_url=getattr(llm_config, "base_url", None),
                 api_version=getattr(llm_config, "api_version", None),
                 max_rounds=10,
                 kb_name=kb_name,
@@ -390,71 +431,89 @@ async def mimic_exam_questions(
 
             try:
                 result = await generate_question_from_reference(
-                    reference_question=ref_question, coordinator=coordinator, kb_name=kb_name
+                    reference_question=ref_question,
+                    coordinator=coordinator,
+                    kb_name=kb_name,
                 )
 
                 async with completed_lock:
                     completed_count += 1
                     current_completed = completed_count
 
-                if result.get("success"):
-                    print(f"✓ [{question_id}] Generated in {result['rounds']} round(s)")
+                    if result.get("success"):
+                        logger.info(
+                            "[%s] Generated in %d round(s)",
+                            question_id,
+                            result["rounds"],
+                        )
 
-                    result_data = {
-                        "success": True,
-                        "reference_question_number": ref_number,
-                        "reference_question_text": ref_question["question_text"],
-                        "reference_images": ref_question.get("images", []),
-                        "generated_question": result["question"],
-                        "validation": result["validation"],
-                        "rounds": result["rounds"],
-                    }
-
-                    # Send result update
-                    await send_progress(
-                        "result",
-                        {
-                            "question_id": question_id,
-                            "index": index,
+                        result_data = {
                             "success": True,
-                            "question": result["question"],
+                            "reference_question_number": ref_number,
+                            "reference_question_text": ref_question[
+                                "question_text"
+                            ],
+                            "reference_images": ref_question.get("images", []),
+                            "generated_question": result["question"],
                             "validation": result["validation"],
                             "rounds": result["rounds"],
-                            "reference_question": ref_question["question_text"],
-                            "current": current_completed,
-                            "total": len(reference_questions),
-                        },
-                    )
+                        }
 
-                    return result_data
-                else:
-                    print(f"✗ [{question_id}] Failed: {result.get('error', 'Unknown error')}")
+                        # Send result update
+                        await send_progress(
+                            "result",
+                            {
+                                "question_id": question_id,
+                                "index": index,
+                                "success": True,
+                                "question": result["question"],
+                                "validation": result["validation"],
+                                "rounds": result["rounds"],
+                                "reference_question": ref_question[
+                                    "question_text"
+                                ],
+                                "current": current_completed,
+                                "total": len(reference_questions),
+                            },
+                        )
 
-                    error_data = {
-                        "success": False,
-                        "reference_question_number": ref_number,
-                        "reference_question_text": ref_question["question_text"],
-                        "error": result.get("error", "Unknown error"),
-                        "reason": result.get("reason", ""),
-                    }
+                        return result_data
 
-                    await send_progress(
-                        "question_update",
-                        {
-                            "question_id": question_id,
-                            "index": index,
-                            "status": "failed",
+                    else:
+                        logger.error(
+                            "[%s] Failed: %s",
+                            question_id,
+                            result.get("error", "Unknown error"),
+                        )
+
+                        error_data = {
+                            "success": False,
+                            "reference_question_number": ref_number,
+                            "reference_question_text": ref_question[
+                                "question_text"
+                            ],
                             "error": result.get("error", "Unknown error"),
-                            "current": current_completed,
-                            "total": len(reference_questions),
-                        },
-                    )
+                            "reason": result.get("reason", ""),
+                        }
 
-                    return error_data
+                        await send_progress(
+                            "question_update",
+                            {
+                                "question_id": question_id,
+                                "index": index,
+                                "status": "failed",
+                                "error": result.get("error", "Unknown error"),
+                                "current": current_completed,
+                                "total": len(reference_questions),
+                            },
+                        )
+
+                        return error_data
 
             except Exception as e:
-                print(f"✗ [{question_id}] Exception: {e!s}")
-
+                logger.exception(
+                    "[%s] Exception during generation: %s", question_id, e
+                )
                 async with completed_lock:
                     completed_count += 1
                     current_completed = completed_count
@@ -473,13 +532,18 @@ async def mimic_exam_questions(
 
                 return {
                     "success": False,
-                    "reference_question_number": ref_question.get("question_number", str(index)),
+                    "reference_question_number": ref_question.get(
+                        "question_number", str(index)
+                    ),
                     "reference_question_text": ref_question["question_text"],
                     "error": f"Exception: {e!s}",
                 }
 
     # Run all mimic generations in parallel
-    tasks = [generate_single_mimic(ref_q, i) for i, ref_q in enumerate(reference_questions, 1)]
+    tasks = [
+        generate_single_mimic(ref_q, i)
+        for i, ref_q in enumerate(reference_questions, 1)
+    ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Separate successes and failures
@@ -494,13 +558,11 @@ async def mimic_exam_questions(
         else:
             failed_questions.append(result)
 
-    print()
-    print("=" * 80)
-    print("📊 Generation summary")
-    print("=" * 80)
-    print(f"Reference questions: {len(reference_questions)}")
-    print(f"Successes: {len(generated_questions)}")
-    print(f"Failures: {len(failed_questions)}")
+    logger.info("")
+    logger.section("Generation summary")
+    logger.info("Reference questions: %d", len(reference_questions))
+    logger.info("Successes: %d", len(generated_questions))
+    logger.info("Failures: %d", len(failed_questions))
 
     if output_dir is None:
         output_dir = latest_dir
@@ -509,7 +571,9 @@ async def mimic_exam_questions(
         output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = output_dir / f"{latest_dir.name}_{timestamp}_generated_questions.json"
+    output_file = (
+        output_dir / f"{latest_dir.name}_{timestamp}_generated_questions.json"
+    )
 
     output_data = {
         "reference_paper": latest_dir.name,
@@ -524,8 +588,8 @@ async def mimic_exam_questions(
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print(f"\n💾 Results saved to: {output_file}")
-    print()
+    logger.info("Results saved to: %s", output_file)
+    logger.info("")
 
     # Send summary
     await send_progress(
@@ -567,7 +631,9 @@ Examples:
     # Input mode (mutually exclusive)
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "--pdf", type=str, help="Absolute path to the PDF exam (will be parsed)"
+        "--pdf",
+        type=str,
+        help="Absolute path to the PDF exam (will be parsed)",
     )
 
     input_group.add_argument(
@@ -576,7 +642,9 @@ Examples:
         help="Name of a parsed exam directory (e.g., 2211asm1) or its absolute path",
     )
 
-    parser.add_argument("--kb", type=str, required=True, help="Knowledge base name")
+    parser.add_argument(
+        "--kb", type=str, required=True, help="Knowledge base name"
+    )
 
     parser.add_argument(
         "-o",
@@ -605,10 +673,10 @@ Examples:
     )
 
     if result["success"]:
-        print("✓ Completed!")
+        logger.info("Completed!")
         sys.exit(0)
     else:
-        print(f"✗ Failed: {result.get('error')}")
+        logger.error("Failed: %s", result.get("error"))
         sys.exit(1)
 
 

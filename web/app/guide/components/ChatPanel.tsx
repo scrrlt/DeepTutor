@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { useRef, useEffect, useState } from "react";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
@@ -12,9 +12,9 @@ import { processLatexContent } from "@/lib/latex";
 import { ChatMessage } from "../types";
 
 interface ChatPanelProps {
-  messages: ChatMessage[];
-  isLearning: boolean;
-  onSendMessage: (message: string) => void;
+  messages: ChatMessage[]
+  isLearning: boolean
+  onSendMessage: (message: string) => void
 }
 
 export default function ChatPanel({
@@ -32,38 +32,33 @@ export default function ChatPanel({
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
         top: chatContainerRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+        behavior: 'smooth',
+      })
     }
-  }, [messages]);
+  }, [messages])
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || sendingMessage) return;
+    if (!inputMessage.trim() || sendingMessage) return
 
-    setSendingMessage(true);
-    const message = inputMessage;
-    setInputMessage("");
+    setSendingMessage(true)
+    const message = inputMessage
+    setInputMessage('')
 
     try {
-      await onSendMessage(message);
+      await onSendMessage(message)
     } finally {
-      setSendingMessage(false);
+      setSendingMessage(false)
     }
-  };
+  }
 
   // Table components for ReactMarkdown
   const tableComponents = {
     table: ({ node, ...props }: any) => (
       <div className="overflow-x-auto my-4 rounded-lg border border-slate-200 shadow-sm">
-        <table
-          className="min-w-full divide-y divide-slate-200 text-sm"
-          {...props}
-        />
+        <table className="min-w-full divide-y divide-slate-200 text-sm" {...props} />
       </div>
     ),
-    thead: ({ node, ...props }: any) => (
-      <thead className="bg-slate-50" {...props} />
-    ),
+    thead: ({ node, ...props }: any) => <thead className="bg-slate-50" {...props} />,
     th: ({ node, ...props }: any) => (
       <th
         className="px-3 py-2 text-left font-semibold text-slate-700 whitespace-nowrap border-b border-slate-200"
@@ -74,15 +69,12 @@ export default function ChatPanel({
       <tbody className="divide-y divide-slate-100 bg-white" {...props} />
     ),
     td: ({ node, ...props }: any) => (
-      <td
-        className="px-3 py-2 text-slate-600 border-b border-slate-100"
-        {...props}
-      />
+      <td className="px-3 py-2 text-slate-600 border-b border-slate-100" {...props} />
     ),
     tr: ({ node, ...props }: any) => (
       <tr className="hover:bg-slate-50/50 transition-colors" {...props} />
     ),
-  };
+  }
 
   return (
     <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
@@ -95,23 +87,23 @@ export default function ChatPanel({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30 dark:bg-slate-800/30"
       >
-        {messages.map((msg) => (
+        {messages.map(msg => (
           <div
             key={msg.id}
-            className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+            className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div
               className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
-                msg.role === "user"
-                  ? "bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-500/20"
-                  : msg.role === "system" && msg.content.includes("⏳")
-                    ? "bg-amber-50 border border-amber-200 text-amber-900 rounded-tl-none"
-                    : msg.role === "system"
-                      ? "bg-blue-50 border border-blue-200 text-blue-900 rounded-tl-none"
-                      : "bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm"
+                msg.role === 'user'
+                  ? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-500/20'
+                  : msg.role === 'system' && msg.content.includes('⏳')
+                    ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-tl-none'
+                    : msg.role === 'system'
+                      ? 'bg-blue-50 border border-blue-200 text-blue-900 rounded-tl-none'
+                      : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm'
               }`}
             >
-              {msg.role === "system" || msg.role === "assistant" ? (
+              {msg.role === 'system' || msg.role === 'assistant' ? (
                 <div className="prose prose-sm max-w-none prose-slate">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkMath]}
@@ -159,5 +151,5 @@ export default function ChatPanel({
         </div>
       )}
     </div>
-  );
+  )
 }

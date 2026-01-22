@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Robust JSON parsing utilities with automatic repair and markdown extraction.
 
@@ -63,7 +62,9 @@ def parse_json_response(
     # Extract from markdown code blocks if present
     extracted_response = response
     if "```" in response:
-        json_match = re.search(r"```(?:json)?\s*\n?(.*?)```", response, re.DOTALL)
+        json_match = re.search(
+            r"```(?:json)?\s*\n?(.*?)```", response, re.DOTALL
+        )
         if json_match:
             extracted_response = json_match.group(1).strip()
             log.debug("Extracted JSON from markdown code block")
@@ -76,7 +77,9 @@ def parse_json_response(
 
     # Strategy 2: Try json-repair if available
     if repair_json is None:
-        log.warning("json-repair library not installed, cannot repair malformed JSON")
+        log.warning(
+            "json-repair library not installed, cannot repair malformed JSON"
+        )
         log.debug(f"Response: {extracted_response[:200]}")
         return fallback
 

@@ -10,7 +10,7 @@ Provides REST API for managing configurations for:
 """
 
 import os
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -38,32 +38,34 @@ class ConfigBase(BaseModel):
 class LLMConfigCreate(ConfigBase):
     """LLM configuration for creation."""
 
-    base_url: str | Dict[str, str] = Field(
+    base_url: str | dict[str, str] = Field(
         ..., description="API endpoint or {'use_env': 'VAR_NAME'}"
     )
-    api_key: str | Dict[str, str] = Field(..., description="API key or {'use_env': 'VAR_NAME'}")
+    api_key: str | dict[str, str] = Field(
+        ..., description="API key or {'use_env': 'VAR_NAME'}"
+    )
     model: str = Field(..., description="Model name")
-    api_version: Optional[str] = None
+    api_version: str | None = None
 
 
 class EmbeddingConfigCreate(ConfigBase):
     """Embedding configuration for creation."""
 
-    base_url: str | Dict[str, str]
-    api_key: str | Dict[str, str]
+    base_url: str | dict[str, str]
+    api_key: str | dict[str, str]
     model: str
     dimensions: int = 3072
-    api_version: Optional[str] = None
+    api_version: str | None = None
 
 
 class TTSConfigCreate(ConfigBase):
     """TTS configuration for creation."""
 
-    base_url: str | Dict[str, str]
-    api_key: str | Dict[str, str]
+    base_url: str | dict[str, str]
+    api_key: str | dict[str, str]
     model: str
     voice: str = "alloy"
-    api_version: Optional[str] = None
+    api_version: str | None = None
 
 
 class SearchConfigCreate(ConfigBase):
@@ -72,7 +74,7 @@ class SearchConfigCreate(ConfigBase):
     Uses unified SEARCH_API_KEY environment variable.
     """
 
-    api_key: str | Dict[str, str] = Field(
+    api_key: str | dict[str, str] = Field(
         ..., description="API key or {'use_env': 'SEARCH_API_KEY'}"
     )
 
@@ -80,14 +82,14 @@ class SearchConfigCreate(ConfigBase):
 class ConfigUpdate(BaseModel):
     """Configuration update model."""
 
-    name: Optional[str] = None
-    provider: Optional[str] = None
-    base_url: Optional[str | Dict[str, str]] = None
-    api_key: Optional[str | Dict[str, str]] = None
-    model: Optional[str] = None
-    dimensions: Optional[int] = None
-    voice: Optional[str] = None
-    api_version: Optional[str] = None
+    name: str | None = None
+    provider: str | None = None
+    base_url: str | dict[str, str] | None = None
+    api_key: str | dict[str, str] | None = None
+    model: str | None = None
+    dimensions: int | None = None
+    voice: str | None = None
+    api_version: str | None = None
 
 
 class SetActiveRequest(BaseModel):
@@ -105,14 +107,14 @@ class TestConnectionRequest(BaseModel):
     """
 
     provider: str
-    base_url: str | Dict[str, str]
-    api_key: str | Dict[str, str]
+    base_url: str | dict[str, str]
+    api_key: str | dict[str, str]
     model: str
-    dimensions: Optional[int] = None  # For embedding models
-    voice: Optional[str] = None  # For TTS models
+    dimensions: int | None = None  # For embedding models
+    voice: str | None = None  # For TTS models
 
 
-def resolve_env_value(value: str | Dict[str, str], fallback: str = "") -> str:
+def resolve_env_value(value: str | dict[str, str], fallback: str = "") -> str:
     """
     Resolve a value that may be a string or {"use_env": "VAR_NAME"}.
 
@@ -128,10 +130,10 @@ def resolve_env_value(value: str | Dict[str, str], fallback: str = "") -> str:
 class ConfigStatusResponse(BaseModel):
     """Response for configuration status."""
 
-    llm: Dict[str, Any]
-    embedding: Dict[str, Any]
-    tts: Dict[str, Any]
-    search: Dict[str, Any]
+    llm: dict[str, Any]
+    embedding: dict[str, Any]
+    tts: dict[str, Any]
+    search: dict[str, Any]
 
 
 class PortsResponse(BaseModel):
@@ -152,7 +154,7 @@ async def get_config_status():
     """
     manager = get_config_manager()
 
-    def get_status(config_type: ConfigType) -> Dict[str, Any]:
+    def get_status(config_type: ConfigType) -> dict[str, Any]:
         active = manager.get_active_config(config_type)
         env_status = manager.get_env_status(config_type)
         configs = manager.list_configs(config_type)
@@ -160,10 +162,17 @@ async def get_config_status():
 
         return {
             "configured": bool(
-                active and active.get("model" if config_type != ConfigType.SEARCH else "provider")
+                active
+                and active.get(
+                    "model" if config_type != ConfigType.SEARCH else "provider"
+                )
             ),
-            "active_config_id": active_config.get("id") if active_config else "default",
-            "active_config_name": active_config.get("name") if active_config else "Default",
+            "active_config_id": active_config.get("id")
+            if active_config
+            else "default",
+            "active_config_name": active_config.get("name")
+            if active_config
+            else "Default",
             "model": active.get("model") if active else None,
             "provider": active.get("provider") if active else None,
             "env_configured": env_status,
@@ -188,7 +197,9 @@ async def get_ports():
 
 
 @router.get("/providers/{config_type}")
-async def get_providers(config_type: Literal["llm", "embedding", "tts", "search"]):
+async def get_providers(
+    config_type: Literal["llm", "embedding", "tts", "search"],
+):
     """Get available provider options for a configuration type."""
     manager = get_config_manager()
     ct = ConfigType(config_type)
@@ -218,10 +229,14 @@ async def add_llm_config(config: LLMConfigCreate):
 async def update_llm_config(config_id: str, updates: ConfigUpdate):
     """Update an LLM configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot update default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot update default configuration"
+        )
 
     manager = get_config_manager()
-    result = manager.update_config(ConfigType.LLM, config_id, updates.model_dump(exclude_none=True))
+    result = manager.update_config(
+        ConfigType.LLM, config_id, updates.model_dump(exclude_none=True)
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return result
@@ -231,7 +246,9 @@ async def update_llm_config(config_id: str, updates: ConfigUpdate):
 async def delete_llm_config(config_id: str):
     """Delete an LLM configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot delete default configuration"
+        )
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.LLM, config_id)
@@ -276,7 +293,11 @@ async def test_llm_connection(request: TestConnectionRequest):
             binding=request.provider,
             max_tokens=200,
         )
-        return {"success": True, "message": "Connection successful", "response": response[:100]}
+        return {
+            "success": True,
+            "message": "Connection successful",
+            "response": response[:100],
+        }
     except Exception as e:
         return {"success": False, "message": f"Connection failed: {str(e)}"}
 
@@ -293,14 +314,22 @@ async def test_llm_config_by_id(config_id: str):
         else:
             # Find config by ID
             configs = manager.list_configs(ConfigType.LLM)
-            config = next((c for c in configs if c.get("id") == config_id), None)
+            config = next(
+                (c for c in configs if c.get("id") == config_id), None
+            )
             if not config:
-                return {"success": False, "message": f"Configuration '{config_id}' not found"}
+                return {
+                    "success": False,
+                    "message": f"Configuration '{config_id}' not found",
+                }
             # Resolve use_env references for user configs
             config = manager.resolve_config_env_values(config)
 
         if not config or not config.get("base_url"):
-            return {"success": False, "message": "Configuration is incomplete (missing base_url)"}
+            return {
+                "success": False,
+                "message": "Configuration is incomplete (missing base_url)",
+            }
 
         base_url = sanitize_url(config.get("base_url", ""))
         api_key = config.get("api_key") or "sk-no-key-required"
@@ -316,7 +345,11 @@ async def test_llm_config_by_id(config_id: str):
             binding=provider,
             max_tokens=200,
         )
-        return {"success": True, "message": "Connection successful", "response": response[:100]}
+        return {
+            "success": True,
+            "message": "Connection successful",
+            "response": response[:100],
+        }
     except Exception as e:
         return {"success": False, "message": f"Connection failed: {str(e)}"}
 
@@ -344,7 +377,9 @@ async def add_embedding_config(config: EmbeddingConfigCreate):
 async def update_embedding_config(config_id: str, updates: ConfigUpdate):
     """Update an embedding configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot update default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot update default configuration"
+        )
 
     manager = get_config_manager()
     result = manager.update_config(
@@ -359,7 +394,9 @@ async def update_embedding_config(config_id: str, updates: ConfigUpdate):
 async def delete_embedding_config(config_id: str):
     """Delete an embedding configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot delete default configuration"
+        )
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.EMBEDDING, config_id)
@@ -395,7 +432,10 @@ async def test_embedding_connection(request: TestConnectionRequest):
         if not request.model:
             return {"success": False, "message": "Model name is required"}
         if not request.dimensions:
-            return {"success": False, "message": "Dimensions is required for embedding models"}
+            return {
+                "success": False,
+                "message": "Dimensions is required for embedding models",
+            }
 
         # Create a test config with dimensions
         test_config = EmbeddingConfig(
@@ -411,7 +451,10 @@ async def test_embedding_connection(request: TestConnectionRequest):
         # Use embed() method with a list of texts
         embeddings = await client.embed(["test"])
         if embeddings and len(embeddings) > 0 and len(embeddings[0]) > 0:
-            return {"success": True, "message": f"Connection successful (dim={len(embeddings[0])})"}
+            return {
+                "success": True,
+                "message": f"Connection successful (dim={len(embeddings[0])})",
+            }
         return {"success": False, "message": "Failed to generate embeddings"}
     except Exception as e:
         return {"success": False, "message": f"Connection failed: {str(e)}"}
@@ -430,13 +473,21 @@ async def test_embedding_config_by_id(config_id: str):
             config = manager.get_default_config(ConfigType.EMBEDDING)
         else:
             configs = manager.list_configs(ConfigType.EMBEDDING)
-            config = next((c for c in configs if c.get("id") == config_id), None)
+            config = next(
+                (c for c in configs if c.get("id") == config_id), None
+            )
             if not config:
-                return {"success": False, "message": f"Configuration '{config_id}' not found"}
+                return {
+                    "success": False,
+                    "message": f"Configuration '{config_id}' not found",
+                }
             config = manager.resolve_config_env_values(config)
 
         if not config or not config.get("base_url"):
-            return {"success": False, "message": "Configuration is incomplete (missing base_url)"}
+            return {
+                "success": False,
+                "message": "Configuration is incomplete (missing base_url)",
+            }
 
         # Create a test config
         test_config = EmbeddingConfig(
@@ -452,7 +503,10 @@ async def test_embedding_config_by_id(config_id: str):
         # Use embed() method with a list of texts
         embeddings = await client.embed(["test"])
         if embeddings and len(embeddings) > 0 and len(embeddings[0]) > 0:
-            return {"success": True, "message": f"Connection successful (dim={len(embeddings[0])})"}
+            return {
+                "success": True,
+                "message": f"Connection successful (dim={len(embeddings[0])})",
+            }
         return {"success": False, "message": "Failed to generate embeddings"}
     except Exception as e:
         return {"success": False, "message": f"Connection failed: {str(e)}"}
@@ -481,10 +535,14 @@ async def add_tts_config(config: TTSConfigCreate):
 async def update_tts_config(config_id: str, updates: ConfigUpdate):
     """Update a TTS configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot update default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot update default configuration"
+        )
 
     manager = get_config_manager()
-    result = manager.update_config(ConfigType.TTS, config_id, updates.model_dump(exclude_none=True))
+    result = manager.update_config(
+        ConfigType.TTS, config_id, updates.model_dump(exclude_none=True)
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return result
@@ -494,7 +552,9 @@ async def update_tts_config(config_id: str, updates: ConfigUpdate):
 async def delete_tts_config(config_id: str):
     """Delete a TTS configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot delete default configuration"
+        )
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.TTS, config_id)
@@ -552,13 +612,21 @@ async def test_tts_config_by_id(config_id: str):
             config = manager.get_default_config(ConfigType.TTS)
         else:
             configs = manager.list_configs(ConfigType.TTS)
-            config = next((c for c in configs if c.get("id") == config_id), None)
+            config = next(
+                (c for c in configs if c.get("id") == config_id), None
+            )
             if not config:
-                return {"success": False, "message": f"Configuration '{config_id}' not found"}
+                return {
+                    "success": False,
+                    "message": f"Configuration '{config_id}' not found",
+                }
             config = manager.resolve_config_env_values(config)
 
         if not config or not config.get("base_url"):
-            return {"success": False, "message": "Configuration is incomplete (missing base_url)"}
+            return {
+                "success": False,
+                "message": "Configuration is incomplete (missing base_url)",
+            }
 
         # Test by creating client
         client = AsyncOpenAI(
@@ -593,7 +661,9 @@ async def add_search_config(config: SearchConfigCreate):
 async def update_search_config(config_id: str, updates: ConfigUpdate):
     """Update a search configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot update default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot update default configuration"
+        )
 
     manager = get_config_manager()
     result = manager.update_config(
@@ -608,7 +678,9 @@ async def update_search_config(config_id: str, updates: ConfigUpdate):
 async def delete_search_config(config_id: str):
     """Delete a search configuration."""
     if config_id == "default":
-        raise HTTPException(status_code=400, detail="Cannot delete default configuration")
+        raise HTTPException(
+            status_code=400, detail="Cannot delete default configuration"
+        )
 
     manager = get_config_manager()
     success = manager.delete_config(ConfigType.SEARCH, config_id)

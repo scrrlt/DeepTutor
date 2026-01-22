@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { useState } from "react";
 import { Loader2, FolderOpen, Link as LinkIcon, X } from "lucide-react";
@@ -6,18 +6,18 @@ import { apiUrl } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 
 interface FolderSyncManagerProps {
-  kbName: string;
-  showToast: (message: string, type: "success" | "error" | "info") => void;
-  onFolderLinked?: () => void;
-  onFolderUnlinked?: () => void;
-  onSyncComplete?: () => void;
+  kbName: string
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void
+  onFolderLinked?: () => void
+  onFolderUnlinked?: () => void
+  onSyncComplete?: () => void
 }
 
 interface FolderInfo {
-  id: string;
-  path: string;
-  added_at: string;
-  file_count: number;
+  id: string
+  path: string
+  added_at: string
+  file_count: number
 }
 
 export default function FolderSyncManager({
@@ -33,19 +33,16 @@ export default function FolderSyncManager({
   const [linking, setLinking] = useState(false);
 
   const handleLinkFolder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!folderPath || !kbName) return;
+    e.preventDefault()
+    if (!folderPath || !kbName) return
 
-    setLinking(true);
+    setLinking(true)
     try {
-      const res = await fetch(
-        apiUrl(`/api/v1/knowledge/${kbName}/link-folder`),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folder_path: folderPath }),
-        },
-      );
+      const res = await fetch(apiUrl(`/api/v1/knowledge/${kbName}/link-folder`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_path: folderPath }),
+      })
 
       if (!res.ok) throw new Error(t("Failed to link folder"));
 
@@ -56,9 +53,9 @@ export default function FolderSyncManager({
     } catch (err: any) {
       showToast(err.message || t("Failed to link folder"), "error");
     } finally {
-      setLinking(false);
+      setLinking(false)
     }
-  };
+  }
 
   return (
     <>
@@ -166,5 +163,5 @@ export default function FolderSyncManager({
         </div>
       )}
     </>
-  );
+  )
 }

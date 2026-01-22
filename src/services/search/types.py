@@ -49,9 +49,10 @@ class SearchResult:
 class WebSearchResponse:
     """Standardized response from any search provider"""
 
-    query: str
-    answer: str  # LLM-generated answer or empty for raw SERP providers
-    provider: str
+    # Make answer and provider optional for easier test mocking
+    query: str = ""
+    answer: str = ""  # LLM-generated answer or empty for raw SERP providers
+    provider: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     model: str = ""
     citations: list[Citation] = field(default_factory=list)

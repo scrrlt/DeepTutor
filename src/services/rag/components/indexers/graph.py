@@ -8,7 +8,6 @@ Knowledge graph indexer using LightRAG.
 
 from pathlib import Path
 import sys
-from typing import Dict, List, Optional
 
 from ...types import Document
 from ..base import BaseComponent
@@ -22,9 +21,9 @@ class GraphIndexer(BaseComponent):
     """
 
     name = "graph_indexer"
-    _instances: Dict[str, any] = {}  # Cache RAG instances
+    _instances: dict[str, any] = {}  # Cache RAG instances
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize graph indexer.
 
@@ -115,7 +114,10 @@ class GraphIndexer(BaseComponent):
                     tmp_path = None
                     try:
                         with tempfile.NamedTemporaryFile(
-                            mode="w", encoding="utf-8", suffix=".txt", delete=False
+                            mode="w",
+                            encoding="utf-8",
+                            suffix=".txt",
+                            delete=False,
                         ) as tmp_file:
                             tmp_file.write(doc.content)
                             tmp_path = tmp_file.name

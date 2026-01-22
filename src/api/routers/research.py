@@ -32,7 +32,9 @@ def load_config():
 
 # Initialize logger with config
 config = load_config()
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+    "logging", {}
+).get("log_dir")
 logger = get_logger("ResearchAPI", log_dir=log_dir)
 
 
@@ -55,13 +57,15 @@ async def optimize_topic(request: OptimizeRequest):
         # Inject API keys
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
         except Exception as e:
             return {"error": f"LLM config error: {e!s}"}
 
         # Init Agent
-        agent = RephraseAgent(config=config, api_key=api_key, base_url=base_url)
+        agent = RephraseAgent(
+            config=config, api_key=api_key, base_url=base_url
+        )
 
         # Process
         # If iteration > 0, topic is treated as feedback
@@ -69,7 +73,9 @@ async def optimize_topic(request: OptimizeRequest):
             result = await agent.process(request.topic, iteration=0)
         else:
             result = await agent.process(
-                request.topic, iteration=request.iteration, previous_result=request.previous_result
+                request.topic,
+                iteration=request.iteration,
+                previous_result=request.previous_result,
             )
 
         return result
@@ -96,7 +102,9 @@ async def websocket_research_run(websocket: WebSocket):
         topic = data.get("topic")
         kb_name = data.get("kb_name", "ai_textbook")
         # New unified parameters
-        plan_mode = data.get("plan_mode", "medium")  # quick, medium, deep, auto
+        plan_mode = data.get(
+            "plan_mode", "medium"
+        )  # quick, medium, deep, auto
         enabled_tools = data.get("enabled_tools", ["RAG"])  # RAG, Paper, Web
         skip_rephrase = data.get("skip_rephrase", False)
         # Legacy support
@@ -104,7 +112,9 @@ async def websocket_research_run(websocket: WebSocket):
         research_mode = data.get("research_mode")
 
         if not topic:
-            await websocket.send_json({"type": "error", "content": "Topic is required"})
+            await websocket.send_json(
+                {"type": "error", "content": "Topic is required"}
+            )
             return
 
         # Generate task ID
@@ -122,11 +132,13 @@ async def websocket_research_run(websocket: WebSocket):
         )
         try:
             # Get log_dir from config
-            log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-                "log_dir"
-            )
+            log_dir = config.get("paths", {}).get(
+                "user_log_dir"
+            ) or config.get("logging", {}).get("log_dir")
             research_logger = get_logger("Research", log_dir=log_dir)
-            research_logger.info(f"[{task_id}] Starting research flow: {topic[:50]}...")
+            research_logger.info(
+                f"[{task_id}] Starting research flow: {topic[:50]}..."
+            )
         except Exception as e:
             logger.warning(f"Failed to initialize research logger: {e}")
 
@@ -143,8 +155,12 @@ async def websocket_research_run(websocket: WebSocket):
             default_planning = research_config.get("planning", {})
             for key, value in default_planning.items():
                 if key not in config["planning"]:
-                    config["planning"][key] = value if not isinstance(value, dict) else value.copy()
-                elif isinstance(value, dict) and isinstance(config["planning"][key], dict):
+                    config["planning"][key] = (
+                        value if not isinstance(value, dict) else value.copy()
+                    )
+                elif isinstance(value, dict) and isinstance(
+                    config["planning"][key], dict
+                ):
                     # Deep merge for nested dicts like decompose, rephrase
                     for k, v in value.items():
                         if k not in config["planning"][key]:
@@ -159,7 +175,9 @@ async def websocket_research_run(websocket: WebSocket):
         # Initialize researching config from research.researching
         # This ensures execution_mode, max_parallel_topics etc. are properly inherited
         if "researching" not in config:
-            config["researching"] = research_config.get("researching", {}).copy()
+            config["researching"] = research_config.get(
+                "researching", {}
+            ).copy()
         else:
             # Merge with research.researching defaults (research.researching has lower priority)
             default_researching = research_config.get("researching", {})
@@ -184,20 +202,40 @@ async def websocket_research_run(websocket: WebSocket):
         # - Researching: max iterations per topic and iteration_mode (fixed/flexible)
         plan_mode_config = {
             "quick": {
-                "planning": {"decompose": {"initial_subtopics": 2, "mode": "manual"}},
-                "researching": {"max_iterations": 2, "iteration_mode": "fixed"},
+                "planning": {
+                    "decompose": {"initial_subtopics": 2, "mode": "manual"}
+                },
+                "researching": {
+                    "max_iterations": 2,
+                    "iteration_mode": "fixed",
+                },
             },
             "medium": {
-                "planning": {"decompose": {"initial_subtopics": 5, "mode": "manual"}},
-                "researching": {"max_iterations": 4, "iteration_mode": "fixed"},
+                "planning": {
+                    "decompose": {"initial_subtopics": 5, "mode": "manual"}
+                },
+                "researching": {
+                    "max_iterations": 4,
+                    "iteration_mode": "fixed",
+                },
             },
             "deep": {
-                "planning": {"decompose": {"initial_subtopics": 8, "mode": "manual"}},
-                "researching": {"max_iterations": 7, "iteration_mode": "fixed"},
+                "planning": {
+                    "decompose": {"initial_subtopics": 8, "mode": "manual"}
+                },
+                "researching": {
+                    "max_iterations": 7,
+                    "iteration_mode": "fixed",
+                },
             },
             "auto": {
-                "planning": {"decompose": {"mode": "auto", "auto_max_subtopics": 8}},
-                "researching": {"max_iterations": 6, "iteration_mode": "flexible"},
+                "planning": {
+                    "decompose": {"mode": "auto", "auto_max_subtopics": 8}
+                },
+                "researching": {
+                    "max_iterations": 6,
+                    "iteration_mode": "flexible",
+                },
             },
         }
         if plan_mode in plan_mode_config:
@@ -257,11 +295,13 @@ async def websocket_research_run(websocket: WebSocket):
         # Inject API keys from env if not in config
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
             api_version = getattr(llm_config, "api_version", None)
         except ValueError as e:
-            await websocket.send_json({"error": f"LLM configuration error: {e!s}"})
+            await websocket.send_json(
+                {"error": f"LLM configuration error: {e!s}"}
+            )
             await websocket.close()
             return
 
@@ -273,7 +313,9 @@ async def websocket_research_run(websocket: WebSocket):
         def progress_callback(event: dict[str, Any]):
             """Progress callback function, puts progress events into queue"""
             try:
-                asyncio.get_event_loop().call_soon_threadsafe(progress_queue.put_nowait, event)
+                asyncio.get_event_loop().call_soon_threadsafe(
+                    progress_queue.put_nowait, event
+                )
             except Exception as e:
                 logger.error(f"Progress callback error: {e}")
 
@@ -330,7 +372,9 @@ async def websocket_research_run(websocket: WebSocket):
                     try:
                         # Use call_soon_threadsafe for thread safety
                         loop = asyncio.get_event_loop()
-                        loop.call_soon_threadsafe(self.queue.put_nowait, message)
+                        loop.call_soon_threadsafe(
+                            self.queue.put_nowait, message
+                        )
                     except (asyncio.QueueFull, RuntimeError, AttributeError):
                         # Queue full, event loop closed, or no event loop, ignore error, doesn't affect terminal output
                         pass
@@ -342,7 +386,11 @@ async def websocket_research_run(websocket: WebSocket):
 
         try:
             await websocket.send_json(
-                {"type": "status", "content": "started", "research_id": pipeline.research_id}
+                {
+                    "type": "status",
+                    "content": "started",
+                    "research_id": pipeline.research_id,
+                }
             )
 
             result = await pipeline.run(topic)
@@ -355,7 +403,11 @@ async def websocket_research_run(websocket: WebSocket):
             history_manager.add_entry(
                 activity_type=ActivityType.RESEARCH,
                 title=topic,
-                content={"topic": topic, "report": report_content, "kb_name": kb_name},
+                content={
+                    "topic": topic,
+                    "report": report_content,
+                    "kb_name": kb_name,
+                },
                 summary=f"Research ID: {result['research_id']}",
             )
 
@@ -370,17 +422,21 @@ async def websocket_research_run(websocket: WebSocket):
 
             # Update task status to completed
             try:
-                log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
-                    "logging", {}
-                ).get("log_dir")
+                log_dir = config.get("paths", {}).get(
+                    "user_log_dir"
+                ) or config.get("logging", {}).get("log_dir")
                 research_logger = get_logger("Research", log_dir=log_dir)
-                research_logger.success(f"[{task_id}] Research flow completed: {topic[:50]}...")
+                research_logger.success(
+                    f"[{task_id}] Research flow completed: {topic[:50]}..."
+                )
                 task_manager.update_task_status(task_id, "completed")
             except Exception as e:
                 logger.warning(f"Failed to log completion: {e}")
 
         finally:
-            sys.stdout = original_stdout  # Safely restore using saved reference
+            sys.stdout = (
+                original_stdout  # Safely restore using saved reference
+            )
 
     except Exception as e:
         await websocket.send_json({"type": "error", "content": str(e)})
@@ -388,9 +444,9 @@ async def websocket_research_run(websocket: WebSocket):
 
         # Update task status to error
         try:
-            log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
-                "log_dir"
-            )
+            log_dir = config.get("paths", {}).get(
+                "user_log_dir"
+            ) or config.get("logging", {}).get("log_dir")
             research_logger = get_logger("Research", log_dir=log_dir)
             research_logger.error(f"[{task_id}] Research flow failed: {e}")
             task_manager.update_task_status(task_id, "error", error=str(e))

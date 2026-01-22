@@ -7,7 +7,6 @@ Base class for document parsers.
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...types import Document
 from ..base import BaseComponent
@@ -22,7 +21,7 @@ class BaseParser(BaseComponent):
 
     name = "base_parser"
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, file_path: str | Path, **kwargs) -> Document:
         """
         Parse a file into a Document.
 

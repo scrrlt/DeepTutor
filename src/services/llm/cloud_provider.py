@@ -3,8 +3,7 @@
 Cloud LLM Provider
 ==================
 
-Handles all cloud API LLM calls (OpenAI, DeepSeek, Anthropic, etc.)
-Provides both complete() and stream() methods.
+Handle cloud API calls (OpenAI, DeepSeek, Anthropic, etc.).
 """
 
 from collections.abc import AsyncGenerator, Mapping
@@ -134,6 +133,7 @@ def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
 from .capabilities import get_effective_temperature, supports_response_format
 from .config import get_token_limit_kwargs
 from .exceptions import LLMAPIError, LLMAuthenticationError, LLMConfigError
+from .model_rules import get_token_limit_kwargs
 from .utils import (
     build_auth_headers,
     build_chat_url,
@@ -147,6 +147,10 @@ from .utils import (
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
@@ -172,6 +176,11 @@ async def complete(
     Returns:
         str: The LLM response
     """
+    if model is None:
+        raise LLMConfigError("Model is required for cloud providers")
+    if base_url is None:
+        raise LLMConfigError("Base URL is required for cloud providers")
+
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
         raise LLMConfigError("Model is required for cloud LLM provider")
@@ -222,7 +231,13 @@ async def stream(
     api_key: str | None = None,
     base_url: str | None = None,
     api_version: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
     binding: str = "openai",
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
     messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
@@ -243,6 +258,11 @@ async def stream(
     Yields:
         str: Response chunks
     """
+    if model is None:
+        raise LLMConfigError("Model is required for cloud providers")
+    if base_url is None:
+        raise LLMConfigError("Base URL is required for cloud providers")
+
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
         raise LLMConfigError("Model is required for cloud LLM provider")
@@ -280,6 +300,9 @@ async def _openai_complete(
     model: str,
     prompt: str,
     system_prompt: str,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     api_key: str | None,
     base_url: str | None,
     api_version: str | None = None,
@@ -425,6 +448,9 @@ async def _openai_stream(
     api_key: str | None,
     base_url: str | None,
     api_version: str | None = None,
+    api_key: str | None,
+    base_url: str | None,
+    api_version: str | None = None,
     binding: str = "openai",
     messages: list[dict[str, str]] | None = None,
     **kwargs: object,
@@ -484,8 +510,8 @@ async def _openai_stream(
             if resp.status != 200:
                 error_text = await resp.text()
                 raise LLMAPIError(
-                    f"OpenAI stream error: {error_text}",
-                    status_code=resp.status,
+                    f"OpenAI stream error: {error_body.decode('utf-8', errors='replace')}",
+                    status_code=resp.status_code,
                     provider=binding or "openai",
                 )
 
@@ -493,8 +519,8 @@ async def _openai_stream(
             in_thinking_block = False
             thinking_buffer = ""
 
-            async for line in resp.content:
-                line_str = line.decode("utf-8").strip()
+            async for line_str in resp.aiter_lines():
+                line_str = line_str.strip()
                 if not line_str or not line_str.startswith("data:"):
                     continue
 
@@ -667,13 +693,13 @@ async def _anthropic_stream(
             if response.status != 200:
                 error_text = await response.text()
                 raise LLMAPIError(
-                    f"Anthropic stream error: {error_text}",
-                    status_code=response.status,
+                    f"Anthropic stream error: {error_body.decode('utf-8', errors='replace')}",
+                    status_code=response.status_code,
                     provider="anthropic",
                 )
 
-            async for line in response.content:
-                line_str = line.decode("utf-8").strip()
+            async for line_str in response.aiter_lines():
+                line_str = line_str.strip()
                 if not line_str or not line_str.startswith("data:"):
                     continue
 
@@ -752,7 +778,9 @@ async def _cohere_complete(
 async def fetch_models(
     base_url: str,
     api_key: str | None = None,
+    api_key: str | None = None,
     binding: str = "openai",
+) -> list[str]:
 ) -> list[str]:
     """
     Fetch available models from cloud provider.

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 CitationManager - Citation management system
 Responsible for extracting citation information from tool calls and managing citation JSON files
@@ -134,6 +133,7 @@ class CitationManager:
                         self._restore_counters_from_citations()
             except Exception as e:
                 logger.error(f"⚠️ Failed to load citation file: {e}")
+                logger.error(f"⚠️ Failed to load citation file: {e}")
                 self._citations = {}
         else:
             self._citations = {}
@@ -176,6 +176,7 @@ class CitationManager:
             with open(self.citations_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
+            logger.error(f"⚠️ Failed to save citation file: {e}")
             logger.error(f"⚠️ Failed to save citation file: {e}")
 
     def validate_citation_references(self, text: str) -> dict[str, Any]:
@@ -284,6 +285,7 @@ class CitationManager:
             return False
         except Exception as e:
             logger.error(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
+            logger.error(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
             return False
 
     def _extract_rag_citation(
@@ -338,7 +340,7 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse RAG source info: {e}")
+            logger.error(f"⚠️ Failed to parse RAG source info: {e}")
 
         return citation_info
 
@@ -385,7 +387,7 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse web source info: {e}")
+            logger.error(f"⚠️ Failed to parse web source info: {e}")
 
         return citation_info
 
@@ -448,6 +450,7 @@ class CitationManager:
 
             return citation_info
         except Exception as e:
+            logger.error(f"⚠️ Failed to parse paper citation: {e}")
             logger.error(f"⚠️ Failed to parse paper citation: {e}")
             # Still return the basic citation info
             return citation_info
@@ -578,7 +581,7 @@ class CitationManager:
 
     # ========== Reference Number Mapping Methods ==========
 
-    def _get_citation_dedup_key(self, citation: dict, paper: dict = None) -> str:
+    def _get_citation_dedup_key(self, citation: dict, paper: dict | None = None) -> str:
         """
         Generate unique key for citation deduplication
 

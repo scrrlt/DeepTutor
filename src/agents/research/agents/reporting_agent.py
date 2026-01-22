@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ReportingAgent - Report generation Agent (DR-in-KG 2.0)
 - Deduplication and cleaning
@@ -22,8 +21,15 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import DynamicTopicQueue, TopicBlock
+from src.logging import get_logger
 
-from ..utils.json_utils import ensure_json_dict, ensure_keys, extract_json_from_text
+logger = get_logger(__name__)
+
+from ..utils.json_utils import (
+    ensure_json_dict,
+    ensure_keys,
+    extract_json_from_text,
+)
 
 
 class ReportingAgent(BaseAgent):
@@ -66,7 +72,7 @@ class ReportingAgent(BaseAgent):
         base_url: str | None = None,
         api_version: str | None = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="reporting_agent",
@@ -103,11 +109,19 @@ class ReportingAgent(BaseAgent):
               "citations": int
             }
         """
+<<<<<<< HEAD
+        logger.info(f"\n{'=' * 70}")
+        logger.info("📄 ReportingAgent - Report Generation")
+        logger.info(f"{'=' * 70}")
+        logger.info(f"Topic: {topic}")
+        logger.info(f"Topic Blocks: {len(queue.blocks)}\n")
+=======
         self.logger.info(f"\n{'=' * 70}")
         self.logger.info("📄 ReportingAgent - Report Generation")
         self.logger.info(f"{'=' * 70}")
         self.logger.info(f"Topic: {topic}")
         self.logger.info(f"Topic Blocks: {len(queue.blocks)}\n")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
 
         # Store progress_callback for use in _write_report
         self._progress_callback = progress_callback
@@ -117,17 +131,25 @@ class ReportingAgent(BaseAgent):
         )
 
         # 1) Deduplication
-        print("🔄 Step 1: Deduplication and cleaning...")
+        logger.info("🔄 Step 1: Deduplication and cleaning...")
         cleaned_blocks = await self._deduplicate_blocks(queue.blocks)
+<<<<<<< HEAD
+        logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
+=======
         self.logger.info(f"✓ Cleaning completed: {len(cleaned_blocks)} topic blocks")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback, "deduplicate_completed", kept_blocks=len(cleaned_blocks)
         )
 
         # 2) Outline
-        print("\n📋 Step 2: Generating outline...")
+        logger.info("\n📋 Step 2: Generating outline...")
         outline = await self._generate_outline(topic, cleaned_blocks)
+<<<<<<< HEAD
+        logger.info("✓ Outline generation completed")
+=======
         self.logger.info("✓ Outline generation completed")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback, "outline_completed", sections=len(outline.get("sections", []))
         )
@@ -136,19 +158,30 @@ class ReportingAgent(BaseAgent):
         self._current_outline = outline
 
         # 3) Writing
-        print("\n✍️  Step 3: Writing report...")
+        logger.info("\n✍️  Step 3: Writing report...")
         report_markdown = await self._write_report(topic, cleaned_blocks, outline)
+<<<<<<< HEAD
+        logger.info("✓ Report writing completed")
+=======
         self.logger.info("✓ Report writing completed")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(progress_callback, "writing_completed")
 
         word_count = len(report_markdown)
         sections = len(cleaned_blocks)
         citations = sum(len(b.tool_traces) for b in cleaned_blocks)
 
+<<<<<<< HEAD
+        logger.info("\n📊 Report Statistics:")
+        logger.info(f"   Word Count: {word_count}")
+        logger.info(f"   Sections: {sections}")
+        logger.info(f"   Citations: {citations}")
+=======
         self.logger.info("\n📊 Report Statistics:")
         self.logger.info(f"   Word Count: {word_count}")
         self.logger.info(f"   Sections: {sections}")
         self.logger.info(f"   Citations: {citations}")
+>>>>>>> cb09a95 (feat: Replace print statements with proper logging)
         self._notify_progress(
             progress_callback,
             "reporting_completed",
@@ -603,7 +636,7 @@ class ReportingAgent(BaseAgent):
         # Otherwise use original method of extracting from blocks (backward compatible)
         return self._generate_references_from_blocks(blocks)
 
-    def _get_citation_dedup_key(self, citation: dict, paper: dict = None) -> str:
+    def _get_citation_dedup_key(self, citation: dict, paper: dict | None = None) -> str:
         """Generate unique key for citation deduplication
 
         Args:
@@ -799,9 +832,7 @@ class ReportingAgent(BaseAgent):
 
         # Add collapsible links section
         if web_sources:
-            result += "\n<details>\n<summary>📎 Retrieved Sources ({} links)</summary>\n\n".format(
-                len(web_sources)
-            )
+            result += f"\n<details>\n<summary>📎 Retrieved Sources ({len(web_sources)} links)</summary>\n\n"
             for i, source in enumerate(web_sources, 1):
                 title = source.get("title", "Untitled")
                 url = source.get("url", "")
@@ -844,9 +875,7 @@ class ReportingAgent(BaseAgent):
 
         # Add source documents if available
         if sources:
-            result += "\n<details>\n<summary>📄 Source Documents ({} docs)</summary>\n\n".format(
-                len(sources)
-            )
+            result += f"\n<details>\n<summary>📄 Source Documents ({len(sources)} docs)</summary>\n\n"
             for i, source in enumerate(sources, 1):
                 title = source.get("title", "") or source.get("source_file", f"Document {i}")
                 content = source.get("content_preview", "")
@@ -922,7 +951,7 @@ class ReportingAgent(BaseAgent):
         parts = ["## References\n\n"]
 
         # Collect all citations
-        all_citations = []
+        all_citations: list[dict] = []
         for block in blocks:
             if block.tool_traces:
                 for trace in block.tool_traces:
@@ -1098,7 +1127,7 @@ class ReportingAgent(BaseAgent):
         # Build citation number map before writing (for consistent ref_number in traces)
         if self.enable_inline_citations:
             self._citation_map = self._build_citation_number_map(blocks)
-            print(f"  📋 Built citation map with {len(self._citation_map)} entries")
+            logger.info(f"  📋 Built citation map with {len(self._citation_map)} entries")
         else:
             self._citation_map = {}
 
@@ -1109,7 +1138,7 @@ class ReportingAgent(BaseAgent):
         parts.append(f"{title}\n\n")
 
         # 2. Write introduction
-        print("  📝 Writing introduction...")
+        logger.info("  📝 Writing introduction...")
         self._notify_progress(
             getattr(self, "_progress_callback", None),
             "writing_section",
@@ -1132,7 +1161,7 @@ class ReportingAgent(BaseAgent):
             block_id = section.get("block_id")
             block = next((b for b in blocks if b.block_id == block_id), None)
             if not block:
-                print(
+                logger.warning(
                     f"  ⚠️  Warning: Cannot find topic block with block_id={block_id}, skipping this section"
                 )
                 continue
@@ -1140,7 +1169,7 @@ class ReportingAgent(BaseAgent):
             section_title = section.get("title", block.sub_topic)
             # Clean section title for display (remove markdown markers)
             display_title = section_title.replace("##", "").strip()
-            print(f"  📝 Writing section {i}/{len(sections)}: {section_title}...")
+            logger.info(f"  📝 Writing section {i}/{len(sections)}: {section_title}...")
             self._notify_progress(
                 getattr(self, "_progress_callback", None),
                 "writing_section",
@@ -1166,7 +1195,7 @@ class ReportingAgent(BaseAgent):
             parts.append("\n\n")
 
         # 4. Write conclusion
-        print("  📝 Writing conclusion...")
+        logger.info("  📝 Writing conclusion...")
         total_sections = len(sections) + 2
         self._notify_progress(
             getattr(self, "_progress_callback", None),
@@ -1186,30 +1215,30 @@ class ReportingAgent(BaseAgent):
 
         # 5. Generate References based on configuration
         if self.enable_citation_list:
-            print("  📝 Generating citation list...")
+            logger.info("  📝 Generating citation list...")
             references = self._generate_references(blocks)
             parts.append(references)
         else:
-            print("  ℹ️  Citation list disabled, skipping generation")
+            logger.info("  ℹ️  Citation list disabled, skipping generation")
 
         # Combine all parts
         report = "".join(parts)
 
         # 6. Post-process citations (convert [N] to [[N]](#ref-N) format)
         if self.enable_inline_citations:
-            print("  🔗 Converting citation format...")
+            logger.info("  🔗 Converting citation format...")
             report = self._convert_citation_format(report)
 
             # Validate and fix invalid citations
-            print("  ✓ Validating citations...")
+            logger.info("  ✓ Validating citations...")
             report, validation = self._validate_and_fix_citations(report)
 
             if not validation["is_valid"]:
-                print(
+                logger.warning(
                     f"  ⚠️  Removed {len(validation['invalid_citations'])} invalid citations: {validation['invalid_citations']}"
                 )
             else:
-                print(f"  ✓ All {validation['total_found']} citations are valid")
+                logger.info(f"  ✓ All {validation['total_found']} citations are valid")
 
         return report
 

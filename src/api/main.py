@@ -1,30 +1,132 @@
+import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routers import (
-    agent_config,
-    chat,
-    co_writer,
-    config,
-    dashboard,
-    guide,
-    ideagen,
-    knowledge,
-    notebook,
-    question,
-    research,
-    settings,
-    solve,
-    system,
-)
 from src.logging import get_logger
+from src.services.llm.exceptions import (
+    LLMAPIError,
+    LLMAuthenticationError,
+    LLMError,
+    LLMRateLimitError,
+    LLMTimeoutError,
+)
 
-# Note: Don't set service_prefix here - start_web.py already adds [Backend] prefix
 logger = get_logger("API")
+
+
+def get_safe_detail(exc: Exception) -> str | None:
+    """
+    Return a safe detail string for non-production environments.
+
+    In production, return None to avoid leaking sensitive details.
+    """
+    environment = os.getenv("ENVIRONMENT", "").strip().lower()
+    allowed = {"development", "dev", "local", "test", "testing"}
+    if environment not in allowed:
+        return None
+    detail = str(exc).strip()
+    return detail or None
+
+
+def _normalize_status_code(value: object) -> int:
+    """Normalize and validate an HTTP status code, defaulting to 500."""
+    try:
+        status_code = int(value)
+    except (TypeError, ValueError):
+        return 500
+    if status_code < 100 or status_code > 599:
+        return 500
+    return status_code
+
+
+def _include_routers(app: FastAPI) -> None:
+    from src.api.routers import (
+        agent_config,
+        chat,
+        co_writer,
+        config,
+        dashboard,
+        guide,
+        ideagen,
+        knowledge,
+        notebook,
+        question,
+        research,
+        settings,
+        solve,
+        system,
+    )
+
+    app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
+    app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
+    app.include_router(
+        question.router,
+        prefix="/api/v1/question",
+        tags=["question"],
+    )
+    app.include_router(
+        research.router,
+        prefix="/api/v1/research",
+        tags=["research"],
+    )
+    app.include_router(
+        knowledge.router,
+        prefix="/api/v1/knowledge",
+        tags=["knowledge"],
+    )
+    app.include_router(
+        dashboard.router,
+        prefix="/api/v1/dashboard",
+        tags=["dashboard"],
+    )
+    app.include_router(
+        co_writer.router,
+        prefix="/api/v1/co_writer",
+        tags=["co_writer"],
+    )
+    app.include_router(
+        notebook.router,
+        prefix="/api/v1/notebook",
+        tags=["notebook"],
+    )
+    app.include_router(
+        guide.router,
+        prefix="/api/v1/guide",
+        tags=["guide"],
+    )
+    app.include_router(
+        ideagen.router,
+        prefix="/api/v1/ideagen",
+        tags=["ideagen"],
+    )
+    app.include_router(
+        settings.router,
+        prefix="/api/v1/settings",
+        tags=["settings"],
+    )
+    app.include_router(
+        system.router,
+        prefix="/api/v1/system",
+        tags=["system"],
+    )
+    app.include_router(
+        config.router,
+        prefix="/api/v1/config",
+        tags=["config"],
+    )
+    app.include_router(
+        agent_config.router,
+        prefix="/api/v1/agent-config",
+        tags=["agent-config"],
+    )
+
 
 CONFIG_DRIFT_ERROR_TEMPLATE = (
     "Configuration Drift Detected: Tools {drift} found in agents.yaml "
@@ -34,7 +136,7 @@ CONFIG_DRIFT_ERROR_TEMPLATE = (
 )
 
 
-def validate_tool_consistency():
+def validate_tool_consistency() -> None:
     """
     Validate that the tools configured for agents are consistent with the main application
     configuration.
@@ -120,7 +222,7 @@ def validate_tool_consistency():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifecycle management
     Gracefully handle startup and shutdown events, avoid CancelledError
@@ -131,20 +233,21 @@ async def lifespan(app: FastAPI):
     # Validate configuration consistency
     validate_tool_consistency()
 
-    # Initialize LLM client early to set environment variables for LightRAG
-    # LightRAG reads OPENAI_API_KEY from os.environ internally, so we must
-    # set it before any RAG operations can happen
-    try:
-        from src.services.llm import get_llm_client
-
-        llm_client = get_llm_client()
-        logger.info(f"LLM client initialized: model={llm_client.config.model}")
-    except Exception as e:
-        logger.warning(f"Failed to initialize LLM client at startup: {e}")
+    _include_routers(app)
 
     yield
+
     # Execute on shutdown
     logger.info("Application shutdown")
+
+    # Close shared HTTP client to release connections
+    try:
+        from src.services.llm.http_client import close_shared_http_client
+
+        await close_shared_http_client()
+        logger.info("Shared HTTP client closed successfully")
+    except Exception as e:
+        logger.error(f"Error closing shared HTTP client: {e}")
 
 
 app = FastAPI(
@@ -157,6 +260,155 @@ app = FastAPI(
     # See: https://github.com/HKUDS/DeepTutor/issues/112
     redirect_slashes=False,
 )
+
+
+# Global exception handlers for proper HTTP status codes
+@app.exception_handler(LLMError)
+async def llm_error_handler(request: Request, exc: LLMError) -> JSONResponse:
+    """
+    Handle LLM-related errors with appropriate HTTP status codes.
+
+    Circuit breaker errors return 503 Service Unavailable to allow clients
+    to handle backpressure correctly. Other LLM errors are mapped based on
+    their type (rate limit -> 429, auth -> 401, etc.).
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The raised LLMError instance.
+
+    Returns:
+        JSONResponse describing the error with the appropriate status code.
+
+    Raises:
+        LLMError: Re-raised when the error type is not handled explicitly.
+    """
+    # Circuit breaker - return 503 Service Unavailable
+    if isinstance(exc, LLMError) and getattr(exc, "is_circuit_breaker", False):
+        logger.warning(f"Circuit breaker triggered: {exc}")
+        content = {
+            "error": "service_unavailable",
+            "message": (
+                "Circuit breaker is open; the LLM service is temporarily "
+                "unavailable. Please try again later."
+            ),
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=content,
+        )
+
+    # Rate limit errors - return 429 Too Many Requests
+    if isinstance(exc, LLMRateLimitError):
+        logger.warning(f"Rate limit exceeded: {exc}")
+        content = {
+            "error": "rate_limit_exceeded",
+            "message": "Rate limit exceeded. Please try again later.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content=content,
+        )
+
+    # Authentication errors - return 401 Unauthorized
+    if isinstance(exc, LLMAuthenticationError):
+        logger.error(f"Authentication error: {exc}")
+        content = {
+            "error": "authentication_failed",
+            "message": ("LLM authentication failed. Please check your API credentials."),
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content=content,
+        )
+
+    # Timeout errors - return 504 Gateway Timeout
+    if isinstance(exc, LLMTimeoutError):
+        logger.warning(f"LLM timeout: {exc}")
+        content = {
+            "error": "gateway_timeout",
+            "message": "The LLM request timed out. Please try again.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            content=content,
+        )
+
+    # Generic LLM API errors - map based on status code
+    if isinstance(exc, LLMAPIError):
+        status_code = _normalize_status_code(getattr(exc, "status_code", None))
+        logger.error(f"LLM API error (status {status_code}): {exc}")
+        content = {
+            "error": "llm_api_error",
+            "message": "An error occurred while communicating with the LLM.",
+        }
+        safe_detail = get_safe_detail(exc)
+        if safe_detail:
+            content["detail"] = safe_detail
+        return JSONResponse(
+            status_code=status_code,
+            content=content,
+        )
+
+    # Re-raise for other exceptions to be handled by default handler
+    raise exc
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """
+    Handle uncaught exceptions with a sanitized 500 response.
+
+    HTTPException instances preserve their status code and detail while
+    other exceptions return a generic internal server error message.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The unhandled exception.
+
+    Returns:
+        JSONResponse carrying a sanitized error payload.
+    """
+    if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        raise exc
+    if isinstance(exc, asyncio.CancelledError):
+        raise exc
+    logger.error(f"Unhandled exception: {exc}")
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    message = "An unexpected error occurred. Please try again later."
+
+    if isinstance(exc, HTTPException):
+        status_code = _normalize_status_code(exc.status_code)
+        message = str(exc.detail or message)
+
+    content = {
+        "error": "internal_server_error",
+        "message": message,
+    }
+    safe_detail = get_safe_detail(exc)
+    if safe_detail:
+        content["detail"] = safe_detail
+
+    return JSONResponse(status_code=status_code, content=content)
+
+
+# Handlers are already registered via @app.exception_handler decorators above
+# No monkey-patching needed
+
 
 # Configure CORS
 app.add_middleware(
@@ -185,22 +437,6 @@ except Exception:
         user_dir.mkdir(parents=True)
 
 app.mount("/api/outputs", StaticFiles(directory=str(user_dir)), name="outputs")
-
-# Include routers
-app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
-app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
-app.include_router(question.router, prefix="/api/v1/question", tags=["question"])
-app.include_router(research.router, prefix="/api/v1/research", tags=["research"])
-app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
-app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
-app.include_router(co_writer.router, prefix="/api/v1/co_writer", tags=["co_writer"])
-app.include_router(notebook.router, prefix="/api/v1/notebook", tags=["notebook"])
-app.include_router(guide.router, prefix="/api/v1/guide", tags=["guide"])
-app.include_router(ideagen.router, prefix="/api/v1/ideagen", tags=["ideagen"])
-app.include_router(settings.router, prefix="/api/v1/settings", tags=["settings"])
-app.include_router(system.router, prefix="/api/v1/system", tags=["system"])
-app.include_router(config.router, prefix="/api/v1/config", tags=["config"])
-app.include_router(agent_config.router, prefix="/api/v1/agent-config", tags=["agent-config"])
 
 
 @app.get("/")
@@ -243,9 +479,12 @@ if __name__ == "__main__":
         if d.exists()
     ]
 
+    # Bind to localhost only for the built-in development server to avoid
+    # unintentionally exposing the API on the local network. Production
+    # deployments should configure the host/interface explicitly.
     uvicorn.run(
         "api.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=backend_port,
         reload=True,
         reload_excludes=reload_excludes,

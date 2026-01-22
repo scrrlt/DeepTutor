@@ -29,7 +29,9 @@ router = APIRouter()
 # Initialize logger with config
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("guide_config.yaml", project_root)
-log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
+log_dir = config.get("paths", {}).get("user_log_dir") or config.get(
+    "logging", {}
+).get("log_dir")
 logger = get_logger("Guide", level="INFO", log_dir=log_dir)
 
 
@@ -40,7 +42,9 @@ class CreateSessionRequest(BaseModel):
     """Create session request"""
 
     notebook_id: str | None = None  # Optional, single notebook mode
-    records: list[dict] | None = None  # Optional, cross-notebook mode with direct records
+    records: list[dict] | None = (
+        None  # Optional, cross-notebook mode with direct records
+    )
 
 
 class ChatRequest(BaseModel):
@@ -110,14 +114,18 @@ async def create_session(request: CreateSessionRequest):
             notebook_name = f"Cross-notebook ({len(records)} records)"
         # Mode 2: Single notebook mode - get records from notebook
         elif request.notebook_id:
-            notebook = notebook_manager.get_notebook(request.notebook_id)
+            notebook = await notebook_manager.get_notebook(request.notebook_id)
             if not notebook:
-                raise HTTPException(status_code=404, detail="Notebook not found")
+                raise HTTPException(
+                    status_code=404, detail="Notebook not found"
+                )
 
             records = notebook.get("records", [])
             notebook_name = notebook.get("name", "Unknown")
         else:
-            raise HTTPException(status_code=400, detail="Must provide notebook_id or records")
+            raise HTTPException(
+                status_code=400, detail="Must provide notebook_id or records"
+            )
 
         if not records:
             raise HTTPException(status_code=400, detail="No available records")
@@ -200,7 +208,9 @@ async def fix_html(request: FixHtmlRequest):
     """
     try:
         manager = get_guide_manager()
-        result = await manager.fix_html(request.session_id, request.bug_description)
+        result = await manager.fix_html(
+            request.session_id, request.bug_description
+        )
         return result
     except Exception as e:
         logger.error(f"Fix HTML failed: {e}")
@@ -234,7 +244,9 @@ async def get_current_html(session_id: str):
         manager = get_guide_manager()
         html = manager.get_current_html(session_id)
         if html is None:
-            raise HTTPException(status_code=404, detail="Session not found or no HTML content")
+            raise HTTPException(
+                status_code=404, detail="Session not found or no HTML content"
+            )
         return {"html": html}
     except HTTPException:
         raise
@@ -273,7 +285,9 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
 
         session = manager.get_session(session_id)
         if not session:
-            await websocket.send_json({"type": "error", "content": "Session not found"})
+            await websocket.send_json(
+                {"type": "error", "content": "Session not found"}
+            )
             await websocket.close()
             return
 
@@ -289,33 +303,48 @@ async def websocket_guide(websocket: WebSocket, session_id: str):
                 if msg_type == "start":
                     logger.debug(f"[{task_id}] Start learning")
                     result = await manager.start_learning(session_id)
-                    await websocket.send_json({"type": "start_result", "data": result})
+                    await websocket.send_json(
+                        {"type": "start_result", "data": result}
+                    )
 
                 elif msg_type == "next":
                     logger.debug(f"[{task_id}] Next knowledge point")
                     result = await manager.next_knowledge(session_id)
-                    await websocket.send_json({"type": "next_result", "data": result})
+                    await websocket.send_json(
+                        {"type": "next_result", "data": result}
+                    )
 
                 elif msg_type == "chat":
                     message = data.get("message", "")
                     if message:
-                        logger.debug(f"[{task_id}] User message: {message[:50]}...")
+                        logger.debug(
+                            f"[{task_id}] User message: {message[:50]}..."
+                        )
                         result = await manager.chat(session_id, message)
-                        await websocket.send_json({"type": "chat_result", "data": result})
+                        await websocket.send_json(
+                            {"type": "chat_result", "data": result}
+                        )
 
                 elif msg_type == "fix_html":
                     bug_desc = data.get("bug_description", "")
                     logger.debug(f"[{task_id}] Fix HTML: {bug_desc[:50]}...")
                     result = await manager.fix_html(session_id, bug_desc)
-                    await websocket.send_json({"type": "fix_result", "data": result})
+                    await websocket.send_json(
+                        {"type": "fix_result", "data": result}
+                    )
 
                 elif msg_type == "get_session":
                     session = manager.get_session(session_id)
-                    await websocket.send_json({"type": "session_info", "data": session})
+                    await websocket.send_json(
+                        {"type": "session_info", "data": session}
+                    )
 
                 else:
                     await websocket.send_json(
-                        {"type": "error", "content": f"Unknown message type: {msg_type}"}
+                        {
+                            "type": "error",
+                            "content": f"Unknown message type: {msg_type}",
+                        }
                     )
 
             except WebSocketDisconnect:

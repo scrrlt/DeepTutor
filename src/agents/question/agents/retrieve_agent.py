@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 RetrieveAgent - Responsible for generating RAG queries and retrieving knowledge.
 
@@ -71,7 +70,9 @@ class RetrieveAgent(BaseAgent):
 
         # Convert requirement to text
         if isinstance(requirement, dict):
-            requirement_text = json.dumps(requirement, ensure_ascii=False, indent=2)
+            requirement_text = json.dumps(
+                requirement, ensure_ascii=False, indent=2
+            )
         else:
             requirement_text = str(requirement)
 
@@ -90,7 +91,9 @@ class RetrieveAgent(BaseAgent):
             "queries": queries,
             "retrievals": retrievals,
             "summary": summary,
-            "has_content": any(r.get("answer", "").strip() for r in retrievals),
+            "has_content": any(
+                r.get("answer", "").strip() for r in retrievals
+            ),
         }
 
     async def _generate_queries(
@@ -108,16 +111,12 @@ class RetrieveAgent(BaseAgent):
         Returns:
             List of query strings
         """
-        system_prompt = self.get_prompt("system", "")
-        user_prompt_template = self.get_prompt("generate_queries", "")
-
-        if not user_prompt_template:
-            # Fallback prompt
-            user_prompt_template = (
-                f"Extract {num_queries} knowledge point names from this requirement for retrieval:\n"
-                "{requirement_text}\n\n"
-                'Return JSON: {{"queries": ["point1", "point2", ...]}}'
-            )
+        system_prompt = self.get_prompt("system", "") or ""
+        user_prompt_template = self.get_prompt("generate_queries", "") or (
+            f"Extract {num_queries} knowledge point names from this requirement for retrieval:\n"
+            "{requirement_text}\n\n"
+            'Return JSON: {{"queries": ["point1", "point2", ...]}}'
+        )
 
         user_prompt = user_prompt_template.format(
             requirement_text=requirement_text,
@@ -186,7 +185,9 @@ class RetrieveAgent(BaseAgent):
                 "error": str(e),
             }
 
-    async def _execute_searches(self, queries: list[str]) -> list[dict[str, Any]]:
+    async def _execute_searches(
+        self, queries: list[str]
+    ) -> list[dict[str, Any]]:
         """
         Execute RAG searches in parallel.
 
@@ -204,11 +205,15 @@ class RetrieveAgent(BaseAgent):
         retrievals = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                self.logger.warning(f"Search failed for query '{queries[i]}': {result}")
+                self.logger.warning(
+                    f"Search failed for query '{queries[i]}': {result}"
+                )
                 continue
             if result.get("answer"):
                 retrievals.append(result)
-                self.logger.debug(f"  → Query: {queries[i][:50]}... (retrieved)")
+                self.logger.debug(
+                    f"  → Query: {queries[i][:50]}... (retrieved)"
+                )
 
         return retrievals
 

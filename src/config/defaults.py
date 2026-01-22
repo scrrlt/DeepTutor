@@ -9,6 +9,9 @@ _project_root = Path(__file__).parent.parent.parent
 
 # Default configuration
 DEFAULTS = {
+    "system": {
+        "language": "en",
+    },
     "llm": {"model": "gpt-4o-mini", "provider": "openai"},
     "paths": {
         "user_data_dir": str(_project_root / "data" / "user"),

@@ -67,6 +67,8 @@ class RAGService:
         self,
         kb_base_dir: str | None = None,
         provider: str | None = None,
+        kb_base_dir: str | None = None,
+        provider: str | None = None,
     ):
         """
         Initialize RAG service.
@@ -147,7 +149,7 @@ class RAGService:
         Example:
             service = RAGService()
             result = await service.search("What is ML?", "textbook")
-            print(result["answer"])
+            logger.info(result["answer"])
         """
         # Get the provider from KB metadata, fallback to instance provider
         provider = await self._get_provider_for_kb(kb_name)
@@ -247,6 +249,7 @@ class RAGService:
 
     @staticmethod
     def list_providers() -> list[dict[str, str]]:
+    def list_providers() -> list[dict[str, str]]:
         """
         List available RAG pipeline providers.
 
@@ -256,7 +259,7 @@ class RAGService:
         Example:
             providers = RAGService.list_providers()
             for p in providers:
-                print(f"{p['id']}: {p['description']}")
+                logger.info(f"{p['id']}: {p['description']}")
         """
         return list_pipelines()
 

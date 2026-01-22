@@ -10,8 +10,10 @@ Usage:
     # Test specific pipeline
     python tests/services/rag/test_pipeline_integration.py --pipeline llamaindex
 
+
     # Test all pipelines
     python tests/services/rag/test_pipeline_integration.py --pipeline all
+
 
     # Using pytest
     pytest tests/services/rag/test_pipeline_integration.py -v --pipeline llamaindex
@@ -20,6 +22,7 @@ Usage:
 import argparse
 import asyncio
 import os
+from pathlib import Path
 from pathlib import Path
 import shutil
 import sys
@@ -34,6 +37,7 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
+
 
 load_dotenv(project_root / "DeepTutor.env", override=False)
 load_dotenv(project_root / ".env", override=False)
@@ -80,6 +84,7 @@ class PipelineIntegrationTest:
     """
     Integration test for a specific RAG pipeline.
 
+
     Tests:
     1. Knowledge base initialization with test file
     2. Search/retrieval
@@ -87,6 +92,12 @@ class PipelineIntegrationTest:
     """
 
     def __init__(self, pipeline_name: str, test_file: Path = TEST_FILE):
+        self.pipeline_name = pipeline_name
+        self.test_file = test_file
+        self.temp_dir = None
+        self.kb_name = f"test_kb_{pipeline_name}"
+        self.service = None
+
         self.pipeline_name: str = pipeline_name
         self.test_file: Path = test_file
         self.temp_dir: Optional[str] = None
@@ -226,6 +237,7 @@ class PipelineIntegrationTest:
 
             if result and result.get("answer"):
                 print_success("rag_tool.py search successful")
+                print_success("rag_tool.py search successful")
                 print_info(f"Provider: {result.get('provider')}")
                 print_info(f"Answer preview: {result['answer'][:100]}...")
                 return True
@@ -345,7 +357,14 @@ def print_summary(results: list):
 
     for result in results:
         pipeline = result["pipeline"]
-        tests = ["setup", "initialize", "search", "rag_tool", "delete", "cleanup"]
+        tests = [
+            "setup",
+            "initialize",
+            "search",
+            "rag_tool",
+            "delete",
+            "cleanup",
+        ]
         passed = sum(1 for t in tests if result.get(t, False))
         total = len(tests)
 
@@ -375,8 +394,11 @@ async def main():
     parser.add_argument(
         "--pipeline",
         "-p",
+        "--pipeline",
+        "-p",
         type=str,
         default="llamaindex",
+        help="Pipeline to test (or 'all' for all pipelines). Default: llamaindex",
         help="Pipeline to test (or 'all' for all pipelines). Default: llamaindex",
     )
     parser.add_argument("--list", "-l", action="store_true", help="List available pipelines")

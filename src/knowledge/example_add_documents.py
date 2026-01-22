@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Incremental Document Addition Usage Example
 
@@ -112,7 +111,9 @@ async def example_add_from_directory():
     print(f"Found {len(doc_files)} documents")
 
     # Add documents
-    new_files = adder.add_documents(source_files=doc_files, skip_duplicates=True)
+    new_files = adder.add_documents(
+        source_files=doc_files, skip_duplicates=True
+    )
 
     if new_files:
         # Process new documents
@@ -141,7 +142,9 @@ async def example_add_only_no_processing():
     )
 
     # Only add files to raw directory
-    new_files = adder.add_documents(source_files=["./chapter.pdf"], skip_duplicates=True)
+    new_files = adder.add_documents(
+        source_files=["./chapter.pdf"], skip_duplicates=True
+    )
 
     print(f"Added {len(new_files)} files to raw directory")
     print("These files can be processed manually later")
@@ -156,11 +159,15 @@ async def example_check_existing_files():
     print("Example 5: Check existing files in knowledge base")
     print("=" * 60)
 
-    adder = DocumentAdder(kb_name="ai_textbook", base_dir="./data/knowledge_bases")
+    adder = DocumentAdder(
+        kb_name="ai_textbook", base_dir="./data/knowledge_bases"
+    )
 
     existing_files = adder.get_existing_files()
 
-    print(f"\nKnowledge base 'ai_textbook' already has {len(existing_files)} files:")
+    print(
+        f"\nKnowledge base 'ai_textbook' already has {len(existing_files)} files:"
+    )
     for filename in sorted(existing_files):
         print(f"  • {filename}")
 
@@ -186,7 +193,9 @@ def example_with_error_handling():
             return
 
         # Add documents
-        new_files = adder.add_documents(source_files=[str(source_file)], skip_duplicates=True)
+        new_files = adder.add_documents(
+            source_files=[str(source_file)], skip_duplicates=True
+        )
 
         if not new_files:
             print("ℹ️ No new files to add (may already exist)")

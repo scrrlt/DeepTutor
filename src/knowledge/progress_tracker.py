@@ -195,7 +195,7 @@ class ProgressTracker:
             else:
                 logger.progress(progress_msg)
         except Exception:
-            # If logging fails, print to console
+            # If logging fails, log to console
             prefix = f"[{self.task_id}]" if self.task_id else ""
             logger.info(
                 f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})"

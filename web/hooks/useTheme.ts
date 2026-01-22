@@ -31,15 +31,15 @@ export function useTheme() {
   const isLoaded = isClient;
 
   const updateTheme = (newTheme: Theme) => {
-    setTheme(newTheme);
-    setThemeState(newTheme);
-  };
+    setTheme(newTheme)
+    setThemeState(newTheme)
+  }
 
   return {
-    theme: theme || "light",
+    theme: theme || 'light',
     isLoaded,
     setTheme: updateTheme,
-    isDark: theme === "dark",
-    isLight: theme === "light",
-  };
+    isDark: theme === 'dark',
+    isLight: theme === 'light',
+  }
 }

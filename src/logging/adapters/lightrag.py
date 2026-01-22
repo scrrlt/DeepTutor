@@ -6,15 +6,17 @@ LightRAG Log Forwarder
 
 Forwards LightRAG and RAG-Anything logs to DeepTutor's unified logging system.
 Uses the unified global log level from config/main.yaml -> logging.level
+Uses the unified global log level from config/main.yaml -> logging.level
 """
 
 from contextlib import contextmanager
 import logging
 from pathlib import Path
-from typing import Optional
+
+from .._stdlib_logging import stdlib_logging
 
 
-class LightRAGLogForwarder(logging.Handler):
+class LightRAGLogForwarder(stdlib_logging.Handler):
     """
     Handler that forwards LightRAG logger messages to DeepTutor logger.
     """
@@ -29,15 +31,26 @@ class LightRAGLogForwarder(logging.Handler):
         self.ai_tutor_logger = ai_tutor_logger
         self.add_prefix = add_prefix
         # Capture all log levels
-        self.setLevel(logging.DEBUG)
+        self.setLevel(stdlib_logging.DEBUG)
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: stdlib_logging.LogRecord):
         """
+        Forward log record to DeepTutor logger with proper level mapping.
         Forward log record to DeepTutor logger with proper level mapping.
         """
         try:
             message = record.getMessage()
 
+            # Map LightRAG log levels to DeepTutor logger methods
+            level = record.levelno
+            if level >= logging.ERROR:
+                self.ai_tutor_logger.error(message)
+            elif level >= logging.WARNING:
+                self.ai_tutor_logger.warning(message)
+            elif level >= logging.INFO:
+                self.ai_tutor_logger.info(message)
+            else:
+                self.ai_tutor_logger.debug(message)
             # Map LightRAG log levels to DeepTutor logger methods
             level = record.levelno
             if level >= logging.ERROR:
@@ -57,6 +70,7 @@ class LightRAGLogForwarder(logging.Handler):
 def get_lightrag_forwarding_config() -> dict:
     """
     Load LightRAG forwarding configuration from config/main.yaml.
+    Load LightRAG forwarding configuration from config/main.yaml.
 
     Returns:
         dict: Configuration dictionary with defaults if not found
@@ -66,10 +80,15 @@ def get_lightrag_forwarding_config() -> dict:
 
         from ..config import get_global_log_level
 
+        from ..config import get_global_log_level
+
         project_root = Path(__file__).resolve().parent.parent.parent.parent
         config = load_config_with_main("solve_config.yaml", project_root)
         logging_config = config.get("logging", {})
+        logging_config = config.get("logging", {})
 
+        # Use the unified global log level
+        level = get_global_log_level()
         # Use the unified global log level
         level = get_global_log_level()
 
@@ -84,6 +103,8 @@ def get_lightrag_forwarding_config() -> dict:
         # Return defaults if config loading fails
         return {
             "enabled": True,
+            "min_level": "DEBUG",
+            "logger_names": {"knowledge_init": "RAG-Init", "rag_tool": "RAG"},
             "min_level": "DEBUG",
             "logger_names": {"knowledge_init": "RAG-Init", "rag_tool": "RAG"},
         }
@@ -121,9 +142,11 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     try:
         debug_logger = get_logger("RAGForward")
         debug_logger.debug(
-            f"Setting up LightRAG log forwarding (scene={scene}, logger_name={logger_name})"
+            "Setting up LightRAG log forwarding (scene=%s, logger_name=%s)",
+            scene,
+            logger_name,
         )
-    except:
+    except Exception:
         pass  # Ignore if logger setup fails
 
     # Determine logger name
@@ -140,20 +163,20 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     # Get forwarding settings
     add_prefix = config.get("add_prefix", True)
     min_level_str = config.get("min_level", "INFO")
-    min_level = getattr(logging, min_level_str.upper(), logging.INFO)
+    min_level = getattr(logging, min_level_str.upper(), stdlib_logging.INFO)
 
     # Get LightRAG logger
-    lightrag_logger = logging.getLogger("lightrag")
+    lightrag_logger = stdlib_logging.getLogger("lightrag")
 
     # Store original handlers and level to restore later if needed
     original_handlers = lightrag_logger.handlers[:]  # Copy list
-    original_level = lightrag_logger.level
+    # original_level = lightrag_logger.level
 
     # Temporarily remove existing console handlers to avoid duplicate output
     # We'll forward all logs through our handler instead
     console_handlers_to_remove = []
     for handler in original_handlers:
-        if isinstance(handler, logging.StreamHandler):
+        if isinstance(handler, stdlib_logging.StreamHandler):
             console_handlers_to_remove.append(handler)
 
     for handler in console_handlers_to_remove:
@@ -162,8 +185,8 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     # Ensure LightRAG logger level is set low enough to capture all logs
     # The logger level controls which logs are created, handler level controls which are processed
     # Set to DEBUG to ensure we capture everything, then filter at handler level
-    if lightrag_logger.level > logging.DEBUG:
-        lightrag_logger.setLevel(logging.DEBUG)
+    if lightrag_logger.level > stdlib_logging.DEBUG:
+        lightrag_logger.setLevel(stdlib_logging.DEBUG)
 
     # Create and add forwarder
     forwarder = LightRAGLogForwarder(ai_tutor_logger, add_prefix=add_prefix)
@@ -174,7 +197,7 @@ def LightRAGLogContext(logger_name: Optional[str] = None, scene: Optional[str] =
     try:
         test_msg = "LightRAG log forwarding enabled"
         lightrag_logger.info(test_msg)
-    except:
+    except Exception:
         pass  # Ignore test log errors
 
     try:
