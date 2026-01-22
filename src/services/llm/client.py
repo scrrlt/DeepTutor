@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional
 
 import os
 
+import os
+
 from src.logging import get_logger
 
 from .capabilities import system_in_messages
@@ -181,6 +183,30 @@ class LLMClient:
                 )
 
             return llm_model_func_via_factory
+        # Fall back to factory if lightrag is unavailable.
+        try:
+            from lightrag.llm.openai import openai_complete_if_cache
+        except ImportError:
+            from . import factory
+
+            def llm_model_func_via_factory(
+                prompt: str,
+                system_prompt: Optional[str] = None,
+                history_messages: Optional[List[Dict]] = None,
+                **kwargs: Any,
+            ):
+                return factory.complete(
+                    prompt=prompt,
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    model=self.config.model,
+                    api_key=self.config.api_key,
+                    base_url=self.config.base_url,
+                    binding=binding,
+                    history_messages=history_messages,
+                    **kwargs,
+                )
+
+            return llm_model_func_via_factory
 
         def llm_model_func(
             prompt: str,
@@ -248,6 +274,35 @@ class LLMClient:
             return vision_model_func_via_factory
 
         # OpenAI-compatible bindings
+        # Note: Environment variables are already set in __init__ via _setup_openai_env_vars()
+        # Fall back to factory if lightrag is unavailable.
+        try:
+            from lightrag.llm.openai import openai_complete_if_cache
+        except ImportError:
+            from . import factory
+
+            def vision_model_func_via_factory(
+                prompt: str,
+                system_prompt: Optional[str] = None,
+                history_messages: Optional[List[Dict]] = None,
+                image_data: Optional[str] = None,
+                messages: Optional[List[Dict]] = None,
+                **kwargs: Any,
+            ):
+                return factory.complete(
+                    prompt=prompt,
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    model=self.config.model,
+                    api_key=self.config.api_key,
+                    base_url=self.config.base_url,
+                    binding=binding,
+                    messages=messages,
+                    history_messages=history_messages,
+                    image_data=image_data,
+                    **kwargs,
+                )
+
+            return vision_model_func_via_factory
         # Note: Environment variables are already set in __init__ via _setup_openai_env_vars()
         # Fall back to factory if lightrag is unavailable.
         try:
