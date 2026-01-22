@@ -20,7 +20,12 @@ import aiohttp
 
 from src.logging import get_logger
 
+from src.logging import get_logger
+
 from .exceptions import LLMAPIError, LLMConfigError
+
+
+logger = get_logger(__name__)
 
 
 logger = get_logger(__name__)

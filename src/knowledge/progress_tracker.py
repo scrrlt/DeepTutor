@@ -97,6 +97,7 @@ class ProgressTracker:
                 callback(progress)
             except Exception as e:
                 logger.error(f"[ProgressTracker] Callback error: {e}")
+                logger.error(f"[ProgressTracker] Callback error: {e}")
 
     def _save_progress(self, progress: dict):
         """Save progress to kb_config.json and local .progress.json file"""
@@ -146,6 +147,7 @@ class ProgressTracker:
             with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
+            logger.error(f"[ProgressTracker] Failed to save progress: {e}")
             logger.error(f"[ProgressTracker] Failed to save progress: {e}")
 
     def update(
@@ -200,6 +202,7 @@ class ProgressTracker:
             )
             if error:
                 logger.error(f"{prefix} [ProgressTracker] Error: {error}")
+                logger.error(f"{prefix} [ProgressTracker] Error: {error}")
 
         self._save_progress(progress)
         self._notify(progress)
@@ -214,6 +217,7 @@ class ProgressTracker:
                 return json.load(f)
         except Exception as e:
             logger.error(f"[ProgressTracker] Failed to read progress: {e}")
+            logger.error(f"[ProgressTracker] Failed to read progress: {e}")
             return None
 
     def clear(self):
@@ -222,4 +226,5 @@ class ProgressTracker:
             try:
                 self.progress_file.unlink()
             except Exception as e:
+                logger.error(f"[ProgressTracker] Failed to clear progress: {e}")
                 logger.error(f"[ProgressTracker] Failed to clear progress: {e}")
