@@ -25,15 +25,7 @@ Usage:
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
-
-if TYPE_CHECKING:
-    from ..logger import Logger
-
-from src.logging import get_logger
-
-
-logger = get_logger(__name__)
+from typing import Any, Optional
 
 # Model pricing per 1K tokens (USD)
 MODEL_PRICING = {
@@ -177,24 +169,18 @@ class LLMStats:
 
         total_tokens = self.total_prompt_tokens + self.total_completion_tokens
 
-        logger.info("=" * 60)
-        logger.info(f"LLM Usage Summary for {self.module_name}")
-        logger.info("=" * 60)
-        logger.info(f"Model       : {self.model_used or 'Unknown'}")
-        logger.info(f"API Calls   : {len(self.calls)}")
-        logger.info(
-            f"Tokens      : {total_tokens:,} (Input: {self.total_prompt_tokens:,}, Output: {self.total_completion_tokens:,})"
+        print()
+        print("=" * 60)
+        print(f"📊 [{self.module_name}] LLM Usage Summary")
+        print("=" * 60)
+        print(f"  Model       : {self.model_used or 'Unknown'}")
+        print(f"  API Calls   : {len(self.calls)}")
+        print(
+            f"  Tokens      : {total_tokens:,} (Input: {self.total_prompt_tokens:,}, Output: {self.total_completion_tokens:,})"
         )
-        logger.info(f"Cost        : ${self.total_cost:.6f} USD")
-        logger.info("=" * 60)
-
-    def print_summary(self):
-        """
-        Print summary to terminal.
-
-        Deprecated: Use log_summary() instead for consistent logging.
-        """
-        self.log_summary()
+        print(f"  Cost        : ${self.total_cost:.6f} USD")
+        print("=" * 60)
+        print()
 
     def reset(self):
         """Reset all statistics."""

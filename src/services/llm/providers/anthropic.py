@@ -10,6 +10,11 @@ from ..telemetry import track_llm_call
 from ..types import AsyncStreamGenerator, TutorResponse, TutorStreamChunk
 from .base_provider import BaseLLMProvider
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 @register_provider("anthropic")
 class AnthropicProvider(BaseLLMProvider):
