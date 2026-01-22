@@ -339,10 +339,8 @@ class Logger:
         self,
         level: int,
         message: str,
-        *args,  # Added to support formatting
-        symbol: str | None = None,
-        display_level: str | None = None,
-        **kwargs,
+        display_level: Optional[str] = None,
+        **kwargs: Any,
     ):
         """Internal logging method with extra attributes."""
         extra = {
@@ -356,43 +354,38 @@ class Logger:
             "exc_info": kwargs.get("exc_info", False),
             "stack_info": kwargs.get("stack_info", False),
             "stacklevel": kwargs.get("stacklevel", 1) + 2,  # Account for _log +
-            "stacklevel": kwargs.get("stacklevel", 1) + 2,  # Account for _log +
         }
         # Pass args for formatting
         self.logger.log(level, message, *args, **log_kwargs)
 
     # Standard logging methods
-    def debug(self, message: str, *args, **kwargs):
-        """Debug level log (·)"""
-        self._log(logging.DEBUG, message, *args, symbol="·", **kwargs)
+    def debug(self, message: str, **kwargs: Any):
+        """Debug level log [DEBUG]"""
+        self._log(logging.DEBUG, message, **kwargs)
 
-    def info(self, message: str, *args, **kwargs):
-        """Info level log (●)"""
-        self._log(logging.INFO, message, *args, symbol="●", **kwargs)
+    def info(self, message: str, **kwargs: Any):
+        """Info level log [INFO]"""
+        self._log(logging.INFO, message, **kwargs)
 
-    def warning(self, message: str, *args, **kwargs):
-        """Warning level log (⚠)"""
-        self._log(logging.WARNING, message, *args, symbol="⚠", **kwargs)
+    def warning(self, message: str, **kwargs: Any):
+        """Warning level log [WARNING]"""
+        self._log(logging.WARNING, message, **kwargs)
 
-    def error(self, message: str, *args, **kwargs):
-        """Error level log (✗)"""
-        self._log(logging.ERROR, message, *args, symbol="✗", **kwargs)
+    def error(self, message: str, **kwargs: Any):
+        """Error level log [ERROR]"""
+        self._log(logging.ERROR, message, **kwargs)
 
-    def critical(self, message: str, *args, **kwargs):
-        """Critical level log (✗)"""
-        self._log(logging.CRITICAL, message, *args, symbol="✗", **kwargs)
+    def critical(self, message: str, **kwargs: Any):
+        """Critical level log [CRITICAL]"""
+        self._log(logging.CRITICAL, message, **kwargs)
 
-    def exception(self, message: str, *args, **kwargs):
+    def exception(self, message: str, **kwargs: Any):
         """Log exception with traceback"""
-        self.logger.exception(
-            message,
-            *args,
-            extra={
-                "module_name": self.name,
-                "symbol": "✗",
-                "display_level": "ERROR",
-            },
-        )
+        # Ensure exc_info is True to print the stack trace
+        kwargs.setdefault("exc_info", True)
+
+        # Forward all kwargs (including stack_info, stacklevel) to the underlying logger
+        self._log(logging.ERROR, message, display_level="ERROR", **kwargs)
 
     # Convenience methods
     def success(self, message: str, elapsed: float | None = None, **kwargs):

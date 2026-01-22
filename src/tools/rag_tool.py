@@ -8,7 +8,6 @@ All logic is delegated to RAGService in src/services/rag/service.py.
 
 import asyncio
 import os
-import os
 from pathlib import Path
 from typing import Any
 
@@ -23,42 +22,8 @@ load_dotenv(project_root / ".env", override=False)
 from src.logging import get_logger
 from src.services.rag.service import RAGService
 
-logger = get_logger("RAGTool")
-
-
-class _RAGEngineAdapter:
-    def __init__(
-        self,
-        service: RAGService,
-        kb_name: str | None,
-        extra_kwargs: dict[str, Any],
-    ) -> None:
-        self._service = service
-        self._kb_name = kb_name
-        self._extra_kwargs = extra_kwargs
-
-    async def query(self, query: str, param_mode: str = "hybrid") -> str:
-        result = await self._service.search(
-            query=query,
-            kb_name=self._kb_name,
-            mode=param_mode,
-            **self._extra_kwargs,
-        )
-        return str(result.get("answer", ""))
-
-
-def get_rag_engine(
-    kb_name: str | None,
-    provider: str | None = None,
-    kb_base_dir: str | None = None,
-    **kwargs: Any,
-) -> _RAGEngineAdapter:
-    """Return an engine-like object with an async `query()` method.
-
-    This exists primarily for testability; unit tests patch this function.
-    """
-    service = RAGService(kb_base_dir=kb_base_dir, provider=provider)
-    return _RAGEngineAdapter(service=service, kb_name=kb_name, extra_kwargs=kwargs)
+# Default provider constant used by tests and external callers
+DEFAULT_RAG_PROVIDER = os.getenv("RAG_PROVIDER", "raganything")
 
 
 async def rag_search(
@@ -101,39 +66,15 @@ async def rag_search(
         # Override provider
         result = await rag_search("What is ML?", kb_name="textbook", provider="lightrag")
     """
-    if not query or not query.strip():
-        return {
-            "status": "error",
-            "answer": "",
-            "message": "Empty query",
-        }
+    service = RAGService(kb_base_dir=kb_base_dir, provider=provider)
 
     try:
-        engine = get_rag_engine(
-            kb_name=kb_name,
-            provider=provider,
-            kb_base_dir=kb_base_dir,
-            **kwargs,
-        )
-        answer = await engine.query(query, param_mode=mode)
-        return {
-            "status": "success",
-            "query": query,
-            "answer": answer,
-            "mode": mode,
-        }
-    except ValueError as e:
-        # Expected errors: invalid config, missing KB, etc.
-        logger.warning("RAG configuration error: %s", e)
-        return {"status": "error", "answer": "", "message": str(e)}
-    except Exception as exc:
-        # Unexpected errors: MUST log full trace for debugging
-        logger.exception("RAG search failed unexpectedly for query: %s", query)
-        return {
-            "status": "error",
-            "answer": "",
-            "message": "Internal search error (see logs for details)",
-        }
+        return await service.search(query=query, kb_name=kb_name, mode=mode, **kwargs)
+    except ValueError:
+        # Preserve ValueError for callers/tests that expect the specific error type
+        raise
+    except Exception as e:
+        raise Exception(f"RAG search failed: {e}")
 
 
 async def initialize_rag(

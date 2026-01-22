@@ -8,7 +8,6 @@ Now supports multiple providers through adapters.
 """
 
 import asyncio
-import asyncio
 from typing import List, Optional
 
 from src.logging import get_logger
@@ -35,9 +34,7 @@ class EmbeddingClient:
         """
         self.config = config or get_embedding_config()
         self.logger = get_logger("EmbeddingClient")
-        self.manager: EmbeddingProviderManager = (
-            get_embedding_provider_manager()
-        )
+        self.manager: EmbeddingProviderManager = get_embedding_provider_manager()
 
         # Capture the loop where the client/adapters were created for thread-safe sync wrapper
         try:
@@ -104,70 +101,6 @@ class EmbeddingClient:
     def embed_sync(self, texts: list[str]) -> list[list[float]]:
         """
         Thread-safe synchronous wrapper for embed().
-        Thread-safe synchronous wrapper for embed().
-
-        Use this when you need to call from non-async context.
-
-        Args:
-            texts: List of texts to embed.
-
-        Returns:
-            List of embedding vectors.
-        """
-        import asyncio
-
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running loop - safe to use asyncio.run()
-            return asyncio.run(self.embed(texts))
-
-        # Loop is running - use thread pool to avoid nested event loop
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, self.embed(texts))
-            return future.result()
-
-    def _validate_embeddings_response(
-        self, embeddings: list[list[float]], texts: list[str]
-    ) -> None:
-        """
-        Validate the embeddings response from the adapter.
-
-        Args:
-            embeddings: The embeddings returned by the adapter
-            texts: The original input texts
-
-        Raises:
-            ValueError: If the embeddings are invalid
-        """
-        if (
-            embeddings is None
-            or not isinstance(embeddings, list)
-            or len(embeddings) == 0
-            or len(embeddings) != len(texts)
-            or any(
-                not isinstance(emb, list) or len(emb) == 0
-                for emb in embeddings
-            )
-        ):
-            emb_len = (
-                len(embeddings) if isinstance(embeddings, list) else "N/A"
-            )
-            emb_type = type(embeddings)
-            raise ValueError(
-                f"Invalid embeddings response: expected {len(texts)} "
-                f"non-empty lists of floats, got {emb_type} "
-                f"with {emb_len} items"
-            )
-        Executes the async embed call on the loop where the client was initialized
-        to avoid event loop affinity issues.
-        """
-
-    def embed_sync(self, texts: List[str]) -> List[List[float]]:
-        """
-        Thread-safe synchronous wrapper for embed().
 
         Executes the async embed call on the loop where the client was initialized
         to avoid event loop affinity issues.
@@ -175,10 +108,6 @@ class EmbeddingClient:
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
-            current_loop = None
-
-        if current_loop is None:
-            # No running loop, safe to create a new one
             current_loop = None
 
         if current_loop is None:

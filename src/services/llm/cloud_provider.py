@@ -7,9 +7,9 @@ Handle cloud API calls (OpenAI, DeepSeek, Anthropic, etc.).
 """
 
 from collections.abc import AsyncGenerator, Mapping
-from collections.abc import AsyncGenerator, Mapping
 import logging
 import os
+import threading
 from typing import Any, Protocol, cast
 
 import aiohttp
@@ -44,10 +44,8 @@ class OpenAICompleteIfCache(Protocol):
 
 # Lazy import for lightrag to avoid import errors when not installed
 _openai_complete_if_cache: OpenAICompleteIfCache | None = None
-_openai_complete_if_cache: OpenAICompleteIfCache | None = None
 
 
-def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
 def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
     """Lazy load openai_complete_if_cache from lightrag."""
     global _openai_complete_if_cache
@@ -56,86 +54,9 @@ def _get_openai_complete_if_cache() -> OpenAICompleteIfCache:
         from lightrag.llm.openai import (  # type: ignore[import-untyped]
             openai_complete_if_cache,
         )
-        # Import inside the function to avoid circular dependencies
-        from lightrag.llm.openai import (  # type: ignore[import-untyped]
-            openai_complete_if_cache,
-        )
 
-        _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
         _openai_complete_if_cache = cast(OpenAICompleteIfCache, openai_complete_if_cache)
     return _openai_complete_if_cache
-
-
-def _coerce_float(value: object, default: float) -> float:
-    """
-    Coerce a value into a float with a fallback.
-
-    Booleans are treated specially because ``bool`` is a subclass of ``int`` in
-    Python. Coercing ``True``/``False`` into ``1.0``/``0.0`` would hide invalid
-    inputs, so we fall back to the default instead.
-
-    Args:
-        value: The raw value.
-        default: Value to use when coercion fails.
-
-    Returns:
-        A float value.
-    """
-    if isinstance(value, bool):
-        return default
-    if isinstance(value, (int, float)):
-        return float(value)
-    return default
-
-
-def _coerce_int(value: object, default: int | None) -> int | None:
-    """
-    Coerce a value into an integer with a fallback.
-
-    Booleans are rejected to avoid silently treating ``True``/``False`` as
-    ``1``/``0``. This mirrors the float coercion behavior and keeps invalid
-    inputs from slipping through because ``bool`` is a subclass of ``int``.
-
-    Args:
-        value: The raw value.
-        default: Value to use when coercion fails.
-
-    Returns:
-        An integer value or None.
-    """
-    if isinstance(value, bool):
-        return default
-    if isinstance(value, int):
-        return value
-    return default
-
-
-# Use lowercase to avoid constant redefinition warning
-_ssl_warning_logged = False
-
-
-def _get_aiohttp_connector() -> aiohttp.TCPConnector | None:
-    """
-    Build an optional aiohttp connector with SSL verification disabled.
-
-    Returns:
-        A TCPConnector with SSL verification disabled when DISABLE_SSL_VERIFY
-        is truthy; otherwise None to use aiohttp defaults.
-    """
-    # Thread-safe check and one-time warning emission
-    disable_flag = os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes")
-    if not disable_flag:
-        return None
-
-    # Emit warning once across threads
-    with _ssl_warning_lock:
-        if not globals().get("_ssl_warning_logged", False):
-            logger.warning(
-                "SSL verification is disabled via DISABLE_SSL_VERIFY. This is unsafe and must "
-                "not be used in production environments."
-            )
-            globals()["_ssl_warning_logged"] = True
-    return aiohttp.TCPConnector(ssl=False)
 
 
 def _coerce_float(value: object, default: float) -> float:
@@ -219,7 +140,6 @@ from .utils import (
     build_chat_url,
     clean_thinking_tags,
     collect_model_names,
-    collect_model_names,
     extract_response_content,
     sanitize_url,
 )
@@ -232,12 +152,7 @@ async def complete(
     api_key: str | None = None,
     base_url: str | None = None,
     api_version: str | None = None,
-    model: str | None = None,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    api_version: str | None = None,
     binding: str = "openai",
-    **kwargs: Any,
     **kwargs: Any,
 ) -> str:
     """
@@ -266,12 +181,8 @@ async def complete(
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
         raise LLMConfigError("Model is required for cloud LLM provider")
-    if model is None or not model.strip():
-        raise LLMConfigError("Model is required for cloud LLM provider")
 
     if binding_lower in ["anthropic", "claude"]:
-        max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-        temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
         temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
         return await _anthropic_complete(
@@ -280,21 +191,6 @@ async def complete(
             system_prompt=system_prompt,
             api_key=api_key,
             base_url=base_url,
-            max_tokens=max_tokens_value,
-            temperature=temperature_value,
-        )
-
-    if binding_lower == "cohere":
-        max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-        temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
-        return await _cohere_complete(
-            model=model,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            api_key=api_key,
-            base_url=base_url,
-            max_tokens=max_tokens_value,
-            temperature=temperature_value,
             max_tokens=max_tokens_value,
             temperature=temperature_value,
         )
@@ -332,13 +228,7 @@ async def stream(
     api_key: str | None = None,
     base_url: str | None = None,
     api_version: str | None = None,
-    model: str | None = None,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    api_version: str | None = None,
     binding: str = "openai",
-    messages: list[dict[str, str]] | None = None,
-    **kwargs: Any,
     messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
@@ -367,12 +257,8 @@ async def stream(
     binding_lower = (binding or "openai").lower()
     if model is None or not model.strip():
         raise LLMConfigError("Model is required for cloud LLM provider")
-    if model is None or not model.strip():
-        raise LLMConfigError("Model is required for cloud LLM provider")
 
     if binding_lower in ["anthropic", "claude"]:
-        max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-        temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
         temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
         async for chunk in _anthropic_stream(
@@ -382,8 +268,6 @@ async def stream(
             api_key=api_key,
             base_url=base_url,
             messages=messages,
-            max_tokens=max_tokens_value,
-            temperature=temperature_value,
             max_tokens=max_tokens_value,
             temperature=temperature_value,
         ):
@@ -410,11 +294,7 @@ async def _openai_complete(
     api_key: str | None,
     base_url: str | None,
     api_version: str | None = None,
-    api_key: str | None,
-    base_url: str | None,
-    api_version: str | None = None,
     binding: str = "openai",
-    **kwargs: object,
     **kwargs: object,
 ) -> str:
     """OpenAI-compatible completion."""
@@ -439,13 +319,6 @@ async def _openai_complete(
         lightrag_kwargs.pop("api_key", None)
         lightrag_kwargs.pop("base_url", None)
         lightrag_kwargs.pop("api_version", None)
-        history_messages: list[dict[str, str]] = []
-        lightrag_kwargs: dict[str, object] = dict(kwargs)
-        lightrag_kwargs.pop("system_prompt", None)
-        lightrag_kwargs.pop("history_messages", None)
-        lightrag_kwargs.pop("api_key", None)
-        lightrag_kwargs.pop("base_url", None)
-        lightrag_kwargs.pop("api_version", None)
 
         # Suppress lightrag's and openai's internal error logging during the call
         # (errors are handled by our fallback mechanism)
@@ -458,19 +331,7 @@ async def _openai_complete(
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
 
-            if api_version:
-                lightrag_kwargs["api_version"] = api_version
-
             openai_complete_if_cache = _get_openai_complete_if_cache()
-            content = await openai_complete_if_cache(
-                model,
-                prompt,
-                system_prompt=system_prompt,
-                history_messages=history_messages,
-                api_key=api_key,
-                base_url=base_url,
-                **lightrag_kwargs,
-            )
             content = await openai_complete_if_cache(
                 model,
                 prompt,
@@ -486,9 +347,6 @@ async def _openai_complete(
     except Exception as exc:
         # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
         logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
-    except Exception as exc:
-        # Silently ignore lightrag/cache failures to allow fallback to direct aiohttp call
-        logger.debug(f"Exception occurred: {exc}")  # Log exception for debugging
     # Fallback: Direct aiohttp call
     if not content and base_url:
         # Build URL using unified utility (use binding for Azure detection)
@@ -498,14 +356,12 @@ async def _openai_complete(
         headers = build_auth_headers(api_key, binding)
 
         data: dict[str, object] = {
-        data: dict[str, object] = {
             "model": model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ],
             "temperature": get_effective_temperature(
-                binding, model, _coerce_float(kwargs.get("temperature"), 0.7)
                 binding, model, _coerce_float(kwargs.get("temperature"), 0.7)
             ),
         }
@@ -518,63 +374,13 @@ async def _openai_complete(
         if max_tokens_value is None:
             max_tokens_value = 4096
         data.update(get_token_limit_kwargs(model, max_tokens_value))
-        max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-        max_completion_value = _coerce_int(kwargs.get("max_completion_tokens"), None)
-        if max_tokens_value is None:
-            max_tokens_value = max_completion_value
-        if max_tokens_value is None:
-            max_tokens_value = 4096
-        data.update(get_token_limit_kwargs(model, max_tokens_value))
 
         # Include response_format if present in kwargs
         response_format = kwargs.get("response_format")
         if response_format is not None:
             data["response_format"] = response_format
-        response_format = kwargs.get("response_format")
-        if response_format is not None:
-            data["response_format"] = response_format
 
         timeout = aiohttp.ClientTimeout(total=120)
-        connector = _get_aiohttp_connector()
-        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-            try:
-                async with session.post(url, headers=headers, json=data) as resp:
-                    if resp.status == 200:
-                        result = cast(dict[str, object], await resp.json())
-                        choices = result.get("choices")
-                        if isinstance(choices, list) and choices:
-                            choices_list = cast(list[object], choices)
-                            first_choice = choices_list[0]
-                            if isinstance(first_choice, Mapping):
-                                message = cast(Mapping[str, object], first_choice).get("message")
-                            else:
-                                message = None
-                            if isinstance(message, Mapping):
-                                # Use unified response extraction
-                                content = extract_response_content(cast(dict[str, object], message))
-                    else:
-                        error_text = await resp.text()
-                        raise LLMAPIError(
-                            f"OpenAI API error: {error_text}",
-                            status_code=resp.status,
-                            provider=binding or "openai",
-                        )
-            except aiohttp.ClientError as e:
-                # Handle connection errors with more specific messages
-                if "forcibly closed" in str(e).lower() or "10054" in str(e):
-                    raise LLMAPIError(
-                        f"Connection to {binding} API was forcibly closed. "
-                        "This may indicate network issues or server-side problems. "
-                        "Please check your internet connection and try again.",
-                        status_code=0,
-                        provider=binding or "openai",
-                    ) from e
-                else:
-                    raise LLMAPIError(
-                        f"Network error connecting to {binding} API: {e}",
-                        status_code=0,
-                        provider=binding or "openai",
-                    ) from e
         connector = _get_aiohttp_connector()
         async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             try:
@@ -630,12 +436,7 @@ async def _openai_stream(
     api_key: str | None,
     base_url: str | None,
     api_version: str | None = None,
-    api_key: str | None,
-    base_url: str | None,
-    api_version: str | None = None,
     binding: str = "openai",
-    messages: list[dict[str, str]] | None = None,
-    **kwargs: object,
     messages: list[dict[str, str]] | None = None,
     **kwargs: object,
 ) -> AsyncGenerator[str, None]:
@@ -669,12 +470,8 @@ async def _openai_stream(
     raw_temp = kwargs.get("temperature")
     temperature = _coerce_float(raw_temp, 0.7)
     data: dict[str, object] = {
-    raw_temp = kwargs.get("temperature")
-    temperature = _coerce_float(raw_temp, 0.7)
-    data: dict[str, object] = {
         "model": model,
         "messages": msg_list,
-        "temperature": temperature,
         "temperature": temperature,
         "stream": True,
     }
@@ -685,23 +482,13 @@ async def _openai_stream(
         max_tokens_value = _coerce_int(kwargs.get("max_completion_tokens"), None)
     if max_tokens_value is not None:
         data.update(get_token_limit_kwargs(model, max_tokens_value))
-    max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
-    if max_tokens_value is None:
-        max_tokens_value = _coerce_int(kwargs.get("max_completion_tokens"), None)
-    if max_tokens_value is not None:
-        data.update(get_token_limit_kwargs(model, max_tokens_value))
 
     # Include response_format if present in kwargs
     response_format = kwargs.get("response_format")
     if response_format is not None:
         data["response_format"] = response_format
-    response_format = kwargs.get("response_format")
-    if response_format is not None:
-        data["response_format"] = response_format
 
     timeout = aiohttp.ClientTimeout(total=300)
-    connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
     connector = _get_aiohttp_connector()
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as resp:
@@ -742,17 +529,37 @@ async def _openai_stream(
                             content = None
                         if isinstance(content, str) and content:
                             # Handle thinking tags in streaming for different marker styles
-                            if any(open_m in content for open_m in ("<think>", "◣", "꽁")):
+                            open_markers = ("<think>", "◣", "꽁")
+                            close_markers = ("</think>", "◢", "꽁")
+
+                            # Check for start tag (handle split tags)
+                            if any(open_m in content for open_m in open_markers):
                                 in_thinking_block = True
-                                thinking_buffer += content
+                                # Handle case where content has text BEFORE <think>
+                                for open_m in open_markers:
+                                    if open_m in content:
+                                        parts = content.split(open_m, 1)
+                                        if parts[0]:
+                                            yield parts[0]
+                                        thinking_buffer = open_m + parts[1]
+
+                                        # Check if closed immediately in same chunk
+                                        if any(
+                                            close_m in thinking_buffer for close_m in close_markers
+                                        ):
+                                            cleaned = clean_thinking_tags(
+                                                thinking_buffer, binding, model
+                                            )
+                                            if cleaned:
+                                                yield cleaned
+                                            thinking_buffer = ""
+                                            in_thinking_block = False
+                                        break
                                 continue
                             elif in_thinking_block:
                                 thinking_buffer += content
-                                if any(
-                                    close_m in thinking_buffer
-                                    for close_m in ("</think>", "◢", "꽁")
-                                ):
-                                    # End of thinking block, clean and yield
+                                if any(close_m in thinking_buffer for close_m in close_markers):
+                                    # Block finished
                                     cleaned = clean_thinking_tags(thinking_buffer, binding, model)
                                     if cleaned:
                                         yield cleaned
@@ -769,11 +576,6 @@ async def _anthropic_complete(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: str | None,
-    base_url: str | None,
-    messages: list[dict[str, str]] | None = None,
-    max_tokens: int | None = None,
-    temperature: float | None = None,
     api_key: str | None,
     base_url: str | None,
     messages: list[dict[str, str]] | None = None,
@@ -807,21 +609,14 @@ async def _anthropic_complete(
     max_tokens_value = max_tokens if max_tokens is not None else 4096
     temperature_value = temperature if temperature is not None else 0.7
     data: dict[str, object] = {
-    max_tokens_value = max_tokens if max_tokens is not None else 4096
-    temperature_value = temperature if temperature is not None else 0.7
-    data: dict[str, object] = {
         "model": model,
         "system": system_content,
         "messages": msg_list,
         "max_tokens": max_tokens_value,
         "temperature": temperature_value,
-        "max_tokens": max_tokens_value,
-        "temperature": temperature_value,
     }
 
     timeout = aiohttp.ClientTimeout(total=120)
-    connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
     connector = _get_aiohttp_connector()
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as response:
@@ -847,31 +642,12 @@ async def _anthropic_complete(
                 status_code=response.status,
                 provider="anthropic",
             )
-            result = cast(dict[str, object], await response.json())
-            content_items = result.get("content")
-            if isinstance(content_items, list) and content_items:
-                content_list = cast(list[object], content_items)
-                first_item = content_list[0]
-                if isinstance(first_item, Mapping):
-                    text = cast(Mapping[str, object], first_item).get("text")
-                    if isinstance(text, str):
-                        return text
-            raise LLMAPIError(
-                "Anthropic API error: unexpected response payload",
-                status_code=response.status,
-                provider="anthropic",
-            )
 
 
 async def _anthropic_stream(
     model: str,
     prompt: str,
     system_prompt: str,
-    api_key: str | None,
-    base_url: str | None,
-    messages: list[dict[str, str]] | None = None,
-    max_tokens: int | None = None,
-    temperature: float | None = None,
     api_key: str | None,
     base_url: str | None,
     messages: list[dict[str, str]] | None = None,
@@ -907,22 +683,15 @@ async def _anthropic_stream(
     max_tokens_value = max_tokens if max_tokens is not None else 4096
     temperature_value = temperature if temperature is not None else 0.7
     data: dict[str, object] = {
-    max_tokens_value = max_tokens if max_tokens is not None else 4096
-    temperature_value = temperature if temperature is not None else 0.7
-    data: dict[str, object] = {
         "model": model,
         "system": system_content,
         "messages": msg_list,
-        "max_tokens": max_tokens_value,
-        "temperature": temperature_value,
         "max_tokens": max_tokens_value,
         "temperature": temperature_value,
         "stream": True,
     }
 
     timeout = aiohttp.ClientTimeout(total=300)
-    connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
     connector = _get_aiohttp_connector()
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         async with session.post(url, headers=headers, json=data) as response:
@@ -945,15 +714,8 @@ async def _anthropic_stream(
 
                 try:
                     chunk_data = cast(dict[str, object], json.loads(data_str))
-                    chunk_data = cast(dict[str, object], json.loads(data_str))
                     event_type = chunk_data.get("type")
                     if event_type == "content_block_delta":
-                        delta = chunk_data.get("delta")
-                        if isinstance(delta, Mapping):
-                            text = cast(Mapping[str, object], delta).get("text")
-                        else:
-                            text = None
-                        if isinstance(text, str) and text:
                         delta = chunk_data.get("delta")
                         if isinstance(delta, Mapping):
                             text = cast(Mapping[str, object], delta).get("text")
@@ -1018,65 +780,10 @@ async def _cohere_complete(
             )
 
 
-async def _cohere_complete(
-    model: str,
-    prompt: str,
-    system_prompt: str,
-    api_key: str | None,
-    base_url: str | None,
-    max_tokens: int | None = None,
-    temperature: float | None = None,
-) -> str:
-    """Cohere API completion."""
-    api_key = api_key or os.getenv("COHERE_API_KEY")
-    if not api_key:
-        raise LLMAuthenticationError("Cohere API key is missing.", provider="cohere")
-
-    # Build URL using unified utility
-    effective_base = base_url or "https://api.cohere.ai/v1"
-    url = f"{effective_base}/chat"
-
-    # Build headers using unified utility
-    headers = build_auth_headers(api_key, binding="cohere")
-
-    max_tokens_value = max_tokens if max_tokens is not None else 4096
-    temperature_value = temperature if temperature is not None else 0.7
-    data: dict[str, object] = {
-        "model": model,
-        "message": f"{system_prompt}\n\n{prompt}",
-        "max_tokens": max_tokens_value,
-        "temperature": temperature_value,
-    }
-
-    timeout = aiohttp.ClientTimeout(total=120)
-    connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-        async with session.post(url, headers=headers, json=data) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise LLMAPIError(
-                    f"Cohere API error: {error_text}",
-                    status_code=response.status,
-                    provider="cohere",
-                )
-
-            result = cast(dict[str, object], await response.json())
-            text = result.get("text")
-            if isinstance(text, str):
-                return text
-            raise LLMAPIError(
-                "Cohere API error: unexpected response payload",
-                status_code=response.status,
-                provider="cohere",
-            )
-
-
 async def fetch_models(
     base_url: str,
     api_key: str | None = None,
-    api_key: str | None = None,
     binding: str = "openai",
-) -> list[str]:
 ) -> list[str]:
     """
     Fetch available models from cloud provider.
@@ -1100,8 +807,6 @@ async def fetch_models(
     timeout = aiohttp.ClientTimeout(total=30)
     connector = _get_aiohttp_connector()
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-    connector = _get_aiohttp_connector()
-    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         try:
             url = f"{base_url}/models"
             async with session.get(url, headers=headers) as resp:
@@ -1114,17 +819,8 @@ async def fetch_models(
                             return collect_model_names(cast(list[object], items))
                     elif isinstance(payload, list):
                         return collect_model_names(cast(list[object], payload))
-                    payload = await resp.json()
-                    if isinstance(payload, Mapping):
-                        mapping = cast(Mapping[str, object], payload)
-                        items = mapping.get("data")
-                        if isinstance(items, list):
-                            return collect_model_names(cast(list[object], items))
-                    elif isinstance(payload, list):
-                        return collect_model_names(cast(list[object], payload))
             return []
         except Exception as e:
-            logger.error("Error fetching models from %s: %s", base_url, e)
             logger.error("Error fetching models from %s: %s", base_url, e)
             return []
 

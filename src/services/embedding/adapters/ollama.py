@@ -2,7 +2,8 @@
 """Ollama Embedding Adapter for local embeddings."""
 
 import logging
-from typing import Any
+import math
+from typing import Any, cast
 
 import httpx
 
@@ -47,43 +48,9 @@ def _normalize_embeddings(
     return embeddings
 
 
-def _normalize_vector(vector: list[float]) -> list[float]:
-    """
-    Normalize a vector to unit length.
-
-    Args:
-        vector: Embedding vector.
-
-    Returns:
-        Normalized vector (or original if norm is zero).
-    """
-    norm = math.sqrt(sum(value * value for value in vector))
-    if norm == 0:
-        return vector
-    return [value / norm for value in vector]
-
-
-def _normalize_embeddings(
-    embeddings: list[list[float]],
-    normalize: bool | None,
-) -> list[list[float]]:
-    """
-    Normalize embeddings when requested.
-
-    Args:
-        embeddings: Raw embedding vectors.
-        normalize: Whether to normalize embeddings.
-
-    Returns:
-        Normalized embeddings when enabled.
-    """
-    if normalize is True:
-        return [_normalize_vector(vector) for vector in embeddings]
-
-    return embeddings
-
-
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
+    """Adapter for the Ollama embedding API."""
+
     MODELS_INFO: dict[str, int] = {
         "all-minilm": 384,
         "all-mpnet-base-v2": 768,
@@ -93,16 +60,24 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     }
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        base_url = self.base_url
-        if not base_url:
-            raise ValueError("Base URL is required for Ollama embeddings")
+        """
+        Generate embeddings using Ollama local API.
 
-        model_name = request.model or self.model
-        if model_name is None:
-            raise ValueError("Model must be specified for Ollama embeddings")
+        Args:
+            request: EmbeddingRequest containing texts and parameters
+
+        Returns:
+            EmbeddingResponse with embeddings and metadata
+
+        Raises:
+            ValueError: If required configuration or response data is missing.
+            httpx.HTTPError: If the Ollama API request fails.
+        """
+        if not self.base_url:
+            raise ValueError("Base URL is required for Ollama embedding")
 
         payload: dict[str, Any] = {
-            "model": model_name,
+            "model": request.model or self.model,
             "input": request.texts,
         }
 
@@ -114,7 +89,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         payload["keep_alive"] = "5m"
 
-        url = f"{base_url}/api/embed"
+        url = f"{self.base_url.rstrip('/')}/api/embed"
 
         logger.debug(
             "Sending embedding request to %s with %d texts",
@@ -167,13 +142,8 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         except httpx.HTTPError as e:
             logger.error("Ollama API error: %s", e)
-            logger.error("Ollama API error: %s", e)
             raise
 
-        embeddings = _normalize_embeddings(
-            data["embeddings"],
-            request.normalized,
-        )
         embeddings = _normalize_embeddings(
             data["embeddings"],
             request.normalized,
@@ -196,7 +166,6 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         return EmbeddingResponse(
             embeddings=embeddings,
             model=data.get("model", self.model or "unknown"),
-            model=data.get("model", self.model or "unknown"),
             dimensions=actual_dims,
             usage={
                 "prompt_eval_count": data.get("prompt_eval_count", 0),
@@ -205,12 +174,17 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
         )
 
     def get_model_info(self) -> dict[str, Any]:
-        model_name = self.model or ""
-        dimensions_value = self.MODELS_INFO.get(model_name, self.dimensions) or 0
+        """
+        Return information about the configured model.
 
+        Returns:
+            Dictionary with model metadata (name, dimensions, etc.)
+        """
+        model_name = self.model or ""
         return {
             "model": model_name,
-            "dimensions": dimensions_value,
+            "dimensions": self.MODELS_INFO.get(model_name, self.dimensions or 0),
+            "supported_dimensions": [],
             "local": True,
             "supports_variable_dimensions": False,
             "provider": "ollama",

@@ -4,10 +4,7 @@ import tempfile
 
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List
-from threading import RLock
-from typing import Any, Dict, List, Optional
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from dotenv import dotenv_values, load_dotenv
@@ -17,6 +14,7 @@ from src.config.schema import AppConfig, migrate_config
 from src.config.defaults import DEFAULTS
 from src.core.errors import ConfigError
 
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
@@ -33,13 +31,10 @@ class ConfigManager:
     - Layered env: .env, then .env.local (override), then process env.
     """
 
-
-    _instance = None
+    _instance: "ConfigManager | None" = None
+    _config_cache: dict[str, Any] = {}
     _lock = Lock()
-    _instance: Optional["ConfigManager"] = None
-    _lock = RLock()
 
-    def __new__(cls):
     def __new__(cls, project_root: Path | None = None):
         if cls._instance is None:
             with cls._lock:
@@ -49,13 +44,11 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self, project_root: Path | None = None):
-    def __init__(self, project_root: Path | None = None):
         if getattr(self, "_initialized", False):
             return
 
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.config_path = self.project_root / "config" / "main.yaml"
-        self._config_cache: dict[str, Any] = {}
         self._config_cache: dict[str, Any] = {}
         self._last_mtime: float = 0.0
         self._initialized = True
@@ -75,13 +68,13 @@ class ConfigManager:
         """Initialize process environment from layered .env files."""
         load_dotenv(dotenv_path=self.project_root / ".env", override=False)
         load_dotenv(dotenv_path=self.project_root / ".env.local", override=True)
+
     def _load_env_file(self, path: Path) -> dict[str, str]:
         """Load a .env file and return non-None values as strings."""
         if not path.exists():
             return {}
         return {k: str(v) for k, v in dotenv_values(path).items() if v is not None}
 
-    def _read_yaml(self) -> dict[str, Any]:
     def _read_yaml(self) -> dict[str, Any]:
         """Read the main YAML configuration file safely."""
         if not self.config_path.exists():
@@ -90,15 +83,12 @@ class ConfigManager:
             return yaml.safe_load(f) or {}
 
     def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
-    def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
         for key, value in source.items():
             if isinstance(value, dict) and isinstance(target.get(key), dict):
                 self._deep_update(target[key], value)
             else:
                 target[key] = value
 
-    def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
-        merged: dict[str, Any] = {}
     def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
         merged: dict[str, Any] = {}
         self._deep_update(merged, DEFAULTS)
@@ -109,7 +99,6 @@ class ConfigManager:
         except ValidationError as e:
             raise ConfigError("Config validation failed", context={"errors": e.errors()})
 
-    def load_config(self, force_reload: bool = False) -> dict[str, Any]:
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
         """
         Load configuration from main.yaml.
@@ -140,7 +129,6 @@ class ConfigManager:
             return yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False)) or {}
 
     def save_config(self, config: dict[str, Any]) -> bool:
-    def save_config(self, config: dict[str, Any]) -> bool:
         """
         Save configuration to main.yaml.
         Deep-merges provided config with existing one; writes atomically.
@@ -161,7 +149,9 @@ class ConfigManager:
                 )
 
                 # Atomic write with backup
-                fd, tmp_path = tempfile.mkstemp(prefix="main.yaml.", dir=str(self.config_path.parent))
+                fd, tmp_path = tempfile.mkstemp(
+                    prefix="main.yaml.", dir=str(self.config_path.parent)
+                )
                 try:
                     with os.fdopen(fd, "w", encoding="utf-8") as tmp:
                         tmp.write(yaml_str)
@@ -184,13 +174,16 @@ class ConfigManager:
                         except Exception as e:
                             logger.warning(f"Failed to remove temp file {tmp_path}: {e}")
         except ConfigError as ce:
-            logger.error("Refusing to save invalid config: %s", ce, extra={"context": getattr(ce, "context", {})})
+            logger.error(
+                "Refusing to save invalid config: %s",
+                ce,
+                extra={"context": getattr(ce, "context", {})},
+            )
             return False
         except Exception as e:
             logger.exception("Error saving config: %s", e)
             return False
 
-    def get_env_info(self) -> dict[str, str]:
     def get_env_info(self) -> dict[str, str]:
         """
         Read relevant environment variables using layered .env files and process env.
@@ -198,11 +191,8 @@ class ConfigManager:
         """
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env: Dict[str, str] = {}
-        if env_path.exists():
-            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
-        if local_path.exists():
-            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+        parsed_env = self._load_env_file(env_path)
+        parsed_env.update(self._load_env_file(local_path))
 
         def _get(key: str, default: str = "") -> str:
             return str(parsed_env.get(key) or os.environ.get(key, default))
@@ -212,14 +202,10 @@ class ConfigManager:
         }
 
     def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
-    def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"
-        parsed_env: Dict[str, str] = {}
-        if env_path.exists():
-            parsed_env.update({k: str(v) for k, v in dotenv_values(env_path).items() if v is not None})
-        if local_path.exists():
-            parsed_env.update({k: str(v) for k, v in dotenv_values(local_path).items() if v is not None})
+        parsed_env = self._load_env_file(env_path)
+        parsed_env.update(self._load_env_file(local_path))
         missing = [k for k in keys if not (parsed_env.get(k) or os.environ.get(k))]
         if missing:
             logger.warning("Missing required env keys", extra={"missing": missing})

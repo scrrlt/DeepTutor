@@ -6,17 +6,10 @@ Handles local and self-hosted LLM calls with streaming support.
 import asyncio
 from collections.abc import AsyncGenerator
 import json
-from typing import Any
+import logging
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-import httpx
-
-from src.logging import get_logger
-
-# Compatibility exports for tests/legacy imports.
-
-logger = get_logger(__name__)
-
-from src.logging import get_logger
+import aiohttp
 
 from .exceptions import LLMAPIError, LLMConfigError
 
@@ -33,8 +26,6 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
 
@@ -42,10 +33,10 @@ DEFAULT_TIMEOUT = 300  # 5 minutes
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: str | None = None,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    messages: list[dict[str, str]] | None = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    messages: Optional[List[Dict[str, str]]] = None,
     **kwargs: Any,
 ) -> str:
     """
@@ -109,24 +100,26 @@ async def complete(
 
         result = response.json()
 
-        if "choices" in result and result["choices"]:
-            msg = result["choices"][0].get("message", {})
-            # Use unified response extraction
-            content = extract_response_content(msg)
-            # Clean thinking tags using unified utility
-            content = clean_thinking_tags(content)
-            return content
+            if "choices" in result and result["choices"]:
+                msg = result["choices"][0].get("message", {})
+                # Use unified response extraction
+                content = extract_response_content(msg)
+                # Clean thinking tags using unified utility
+                content = clean_thinking_tags(content)
+                if content:
+                    return content
 
-        return ""
+            logger.warning("Local LLM returned no choices: %s", result)
+            return ""
 
 
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: str | None = None,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    messages: list[dict[str, str]] | None = None,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    messages: Optional[List[Dict[str, str]]] = None,
     **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
@@ -264,7 +257,6 @@ async def stream(
                                 content = delta.get("content")
                                 if content:
                                     # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
-                                    # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     yield content
                         except json.JSONDecodeError:
                             pass
@@ -275,7 +267,7 @@ async def stream(
         raise
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        logger.error(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
             content = await complete(
@@ -331,57 +323,30 @@ async def fetch_models(
         if is_ollama:
             try:
                 ollama_url = base_url.replace("/v1", "") + "/api/tags"
-                resp = await client.get(ollama_url, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if "models" in data:
-                        return [m["name"] for m in data.get("models", [])]
-            except Exception as exc:
-                logger.debug("Ollama model fetch failed, trying /models: %s", exc)
+                async with session.get(ollama_url, headers=headers) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if "models" in data:
+                            return collect_model_names(data["models"])
+            except Exception:
+                pass  # Fail silently if model fetching fails for this endpoint
 
         # Try OpenAI-compatible /models
         try:
             models_url = f"{base_url}/models"
-            resp = await client.get(models_url, headers=headers)
-            if resp.status_code == 200:
-                data = resp.json()
-                # Handle different response formats
-                if "data" in data and isinstance(data["data"], list):
-                    models: list[str] = []
-                    for model_entry in data["data"]:
-                        if not isinstance(model_entry, dict):
-                            continue
-                        model_id = model_entry.get("id") or model_entry.get("name")
-                        if model_id:
-                            models.append(str(model_id))
-                    return models
+            async with session.get(models_url, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
 
-                if "models" in data and isinstance(data["models"], list):
-                    models_list: list[str] = []
-                    if data["models"] and isinstance(data["models"][0], dict):
-                        for model_entry in data["models"]:
-                            if not isinstance(model_entry, dict):
-                                continue
-                            model_id = model_entry.get("id") or model_entry.get("name")
-                            if model_id:
-                                models_list.append(str(model_id))
-                    else:
-                        models_list = [str(model_entry) for model_entry in data["models"]]
-                    return models_list
-
-                if isinstance(data, list):
-                    models_from_list: list[str] = []
-                    for model_entry in data:
-                        if isinstance(model_entry, dict):
-                            model_id = model_entry.get("id") or model_entry.get("name")
-                            if model_id:
-                                models_from_list.append(str(model_id))
-                        else:
-                            models_from_list.append(str(model_entry))
-                    return models_from_list
+                    # Handle different response formats
+                    if "data" in data and isinstance(data["data"], list):
+                        return collect_model_names(data["data"])
+                    elif "models" in data and isinstance(data["models"], list):
+                        return collect_model_names(data["models"])
+                    elif isinstance(data, list):
+                        return collect_model_names(data)
         except Exception as e:
-            logger.error(f"Error fetching models from {base_url}: {e}")
-            logger.error(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []
 

@@ -9,7 +9,6 @@ REST endpoints for session operations.
 from pathlib import Path
 import sys
 from typing import Any
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -29,10 +28,6 @@ import logging as _logging
 project_root = Path(__file__).parent.parent.parent.parent
 config = load_config_with_main("solve_config.yaml", project_root)
 log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get("log_dir")
-# Ensure we have at least a basic logging configuration in environments where none exists
-if not _logging.getLogger().handlers:
-    _logging.basicConfig(level=_logging.INFO, format="%(levelname)s: %(message)s")
-
 # Ensure we have at least a basic logging configuration in environments where none exists
 if not _logging.getLogger().handlers:
     _logging.basicConfig(level=_logging.INFO, format="%(levelname)s: %(message)s")
@@ -126,6 +121,9 @@ async def websocket_chat(websocket: WebSocket):
     - {"type": "error", "message": str}                # Error message
     """
     await websocket.accept()
+
+    # Get system language for agent
+    language = config.get("system", {}).get("language", "en")
 
     try:
         llm_config = get_llm_config()
@@ -277,7 +275,6 @@ async def websocket_chat(websocket: WebSocket):
                 # Process with streaming
                 full_response = ""
                 sources: dict[str, list[Any]] = {"rag": [], "web": []}
-                sources: dict[str, list[Any]] = {"rag": [], "web": []}
 
                 stream_generator = await agent.process(
                     message=message,
@@ -288,20 +285,6 @@ async def websocket_chat(websocket: WebSocket):
                     stream=True,
                 )
 
-                # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
-                if hasattr(stream_generator, "__aiter__"):
-                    async for chunk_data in stream_generator:
-                        if chunk_data["type"] == "chunk":
-                            await websocket.send_json(
-                                {
-                                    "type": "stream",
-                                    "content": chunk_data["content"],
-                                }
-                            )
-                            full_response += chunk_data["content"]
-                        elif chunk_data["type"] == "complete":
-                            full_response = chunk_data["response"]
-                            sources = chunk_data.get("sources", {"rag": [], "web": []})
                 # Ensure stream_generator is iterable (handle both dict and AsyncGenerator return types)
                 if hasattr(stream_generator, "__aiter__"):
                     async for chunk_data in stream_generator:
