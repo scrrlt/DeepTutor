@@ -8,6 +8,7 @@ Now supports multiple providers through adapters.
 """
 
 import asyncio
+import asyncio
 from typing import List, Optional
 
 from src.logging import get_logger
@@ -103,6 +104,7 @@ class EmbeddingClient:
     def embed_sync(self, texts: list[str]) -> list[list[float]]:
         """
         Thread-safe synchronous wrapper for embed().
+        Thread-safe synchronous wrapper for embed().
 
         Use this when you need to call from non-async context.
 
@@ -177,7 +179,29 @@ class EmbeddingClient:
 
         if current_loop is None:
             # No running loop, safe to create a new one
+            current_loop = None
+
+        if current_loop is None:
+            # No running loop, safe to create a new one
             return asyncio.run(self.embed(texts))
+
+        if current_loop == self._init_loop:
+            # Called sync from within the init loop - this would block
+            raise RuntimeError(
+                "embed_sync() cannot be called from within the same running event loop. "
+                "Use 'await embed()' instead."
+            )
+
+        if self._init_loop and self._init_loop.is_running():
+            # Different loop context, dispatch to init loop for adapter affinity
+            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
+            return future.result(timeout=self.config.request_timeout or 30)
+
+        # Init loop is dead but we're in a different running loop - can't safely proceed
+        raise RuntimeError(
+            "embed_sync() called from a running event loop, but the initialization loop "
+            "is no longer running. Re-initialize the client in the current async context."
+        )
 
     def get_embedding_func(self):
         """

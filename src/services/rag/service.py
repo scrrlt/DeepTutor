@@ -67,8 +67,6 @@ class RAGService:
         self,
         kb_base_dir: str | None = None,
         provider: str | None = None,
-        kb_base_dir: str | None = None,
-        provider: str | None = None,
     ):
         """
         Initialize RAG service.
@@ -248,7 +246,6 @@ class RAGService:
         return False
 
     @staticmethod
-    def list_providers() -> list[dict[str, str]]:
     def list_providers() -> list[dict[str, str]]:
         """
         List available RAG pipeline providers.

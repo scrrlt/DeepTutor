@@ -10,7 +10,6 @@ Defines the contract that all embedding providers must implement.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
-from typing import Any
 
 
 @dataclass
@@ -35,14 +34,7 @@ class EmbeddingRequest:
     """
 
     texts: list[str]
-    texts: list[str]
     model: str
-    dimensions: int | None = None
-    input_type: str | None = None
-    encoding_format: str | None = "float"
-    truncate: bool | None = True
-    normalized: bool | None = True
-    late_chunking: bool | None = False
     dimensions: int | None = None
     input_type: str | None = None
     encoding_format: str | None = "float"
@@ -56,10 +48,8 @@ class EmbeddingResponse:
     """Standard embedding response structure."""
 
     embeddings: list[list[float]]
-    embeddings: list[list[float]]
     model: str
     dimensions: int
-    usage: dict[str, Any]
     usage: dict[str, Any]
 
 
@@ -121,7 +111,6 @@ class BaseEmbeddingAdapter(ABC):
         pass
 
     @abstractmethod
-    def get_model_info(self) -> dict[str, Any]:
     def get_model_info(self) -> dict[str, Any]:
         """
         Return information about the configured model.

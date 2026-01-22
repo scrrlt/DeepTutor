@@ -27,6 +27,7 @@ from .utils import is_local_llm_server
 
 # Initialize logger
 logger: Logger = get_logger("LLMFactory")
+logger: Logger = get_logger("LLMFactory")
 
 # Default retry configuration (kept for public API compatibility)
 DEFAULT_MAX_RETRIES = 3
@@ -190,6 +191,8 @@ async def complete(
         messages: Pre-built messages array (optional)
         max_retries: Maximum number of retry attempts (default: 3)
         retry_delay: Initial delay between retries in seconds (default: 1.0)
+        max_retries: Maximum number of retry attempts (default: 3)
+        retry_delay: Initial delay between retries in seconds (default: 1.0)
         exponential_backoff: Whether to use exponential backoff (default: True)
         sleep: Optional sleep hook for testing.
         use_cache: Whether to use Redis-backed cache for completions.
@@ -294,6 +297,8 @@ async def stream(
         messages: Pre-built messages array (optional)
         max_retries: Maximum number of retry attempts (default: 3)
         retry_delay: Initial delay between retries in seconds (default: 1.0)
+        max_retries: Maximum number of retry attempts (default: 3)
+        retry_delay: Initial delay between retries in seconds (default: 1.0)
         exponential_backoff: Whether to use exponential backoff (default: True)
         **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
@@ -376,6 +381,8 @@ async def fetch_models(
     else:
         from . import cloud_provider
 
+        from . import cloud_provider
+
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
 
@@ -403,7 +410,32 @@ ProviderPresetMap: TypeAlias = Mapping[str, ProviderPreset]
 ProviderPresetBundle: TypeAlias = Mapping[str, ProviderPresetMap]
 
 
+class ApiProviderPreset(TypedDict, total=False):
+    """Typed representation of API provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    models: list[str]
+    binding: str
+
+
+class LocalProviderPreset(TypedDict, total=False):
+    """Typed representation of local provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    default_key: str
+
+
+ProviderPreset: TypeAlias = ApiProviderPreset | LocalProviderPreset
+ProviderPresetMap: TypeAlias = Mapping[str, ProviderPreset]
+ProviderPresetBundle: TypeAlias = Mapping[str, ProviderPresetMap]
+
+
 # API Provider Presets
+API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
 API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
     "openai": {
         "name": "OpenAI",
@@ -433,6 +465,7 @@ API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
 }
 
 # Local Provider Presets
+LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
 LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
     "ollama": {
         "name": "Ollama",

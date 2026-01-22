@@ -356,6 +356,7 @@ class Logger:
             "exc_info": kwargs.get("exc_info", False),
             "stack_info": kwargs.get("stack_info", False),
             "stacklevel": kwargs.get("stacklevel", 1) + 2,  # Account for _log +
+            "stacklevel": kwargs.get("stacklevel", 1) + 2,  # Account for _log +
         }
         # Pass args for formatting
         self.logger.log(level, message, *args, **log_kwargs)

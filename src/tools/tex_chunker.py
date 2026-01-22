@@ -130,6 +130,7 @@ class TexChunker:
         except Exception as e:
             # If encoding fails, use rough estimate: 1 token ≈ 4 chars
             logger.warning("Token estimation failed, using rough estimate: %s", e)
+            logger.warning("Token estimation failed, using rough estimate: %s", e)
             return len(text) // 4
 
     def split_tex_into_chunks(

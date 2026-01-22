@@ -49,11 +49,13 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self, project_root: Path | None = None):
+    def __init__(self, project_root: Path | None = None):
         if getattr(self, "_initialized", False):
             return
 
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.config_path = self.project_root / "config" / "main.yaml"
+        self._config_cache: dict[str, Any] = {}
         self._config_cache: dict[str, Any] = {}
         self._last_mtime: float = 0.0
         self._initialized = True
@@ -80,6 +82,7 @@ class ConfigManager:
         return {k: str(v) for k, v in dotenv_values(path).items() if v is not None}
 
     def _read_yaml(self) -> dict[str, Any]:
+    def _read_yaml(self) -> dict[str, Any]:
         """Read the main YAML configuration file safely."""
         if not self.config_path.exists():
             return {}
@@ -87,12 +90,15 @@ class ConfigManager:
             return yaml.safe_load(f) or {}
 
     def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+    def _deep_update(self, target: dict[str, Any], source: dict[str, Any]) -> None:
         for key, value in source.items():
             if isinstance(value, dict) and isinstance(target.get(key), dict):
                 self._deep_update(target[key], value)
             else:
                 target[key] = value
 
+    def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
     def _validate_and_migrate(self, raw: dict[str, Any]) -> dict[str, Any]:
         merged: dict[str, Any] = {}
         self._deep_update(merged, DEFAULTS)
@@ -103,6 +109,7 @@ class ConfigManager:
         except ValidationError as e:
             raise ConfigError("Config validation failed", context={"errors": e.errors()})
 
+    def load_config(self, force_reload: bool = False) -> dict[str, Any]:
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
         """
         Load configuration from main.yaml.
@@ -132,6 +139,7 @@ class ConfigManager:
             # deep copy via dump/load for immutability
             return yaml.safe_load(yaml.safe_dump(self._config_cache, sort_keys=False)) or {}
 
+    def save_config(self, config: dict[str, Any]) -> bool:
     def save_config(self, config: dict[str, Any]) -> bool:
         """
         Save configuration to main.yaml.
@@ -183,6 +191,7 @@ class ConfigManager:
             return False
 
     def get_env_info(self) -> dict[str, str]:
+    def get_env_info(self) -> dict[str, str]:
         """
         Read relevant environment variables using layered .env files and process env.
         Returns only non-sensitive metadata.
@@ -202,6 +211,7 @@ class ConfigManager:
             "model": _get("LLM_MODEL", DEFAULTS.get("llm", {}).get("model", "Pro/Flash")),
         }
 
+    def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
     def validate_required_env(self, keys: list[str]) -> dict[str, list[str]]:
         env_path = self.project_root / ".env"
         local_path = self.project_root / ".env.local"

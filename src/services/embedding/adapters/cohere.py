@@ -59,7 +59,6 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
     """
 
     MODELS_INFO: dict[str, dict[str, Any]] = {
-    MODELS_INFO: dict[str, dict[str, Any]] = {
         "embed-v4.0": {
             "dimensions": [256, 512, 1024, 1536],
             "default": 1024,
@@ -120,7 +119,6 @@ class CohereEmbeddingAdapter(BaseEmbeddingAdapter):
 
         input_type = request.input_type or "search_document"
 
-        payload: dict[str, Any]
         payload: dict[str, Any]
         if api_version == "v1":
             payload = {

@@ -21,15 +21,6 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             "default": 1024,
             "dimensions": [32, 64, 128, 256, 512, 768, 1024],
         },
-    MODELS_INFO: dict[str, dict[str, Any]] = {
-        "jina-embeddings-v3": {
-            "default": 1024,
-            "dimensions": [32, 64, 128, 256, 512, 768, 1024],
-        },
-        "jina-embeddings-v4": {
-            "default": 1024,
-            "dimensions": [32, 64, 128, 256, 512, 768, 1024],
-        },
     }
 
     INPUT_TYPE_TO_TASK = {
@@ -60,7 +51,6 @@ class JinaEmbeddingAdapter(BaseEmbeddingAdapter):
             "Content-Type": "application/json",
         }
 
-        payload: dict[str, Any] = {
         payload: dict[str, Any] = {
             "input": request.texts,
             "model": model_name,

@@ -182,8 +182,6 @@ def clean_thinking_tags(
     content: str,
     binding: str | None = None,
     model: str | None = None,
-    binding: str | None = None,
-    model: str | None = None,
 ) -> str:
     """
     Remove thinking tags from model output.
@@ -231,8 +229,6 @@ def clean_thinking_tags(
 
 def build_chat_url(
     base_url: str,
-    api_version: str | None = None,
-    binding: str | None = None,
     api_version: str | None = None,
     binding: str | None = None,
 ) -> str:
@@ -414,23 +410,8 @@ def collect_model_names(entries: Sequence[object]) -> list[str]:
             names.append(name)
     return names
 
-    # 2. DeepSeek/Reasoning variants (often in 'reasoning_content')
-    # If the user *wants* the reasoning, this logic hides it.
-    # Ensure this aligns with your design goal (hiding vs showing thought).
-    for key in ["reasoning_content", "thought", "reasoning"]:
-        if val := message.get(key):
-            return val
-
-    # 3. Tool Calls (Don't return empty string if it's a tool call)
-    if message.get("tool_calls"):
-        return "<tool_call>"
-
-    return ""
-
 
 def build_auth_headers(
-    api_key: str | None,
-    binding: str | None = None,
     api_key: str | None,
     binding: str | None = None,
 ) -> dict[str, str]:

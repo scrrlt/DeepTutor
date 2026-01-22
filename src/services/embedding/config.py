@@ -30,7 +30,6 @@ class EmbeddingConfig:
     model: str
     api_key: str
     base_url: str | None = None
-    base_url: str | None = None
     binding: str = "openai"
     api_version: str | None = None
     dim: int | None = None

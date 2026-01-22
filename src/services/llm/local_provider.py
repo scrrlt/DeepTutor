@@ -26,9 +26,12 @@ from .utils import (
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
+    collect_model_names,
     extract_response_content,
     sanitize_url,
 )
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -220,12 +223,24 @@ async def stream(
                                     # Handle thinking tags in streaming
                                     if "<think>" in content:
                                         in_thinking_block = True
-                                        thinking_buffer = content
+                                        # Handle case where content has text BEFORE <think>
+                                        parts = content.split("<think>", 1)
+                                        if parts[0]:
+                                            yield parts[0]
+                                        thinking_buffer = "<think>" + parts[1]
+
+                                        # Check if closed immediately in same chunk
+                                        if "</think>" in thinking_buffer:
+                                            cleaned = clean_thinking_tags(thinking_buffer)
+                                            if cleaned:
+                                                yield cleaned
+                                            thinking_buffer = ""
+                                            in_thinking_block = False
                                         continue
                                     elif in_thinking_block:
                                         thinking_buffer += content
                                         if "</think>" in thinking_buffer:
-                                            # End of thinking block, clean and yield
+                                            # Block finished
                                             cleaned = clean_thinking_tags(thinking_buffer)
                                             if cleaned:
                                                 yield cleaned
@@ -236,9 +251,9 @@ async def stream(
                                         yield content
 
                         except json.JSONDecodeError:
-                            # Non-JSON response, might be raw text
-                            if data_str and not data_str.startswith("{"):
-                                yield data_str
+                            # Log and skip malformed JSON chunks
+                            logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
+                            continue
 
                     # Some servers don't use SSE format
                     elif line_str.startswith("{"):
@@ -248,6 +263,7 @@ async def stream(
                                 delta = chunk_data["choices"][0].get("delta", {})
                                 content = delta.get("content")
                                 if content:
+                                    # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
                                     yield content
                         except json.JSONDecodeError:

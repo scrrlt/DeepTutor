@@ -7,6 +7,7 @@ Parser for plain text documents (.txt files).
 """
 
 from pathlib import Path
+from typing import Any
 
 from ...types import Document
 from ..base import BaseComponent
@@ -25,7 +26,7 @@ class TextParser(BaseComponent):
     # Supported extensions
     SUPPORTED_EXTENSIONS = {".txt", ".text", ".log", ".csv", ".tsv"}
 
-    async def process(self, file_path: str | Path, **kwargs) -> Document:
+    async def process(self, data: str | Path, **kwargs: Any) -> Document:
         """
         Parse a text file into a Document.
 

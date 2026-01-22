@@ -7,10 +7,16 @@ This agent is intentionally lightweight:
 - Uses a model-agnostic history truncation heuristic
 """
 
-from __future__ import annotations
+import asyncio
+from functools import partial
+from pathlib import Path
+import sys
+from typing import Any, AsyncGenerator
 
-from collections.abc import AsyncGenerator, Callable
-from typing import Any
+# Add project root to path
+_project_root = Path(__file__).parent.parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.config.config import LLMConfig
@@ -91,25 +97,164 @@ class ChatAgent(BaseAgent):
                     self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
             except Exception as e:
                 self.logger.warning(f"RAG search failed: {e}")
-        if use_rag and kb_name and self._rag_search is not None:
-            try:
-                result = await self._rag_search(message, kb_name=kb_name)
-                if result.get("answer"):
-                    context_parts.append(f"[Knowledge Base]\n{result['answer']}")
-                    sources["rag"].append(result)
-            except Exception as exc:
-                self.logger.error(f"RAG failed: {exc}")
 
-        if use_web and self._web_search is not None:
+        # Web search
+        if enable_web_search:
             try:
-                result = await self._web_search(message)
-                if result.get("answer"):
-                    context_parts.append(f"[Web Search]\n{result['answer']}")
-                    sources["web"] = result.get("citations", [])
-            except Exception as exc:
-                self.logger.error(f"Web search failed: {exc}")
+                self.logger.info(f"Web search: {message[:50]}...")
+                loop = asyncio.get_running_loop()
+                web_result = await loop.run_in_executor(
+                    None,
+                    partial(web_search, query=message, verbose=False),
+                )
+                web_answer = web_result.get("answer", "")
+                web_citations = web_result.get("citations", [])
 
-        return "\n\n".join(context_parts), sources
+                if web_answer:
+                    context_parts.append(f"[Web Search Results]\n{web_answer}")
+                    sources["web"] = web_citations[:5]
+                    self.logger.info(
+                        f"Web search returned {len(web_answer)} chars, "
+                        f"{len(web_citations)} citations"
+                    )
+            except Exception as e:
+                self.logger.warning(f"Web search failed: {e}")
+
+        context = "\n\n".join(context_parts)
+        return context, sources
+
+    def build_messages(
+        self,
+        message: str,
+        history: list[dict[str, str]],
+        context: str = "",
+    ) -> list[dict[str, str]]:
+        """
+        Build the messages array for the LLM API call.
+
+        Args:
+            message: Current user message
+            history: Truncated conversation history
+            context: Retrieved context (RAG/Web)
+
+        Returns:
+            List of message dicts for OpenAI API
+        """
+        messages = []
+
+        # System prompt
+        system_prompt = self.get_prompt("system", "You are a helpful AI assistant.")
+        messages.append({"role": "system", "content": system_prompt})
+
+        # Add context if available
+        if context:
+            context_template = self.get_prompt("context_template", "Reference context:\n{context}")
+            context_msg = context_template.format(context=context)
+            messages.append({"role": "system", "content": context_msg})
+
+        # Add conversation history
+        for msg in history:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant"):
+                messages.append({"role": role, "content": content})
+
+        # Add current message
+        messages.append({"role": "user", "content": message})
+
+        return messages
+
+    async def generate_stream(
+        self,
+        messages: list[dict[str, str]],
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate streaming response from LLM.
+
+        Uses BaseAgent.stream_llm() which routes to the appropriate provider
+        (cloud or local) based on configuration.
+
+        Args:
+            messages: Messages array for OpenAI API
+
+        Yields:
+            Response chunks as strings
+        """
+        # Extract system prompt from messages
+        system_prompt = ""
+        user_prompt = ""
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_prompt = msg.get("content", "")
+                break
+
+        # Get the last user message as user_prompt (for logging/tracking)
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                user_prompt = msg.get("content", "")
+                break
+
+        # Use BaseAgent's stream_llm which routes through the factory
+        async for chunk in self.stream_llm(
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            messages=messages,
+            stage="chat_stream",
+        ):
+            yield chunk
+
+    async def generate(self, messages: list[dict[str, str]]) -> str:
+        """
+        Generate complete response from LLM (non-streaming).
+
+        Uses BaseAgent.call_llm() which routes to the appropriate provider
+        (cloud or local) based on configuration.
+
+        Args:
+            messages: Messages array for OpenAI API
+
+        Returns:
+            Complete response string
+        """
+        # Extract system prompt from messages
+        system_prompt = ""
+        user_prompt = ""
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_prompt = msg.get("content", "")
+                break
+
+        # Get the last user message
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                user_prompt = msg.get("content", "")
+                break
+
+        # Use BaseAgent's call_llm which routes through the factory
+        # Note: call_llm expects simple prompt/system_prompt, but for multi-turn
+        # we need to use the factory directly with messages
+        from src.services.llm import complete as llm_complete
+
+        response = await llm_complete(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=self.get_model(),
+            api_key=self.api_key,
+            base_url=self.base_url,
+            messages=messages,
+            temperature=self.get_temperature(),
+        )
+
+        # Track token usage
+        self._track_tokens(
+            model=self.get_model(),
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            response=response,
+            stage="chat",
+        )
+
+        return response
 
     async def process(
         self,

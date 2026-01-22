@@ -24,7 +24,6 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse

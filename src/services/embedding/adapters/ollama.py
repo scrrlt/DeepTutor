@@ -47,6 +47,42 @@ def _normalize_embeddings(
     return embeddings
 
 
+def _normalize_vector(vector: list[float]) -> list[float]:
+    """
+    Normalize a vector to unit length.
+
+    Args:
+        vector: Embedding vector.
+
+    Returns:
+        Normalized vector (or original if norm is zero).
+    """
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm == 0:
+        return vector
+    return [value / norm for value in vector]
+
+
+def _normalize_embeddings(
+    embeddings: list[list[float]],
+    normalize: bool | None,
+) -> list[list[float]]:
+    """
+    Normalize embeddings when requested.
+
+    Args:
+        embeddings: Raw embedding vectors.
+        normalize: Whether to normalize embeddings.
+
+    Returns:
+        Normalized embeddings when enabled.
+    """
+    if normalize is True:
+        return [_normalize_vector(vector) for vector in embeddings]
+
+    return embeddings
+
+
 class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
     MODELS_INFO: dict[str, int] = {
         "all-minilm": 384,
@@ -80,7 +116,11 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         url = f"{base_url}/api/embed"
 
-        logger.debug(f"Sending embedding request to {url} with {len(request.texts)} texts")
+        logger.debug(
+            "Sending embedding request to %s with %d texts",
+            url,
+            len(request.texts),
+        )
 
         try:
             async with httpx.AsyncClient(timeout=self.request_timeout) as client:
@@ -88,10 +128,14 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
                 if response.status_code == 404:
                     try:
-                        health_check = await client.get(f"{self.base_url}/api/tags")
+                        health_check = await client.get(f"{self.base_url.rstrip('/')}/api/tags")
                         if health_check.status_code == 200:
                             available_models = [
-                                m.get("name", "") for m in health_check.json().get("models", [])
+                                cast(str, m.get("name", ""))
+                                for m in cast(
+                                    list[dict[str, Any]],
+                                    health_check.json().get("models", []),
+                                )
                             ]
                             raise ValueError(
                                 f"Model '{payload['model']}' not found in Ollama. "
@@ -123,8 +167,13 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         except httpx.HTTPError as e:
             logger.error("Ollama API error: %s", e)
+            logger.error("Ollama API error: %s", e)
             raise
 
+        embeddings = _normalize_embeddings(
+            data["embeddings"],
+            request.normalized,
+        )
         embeddings = _normalize_embeddings(
             data["embeddings"],
             request.normalized,
@@ -146,6 +195,7 @@ class OllamaEmbeddingAdapter(BaseEmbeddingAdapter):
 
         return EmbeddingResponse(
             embeddings=embeddings,
+            model=data.get("model", self.model or "unknown"),
             model=data.get("model", self.model or "unknown"),
             dimensions=actual_dims,
             usage={
