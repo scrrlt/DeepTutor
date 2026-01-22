@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Thread-safe lock for SSL-warning state
 _ssl_warning_lock = threading.Lock()
 
+
 class OpenAICompleteIfCache(Protocol):
     """Protocol for the lightrag OpenAI completion helper."""
 

@@ -10,6 +10,11 @@ from typing import Any
 
 import yaml
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 
 class ConfigValidator:
     """Configuration validator"""
@@ -272,36 +277,36 @@ def print_validation_result(is_valid: bool, errors: list[str], warnings: list[st
         errors: List of errors
         warnings: List of warnings
     """
-    print("=" * 60)
-    print("Configuration Validation Result")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Configuration Validation Result")
+    logger.info("=" * 60)
 
     if is_valid:
-        print("✓ Configuration validation passed")
+        logger.info("✓ Configuration validation passed")
     else:
-        print("✗ Configuration validation failed")
+        logger.error("✗ Configuration validation failed")
 
-    print()
+    logger.info()
 
     if errors:
-        print(f"Errors ({len(errors)}):")
+        logger.error(f"Errors ({len(errors)}):")
         for i, error in enumerate(errors, 1):
-            print(f"  {i}. {error}")
-        print()
+            logger.error(f"  {i}. {error}")
+        logger.info()
 
     if warnings:
-        print(f"Warnings ({len(warnings)}):")
+        logger.warning(f"Warnings ({len(warnings)}):")
         for i, warning in enumerate(warnings, 1):
-            print(f"  {i}. {warning}")
-        print()
+            logger.warning(f"  {i}. {warning}")
+        logger.info()
 
-    print("=" * 60)
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":
     # Test configuration validation
     print("Configuration Validation Test")
-    print("=" * 60)
+    logger.info("=" * 60)
 
     # Validate config.yaml in current directory
     config_path = Path(__file__).parent.parent.parent.parent / "config.yaml"
@@ -310,4 +315,4 @@ if __name__ == "__main__":
         is_valid, errors, warnings = validate_config_file(str(config_path))
         print_validation_result(is_valid, errors, warnings)
     else:
-        print(f"Configuration file not found: {config_path}")
+        logger.info(f"Configuration file not found: {config_path}")

@@ -1,5 +1,10 @@
 from typing import Callable
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 class ConfigAccessor:
     def __init__(self, loader: Callable[[], dict]):

@@ -473,14 +473,12 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             }
         """
         block_id_prefix = f"[{topic_block.block_id}]"
-        print(f"\n{block_id_prefix} {'=' * 70}")
-        print(f"{block_id_prefix} 🔬 ResearchAgent - Executing Research")
-        print(f"{block_id_prefix} {'=' * 70}")
-        print(f"{block_id_prefix} Topic: {topic_block.sub_topic}")
-        print(f"{block_id_prefix} Overview: {topic_block.overview}")
-        print(
-            f"{block_id_prefix} Max iterations: {self.max_iterations}, Mode: {self.iteration_mode}\n"
-        )
+        self.logger.info(f"\n{block_id_prefix} {'=' * 70}")
+        self.logger.info(f"{block_id_prefix} 🔬 ResearchAgent - Executing Research")
+        self.logger.info(f"{block_id_prefix} {'=' * 70}")
+        self.logger.info(f"{block_id_prefix} Topic: {topic_block.sub_topic}")
+        self.logger.info(f"{block_id_prefix} Overview: {topic_block.overview}")
+        self.logger.info(f"{block_id_prefix} Max iterations: {self.max_iterations}, Mode: {self.iteration_mode}\n")
 
         iteration = 0
         current_knowledge = ""
@@ -497,7 +495,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
 
         while iteration < self.max_iterations:
             iteration += 1
-            print(f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】")
+            self.logger.info(f"{block_id_prefix} \n【Iteration {iteration}/{self.max_iterations}】")
 
             # Send iteration started progress
             send_progress(
@@ -520,9 +518,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             )
 
             if suff.get("is_sufficient", False):
-                print(
-                    f"{block_id_prefix}   ✓ Current topic is sufficient, ending research for this topic"
-                )
+                self.logger.info(f"{block_id_prefix}   ✓ Current topic is sufficient, ending research for this topic")
                 send_progress(
                     "knowledge_sufficient",
                     iteration=iteration,
@@ -555,13 +551,9 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
             if isinstance(new_topic, str) and new_topic.strip():
                 trimmed_topic = new_topic.strip()
                 if should_add_new_topic is False:
-                    print(
-                        f"{block_id_prefix}   ↩️ LLM determined not to add new topic《{trimmed_topic}》, skipping"
-                    )
+                    self.logger.info(f"{block_id_prefix}   ↩️ LLM determined not to add new topic《{trimmed_topic}》, skipping")
                 elif new_topic_score < min_score:
-                    print(
-                        f"{block_id_prefix}   ↩️ New topic《{trimmed_topic}》score {new_topic_score:.2f} below threshold {min_score:.2f}, skipping"
-                    )
+                    self.logger.info(f"{block_id_prefix}   ↩️ New topic《{trimmed_topic}》score {new_topic_score:.2f} below threshold {min_score:.2f}, skipping")
                 else:
                     # Support both sync and async manager_agent
                     import inspect
@@ -572,7 +564,7 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                     else:
                         added = manager_agent.add_new_topic(trimmed_topic, new_overview or "")
                     if added:
-                        print(f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue")
+                        self.logger.info(f"{block_id_prefix}   ✓ Added new topic《{trimmed_topic}》to queue")
                         send_progress(
                             "new_topic_added",
                             iteration=iteration,
@@ -581,14 +573,14 @@ Tools already used: {", ".join(used_tools) if used_tools else "None"}
                             new_overview=new_overview or "",
                         )
                 if new_topic_reason:
-                    print(f"{block_id_prefix}     Reason: {new_topic_reason}")
+                    self.logger.info(f"{block_id_prefix}     Reason: {new_topic_reason}")
 
             query = plan.get("query", "").strip()
             tool_type = plan.get("tool_type", "rag_hybrid")
             rationale = plan.get("rationale", "")
 
             if not query:
-                print(f"{block_id_prefix}   ⚠️ Generated query is empty, skipping this iteration")
+                self.logger.info(f"{block_id_prefix}   ⚠️ Generated query is empty, skipping this iteration")
                 send_progress(
                     "query_empty", iteration=iteration, max_iterations=self.max_iterations
                 )

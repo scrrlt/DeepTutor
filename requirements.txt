@@ -44,6 +44,7 @@ pydantic>=2.0.0
 # RAG and knowledge base
 # ============================================
 raganything>=0.1.0
+lightrag>=0.1.0b6
 docling>=2.31.0                # Document parser for Office/HTML (alternative to MinerU)
 
 # ============================================

@@ -18,7 +18,12 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiohttp
 
+from src.logging import get_logger
+
 from .exceptions import LLMAPIError, LLMConfigError
+
+
+logger = get_logger(__name__)
 from .utils import (
     collect_model_names,
     build_auth_headers,

@@ -96,7 +96,7 @@ class ProgressTracker:
             try:
                 callback(progress)
             except Exception as e:
-                print(f"[ProgressTracker] Callback error: {e}")
+                logger.error(f"[ProgressTracker] Callback error: {e}")
 
     def _save_progress(self, progress: dict):
         """Save progress to kb_config.json and local .progress.json file"""
@@ -146,7 +146,7 @@ class ProgressTracker:
             with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to save progress to local file: {e}")
+            logger.error(f"[ProgressTracker] Failed to save progress: {e}")
 
     def update(
         self,
@@ -195,9 +195,11 @@ class ProgressTracker:
         except Exception:
             # If logging fails, print to console
             prefix = f"[{self.task_id}]" if self.task_id else ""
-            print(f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})")
+            logger.info(
+                f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})"
+            )
             if error:
-                print(f"{prefix} [ProgressTracker] Error: {error}")
+                logger.error(f"{prefix} [ProgressTracker] Error: {error}")
 
         self._save_progress(progress)
         self._notify(progress)
@@ -211,7 +213,7 @@ class ProgressTracker:
             with open(self.progress_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to read progress: {e}")
+            logger.error(f"[ProgressTracker] Failed to read progress: {e}")
             return None
 
     def clear(self):
@@ -220,4 +222,4 @@ class ProgressTracker:
             try:
                 self.progress_file.unlink()
             except Exception as e:
-                print(f"[ProgressTracker] Failed to clear progress: {e}")
+                logger.error(f"[ProgressTracker] Failed to clear progress: {e}")

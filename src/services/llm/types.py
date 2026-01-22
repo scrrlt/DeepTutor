@@ -3,6 +3,11 @@ from typing import Any, AsyncGenerator, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+from src.logging import get_logger
+
+
+
+logger = get_logger(__name__)
 
 class TutorResponse(BaseModel):
     content: str

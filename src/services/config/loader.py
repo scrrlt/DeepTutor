@@ -14,6 +14,11 @@ from typing import Any
 
 import yaml
 
+from src.logging import get_logger
+
+
+logger = get_logger(__name__)
+
 # PROJECT_ROOT points to the actual project root directory (DeepTutor/)
 # Path(__file__) = src/services/config/loader.py
 # .parent = src/services/config/
@@ -81,7 +86,7 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
         try:
             main_config = _load_yaml_file(main_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load main.yaml: {e}")
+            logger.error(f"⚠️ Failed to load main.yaml: {e}")
 
     # 2. Load sub-module configuration file
     module_config = {}
@@ -90,7 +95,7 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
         try:
             module_config = _load_yaml_file(module_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load {config_file}: {e}")
+            logger.error(f"⚠️ Failed to load {config_file}: {e}")
 
     # 3. Merge configurations: main.yaml as base, sub-module config overrides
     merged_config = _deep_merge(main_config, module_config)
@@ -125,7 +130,7 @@ async def load_config_with_main_async(
         try:
             main_config = await _load_yaml_file_async(main_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load main.yaml: {e}")
+            logger.error(f"⚠️ Failed to load main.yaml: {e}")
 
     # 2. Load sub-module configuration file
     module_config = {}
@@ -134,7 +139,7 @@ async def load_config_with_main_async(
         try:
             module_config = await _load_yaml_file_async(module_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load {config_file}: {e}")
+            logger.error(f"⚠️ Failed to load {config_file}: {e}")
 
     # 3. Merge configurations: main.yaml as base, sub-module config overrides
     merged_config = _deep_merge(main_config, module_config)
@@ -245,7 +250,7 @@ def get_agent_params(module_name: str) -> dict:
                     "max_tokens": module_config.get("max_tokens", defaults["max_tokens"]),
                 }
     except Exception as e:
-        print(f"⚠️ Failed to load agents.yaml: {e}, using defaults")
+        logger.error(f"⚠️ Failed to load agents.yaml: {e}, using defaults")
 
     return defaults
 
