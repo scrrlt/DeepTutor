@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Extract numbered important content from knowledge base content_list
 Such as: Definition 1.5., Proposition 1.3., Theorem x.x., Equation x.x., Formula x.x., etc.
@@ -19,9 +18,8 @@ from typing import Any
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from dotenv import load_dotenv
-from lightrag.llm.openai import openai_complete_if_cache
 
-from src.services.llm import get_llm_config
+from src.services.llm import get_llm_client, get_llm_config
 
 load_dotenv(dotenv_path=".env", override=False)
 
@@ -49,7 +47,8 @@ except ImportError:
     # If import fails, use basic logging
     logger = std_logging.getLogger("knowledge_init.extract_items")
     std_logging.basicConfig(
-        level=std_logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+        level=std_logging.INFO,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     )
 
 
@@ -60,20 +59,20 @@ async def _call_llm_async(
     base_url: str | None,
     max_tokens: int = 2000,
     temperature: float = 0.1,
-    model: str = None,
+    model: str | None = None,
 ) -> str:
-    """Asynchronously call LLM"""
-    # If model not specified, get from env_config
-    if model is None:
-        llm_cfg = get_llm_config()
-        model = llm_cfg.model
+    """Asynchronously call LLM using unified LLM service"""
+    # Get unified LLM client (handles all provider differences and env var setup)
+    llm_client = get_llm_client()
+    llm_model_func = llm_client.get_model_func()
 
-    result = openai_complete_if_cache(
-        model,
+    # If model not specified, use configured model
+    if model is None:
+        model = llm_client.config.model
+
+    result = llm_model_func(
         prompt,
         system_prompt=system_prompt,
-        api_key=api_key,
-        base_url=base_url,
         max_tokens=max_tokens,
         temperature=temperature,
     )
@@ -291,7 +290,11 @@ def _get_complete_content(
                     try:
                         return new_loop.run_until_complete(
                             _get_complete_content_async(
-                                content_items, start_index, api_key, base_url, max_following
+                                content_items,
+                                start_index,
+                                api_key,
+                                base_url,
+                                max_following,
                             )
                         )
                     finally:
@@ -309,7 +312,11 @@ def _get_complete_content(
                     nest_asyncio.apply()
                     return loop.run_until_complete(
                         _get_complete_content_async(
-                            content_items, start_index, api_key, base_url, max_following
+                            content_items,
+                            start_index,
+                            api_key,
+                            base_url,
+                            max_following,
                         )
                     )
                 except (ValueError, TypeError) as e:
@@ -323,7 +330,11 @@ def _get_complete_content(
                         try:
                             return new_loop.run_until_complete(
                                 _get_complete_content_async(
-                                    content_items, start_index, api_key, base_url, max_following
+                                    content_items,
+                                    start_index,
+                                    api_key,
+                                    base_url,
+                                    max_following,
                                 )
                             )
                         finally:
@@ -335,7 +346,11 @@ def _get_complete_content(
         else:
             return loop.run_until_complete(
                 _get_complete_content_async(
-                    content_items, start_index, api_key, base_url, max_following
+                    content_items,
+                    start_index,
+                    api_key,
+                    base_url,
+                    max_following,
                 )
             )
     except RuntimeError:
@@ -510,7 +525,10 @@ Return ONLY the JSON array, no other text. Ensure it is valid JSON."""
                 if full_index is not None:
                     # Get complete content (including subsequent equations, etc.) and all related images
                     # Use LLM to intelligently determine content boundaries
-                    complete_text, img_paths = await _get_complete_content_async(
+                    (
+                        complete_text,
+                        img_paths,
+                    ) = await _get_complete_content_async(
                         content_items, full_index, api_key, base_url
                     )
                 else:
@@ -707,7 +725,11 @@ def extract_numbered_items_with_llm(
                     try:
                         return new_loop.run_until_complete(
                             extract_numbered_items_with_llm_async(
-                                content_items, api_key, base_url, batch_size, max_concurrent
+                                content_items,
+                                api_key,
+                                base_url,
+                                batch_size,
+                                max_concurrent,
                             )
                         )
                     finally:
@@ -725,7 +747,11 @@ def extract_numbered_items_with_llm(
                     nest_asyncio.apply()
                     return loop.run_until_complete(
                         extract_numbered_items_with_llm_async(
-                            content_items, api_key, base_url, batch_size, max_concurrent
+                            content_items,
+                            api_key,
+                            base_url,
+                            batch_size,
+                            max_concurrent,
                         )
                     )
                 except (ValueError, TypeError) as e:
@@ -739,7 +765,11 @@ def extract_numbered_items_with_llm(
                         try:
                             return new_loop.run_until_complete(
                                 extract_numbered_items_with_llm_async(
-                                    content_items, api_key, base_url, batch_size, max_concurrent
+                                    content_items,
+                                    api_key,
+                                    base_url,
+                                    batch_size,
+                                    max_concurrent,
                                 )
                             )
                         finally:
@@ -751,7 +781,11 @@ def extract_numbered_items_with_llm(
         else:
             return loop.run_until_complete(
                 extract_numbered_items_with_llm_async(
-                    content_items, api_key, base_url, batch_size, max_concurrent
+                    content_items,
+                    api_key,
+                    base_url,
+                    batch_size,
+                    max_concurrent,
                 )
             )
     except RuntimeError:
@@ -862,7 +896,9 @@ def main():
         description="Extract numbered important content from knowledge base content_list"
     )
     parser.add_argument(
-        "--kb", required=True, help="Knowledge base name (under knowledge_bases directory)"
+        "--kb",
+        required=True,
+        help="Knowledge base name (under knowledge_bases directory)",
     )
     parser.add_argument(
         "--content-file",
@@ -891,7 +927,10 @@ def main():
         default=20,
     )
     parser.add_argument(
-        "--max-concurrent", type=int, help="Maximum concurrent tasks (default: 5)", default=5
+        "--max-concurrent",
+        type=int,
+        help="Maximum concurrent tasks (default: 5)",
+        default=5,
     )
     parser.add_argument(
         "--no-merge",

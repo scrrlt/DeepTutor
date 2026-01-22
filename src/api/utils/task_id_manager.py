@@ -83,7 +83,11 @@ class TaskIDManager:
 
             to_remove = []
             for task_id, metadata in self._task_metadata.items():
-                if metadata.get("status") in ["completed", "error", "cancelled"]:
+                if metadata.get("status") in [
+                    "completed",
+                    "error",
+                    "cancelled",
+                ]:
                     finished_at = metadata.get("finished_at")
                     if finished_at:
                         try:

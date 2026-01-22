@@ -8,13 +8,21 @@ File-based logging with rotation support.
 import asyncio
 from datetime import datetime
 import json
-import logging
-from logging.handlers import RotatingFileHandler as BaseRotatingFileHandler
+from logging.handlers import (
+    QueueHandler,
+    QueueListener,
+)
+from logging.handlers import (
+    RotatingFileHandler as BaseRotatingFileHandler,
+)
 from pathlib import Path
+import queue
 from typing import Optional
 
+from .._stdlib_logging import stdlib_logging
 
-class FileFormatter(logging.Formatter):
+
+class FileFormatter(stdlib_logging.Formatter):
     """
     Detailed file formatter for log files.
     Format: TIMESTAMP [LEVEL] [Module] Message
@@ -26,14 +34,14 @@ class FileFormatter(logging.Formatter):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-    def format(self, record: logging.LogRecord) -> str:
+    def format(self, record: stdlib_logging.LogRecord) -> str:
         # Ensure module_name exists
         if not hasattr(record, "module_name"):
             record.module_name = record.name
         return super().format(record)
 
 
-class FileHandler(logging.FileHandler):
+class FileHandler(stdlib_logging.FileHandler):
     """
     File handler with detailed formatting.
     """
@@ -41,7 +49,7 @@ class FileHandler(logging.FileHandler):
     def __init__(
         self,
         filename: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         encoding: str = "utf-8",
     ):
         """
@@ -68,7 +76,7 @@ class RotatingFileHandler(BaseRotatingFileHandler):
     def __init__(
         self,
         filename: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         max_bytes: int = 10 * 1024 * 1024,  # 10MB
         backup_count: int = 5,
         encoding: str = "utf-8",
@@ -96,21 +104,15 @@ class RotatingFileHandler(BaseRotatingFileHandler):
         self.setFormatter(FileFormatter())
 
 
-class JSONFileHandler(logging.Handler):
+class _JSONFileWriterHandler(stdlib_logging.Handler):
     """
-    A logging handler that writes structured JSON logs to a file.
-    Each line is a valid JSON object (JSONL format).
-
-    Useful for:
-    - LLM call logging
-    - Structured analysis
-    - Log parsing and analysis
+    Blocking JSON file writer used by QueueListener.
     """
 
     def __init__(
         self,
         filepath: str,
-        level: int = logging.DEBUG,
+        level: int = stdlib_logging.DEBUG,
         encoding: str = "utf-8",
     ):
         """
@@ -129,9 +131,9 @@ class JSONFileHandler(logging.Handler):
         self.filepath = filepath
         self.encoding = encoding
         self.setLevel(level)
-        self.setFormatter(logging.Formatter("%(message)s"))
+        self.setFormatter(stdlib_logging.Formatter("%(message)s"))
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: stdlib_logging.LogRecord) -> None:
         """Emit a log record as JSON."""
         try:
             # Build JSON entry
@@ -143,7 +145,13 @@ class JSONFileHandler(logging.Handler):
             }
 
             # Add extra fields if present
-            for key in ["symbol", "display_level", "tool_name", "elapsed_ms", "tokens"]:
+            for key in [
+                "symbol",
+                "display_level",
+                "tool_name",
+                "elapsed_ms",
+                "tokens",
+            ]:
                 if hasattr(record, key):
                     entry[key] = getattr(record, key)
 
@@ -155,12 +163,46 @@ class JSONFileHandler(logging.Handler):
             self.handleError(record)
 
 
+class JSONFileHandler(QueueHandler):
+    """
+    Queue-based JSON file handler to avoid blocking the event loop.
+
+    Uses a background QueueListener thread for file I/O.
+    """
+
+    def __init__(
+        self,
+        filepath: str,
+        level: int = stdlib_logging.DEBUG,
+        encoding: str = "utf-8",
+    ):
+        log_queue: queue.Queue[stdlib_logging.LogRecord] = queue.SimpleQueue()
+        super().__init__(log_queue)
+
+        writer = _JSONFileWriterHandler(
+            filepath=filepath,
+            level=level,
+            encoding=encoding,
+        )
+        writer.setFormatter(stdlib_logging.Formatter("%(message)s"))
+
+        self._listener = QueueListener(log_queue, writer)
+        self._listener.start()
+        self.setLevel(level)
+
+    def close(self) -> None:
+        try:
+            self._listener.stop()
+        finally:
+            super().close()
+
+
 def create_task_logger(
     task_id: str,
     module_name: str,
     log_dir: str,
     queue: Optional["asyncio.Queue"] = None,
-) -> logging.Logger:
+) -> stdlib_logging.Logger:
     """
     Create a logger for a specific task with file and optional WebSocket output.
 
@@ -180,8 +222,8 @@ def create_task_logger(
     log_path.mkdir(parents=True, exist_ok=True)
 
     # Create logger
-    logger = logging.getLogger(f"ai_tutor.{module_name}.{task_id}")
-    logger.setLevel(logging.DEBUG)
+    logger = stdlib_logging.getLogger(f"ai_tutor.{module_name}.{task_id}")
+    logger.setLevel(stdlib_logging.DEBUG)
     logger.handlers.clear()
     logger.propagate = False
 
@@ -195,7 +237,7 @@ def create_task_logger(
     # WebSocket handler if queue provided
     if queue is not None:
         ws_handler = WebSocketLogHandler(queue)
-        ws_handler.setLevel(logging.INFO)
+        ws_handler.setLevel(stdlib_logging.INFO)
         logger.addHandler(ws_handler)
 
     return logger

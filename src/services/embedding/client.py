@@ -6,7 +6,7 @@ Unified embedding client for all DeepTutor services.
 Now supports multiple providers through adapters.
 """
 
-from typing import List, Optional
+import asyncio
 
 from src.logging import get_logger
 
@@ -23,7 +23,7 @@ class EmbeddingClient:
     Supports: OpenAI, Azure OpenAI, Cohere, Ollama, Jina, HuggingFace, Google.
     """
 
-    def __init__(self, config: Optional[EmbeddingConfig] = None):
+    def __init__(self, config: EmbeddingConfig | None = None):
         """
         Initialize embedding client.
 
@@ -33,6 +33,12 @@ class EmbeddingClient:
         self.config = config or get_embedding_config()
         self.logger = get_logger("EmbeddingClient")
         self.manager: EmbeddingProviderManager = get_embedding_provider_manager()
+
+        # Capture the loop where the client/adapters were created for thread-safe sync wrapper
+        try:
+            self._init_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._init_loop = None
 
         # Initialize adapter based on binding configuration
         try:
@@ -57,7 +63,7 @@ class EmbeddingClient:
             self.logger.error(f"Failed to initialize embedding adapter: {e}")
             raise
 
-    async def embed(self, texts: List[str]) -> List[List[float]]:
+    async def embed(self, texts: list[str]) -> list[list[float]]:
         """
         Get embeddings for texts using the configured adapter.
 
@@ -79,6 +85,8 @@ class EmbeddingClient:
         try:
             response = await adapter.embed(request)
 
+            self._validate_embeddings_response(response.embeddings, texts)
+
             self.logger.debug(
                 f"Generated {len(response.embeddings)} embeddings using {self.config.binding}"
             )
@@ -88,26 +96,39 @@ class EmbeddingClient:
             self.logger.error(f"Embedding request failed: {e}")
             raise
 
-    def embed_sync(self, texts: List[str]) -> List[List[float]]:
+    def embed_sync(self, texts: list[str]) -> list[list[float]]:
         """
-        Synchronous wrapper for embed().
+        Thread-safe synchronous wrapper for embed().
 
-        Use this when you need to call from non-async context.
+        Executes the async embed call on the loop where the client was initialized
+        to avoid event loop affinity issues.
         """
-        import asyncio
-
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self.embed(texts))
-                    return future.result()
-            else:
-                return loop.run_until_complete(self.embed(texts))
+            current_loop = asyncio.get_running_loop()
         except RuntimeError:
+            current_loop = None
+
+        if current_loop is None:
+            # No running loop, safe to create a new one
             return asyncio.run(self.embed(texts))
+
+        if current_loop == self._init_loop:
+            # Called sync from within the init loop - this would block
+            raise RuntimeError(
+                "embed_sync() cannot be called from within the same running event loop. "
+                "Use 'await embed()' instead."
+            )
+
+        if self._init_loop and self._init_loop.is_running():
+            # Different loop context, dispatch to init loop for adapter affinity
+            future = asyncio.run_coroutine_threadsafe(self.embed(texts), self._init_loop)
+            return future.result(timeout=self.config.request_timeout or 30)
+
+        # Init loop is dead but we're in a different running loop - can't safely proceed
+        raise RuntimeError(
+            "embed_sync() called from a running event loop, but the initialization loop "
+            "is no longer running. Re-initialize the client in the current async context."
+        )
 
     def get_embedding_func(self):
         """
@@ -121,7 +142,7 @@ class EmbeddingClient:
 
         # Create async wrapper that uses our adapter system
         # LightRAG expects numpy arrays, not Python lists
-        async def embedding_wrapper(texts: List[str]):
+        async def embedding_wrapper(texts: list[str]):
             embeddings = await self.embed(texts)
             # Convert list of lists to numpy array for LightRAG compatibility
             return np.array(embeddings)
@@ -134,10 +155,12 @@ class EmbeddingClient:
 
 
 # Singleton instance
-_client: Optional[EmbeddingClient] = None
+_client: EmbeddingClient | None = None
 
 
-def get_embedding_client(config: Optional[EmbeddingConfig] = None) -> EmbeddingClient:
+def get_embedding_client(
+    config: EmbeddingConfig | None = None,
+) -> EmbeddingClient:
     """
     Get or create the singleton embedding client.
 
@@ -153,7 +176,7 @@ def get_embedding_client(config: Optional[EmbeddingConfig] = None) -> EmbeddingC
     return _client
 
 
-def reset_embedding_client():
+def reset_embedding_client() -> None:
     """Reset the singleton embedding client."""
     global _client
     _client = None

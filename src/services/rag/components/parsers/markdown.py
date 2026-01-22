@@ -6,7 +6,6 @@ Parser for Markdown documents.
 """
 
 from pathlib import Path
-from typing import Union
 
 from ...types import Document
 from ..base import BaseComponent
@@ -21,7 +20,7 @@ class MarkdownParser(BaseComponent):
 
     name = "markdown_parser"
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, file_path: str | Path, **kwargs) -> Document:
         """
         Parse a Markdown file into a Document.
 
@@ -39,8 +38,12 @@ class MarkdownParser(BaseComponent):
 
         self.logger.info(f"Parsing Markdown: {file_path.name}")
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                content = f.read()
+        except OSError as e:
+            self.logger.error(f"Failed to read file {file_path}: {e}")
+            raise
 
         return Document(
             content=content,

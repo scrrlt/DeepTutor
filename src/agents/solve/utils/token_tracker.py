@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Token Tracker - LLM Token usage and cost tracking system (Advanced)
 Uses tiktoken for precise token counting, supports multiple models and more accurate cost calculation
@@ -148,7 +147,9 @@ def calculate_cost_with_litellm(model: str, prompt_tokens: int, completion_token
     try:
         # Use litellm's completion_cost function
         cost = litellm.completion_cost(
-            model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
         return cost
     except Exception:

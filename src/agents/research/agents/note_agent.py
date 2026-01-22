@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 NoteAgent - Recording Agent
 Responsible for information compression and summary generation, converting raw data returned by tools into usable knowledge summaries
@@ -8,13 +7,16 @@ Responsible for information compression and summary generation, converting raw d
 from pathlib import Path
 from string import Template
 import sys
-from typing import Any, Optional
+from typing import Any
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import ToolTrace
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -25,11 +27,11 @@ class NoteAgent(BaseAgent):
     def __init__(
         self,
         config: dict[str, Any],
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        api_version: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        api_version: str | None = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="note_agent",
@@ -67,20 +69,24 @@ class NoteAgent(BaseAgent):
             citation_id must be obtained from CitationManager before calling this method.
             Use CitationManager.get_next_citation_id() or its async variant.
         """
-        print(f"\n{'=' * 70}")
-        print("📝 NoteAgent - Information Recording and Summary")
-        print(f"{'=' * 70}")
-        print(f"Tool: {tool_type}")
-        print(f"Query: {query}")
-        print(f"Citation ID: {citation_id}")
-        print(f"Raw Answer Length: {len(raw_answer)} characters\n")
+        self.logger.info(f"\n{'=' * 70}")
+        self.logger.info("📝 NoteAgent - Information Recording and Summary")
+        self.logger.info(f"{'=' * 70}")
+        self.logger.info(f"Tool: {tool_type}")
+        self.logger.info(f"Query: {query}")
+        self.logger.info(f"Citation ID: {citation_id}")
+        self.logger.info(f"Raw Answer Length: {len(raw_answer)} characters\n")
 
         # Generate summary
         summary = await self._generate_summary(
-            tool_type=tool_type, query=query, raw_answer=raw_answer, topic=topic, context=context
+            tool_type=tool_type,
+            query=query,
+            raw_answer=raw_answer,
+            topic=topic,
+            context=context,
         )
 
-        print(f"✓ Summary generation completed ({len(summary)} characters)")
+        self.logger.info(f"✓ Summary generation completed ({len(summary)} characters)")
 
         # Create ToolTrace with the provided citation ID
         tool_id = self._generate_tool_id()
@@ -107,7 +113,12 @@ class NoteAgent(BaseAgent):
         return re.sub(r"\{(\w+)\}", r"$\1", template_str)
 
     async def _generate_summary(
-        self, tool_type: str, query: str, raw_answer: str, topic: str = "", context: str = ""
+        self,
+        tool_type: str,
+        query: str,
+        raw_answer: str,
+        topic: str = "",
+        context: str = "",
     ) -> str:
         """
         Generate summary

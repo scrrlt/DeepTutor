@@ -29,7 +29,7 @@ all = [
 # ============================================
 [tool.black]
 line-length = 100
-target-version = ['py310', 'py311', 'py312']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -65,6 +65,7 @@ select = [
     "E",   # pycodestyle errors (语法错误)
     "F",   # pyflakes (未使用的导入、变量等)
     "I",   # isort (import 排序)
+    "UP",  # pyupgrade (modernize syntax)
     # 其他规则都忽略，不强制要求
 ]
 
@@ -145,6 +146,30 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 # Automatically detect the appropriate line ending
 line-ending = "auto"
+
+[tool.interrogate]
+fail-under = 90
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+omit-covered-files = false
+exclude = [
+    "tests",
+    "scripts",
+    "web",
+    "src/agents",
+    "src/api",
+    "src/tools",
+    "src/services/rag/components",
+    "src/services/llm/providers",
+    "src/services/search/providers",
+    "src/services/embedding/adapters",
+    "src/services/embedding/client.py",
+    ".venv",
+    "node_modules",
+    "build",
+    "dist",
+]
 
 # ============================================
 # Ruff import sorting (isort replacement)

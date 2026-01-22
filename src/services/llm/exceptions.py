@@ -7,14 +7,17 @@ Provides a consistent exception hierarchy for better error handling.
 Maintains parity with upstream dev branch.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class LLMError(Exception):
     """Base exception for all LLM-related errors."""
 
     def __init__(
-        self, message: str, details: Optional[Dict[str, Any]] = None, provider: Optional[str] = None
+        self,
+        message: str,
+        details: dict[str, Any] | None = None,
+        provider: str | None = None,
     ):
         super().__init__(message)
         self.message = message
@@ -40,6 +43,12 @@ class LLMProviderError(LLMError):
     pass
 
 
+class LLMCircuitBreakerError(LLMError):
+    """Raised when circuit breaker blocks LLM execution."""
+
+    pass
+
+
 class LLMAPIError(LLMError):
     """
     Raised when an API call to an LLM provider fails.
@@ -49,9 +58,9 @@ class LLMAPIError(LLMError):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        provider: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        status_code: int | None = None,
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message, details, provider)
         self.status_code = status_code
@@ -72,8 +81,8 @@ class LLMTimeoutError(LLMAPIError):
     def __init__(
         self,
         message: str = "Request timed out",
-        timeout: Optional[float] = None,
-        provider: Optional[str] = None,
+        timeout: float | None = None,
+        provider: str | None = None,
     ):
         super().__init__(message, status_code=408, provider=provider)
         self.timeout = timeout
@@ -85,8 +94,8 @@ class LLMRateLimitError(LLMAPIError):
     def __init__(
         self,
         message: str = "Rate limit exceeded",
-        retry_after: Optional[float] = None,
-        provider: Optional[str] = None,
+        retry_after: float | None = None,
+        provider: str | None = None,
     ):
         super().__init__(message, status_code=429, provider=provider)
         self.retry_after = retry_after
@@ -98,7 +107,7 @@ class LLMAuthenticationError(LLMAPIError):
     def __init__(
         self,
         message: str = "Authentication failed",
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ):
         super().__init__(message, status_code=401, provider=provider)
 
@@ -109,8 +118,8 @@ class LLMModelNotFoundError(LLMAPIError):
     def __init__(
         self,
         message: str = "Model not found",
-        model: Optional[str] = None,
-        provider: Optional[str] = None,
+        model: str | None = None,
+        provider: str | None = None,
     ):
         super().__init__(message, status_code=404, provider=provider)
         self.model = model
@@ -122,8 +131,8 @@ class LLMParseError(LLMError):
     def __init__(
         self,
         message: str = "Failed to parse LLM output",
-        provider: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        provider: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message, details=details, provider=provider)
 
@@ -141,6 +150,7 @@ __all__ = [
     "LLMError",
     "LLMConfigError",
     "LLMProviderError",
+    "LLMCircuitBreakerError",
     "LLMAPIError",
     "LLMTimeoutError",
     "LLMRateLimitError",

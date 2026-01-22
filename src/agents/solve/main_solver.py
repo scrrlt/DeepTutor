@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Main Solver - Problem-Solving System Controller
@@ -17,11 +16,18 @@ from typing import Any
 
 import yaml
 
+from src.logging import get_logger
+
 from ...services.config import parse_language
 from .analysis_loop import InvestigateAgent, NoteAgent
 
 # Dual-Loop Architecture
-from .memory import CitationMemory, InvestigateMemory, SolveChainStep, SolveMemory
+from .memory import (
+    CitationMemory,
+    InvestigateMemory,
+    SolveChainStep,
+    SolveMemory,
+)
 from .solve_loop import (
     ManagerAgent,
     PrecisionAnswerAgent,
@@ -43,6 +49,7 @@ class MainSolver:
         api_key: str | None = None,
         base_url: str | None = None,
         api_version: str | None = None,
+        language: str | None = None,
         kb_name: str = "ai_textbook",
         output_base_dir: str | None = None,
     ):
@@ -55,6 +62,7 @@ class MainSolver:
             api_key: API key (if not provided, read from environment)
             base_url: API URL (if not provided, read from environment)
             api_version: API version (if not provided, read from environment)
+            language: Preferred language for prompts ("en"/"zh"/"cn")
             kb_name: Knowledge base name
             output_base_dir: Output base directory (optional, overrides config)
         """
@@ -63,6 +71,7 @@ class MainSolver:
         self._api_key = api_key
         self._base_url = base_url
         self._api_version = api_version
+        self._language = language
         self._kb_name = kb_name
         self._output_base_dir = output_base_dir
 
@@ -108,6 +117,7 @@ class MainSolver:
         api_version = self._api_version
         kb_name = self._kb_name
         output_base_dir = self._output_base_dir
+        language = self._language
 
         # Load config from config directory (main.yaml unified config)
         if config_path is None:
@@ -155,6 +165,11 @@ class MainSolver:
 
         if self.config is None or not isinstance(self.config, dict):
             self.config = {}
+
+        # Override system language from UI if provided
+        if language:
+            self.config.setdefault("system", {})
+            self.config["system"]["language"] = parse_language(language)
 
         # Override output directory config
         if output_base_dir:
@@ -396,7 +411,9 @@ class MainSolver:
         agent_config = self.config.get("solve", {}).get("agents", {}).get("investigate_agent", {})
         max_analysis_iterations = agent_config.get("max_iterations", 5)
         self.logger.log_stage_progress(
-            "AnalysisLoop", "start", f"max_iterations={max_analysis_iterations}"
+            "AnalysisLoop",
+            "start",
+            f"max_iterations={max_analysis_iterations}",
         )
 
         analysis_completed = False
@@ -491,7 +508,8 @@ class MainSolver:
             investigate_memory.metadata["avg_confidence"] = 0.9
         else:
             coverage = min(
-                1.0, len(investigate_memory.knowledge_chain) / max(1, max_analysis_iterations)
+                1.0,
+                len(investigate_memory.knowledge_chain) / max(1, max_analysis_iterations),
             )
             investigate_memory.metadata["coverage_rate"] = coverage
             investigate_memory.metadata["avg_confidence"] = 0.6
@@ -633,7 +651,9 @@ class MainSolver:
 
                 if solve_result.get("raw_llm_response"):
                     self.logger.log_stage_progress(
-                        "SolveLoop", "running", f"step={step.step_id}, iteration={iteration}"
+                        "SolveLoop",
+                        "running",
+                        f"step={step.step_id}, iteration={iteration}",
                     )
 
                 if solve_result.get("requested_calls"):
@@ -651,7 +671,9 @@ class MainSolver:
                     solve_memory.mark_step_waiting_response(current_step.step_id)
                     solve_memory.save()
                     self.logger.log_stage_progress(
-                        "SolveLoop", "complete", f"step={current_step.step_id} ready for response"
+                        "SolveLoop",
+                        "complete",
+                        f"step={current_step.step_id} ready for response",
                     )
                     break
             else:
@@ -668,7 +690,9 @@ class MainSolver:
             self.logger.warning(f"Steps not ready for response: {', '.join(pending_steps)}")
 
         self.logger.log_stage_progress(
-            "SolveLoop", "complete", f"steps_processed={total_planned_steps - len(pending_steps)}"
+            "SolveLoop",
+            "complete",
+            f"steps_processed={total_planned_steps - len(pending_steps)}",
         )
 
         # 3. Response: Generate responses for each step
@@ -721,7 +745,9 @@ class MainSolver:
 
             if response_result.get("raw_response"):
                 self.logger.log_stage_progress(
-                    "ResponseLoop", "running", f"step={step.step_id} response generated"
+                    "ResponseLoop",
+                    "running",
+                    f"step={step.step_id} response generated",
                 )
 
             self.logger.update_token_stats(self.token_tracker.get_summary())
@@ -754,7 +780,7 @@ class MainSolver:
         final_answer = "\n\n".join(step_responses)
 
         # Get language setting from config (unified in config/main.yaml system.language)
-        language = self.config.get("system", {}).get("language", "zh")
+        language = self.config.get("system", {}).get("language", "en")
         lang_code = parse_language(language)
 
         # Check if citations are enabled
@@ -791,7 +817,9 @@ class MainSolver:
             self.logger.info("PrecisionAnswer: Generating concise answer...")
             with self.monitor.track("precision_answer"):
                 precision_result = await self.precision_answer_agent.process(
-                    question=question, detailed_answer=format_result["final_answer"], verbose=False
+                    question=question,
+                    detailed_answer=format_result["final_answer"],
+                    verbose=False,
                 )
             if precision_result.get("needs_precision"):
                 precision_answer = precision_result.get("precision_answer", "")
@@ -853,10 +881,11 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
+    logger = get_logger("MainSolverTest")
 
     async def test():
         solver = MainSolver(kb_name="ai_textbook")
         result = await solver.solve(question="What is linear convolution?", verbose=True)
-        print(f"Output file: {result['output_md']}")
+        logger.info(f"Output file: {result['output_md']}")
 
     asyncio.run(test())

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Query Numbered Item Tool - Query definitions, theorems, formulas, figures, etc.
 """
@@ -11,6 +10,10 @@ import sys
 # Add parent directory to path (insert at front to prioritize project modules)
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from src.logging import get_logger
+
+logger = get_logger("QueryItemTool")
 
 
 def query_numbered_item(
@@ -81,8 +84,8 @@ def query_numbered_item(
                 with open(config_file, encoding="utf-8") as f:
                     config = json.load(f)
                     kb_name = config.get("default")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load kb_config.json: {e}")
 
         if not kb_name:
             return {
@@ -168,7 +171,11 @@ def query_numbered_item(
 
     # 1. Exact match (highest priority)
     if identifier in items:
-        matched_item = {"identifier": identifier, "type": item_type, "content": items[identifier]}
+        matched_item = {
+            "identifier": identifier,
+            "type": item_type,
+            "content": items[identifier],
+        }
         return {
             "identifier": identifier,
             "type": item_type,
@@ -298,13 +305,13 @@ if __name__ == "__main__":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
     # Test
-    print("Testing query_numbered_item\n" + "=" * 60)
+    logger.section("Testing query_numbered_item")
 
     # Test 1
-    print("\n[Test 1] Query formula (1.2.1):")
+    logger.info("[Test 1] Query formula (1.2.1):")
     result = query_numbered_item("(1.2.1)", kb_name="ai_textbook")
-    print(f"Status: {result['status']}")
-    print(f"Type: {result['type']}")
-    print(f"Content: {result.get('content', result.get('error'))[:200]}...")
+    logger.info("Status: %s", result["status"])
+    logger.info("Type: %s", result["type"])
+    logger.info("Content: %s...", result.get("content", result.get("error"))[:200])
 
-    print("\n" + "=" * 60)
+    logger.info("%s", "=" * 60)

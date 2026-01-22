@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Extract question information from MinerU-parsed exam papers
 
@@ -24,14 +23,19 @@ from typing import Any
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from src.logging import get_logger
 from src.services.config import get_agent_params
 from src.services.llm import complete as llm_complete
 from src.services.llm.capabilities import supports_response_format
 from src.services.llm.config import get_llm_config
 from src.utils.json_parser import parse_json_response
 
+logger = get_logger("QuestionExtractor")
 
-def load_parsed_paper(paper_dir: Path) -> tuple[str | None, list[dict] | None, Path]:
+
+def load_parsed_paper(
+    paper_dir: Path,
+) -> tuple[str | None, list[dict] | None, Path]:
     """
     Load MinerU-parsed exam paper files
 
@@ -47,11 +51,11 @@ def load_parsed_paper(paper_dir: Path) -> tuple[str | None, list[dict] | None, P
 
     md_files = list(auto_dir.glob("*.md"))
     if not md_files:
-        print(f"✗ Error: No markdown file found in {auto_dir}")
+        logger.error("No markdown file found in %s", auto_dir)
         return None, None, auto_dir / "images"
 
     md_file = md_files[0]
-    print(f"📄 Found markdown file: {md_file.name}")
+    logger.info("Found markdown file: %s", md_file.name)
 
     with open(md_file, encoding="utf-8") as f:
         markdown_content = f.read()
@@ -60,18 +64,18 @@ def load_parsed_paper(paper_dir: Path) -> tuple[str | None, list[dict] | None, P
     content_list = None
     if json_files:
         json_file = json_files[0]
-        print(f"📋 Found content_list file: {json_file.name}")
+        logger.info("Found content_list file: %s", json_file.name)
         with open(json_file, encoding="utf-8") as f:
             content_list = json.load(f)
     else:
-        print("⚠️ Warning: content_list.json file not found, will use markdown content only")
+        logger.warning("content_list.json file not found, will use markdown content only")
 
     images_dir = auto_dir / "images"
     if images_dir.exists():
         image_count = len(list(images_dir.glob("*")))
-        print(f"🖼️ Found image directory: {image_count} images")
+        logger.info("Found image directory: %d images", image_count)
     else:
-        print("⚠️ Warning: images directory not found")
+        logger.warning("images directory not found")
 
     return markdown_content, content_list, images_dir
 
@@ -114,7 +118,13 @@ def extract_questions_with_llm(
     image_list = []
     if images_dir.exists():
         for img_file in sorted(images_dir.glob("*")):
-            if img_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
+            if img_file.suffix.lower() in [
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".gif",
+                ".webp",
+            ]:
                 image_list.append(img_file.name)
 
     system_prompt = """You are a professional exam paper analysis assistant. Your task is to extract all question information from the provided exam paper content.
@@ -164,10 +174,10 @@ Available image files:
 Please analyze the above exam paper content, extract all question information, and return in JSON format.
 """
 
-    print("\n🤖 Using LLM to analyze questions...")
-    print(f"📊 Model: {model}")
-    print(f"📝 Document length: {len(markdown_content)} characters")
-    print(f"🖼️ Available images: {len(image_list)}")
+    logger.info("Using LLM to analyze questions")
+    logger.info("Model: %s", model)
+    logger.debug("Document length: %d characters", len(markdown_content))
+    logger.info("Available images: %d", len(image_list))
 
     # Get agent parameters from unified config
     agent_params = get_agent_params("question")
@@ -249,15 +259,15 @@ Please analyze the above exam paper content, extract all question information, a
         if result is None:
             raise ValueError("JSON parsing returned None")
     except Exception as e:
-        print(f"✗ JSON parsing error: {e!s}")
-        print(f"LLM response content: {result_text[:500]}...")
+        logger.error("JSON parsing error: %s", e)
+        logger.debug("LLM response content: %s", result_text[:500])
         raise ValueError(
             f"Failed to parse LLM JSON response: {e}. "
             f"Raw response (first 500 chars): {result_text[:500]!r}"
         ) from e
 
     questions = result.get("questions", [])
-    print(f"✓ Successfully extracted {len(questions)} questions")
+    logger.info("Successfully extracted %d questions", len(questions))
 
     return questions
 
@@ -289,13 +299,11 @@ def save_questions_json(questions: list[dict[str, Any]], output_dir: Path, paper
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print(f"💾 Question information saved to: {output_file.name}")
-
-    print("\n📋 Question statistics:")
-    print(f"  Total questions: {len(questions)}")
+    logger.info("Question information saved to: %s", output_file.name)
+    logger.info("Question statistics: total=%d", len(questions))
 
     questions_with_images = sum(1 for q in questions if q.get("images"))
-    print(f"  Questions with images: {questions_with_images}")
+    logger.info("Questions with images: %d", questions_with_images)
 
     return output_file
 
@@ -313,22 +321,22 @@ def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) 
     """
     paper_dir = Path(paper_dir).resolve()
     if not paper_dir.exists():
-        print(f"✗ Error: Directory does not exist: {paper_dir}")
+        logger.error("Directory does not exist: %s", paper_dir)
         return False
 
-    print(f"📁 Paper directory: {paper_dir}")
+    logger.info("Paper directory: %s", paper_dir)
 
     markdown_content, content_list, images_dir = load_parsed_paper(paper_dir)
 
     if not markdown_content:
-        print("✗ Error: Unable to load paper content")
+        logger.error("Unable to load paper content")
         return False
 
     try:
         llm_config = get_llm_config()
     except ValueError as e:
-        print(f"✗ {e!s}")
-        print(
+        logger.error("%s", e)
+        logger.info(
             "Tip: Please create .env file in project root and configure LLM-related environment variables"
         )
         return False
@@ -345,7 +353,7 @@ def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) 
     )
 
     if not questions:
-        print("⚠️ Warning: No questions extracted")
+        logger.warning("No questions extracted")
         return False
 
     if output_dir is None:
@@ -356,8 +364,8 @@ def extract_questions_from_paper(paper_dir: str, output_dir: str | None = None) 
     paper_name = paper_dir.name
     output_file = save_questions_json(questions, output_dir, paper_name)
 
-    print("\n✓ Question extraction completed!")
-    print(f"📄 View results: {output_file}")
+    logger.info("Question extraction completed!")
+    logger.info("View results: %s", output_file)
 
     return True
 
@@ -380,7 +388,11 @@ Examples:
     parser.add_argument("paper_dir", type=str, help="MinerU-parsed exam paper directory path")
 
     parser.add_argument(
-        "-o", "--output", type=str, default=None, help="Output directory (default: paper directory)"
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="Output directory (default: paper directory)",
     )
 
     args = parser.parse_args()

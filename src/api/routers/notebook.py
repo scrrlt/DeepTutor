@@ -71,7 +71,7 @@ async def list_notebooks():
         Notebook list (includes summary information)
     """
     try:
-        notebooks = notebook_manager.list_notebooks()
+        notebooks = await notebook_manager.list_notebooks()
         return {"notebooks": notebooks, "total": len(notebooks)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -86,7 +86,7 @@ async def get_statistics():
         Statistics information
     """
     try:
-        stats = notebook_manager.get_statistics()
+        stats = await notebook_manager.get_statistics()
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -104,7 +104,7 @@ async def create_notebook(request: CreateNotebookRequest):
         Created notebook information
     """
     try:
-        notebook = notebook_manager.create_notebook(
+        notebook = await notebook_manager.create_notebook(
             name=request.name,
             description=request.description,
             color=request.color,
@@ -127,7 +127,7 @@ async def get_notebook(notebook_id: str):
         Notebook details (includes all records)
     """
     try:
-        notebook = notebook_manager.get_notebook(notebook_id)
+        notebook = await notebook_manager.get_notebook(notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
         return notebook
@@ -150,7 +150,7 @@ async def update_notebook(notebook_id: str, request: UpdateNotebookRequest):
         Updated notebook information
     """
     try:
-        notebook = notebook_manager.update_notebook(
+        notebook = await notebook_manager.update_notebook(
             notebook_id=notebook_id,
             name=request.name,
             description=request.description,
@@ -178,7 +178,7 @@ async def delete_notebook(notebook_id: str):
         Deletion result
     """
     try:
-        success = notebook_manager.delete_notebook(notebook_id)
+        success = await notebook_manager.delete_notebook(notebook_id)
         if not success:
             raise HTTPException(status_code=404, detail="Notebook not found")
         return {"success": True, "message": "Notebook deleted successfully"}
@@ -200,7 +200,7 @@ async def add_record(request: AddRecordRequest):
         Addition result
     """
     try:
-        result = notebook_manager.add_record(
+        result = await notebook_manager.add_record(
             notebook_ids=request.notebook_ids,
             record_type=request.record_type,
             title=request.title,
@@ -231,7 +231,7 @@ async def remove_record(notebook_id: str, record_id: str):
         Deletion result
     """
     try:
-        success = notebook_manager.remove_record(notebook_id, record_id)
+        success = await notebook_manager.remove_record(notebook_id, record_id)
         if not success:
             raise HTTPException(status_code=404, detail="Record not found")
         return {"success": True, "message": "Record removed successfully"}

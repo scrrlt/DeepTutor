@@ -23,6 +23,7 @@ sys.path.insert(0, str(project_root))
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm.config import get_llm_config
+from src.services.settings.interface_settings import get_ui_language
 
 # Setup module logger with unified logging system (from config)
 project_root = Path(__file__).parent.parent.parent.parent
@@ -140,7 +141,11 @@ async def websocket_mimic_generate(websocket: WebSocket):
 
         try:
             await websocket.send_json(
-                {"type": "status", "stage": "init", "content": "Initializing..."}
+                {
+                    "type": "status",
+                    "stage": "init",
+                    "content": "Initializing...",
+                }
             )
 
             pdf_path = None
@@ -153,7 +158,10 @@ async def websocket_mimic_generate(websocket: WebSocket):
 
                 if not pdf_data:
                     await websocket.send_json(
-                        {"type": "error", "content": "PDF data is required for upload mode"}
+                        {
+                            "type": "error",
+                            "content": "PDF data is required for upload mode",
+                        }
                     )
                     return
 
@@ -162,7 +170,10 @@ async def websocket_mimic_generate(websocket: WebSocket):
                     pdf_bytes = base64.b64decode(pdf_data)
                 except Exception as e:
                     await websocket.send_json(
-                        {"type": "error", "content": f"Invalid base64 PDF data: {e}"}
+                        {
+                            "type": "error",
+                            "content": f"Invalid base64 PDF data: {e}",
+                        }
                     )
                     return
 
@@ -185,7 +196,11 @@ async def websocket_mimic_generate(websocket: WebSocket):
                 pdf_path = batch_dir / safe_name
 
                 await websocket.send_json(
-                    {"type": "status", "stage": "upload", "content": f"Saving PDF: {safe_name}"}
+                    {
+                        "type": "status",
+                        "stage": "upload",
+                        "content": f"Saving PDF: {safe_name}",
+                    }
                 )
 
                 # Write the validated PDF bytes
@@ -218,7 +233,10 @@ async def websocket_mimic_generate(websocket: WebSocket):
                 paper_path = data.get("paper_path")
                 if not paper_path:
                     await websocket.send_json(
-                        {"type": "error", "content": "paper_path is required for parsed mode"}
+                        {
+                            "type": "error",
+                            "content": "paper_path is required for parsed mode",
+                        }
                     )
                     return
                 paper_dir = paper_path
@@ -369,8 +387,8 @@ async def websocket_question_generate(websocket: WebSocket):
 
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
             api_version = getattr(llm_config, "api_version", None)
         except Exception:
             api_key = None
@@ -382,6 +400,7 @@ async def websocket_question_generate(websocket: WebSocket):
             base_url=base_url,
             api_version=api_version,
             kb_name=kb_name,
+            language=get_ui_language(default=config.get("system", {}).get("language", "en")),
             max_rounds=10,
             output_dir=str(output_base),
         )
@@ -452,7 +471,10 @@ async def websocket_question_generate(websocket: WebSocket):
                 # Send final token stats
                 try:
                     await websocket.send_json(
-                        {"type": "token_stats", "stats": coordinator.token_stats}
+                        {
+                            "type": "token_stats",
+                            "stats": coordinator.token_stats,
+                        }
                     )
                 except (RuntimeError, WebSocketDisconnect):
                     logger.debug("WebSocket closed, stopping question generation")

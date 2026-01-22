@@ -44,7 +44,11 @@ from src.logging import get_logger
 from src.services.config import PROJECT_ROOT, load_config_with_main
 
 from .base import SEARCH_API_KEY_ENV, BaseSearchProvider
-from .consolidation import CONSOLIDATION_TYPES, PROVIDER_TEMPLATES, AnswerConsolidator
+from .consolidation import (
+    CONSOLIDATION_TYPES,
+    PROVIDER_TEMPLATES,
+    AnswerConsolidator,
+)
 from .providers import (
     get_available_providers,
     get_default_provider,
@@ -53,6 +57,9 @@ from .providers import (
     list_providers,
 )
 from .types import Citation, SearchResult, WebSearchResponse
+
+# Default constants
+DEFAULT_SERPER_RESULT_COUNT = 10
 
 # Module logger
 _logger = get_logger("Search", level="INFO")
@@ -133,9 +140,9 @@ def web_search(
 
     Example:
         >>> result = web_search("What is machine learning?")
-        >>> print(result["answer"])
+        >>> logger.info(result["answer"])
         Machine learning is a subset of artificial intelligence...
-        >>> print(result["citations"])
+        >>> logger.info(result["citations"])
         [{"id": 1, "url": "https://...", "title": "...", ...}]
     """
     # Load config from main.yaml
@@ -171,6 +178,10 @@ def web_search(
         provider_kwargs.setdefault("model", baidu_model)
         provider_kwargs.setdefault("enable_deep_search", baidu_enable_deep_search)
         provider_kwargs.setdefault("search_recency_filter", baidu_search_recency_filter)
+
+    # Serper expects a 'num' parameter by default
+    if provider_name == "serper":
+        provider_kwargs.setdefault("num", DEFAULT_SERPER_RESULT_COUNT)
 
     # Get provider instance
     search_provider = get_provider(provider_name)

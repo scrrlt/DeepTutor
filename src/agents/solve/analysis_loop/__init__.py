@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Analysis Loop - Analysis loop (Investigate → Note)
 Deeply understand user questions, collect and organize knowledge

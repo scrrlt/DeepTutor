@@ -26,19 +26,11 @@ Usage:
 """
 
 # Core logging
-# Adapters for external libraries
-from .adapters import (
-    LightRAGLogContext,
-    LightRAGLogForwarder,
-    LlamaIndexLogContext,
-    LlamaIndexLogForwarder,
-    get_lightrag_forwarding_config,
-)
-
 # Configuration
 from .config import (
     LoggingConfig,
     get_default_log_dir,
+    get_global_log_level,
     load_logging_config,
 )
 
@@ -58,6 +50,7 @@ from .logger import (
     LogLevel,
     get_logger,
     reset_logger,
+    set_default_service_prefix,
 )
 
 # Statistics tracking
@@ -75,6 +68,7 @@ __all__ = [
     "LogLevel",
     "get_logger",
     "reset_logger",
+    "set_default_service_prefix",
     "ConsoleFormatter",
     "FileFormatter",
     # Handlers
@@ -100,4 +94,34 @@ __all__ = [
     "LoggingConfig",
     "load_logging_config",
     "get_default_log_dir",
+    "get_global_log_level",
 ]
+
+
+def __getattr__(name):
+    """Lazy import adapters to avoid circular import issues."""
+    if name in (
+        "LightRAGLogContext",
+        "LightRAGLogForwarder",
+        "get_lightrag_forwarding_config",
+    ):
+        from .adapters import (
+            LightRAGLogContext,
+            LightRAGLogForwarder,
+            get_lightrag_forwarding_config,
+        )
+
+        if name == "LightRAGLogContext":
+            return LightRAGLogContext
+        elif name == "LightRAGLogForwarder":
+            return LightRAGLogForwarder
+        elif name == "get_lightrag_forwarding_config":
+            return get_lightrag_forwarding_config
+    elif name in ("LlamaIndexLogContext", "LlamaIndexLogForwarder"):
+        from .adapters import LlamaIndexLogContext, LlamaIndexLogForwarder
+
+        if name == "LlamaIndexLogContext":
+            return LlamaIndexLogContext
+        elif name == "LlamaIndexLogForwarder":
+            return LlamaIndexLogForwarder
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

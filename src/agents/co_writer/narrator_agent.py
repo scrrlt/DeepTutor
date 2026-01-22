@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 NarratorAgent - Note narration agent.
 Inherits from unified BaseAgent with special TTS configuration.
 """
 
 from datetime import datetime
+import inspect
 import json
 import os
 from pathlib import Path
 import re
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 import uuid
 
-from openai import AsyncAzureOpenAI, AsyncOpenAI
+import openai
 
 from src.agents.base_agent import BaseAgent
 from src.services.tts import get_tts_config
@@ -135,7 +135,7 @@ class NarratorAgent(BaseAgent):
         self,
         content: str,
         style: str = "friendly",
-        voice: Optional[str] = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
@@ -257,7 +257,7 @@ class NarratorAgent(BaseAgent):
             self.logger.warning(f"Failed to extract key points: {e}")
             return []
 
-    async def generate_audio(self, script: str, voice: str = None) -> dict[str, Any]:
+    async def generate_audio(self, script: str, voice: str | None = None) -> dict[str, Any]:
         """
         Convert narration script to audio using OpenAI TTS API
 
@@ -278,8 +278,7 @@ class NarratorAgent(BaseAgent):
             )
 
         # Use default voice if not specified
-        if voice is None:
-            voice = self.default_voice
+        voice = voice or self.default_voice
 
         # Validate input parameters
         if not script or not script.strip():
@@ -321,21 +320,37 @@ class NarratorAgent(BaseAgent):
             # Only use Azure client if binding is explicitly Azure,
             # OR if binding is generic 'openai' but an Azure-specific api_version is present.
             if binding == "azure_openai" or (binding == "openai" and api_version):
-                client = AsyncAzureOpenAI(
+                client = openai.AsyncAzureOpenAI(
                     api_key=self.tts_config["api_key"],
                     azure_endpoint=self.tts_config["base_url"],
                     api_version=api_version,
                 )
             else:
                 # Create OpenAI client with custom base_url
-                client = AsyncOpenAI(
-                    base_url=self.tts_config["base_url"], api_key=self.tts_config["api_key"]
+                client = openai.AsyncOpenAI(
+                    base_url=self.tts_config["base_url"],
+                    api_key=self.tts_config["api_key"],
                 )
 
             # Call OpenAI TTS API
-            response = await client.audio.speech.create(
-                model=self.tts_config["model"], voice=voice, input=script
-            )
+            speech_client = getattr(client, "speech", None)
+            if speech_client and hasattr(speech_client, "create"):
+                create_result = speech_client.create(
+                    model=self.tts_config["model"],
+                    voice=voice,
+                    input=script,
+                )
+            else:
+                create_result = client.audio.speech.create(
+                    model=self.tts_config["model"],
+                    voice=voice,
+                    input=script,
+                )
+
+            if inspect.isawaitable(create_result):
+                response = await create_result
+            else:
+                response = create_result
 
             # Save audio to file
             await response.stream_to_file(audio_path)
@@ -354,14 +369,17 @@ class NarratorAgent(BaseAgent):
             }
 
         except Exception as e:
-            self.logger.error(f"TTS generation failed: {type(e).__name__}: {e}", exc_info=True)
+            self.logger.error(
+                f"TTS generation failed: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
             raise ValueError(f"TTS generation failed: {type(e).__name__}: {e}")
 
     async def narrate(
         self,
         content: str,
         style: str = "friendly",
-        voice: str = None,
+        voice: str | None = None,
         skip_audio: bool = False,
     ) -> dict[str, Any]:
         """
@@ -385,8 +403,7 @@ class NarratorAgent(BaseAgent):
         script_result = await self.generate_script(content, style)
 
         # Use default voice if not specified
-        if voice is None:
-            voice = self.default_voice
+        voice = voice or self.default_voice
 
         result = {
             "script": script_result["script"],

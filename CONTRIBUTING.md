@@ -1,147 +1,134 @@
-Contributing to DeepTutor 🚀
-Thank you for your interest in contributing to DeepTutor! We are committed to building a smooth and robust intelligent learning companion, and we welcome developers of all skill levels to join us.
-Join our community for discussion, support, and collaboration:
+# Contributing to DeepTutor
+
+Thank you for contributing to DeepTutor. We welcome contributions from all
+skill levels and prioritize correctness, safety, and maintainability.
+
+Join the community for discussion and support:
+
 <p align="center">
-<a href="https://discord.gg/zpP9cssj"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>&nbsp;
+<a href="https://discord.gg/eRsjPgMU4t"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>&nbsp;
 <a href="https://github.com/HKUDS/DeepTutor/issues/78"><img src="https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>&nbsp;
 <a href="./Communication.md"><img src="https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white" alt="Feishu"></a>
 </p>
 
 ## Table of Contents
-- [Contribution Requirements](#️-contribution-requirements)
-- [Code Quality & Security](#-code-quality--security)
-- [Security Best Practices](#-security-best-practices)
-- [Coding Standards](#-coding-standards)
-- [Development Setup](#-development-setup)
-- [Commit Message Format](#-commit-message-format)
-- [How to Get Started](#-how-to-get-started)
+- [1. Contribution workflow](#1-contribution-workflow)
+- [2. Tooling and quality gates](#2-tooling-and-quality-gates)
+- [3. Coding standards](#3-coding-standards)
+- [4. Documentation](#4-documentation)
+- [5. Testing and coverage](#5-testing-and-coverage)
+- [6. Security and data handling](#6-security-and-data-handling)
+- [7. Development setup](#7-development-setup)
+- [8. Commit message format](#8-commit-message-format)
+- [9. Getting started](#9-getting-started)
 
-## ⚠️ Contribution Requirements
-[!IMPORTANT]
-All contributions must be based on the `dev` branch!
-1. Fork the repository and clone it locally.
-2. **Synchronize**: Always pull from the `dev` branch before starting:
+## 1. Contribution workflow
+- All work must branch from `dev`.
+- Sync before starting:
    ```bash
    git checkout dev && git pull origin dev
    ```
-3. **Branch**: Create your feature branch from `dev`:
+- Create a feature branch:
    ```bash
    git checkout -b feature/your-feature-name
    ```
-4. **PR Target**: Submit your Pull Request to the `dev` branch (not `main`).
-5. **Validation**: Ensure all pre-commit checks pass before submitting.
+- Target pull requests to `dev` (not `main`).
+- Run all pre-commit checks before submitting.
 
-## 🛠️ Code Quality & Security
-We use a suite of automated tools to maintain high standards of code quality and security. These are configured via `pyproject.toml` and `.pre-commit-config.yaml`.
+## 2. Tooling and quality gates
+Tooling is configured in `pyproject.toml` and `.pre-commit-config.yaml`.
 
-### Our Toolstack
-- **Ruff**: High-performance Python linting and formatting.
-- **Prettier**: Consistent formatting for frontend and configuration files.
-- **detect-secrets**: Scans for high-entropy strings and hardcoded secrets.
-- **pip-audit**: Scans dependencies for known vulnerabilities (V3.x compatible).
-- **Bandit**: Analyzes code for common security issues.
-- **MyPy**: Static type checking to ensure code reliability.
-- **Interrogate**: Reports docstring coverage. While it won't block your commit, please aim for high coverage.
+Core tools:
+- **Ruff** (formatter + linter; preferred).
+- **Black** (optional formatter).
+- **Prettier** (frontend/config formatting).
+- **mypy** or **pyright** (type checking).
+- **Bandit** (security linting).
+- **pip-audit** and **detect-secrets** (dependency and secret scanning).
+- **interrogate** (docstring coverage reporting).
 
-[!TIP]
-Before submitting a PR, you MUST run:
+Run the full quality gate locally:
 ```bash
 pre-commit run --all-files
 ```
-While local pre-commit hooks are configured to be lenient and may only show warnings, the CI will perform strict checks and will automatically reject PRs that fail.
 
-## 🔒 Security Best Practices
-### File Uploads
-- **Size Limits**: General files are capped at 100MB; PDFs are capped at 50MB to prevent resource exhaustion.
-- **Validation**: We enforce multi-layer validation (Extension + MIME type + Content sanitization).
-- **Sanitization**: All filenames are sanitized to prevent path traversal attacks.
+## 3. Coding standards
+### Python style
+- Format with Ruff or Black, using the line lengths in `pyproject.toml`
+   (Black 88, Ruff 79).
+- Indentation: 4 spaces. No trailing whitespace.
+- Imports: absolute only, grouped as StdLib → Third Party → Local.
+- No wildcard imports.
+- Naming: `snake_case` (vars/funcs), `PascalCase` (classes),
+   `UPPER_SNAKE_CASE` (constants).
+- `print()` is not allowed. Use structured logging.
 
-### Development Standards
-- **Subprocesses**: Always use `shell=False` when calling subprocesses to prevent command injection.
-- **Pathing**: Use `pathlib.Path` for all operations to ensure cross-platform (Windows/Linux/macOS) compatibility.
-- **Line Endings**: LF (Unix) line endings are enforced for critical scripts via `.gitattributes`.
+### Type hints (Python 3.12+)
+- Type hints required for all function signatures.
+- Use `|` for unions and built-in generics (`list[str]`, `dict[str, int]`).
+- No `Any` in public interfaces; prefer `Protocol` or `object` if unknown.
+- Define named constants for magic numbers.
+- Prefer `Sequence`, `Iterable`, or `Mapping` over concrete containers in APIs.
+- Use Pydantic for external payloads and `TypedDict` for internal structures.
 
-## 💻 Coding Standards
-To keep the codebase maintainable, please follow these guidelines:
-### Python Guidelines
-- Use Type Hints for all function signatures.
-- Prefer f-strings for string formatting.
-- Follow PEP 8 (mostly enforced by Ruff/Black).
-- Keep functions small and focused on a single responsibility.
+### Async safety
+- No blocking I/O inside `async def`.
+- Keep strong references to background tasks.
+- Use `asyncio.create_subprocess_exec` instead of `subprocess.run`.
 
-### Documentation
-- Every new module, class, and public function should have a docstring.
-- Use the Google Python Style Guide for docstring formatting.
-- Update `README.md` if your change introduces new features or configuration variables.
+## 4. Documentation
+- Google-style docstrings with `Args:`, `Returns:`, `Raises:` sections.
+- Types belong in signatures, not docstrings.
+- Update comments to explain intent (the “why”).
 
-## ⚙️ Development Setup
-<details>
-<summary><b>Setting Up Your Environment (Recommended)</b></summary>
+## 5. Testing and coverage
+- Framework: `pytest` + `pytest-asyncio`.
+- Tests must avoid network and disk unless explicitly marked.
+- Coverage targets:
+   - 85% overall.
+   - 100% branch coverage for critical logic (LLM/RAG pipelines).
 
-**Step 1: Create a virtual environment**
+Recommended commands:
+```bash
+pytest
+pytest --cov=src --cov-report=term-missing
+```
+
+If you change LLM/embedding integrations, run integration tests with valid
+provider credentials and set `DISABLE_SSL_VERIFY=true` when required.
+
+## 6. Security and data handling
+- Sanitize file uploads and enforce size limits (100MB general, 50MB PDF).
+- Always use `shell=False` for subprocesses.
+- Prefer `pathlib.Path` for filesystem operations.
+- Run `bandit` or `ruff check --select S` for security linting.
+
+## 7. Development setup
+Create a virtual environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-**Step 2: Install dependencies**
-```bash
 pip install -e ".[all]"
 ```
-</details>
 
-<details>
-<summary><b>Setting Up Pre-commit (First Time Only)</b></summary>
-
-**Step 1: Install pre-commit**
+Install pre-commit hooks:
 ```bash
-# Using pip
 pip install pre-commit
-
-# Or using conda
-conda install -c conda-forge pre-commit
-```
-
-**Step 2: Install Git hooks**
-```bash
 pre-commit install
 ```
-Hooks will now run automatically on every commit.
 
-**Step 3: Initialize the Secrets Baseline**
-If you encounter new "false positive" secrets (like API hash placeholders), update the baseline:
-```bash
-detect-secrets scan > .secrets.baseline
-```
-</details>
+## 8. Commit message format
+Use Conventional Commits and keep messages in the imperative mood.
 
-### Common Commands
-| Task              | Command                                        |
-|-------------------|------------------------------------------------|
-| Check all files   | `pre-commit run --all-files`                   |
-| Check quietly     | `pre-commit run --all-files -q`                |
-| Update tools      | `pre-commit autoupdate`                        |
-| Emergency skip    | `git commit --no-verify -m "message"` (Not recommended) |
-
-## 📋 Commit Message Format
-We follow a structured commit format to maintain a clean history:
 ```
 <type>: <short description>
 
 [optional body]
 ```
-- `feat`: A new feature (corresponds to a MINOR version bump).
-- `fix`: A bug fix (corresponds to a PATCH version bump).
-- `docs`: Documentation only changes.
-- `style`: Changes that do not affect the meaning of the code (formatting, missing semi-colons, etc).
-- `refactor`: A code change that neither fixes a bug nor adds a feature.
-- `test`: Adding missing tests or correcting existing tests.
-- `chore`: Routine tasks (updating build processes, etc).
 
-## 💡 How to Get Started
-1. Browse our [Issues](https://github.com/HKUDS/DeepTutor/issues) for tasks labeled `good first issue`.
-2. Comment on the issue to let others know you're working on it.
-3. Follow the process above and submit your PR!
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
 
-Questions? Reach out on Discord.
-Let's build the future of AI tutoring together! 🚀
+## 9. Getting started
+1. Pick a task from the issue tracker labeled `good first issue`.
+2. Comment on the issue to claim it.
+3. Submit a PR against `dev` once ready.

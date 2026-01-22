@@ -3,6 +3,10 @@ import json
 from pathlib import Path
 import time
 
+from src.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class ActivityType(str, Enum):
     SOLVE = "solve"
@@ -36,14 +40,18 @@ class HistoryManager:
         self.history_file = self.base_dir / "user_history.json"
         self._ensure_file()
 
-    def _ensure_file(self):
+    def _ensure_file(self) -> None:
         """
         Ensure history file exists with correct format.
         If file exists but has wrong format, it will be fixed on next save.
         """
         if not self.history_file.exists():
             # Create file with correct dict format (matching user_dir_init.py)
-            initial_history = {"version": "1.0", "created_at": None, "sessions": []}
+            initial_history = {
+                "version": "1.0",
+                "created_at": None,
+                "sessions": [],
+            }
             try:
                 with open(self.history_file, "w", encoding="utf-8") as f:
                     json.dump(initial_history, f, indent=2, ensure_ascii=False)
@@ -98,7 +106,7 @@ class HistoryManager:
             # Any other error, return empty list
             return []
 
-    def _save_history(self, history: list[dict]):
+    def _save_history(self, history: list[dict]) -> None:
         # Load existing file to preserve metadata if it's in dict format
         try:
             with open(self.history_file, encoding="utf-8") as f:
@@ -125,7 +133,13 @@ class HistoryManager:
         with open(self.history_file, "w", encoding="utf-8") as f:
             json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
-    def add_entry(self, activity_type: ActivityType, title: str, content: dict, summary: str = ""):
+    def add_entry(
+        self,
+        activity_type: ActivityType,
+        title: str,
+        content: dict,
+        summary: str = "",
+    ):
         """
         Add a new history entry.
 

@@ -17,7 +17,7 @@ from datetime import datetime
 import json
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -39,7 +39,7 @@ class SerperProvider(BaseSearchProvider):
     supports_answer = False  # Raw SERP results, no LLM answer
     BASE_URL = "https://google.serper.dev"
 
-    def search(
+    async def search(
         self,
         query: str,
         mode: str = "search",  # search, scholar
@@ -84,7 +84,12 @@ class SerperProvider(BaseSearchProvider):
         }
 
         url = f"{self.BASE_URL}/{mode}"
-        response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        response = httpx.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=timeout,
+        )
 
         if response.status_code != 200:
             try:
@@ -97,7 +102,12 @@ class SerperProvider(BaseSearchProvider):
                 f"{error_data.get('message', response.text)}"
             )
 
-        data = response.json()
+        try:
+            data = response.json()
+        except (json.JSONDecodeError, ValueError):
+            self.logger.error("Failed to decode Serper JSON response")
+            raise SerperAPIError("Failed to decode Serper JSON response")
+
         self.logger.debug(f"Serper returned {len(data.get('organic', []))} results")
 
         # Extract search results
@@ -118,9 +128,19 @@ class SerperProvider(BaseSearchProvider):
             sitelinks = []
             if result.get("sitelinks"):
                 for sl in result["sitelinks"]:
-                    sitelinks.append({"title": sl.get("title", ""), "link": sl.get("link", "")})
+                    sitelinks.append(
+                        {
+                            "title": sl.get("title", ""),
+                            "link": sl.get("link", ""),
+                        }
+                    )
 
-            # Build attributes dict with scholar-specific fields
+                response = httpx.post(
+                    url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout,
+                )
             attributes: dict[str, Any] = result.get("attributes", {})
 
             # Scholar mode: extract publication info, citations, PDF URL, year

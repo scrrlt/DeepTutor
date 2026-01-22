@@ -1,13 +1,18 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Error Handler - Error handling and retry mechanism
 """
 
 from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 import tenacity
 
 from src.config.constants import VALID_INVESTIGATE_TOOLS, VALID_SOLVE_TOOLS
@@ -28,7 +33,7 @@ class ToolIntent(BaseModel):
 
     tool_type: str = Field(..., description="Type of tool to use")
     query: str = Field("", description="Query for the tool")
-    identifier: Optional[str] = Field(None, description="Optional identifier")
+    identifier: str | None = Field(None, description="Optional identifier")
 
     @field_validator("tool_type")
     @classmethod
@@ -65,9 +70,9 @@ class InvestigateOutput(BaseModel):
 class Citation(BaseModel):
     """Model for citation in note output"""
 
-    reference_id: Optional[str] = None
-    source: Optional[str] = None
-    content: Optional[str] = None
+    reference_id: str | None = None
+    source: str | None = None
+    content: str | None = None
 
     @model_validator(mode="after")
     def validate_citation_fields(self):
@@ -172,7 +177,9 @@ def retry_on_parse_error(
 
 
 def validate_output(
-    output: dict[str, Any], required_fields: list, field_types: dict[str, type] | None = None
+    output: dict[str, Any],
+    required_fields: list,
+    field_types: dict[str, type] | None = None,
 ) -> bool:
     """
     Validate output contains required fields and correct types
@@ -208,7 +215,10 @@ def validate_output(
 
 
 def safe_parse(
-    text: str, parser_func: Callable, default: Any = None, raise_on_error: bool = False
+    text: str,
+    parser_func: Callable,
+    default: Any = None,
+    raise_on_error: bool = False,
 ) -> Any:
     """
     Safe parsing (catch exceptions and return default value)

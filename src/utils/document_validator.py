@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Document Validator - Validation utilities for document uploads
 """
@@ -59,7 +58,9 @@ class DocumentValidator:
 
     @staticmethod
     def validate_upload_safety(
-        filename: str, file_size: int | None, allowed_extensions: set[str] | None = None
+        filename: str,
+        file_size: int | None,
+        allowed_extensions: set[str] | None = None,
     ) -> str:
         """
         Validate file upload safety

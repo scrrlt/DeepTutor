@@ -17,11 +17,7 @@ sys.path.insert(0, str(project_root))
 # Use unified logging system
 from src.logging import get_logger
 
-_logger = get_logger("KnowledgeInit")
-
-
-def _get_logger():
-    return _logger
+logger = get_logger("KnowledgeInit")
 
 
 class ProgressStage(Enum):
@@ -96,16 +92,60 @@ class ProgressTracker:
             try:
                 callback(progress)
             except Exception as e:
-                print(f"[ProgressTracker] Callback error: {e}")
+                logger.error("[ProgressTracker] Callback error: %s", e)
 
     def _save_progress(self, progress: dict):
-        """Save progress to file"""
+        """Save progress to kb_config.json and local .progress.json file"""
+        # Save to kb_config.json (centralized config)
+        try:
+            from src.knowledge.manager import KnowledgeBaseManager
+
+            manager = KnowledgeBaseManager(base_dir=str(self.base_dir))
+
+            # Determine status based on stage
+            stage = progress.get("stage", "")
+            if stage == "completed":
+                status = "ready"
+            elif stage == "error":
+                status = "error"
+            elif stage in [
+                "initializing",
+                "processing_documents",
+                "processing_file",
+                "extracting_items",
+            ]:
+                status = "processing"
+            else:
+                status = "initializing"
+
+            # Update kb_config.json with status and progress
+            manager.update_kb_status(
+                name=self.kb_name,
+                status=status,
+                progress={
+                    "stage": progress.get("stage"),
+                    "message": progress.get("message"),
+                    "percent": progress.get("progress_percent", 0),
+                    "current": progress.get("current", 0),
+                    "total": progress.get("total", 0),
+                    "file_name": progress.get("file_name"),
+                    "error": progress.get("error"),
+                    "timestamp": progress.get("timestamp"),
+                },
+            )
+        except Exception as e:
+            logger.error(
+                "[ProgressTracker] Failed to save progress to kb_config.json: %s",
+                e,
+            )
+
+        # Also save to local .progress.json file (for backward compatibility)
         try:
             self.kb_dir.mkdir(parents=True, exist_ok=True)
             with open(self.progress_file, "w", encoding="utf-8") as f:
                 json.dump(progress, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to save progress: {e}")
+            logger.error("[ProgressTracker] Failed to save progress: %s", e)
 
     def update(
         self,
@@ -134,7 +174,6 @@ class ProgressTracker:
 
         # Output to logger (terminal and log file)
         try:
-            logger = _get_logger()
             prefix = f"[{self.task_id}]" if self.task_id else ""
 
             if total > 0:
@@ -152,11 +191,13 @@ class ProgressTracker:
             else:
                 logger.progress(progress_msg)
         except Exception:
-            # If logging fails, print to console
+            # If logging fails, log to console
             prefix = f"[{self.task_id}]" if self.task_id else ""
-            print(f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})")
+            logger.info(
+                f"{prefix} [ProgressTracker] {message} ({current}/{total if total > 0 else '?'})"
+            )
             if error:
-                print(f"{prefix} [ProgressTracker] Error: {error}")
+                logger.error(f"{prefix} [ProgressTracker] Error: {error}")
 
         self._save_progress(progress)
         self._notify(progress)
@@ -170,7 +211,7 @@ class ProgressTracker:
             with open(self.progress_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[ProgressTracker] Failed to read progress: {e}")
+            logger.error("[ProgressTracker] Failed to read progress: %s", e)
             return None
 
     def clear(self):
@@ -179,4 +220,7 @@ class ProgressTracker:
             try:
                 self.progress_file.unlink()
             except Exception as e:
-                print(f"[ProgressTracker] Failed to clear progress: {e}")
+                logger.error(
+                    "[ProgressTracker] Failed to clear progress: %s",
+                    e,
+                )

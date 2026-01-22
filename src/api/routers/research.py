@@ -15,6 +15,7 @@ from src.api.utils.task_id_manager import TaskIDManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.services.settings.interface_settings import get_ui_language
 
 # Force stdout to use utf-8 to prevent encoding errors with emojis on Windows
 if sys.platform == "win32":
@@ -46,12 +47,16 @@ class OptimizeRequest(BaseModel):
 async def optimize_topic(request: OptimizeRequest):
     try:
         config = load_config()
+        config.setdefault("system", {})
+        config["system"]["language"] = get_ui_language(
+            default=config.get("system", {}).get("language", "en")
+        )
 
         # Inject API keys
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
         except Exception as e:
             return {"error": f"LLM config error: {e!s}"}
 
@@ -64,7 +69,9 @@ async def optimize_topic(request: OptimizeRequest):
             result = await agent.process(request.topic, iteration=0)
         else:
             result = await agent.process(
-                request.topic, iteration=request.iteration, previous_result=request.previous_result
+                request.topic,
+                iteration=request.iteration,
+                previous_result=request.previous_result,
             )
 
         return result
@@ -111,6 +118,10 @@ async def websocket_research_run(websocket: WebSocket):
 
         # Use unified logger
         config = load_config()
+        config.setdefault("system", {})
+        config["system"]["language"] = get_ui_language(
+            default=config.get("system", {}).get("language", "en")
+        )
         try:
             # Get log_dir from config
             log_dir = config.get("paths", {}).get("user_log_dir") or config.get("logging", {}).get(
@@ -176,19 +187,31 @@ async def websocket_research_run(websocket: WebSocket):
         plan_mode_config = {
             "quick": {
                 "planning": {"decompose": {"initial_subtopics": 2, "mode": "manual"}},
-                "researching": {"max_iterations": 2, "iteration_mode": "fixed"},
+                "researching": {
+                    "max_iterations": 2,
+                    "iteration_mode": "fixed",
+                },
             },
             "medium": {
                 "planning": {"decompose": {"initial_subtopics": 5, "mode": "manual"}},
-                "researching": {"max_iterations": 4, "iteration_mode": "fixed"},
+                "researching": {
+                    "max_iterations": 4,
+                    "iteration_mode": "fixed",
+                },
             },
             "deep": {
                 "planning": {"decompose": {"initial_subtopics": 8, "mode": "manual"}},
-                "researching": {"max_iterations": 7, "iteration_mode": "fixed"},
+                "researching": {
+                    "max_iterations": 7,
+                    "iteration_mode": "fixed",
+                },
             },
             "auto": {
                 "planning": {"decompose": {"mode": "auto", "auto_max_subtopics": 8}},
-                "researching": {"max_iterations": 6, "iteration_mode": "flexible"},
+                "researching": {
+                    "max_iterations": 6,
+                    "iteration_mode": "flexible",
+                },
             },
         }
         if plan_mode in plan_mode_config:
@@ -248,8 +271,8 @@ async def websocket_research_run(websocket: WebSocket):
         # Inject API keys from env if not in config
         try:
             llm_config = get_llm_config()
-            api_key = llm_config.api_key
-            base_url = llm_config.base_url
+            api_key = getattr(llm_config, "api_key", None)
+            base_url = getattr(llm_config, "base_url", None)
             api_version = getattr(llm_config, "api_version", None)
         except ValueError as e:
             await websocket.send_json({"error": f"LLM configuration error: {e!s}"})
@@ -333,7 +356,11 @@ async def websocket_research_run(websocket: WebSocket):
 
         try:
             await websocket.send_json(
-                {"type": "status", "content": "started", "research_id": pipeline.research_id}
+                {
+                    "type": "status",
+                    "content": "started",
+                    "research_id": pipeline.research_id,
+                }
             )
 
             result = await pipeline.run(topic)
@@ -346,7 +373,11 @@ async def websocket_research_run(websocket: WebSocket):
             history_manager.add_entry(
                 activity_type=ActivityType.RESEARCH,
                 title=topic,
-                content={"topic": topic, "report": report_content, "kb_name": kb_name},
+                content={
+                    "topic": topic,
+                    "report": report_content,
+                    "kb_name": kb_name,
+                },
                 summary=f"Research ID: {result['research_id']}",
             )
 

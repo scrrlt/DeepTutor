@@ -1,9 +1,4 @@
-"""
-Document Retrievers
-===================
-
-Retrievers for searching indexed documents.
-"""
+"""Retrievers for searching indexed documents."""
 
 from .base import BaseRetriever
 from .dense import DenseRetriever

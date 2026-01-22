@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 DR-in-KG 2.0 Core Data Structures
 Includes: TopicBlock, ToolTrace, DynamicTopicQueue
@@ -11,6 +10,10 @@ from enum import Enum
 import json
 from pathlib import Path
 from typing import Any
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TopicStatus(Enum):
@@ -53,6 +56,11 @@ class ToolTrace:
     raw_answer_truncated: bool = field(default=False)  # Whether raw_answer was truncated
     raw_answer_original_size: int = field(default=0)  # Original size before truncation
 
+    @property
+    def cite_id(self) -> str:
+        """Compatibility alias for citation_id."""
+        return self.citation_id
+
     def __post_init__(self):
         """Post-initialization to handle raw_answer size limit"""
         if self.raw_answer_original_size == 0:
@@ -87,7 +95,13 @@ class ToolTrace:
             # If it's a dict with common RAG response fields, truncate content fields
             if isinstance(data, dict):
                 # Truncate long content fields
-                content_fields = ["answer", "content", "text", "chunks", "documents"]
+                content_fields = [
+                    "answer",
+                    "content",
+                    "text",
+                    "chunks",
+                    "documents",
+                ]
                 for field_name in content_fields:
                     if field_name in data:
                         if (
@@ -108,9 +122,7 @@ class ToolTrace:
             pass
 
         # Fallback: simple truncation with marker
-        truncation_marker = "\n... [content truncated, original size: {} bytes]".format(
-            len(raw_answer)
-        )
+        truncation_marker = f"\n... [content truncated, original size: {len(raw_answer)} bytes]"
         return raw_answer[: max_size - len(truncation_marker)] + truncation_marker
 
     def to_dict(self) -> dict[str, Any]:
@@ -229,7 +241,10 @@ class DynamicTopicQueue:
     """
 
     def __init__(
-        self, research_id: str, max_length: int | None = None, state_file: str | None = None
+        self,
+        research_id: str,
+        max_length: int | None = None,
+        state_file: str | None = None,
     ):
         """
         Initialize queue
@@ -432,7 +447,7 @@ class DynamicTopicQueue:
             try:
                 self.save_to_json(self.state_file)
             except Exception as exc:
-                print(f"⚠️ Failed to save queue progress: {exc}")
+                logger.error(f"⚠️ Failed to save queue progress: {exc}")
 
     @classmethod
     def load_from_json(cls, filepath: str) -> "DynamicTopicQueue":

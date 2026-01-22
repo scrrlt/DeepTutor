@@ -1,19 +1,16 @@
-#!/usr/bin/env python
-"""
-ChatAgent - Lightweight conversational AI with multi-turn support.
+"""ChatAgent - Orchestrator for conversational flows.
 
-This agent provides:
-- Multi-turn conversation with history management
-- Token-based context truncation
-- Optional RAG and Web Search augmentation
-- Streaming response generation
+This agent is intentionally lightweight:
 
-Uses the unified LLM factory from BaseAgent for both cloud and local LLM support.
+- Delegates LLM calls to BaseAgent (provider-backed)
+- Accepts optional injected tool functions for RAG/Web
+- Uses a model-agnostic history truncation heuristic
 """
 
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
 import sys
-from typing import Any, AsyncGenerator
+from typing import Any
 
 # Add project root to path
 _project_root = Path(__file__).parent.parent.parent.parent
@@ -21,196 +18,85 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from src.agents.base_agent import BaseAgent
-from src.tools import rag_search, web_search
+from src.config.config import LLMConfig
 
 
 class ChatAgent(BaseAgent):
-    """
-    Lightweight conversational agent with multi-turn support.
+    """Conversational agent with optional RAG/Web context."""
 
-    Features:
-    - Conversation history management with token limits
-    - RAG (Retrieval-Augmented Generation) support
-    - Web search integration
-    - Streaming response generation via BaseAgent.stream_llm()
-    """
-
-    # Default token limit for conversation history
     DEFAULT_MAX_HISTORY_TOKENS = 4000
 
     def __init__(
         self,
         language: str = "zh",
-        config: dict[str, Any] | None = None,
-        max_history_tokens: int | None = None,
-        **kwargs,
-    ):
-        """
-        Initialize ChatAgent.
-
-        Args:
-            language: Language setting ('zh' | 'en')
-            config: Optional configuration dictionary
-            max_history_tokens: Maximum tokens for conversation history
-            **kwargs: Additional arguments passed to BaseAgent
-        """
+        config: LLMConfig | None = None,
+        max_history_tokens: int = DEFAULT_MAX_HISTORY_TOKENS,
+        rag_search_func: Callable[[str, str], Awaitable[dict[str, Any]]] | None = None,
+        web_search_func: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+    ) -> None:
         super().__init__(
             module_name="chat",
             agent_name="chat_agent",
             language=language,
             config=config,
-            **kwargs,
         )
+        self.max_history_tokens = max_history_tokens
+        self._rag_search = rag_search_func
+        self._web_search = web_search_func
 
-        # Configure history token limit
-        self.max_history_tokens = max_history_tokens or self.agent_config.get(
-            "max_history_tokens", self.DEFAULT_MAX_HISTORY_TOKENS
-        )
-
-        self.logger.info(f"ChatAgent initialized: model={self.model}, base_url={self.base_url}")
-
-    def count_tokens(self, text: str) -> int:
-        """
-        Count tokens in text using tiktoken.
-
-        Falls back to character-based estimation if tiktoken unavailable.
-
-        Args:
-            text: Text to count tokens for
-
-        Returns:
-            Estimated token count
-        """
-        try:
-            import tiktoken
-
-            # Use cl100k_base encoding (GPT-4, GPT-3.5-turbo)
-            encoding = tiktoken.get_encoding("cl100k_base")
-            return len(encoding.encode(text))
-        except ImportError:
-            # Fallback: rough estimate of 4 characters per token
-            return len(text) // 4
-
-    def truncate_history(
-        self,
-        history: list[dict[str, str]],
-        max_tokens: int | None = None,
-    ) -> list[dict[str, str]]:
-        """
-        Truncate conversation history to fit within token limit.
-
-        Keeps the most recent messages, discarding older ones first.
-
-        Args:
-            history: List of message dicts with 'role' and 'content'
-            max_tokens: Maximum tokens allowed (uses default if None)
-
-        Returns:
-            Truncated history list
-        """
-        max_tokens = max_tokens or self.max_history_tokens
-
+    def _truncate_history(self, history: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Truncate history using a conservative token heuristic."""
         if not history:
             return []
 
-        # Calculate tokens for each message
-        message_tokens = []
-        for msg in history:
-            content = msg.get("content", "")
-            tokens = self.count_tokens(content)
-            message_tokens.append((msg, tokens))
+        estimated_tokens = 0
+        truncated: list[dict[str, str]] = []
 
-        # Build history from newest to oldest, stop when limit reached
-        truncated = []
-        total_tokens = 0
-
-        for msg, tokens in reversed(message_tokens):
-            if total_tokens + tokens > max_tokens:
+        for msg in reversed(history):
+            content_len = len(msg.get("content", ""))
+            tokens = max(1, int(content_len / 2))
+            if estimated_tokens + tokens > self.max_history_tokens:
                 break
             truncated.insert(0, msg)
-            total_tokens += tokens
-
-        if len(truncated) < len(history):
-            self.logger.info(
-                f"Truncated history from {len(history)} to {len(truncated)} messages "
-                f"({total_tokens} tokens)"
-            )
+            estimated_tokens += tokens
 
         return truncated
 
-    def format_history_for_prompt(self, history: list[dict[str, str]]) -> str:
-        """
-        Format conversation history as a string for the prompt.
-
-        Args:
-            history: List of message dicts
-
-        Returns:
-            Formatted history string
-        """
-        if not history:
-            return ""
-
-        lines = []
-        for msg in history:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            prefix = "User" if role == "user" else "Assistant"
-            lines.append(f"{prefix}: {content}")
-
-        return "\n\n".join(lines)
-
-    async def retrieve_context(
+    async def _retrieve_context(
         self,
         message: str,
-        kb_name: str | None = None,
-        enable_rag: bool = False,
-        enable_web_search: bool = False,
+        kb_name: str | None,
+        use_rag: bool,
+        use_web: bool,
     ) -> tuple[str, dict[str, Any]]:
-        """
-        Retrieve context from RAG and/or Web Search.
+        """Execute tool lookups safely."""
+        context_parts: list[str] = []
+        sources: dict[str, Any] = {"rag": [], "web": []}
 
-        Args:
-            message: User message to search for
-            kb_name: Knowledge base name for RAG
-            enable_rag: Whether to use RAG
-            enable_web_search: Whether to use Web Search
-
-        Returns:
-            Tuple of (context_string, sources_dict)
-        """
-        context_parts = []
-        sources = {"rag": [], "web": []}
-
-        # RAG retrieval
-        if enable_rag and kb_name:
+        if use_rag and kb_name and self._rag_search:
             try:
-                self.logger.info(f"RAG search: {message[:50]}...")
-                rag_result = await rag_search(
-                    query=message,
-                    kb_name=kb_name,
-                    mode="hybrid",
-                )
+                self.logger.info("RAG search: %s", message[:50])
+                rag_result = await self._rag_search(message, kb_name=kb_name)
                 rag_answer = rag_result.get("answer", "")
                 if rag_answer:
                     context_parts.append(f"[Knowledge Base: {kb_name}]\n{rag_answer}")
                     sources["rag"].append(
                         {
                             "kb_name": kb_name,
-                            "content": rag_answer[:500] + "..."
-                            if len(rag_answer) > 500
-                            else rag_answer,
+                            "content": (
+                                rag_answer[:500] + "..." if len(rag_answer) > 500 else rag_answer
+                            ),
                         }
                     )
-                    self.logger.info(f"RAG retrieved {len(rag_answer)} chars")
-            except Exception as e:
-                self.logger.warning(f"RAG search failed: {e}")
+                    self.logger.info("RAG retrieved %s chars", len(rag_answer))
+            except Exception as exc:
+                self.logger.warning("RAG search failed: %s", exc)
 
         # Web search
-        if enable_web_search:
+        if use_web and self._web_search:
             try:
-                self.logger.info(f"Web search: {message[:50]}...")
-                web_result = web_search(query=message, verbose=False)
+                self.logger.info("Web search: %s", message[:50])
+                web_result = await self._web_search(message)
                 web_answer = web_result.get("answer", "")
                 web_citations = web_result.get("citations", [])
 
@@ -218,11 +104,12 @@ class ChatAgent(BaseAgent):
                     context_parts.append(f"[Web Search Results]\n{web_answer}")
                     sources["web"] = web_citations[:5]
                     self.logger.info(
-                        f"Web search returned {len(web_answer)} chars, "
-                        f"{len(web_citations)} citations"
+                        "Web search returned %s chars, %s citations",
+                        len(web_answer),
+                        len(web_citations),
                     )
-            except Exception as e:
-                self.logger.warning(f"Web search failed: {e}")
+            except Exception as exc:
+                self.logger.warning("Web search failed: %s", exc)
 
         context = "\n\n".join(context_parts)
         return context, sources
@@ -369,67 +256,63 @@ class ChatAgent(BaseAgent):
         enable_web_search: bool = False,
         stream: bool = False,
     ) -> dict[str, Any] | AsyncGenerator[dict[str, Any], None]:
-        """
-        Process a chat message with optional context retrieval.
-
-        Args:
-            message: User message
-            history: Conversation history (will be truncated if needed)
-            kb_name: Knowledge base name for RAG
-            enable_rag: Whether to enable RAG retrieval
-            enable_web_search: Whether to enable web search
-            stream: Whether to stream the response
-
-        Returns:
-            If stream=False: Dict with 'response', 'sources', 'truncated_history'
-            If stream=True: AsyncGenerator yielding chunks
-        """
         history = history or []
+        truncated_history = self._truncate_history(history)
 
-        # Truncate history to fit token limit
-        truncated_history = self.truncate_history(history)
-
-        # Retrieve context if needed
-        context, sources = await self.retrieve_context(
-            message=message,
-            kb_name=kb_name,
-            enable_rag=enable_rag,
-            enable_web_search=enable_web_search,
+        context_str, sources = await self._retrieve_context(
+            message,
+            kb_name,
+            use_rag=enable_rag,
+            use_web=enable_web_search,
         )
 
-        # Build messages for LLM
-        messages = self.build_messages(
-            message=message,
-            history=truncated_history,
-            context=context,
-        )
+        sys_template = self.get_prompt("system", "You are a helpful AI.")
+
+        messages: list[dict[str, str]] = [{"role": "system", "content": sys_template}]
+
+        if context_str:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": f"Context:\n{context_str}",
+                }
+            )
+
+        messages.extend(truncated_history)
+        messages.append({"role": "user", "content": message})
 
         if stream:
-            # Return async generator for streaming
-            async def stream_generator():
-                full_response = ""
-                async for chunk in self.generate_stream(messages):
-                    full_response += chunk
+
+            async def generator() -> AsyncGenerator[dict[str, Any], None]:
+                async for chunk in self.stream_llm(
+                    user_prompt=message,
+                    system_prompt=sys_template,
+                    messages=messages,
+                    stage="chat_stream",
+                ):
                     yield {"type": "chunk", "content": chunk}
 
-                # Yield final result with sources
                 yield {
-                    "type": "complete",
-                    "response": full_response,
+                    "type": "meta",
                     "sources": sources,
                     "truncated_history": truncated_history,
                 }
 
-            return stream_generator()
-        else:
-            # Generate complete response
-            response = await self.generate(messages)
+            return generator()
 
-            return {
-                "response": response,
-                "sources": sources,
-                "truncated_history": truncated_history,
-            }
+        response_text = await self.call_llm(
+            user_prompt=message,
+            system_prompt=sys_template,
+            messages=messages,
+            verbose=False,
+            stage="chat_complete",
+        )
+
+        return {
+            "response": response_text,
+            "sources": sources,
+            "truncated_history": truncated_history,
+        }
 
 
 __all__ = ["ChatAgent"]

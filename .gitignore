@@ -10,6 +10,7 @@ data/user/
 data/knowledge_bases/
 run_code_workspace/
 src/agents/question/reference_papers/
+src/services/rag/eg_only_for_analysis/
 
 # ============================================
 # Python Related
@@ -43,9 +44,10 @@ MANIFEST
 .env
 *.env
 !.env.example
+!.env.local.example
+!web/.env.local.example
 env/
 venv/
-ENV/
 .venv/
 env.bak/
 venv.bak/
@@ -195,6 +197,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 develop/
+.hypothesis/
 
 # ============================================
 # Jupyter Notebook

@@ -7,7 +7,6 @@ Parser for PDF documents using MinerU/RAG-Anything.
 
 import json
 from pathlib import Path
-from typing import Optional, Union
 
 from ...types import Document
 from ..base import BaseComponent
@@ -22,7 +21,7 @@ class PDFParser(BaseComponent):
 
     name = "pdf_parser"
 
-    def __init__(self, use_mineru: bool = True, output_dir: Optional[str] = None):
+    def __init__(self, use_mineru: bool = True, output_dir: str | None = None):
         """
         Initialize PDF parser.
 
@@ -34,7 +33,7 @@ class PDFParser(BaseComponent):
         self.use_mineru = use_mineru
         self.output_dir = output_dir
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, file_path: str | Path, **kwargs) -> Document:
         """
         Parse a PDF file into a Document.
 
@@ -62,7 +61,7 @@ class PDFParser(BaseComponent):
         if content_list_file.exists():
             # Load existing parsed content
             self.logger.info(f"Loading existing parsed content from {content_list_file}")
-            with open(content_list_file, "r", encoding="utf-8") as f:
+            with open(content_list_file, encoding="utf-8") as f:
                 content_items = json.load(f)
 
             # Extract text content

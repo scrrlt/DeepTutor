@@ -7,8 +7,9 @@ Provides centralized configuration and adapter selection.
 """
 
 import logging
-from typing import Any, Dict, Optional, Type
+from typing import Any, ClassVar
 
+from .adapters.azure import AzureEmbeddingAdapter
 from .adapters.base import BaseEmbeddingAdapter
 from .adapters.cohere import CohereEmbeddingAdapter
 from .adapters.jina import JinaEmbeddingAdapter
@@ -29,9 +30,9 @@ class EmbeddingProviderManager:
     """
 
     # Mapping of binding names to adapter classes
-    ADAPTER_MAPPING: Dict[str, Type[BaseEmbeddingAdapter]] = {
+    ADAPTER_MAPPING: ClassVar[dict[str, type[BaseEmbeddingAdapter]]] = {
         "openai": OpenAICompatibleEmbeddingAdapter,
-        "azure_openai": OpenAICompatibleEmbeddingAdapter,
+        "azure_openai": AzureEmbeddingAdapter,
         "jina": JinaEmbeddingAdapter,
         "huggingface": OpenAICompatibleEmbeddingAdapter,
         "google": OpenAICompatibleEmbeddingAdapter,
@@ -42,9 +43,13 @@ class EmbeddingProviderManager:
 
     def __init__(self):
         """Initialize the provider manager."""
-        self.adapter: Optional[BaseEmbeddingAdapter] = None
+        self.adapter: BaseEmbeddingAdapter | None = None
 
-    def get_adapter(self, binding: str, config: Dict[str, Any]) -> BaseEmbeddingAdapter:
+    def get_adapter(
+        self,
+        binding: str,
+        config: dict[str, Any],
+    ) -> BaseEmbeddingAdapter:
         """
         Get and instantiate an adapter for the specified binding.
 
@@ -66,7 +71,7 @@ class EmbeddingProviderManager:
                 f"Unknown embedding binding: '{binding}'. Supported providers: {supported}"
             )
 
-        logger.info(f"Initializing embedding adapter for binding: {binding}")
+        logger.info("Initializing embedding adapter for binding: %s", binding)
         return adapter_class(config)
 
     def set_adapter(self, adapter: BaseEmbeddingAdapter) -> None:
@@ -77,7 +82,7 @@ class EmbeddingProviderManager:
             adapter: Adapter instance to set as active
         """
         self.adapter = adapter
-        logger.debug(f"Active embedding adapter set to: {adapter.__class__.__name__}")
+        logger.debug("Active embedding adapter set to: %s", adapter.__class__.__name__)
 
     def get_active_adapter(self) -> BaseEmbeddingAdapter:
         """
@@ -97,7 +102,7 @@ class EmbeddingProviderManager:
 
 
 # Global singleton instance
-_manager: Optional[EmbeddingProviderManager] = None
+_manager: EmbeddingProviderManager | None = None
 
 
 def get_embedding_provider_manager() -> EmbeddingProviderManager:

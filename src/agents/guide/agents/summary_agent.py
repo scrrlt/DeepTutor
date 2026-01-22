@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 SummaryAgent - Learning Summary Generation Agent
 Generates personalized learning summary reports after users complete learning
@@ -37,8 +36,8 @@ class SummaryAgent(BaseAgent):
             formatted.append(
                 f"""
 ### Knowledge Point {i}: {point.get("knowledge_title", "Unnamed")}
-**Content Summary**: {point.get("knowledge_summary", "")}
-**Potential Difficulty**: {point.get("user_difficulty", "")}
+Content Summary: {point.get("knowledge_summary", "")}
+Potential Difficulty: {point.get("user_difficulty", "")}
 """
             )
         return "\n".join(formatted)

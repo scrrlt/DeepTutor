@@ -1,41 +1,39 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { Bug, X, Loader2 } from "lucide-react";
+import { useState } from 'react'
+import { Bug, X, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface DebugModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onFix: (description: string) => Promise<boolean>;
+  isOpen: boolean
+  onClose: () => void
+  onFix: (description: string) => Promise<boolean>
 }
 
-export default function DebugModal({
-  isOpen,
-  onClose,
-  onFix,
-}: DebugModalProps) {
-  const [description, setDescription] = useState("");
-  const [fixing, setFixing] = useState(false);
+export default function DebugModal({ isOpen, onClose, onFix }: DebugModalProps) {
+  const { t } = useTranslation()
+  const [description, setDescription] = useState('')
+  const [fixing, setFixing] = useState(false)
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const handleFix = async () => {
-    if (!description.trim() || fixing) return;
+    if (!description.trim() || fixing) return
 
-    setFixing(true);
-    const success = await onFix(description);
-    setFixing(false);
+    setFixing(true)
+    const success = await onFix(description)
+    setFixing(false)
 
     if (success) {
-      setDescription("");
-      onClose();
+      setDescription('')
+      onClose()
     }
-  };
+  }
 
   const handleClose = () => {
-    setDescription("");
-    onClose();
-  };
+    setDescription('')
+    onClose()
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in">
@@ -43,7 +41,7 @@ export default function DebugModal({
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <h3 className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Bug className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            Fix HTML Issue
+            {t('Fix HTML Issue')}
           </h3>
           <button
             onClick={handleClose}
@@ -55,12 +53,14 @@ export default function DebugModal({
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-              Issue Description
+              {t('Issue Description')}
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the HTML issue, e.g.: button not clickable, style display error, interaction not working..."
+              onChange={e => setDescription(e.target.value)}
+              placeholder={t(
+                'Describe the HTML issue, e.g.: button not clickable, style display error, interaction not working...'
+              )}
               rows={6}
               className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none resize-none"
             />
@@ -71,7 +71,7 @@ export default function DebugModal({
             onClick={handleClose}
             className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             onClick={handleFix}
@@ -81,17 +81,17 @@ export default function DebugModal({
             {fixing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Fixing...
+                {t('Fixing...')}
               </>
             ) : (
               <>
                 <Bug className="w-4 h-4" />
-                Fix
+                {t('Fix')}
               </>
             )}
           </button>
         </div>
       </div>
     </div>
-  );
+  )
 }

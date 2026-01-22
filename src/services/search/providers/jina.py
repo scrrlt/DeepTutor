@@ -1,5 +1,4 @@
-"""
-Jina Reader Search Provider
+"""Jina Reader search provider.
 
 API Docs: https://jina.ai/reader
 Search Endpoint: https://s.jina.ai/{query}
@@ -19,7 +18,7 @@ from datetime import datetime
 from typing import Any
 import urllib.parse
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -28,7 +27,7 @@ from . import register_provider
 
 @register_provider("jina")
 class JinaProvider(BaseSearchProvider):
-    """Jina Reader search provider"""
+    """Jina Reader search provider."""
 
     display_name = "Jina"
     description = "SERP with content extraction (free tier)"
@@ -50,18 +49,10 @@ class JinaProvider(BaseSearchProvider):
             query: Search query.
             enrich: If True, fetch full content + images. If False, basic SERP only.
             timeout: Request timeout in seconds.
-            **kwargs: Additional options.
-
-        Returns:
-            WebSearchResponse: Standardized search response.
         """
-        headers: dict[str, str] = {
-            "Accept": "application/json",
-        }
-
+        headers: dict[str, str] = {"Accept": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-
         if enrich:
             # Enriched mode: full content + images
             headers["X-Engine"] = "direct"
@@ -75,7 +66,7 @@ class JinaProvider(BaseSearchProvider):
         encoded_query = urllib.parse.quote(query)
         url = f"{self.BASE_URL}/{encoded_query}"
 
-        response = requests.get(url, headers=headers, timeout=timeout)
+        response = httpx.get(url, headers=headers, timeout=timeout)
 
         if response.status_code != 200:
             self.logger.error(f"Jina API error: {response.status_code}")
@@ -106,7 +97,6 @@ class JinaProvider(BaseSearchProvider):
             sr = SearchResult(
                 title=result.get("title", ""),
                 url=result.get("url", ""),
-                snippet=result.get("description", ""),
                 date=result.get("date", ""),
                 content=result.get("content", ""),
                 attributes=attributes,

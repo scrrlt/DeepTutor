@@ -1,16 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ResearchPipeline 2.0 - Research workflow based on dynamic topic queue
 Coordinates three stages: Planning -> Researching -> Reporting
 """
 
 import asyncio
+from collections.abc import Callable
 from datetime import datetime
 import json
 from pathlib import Path
+import os
 import sys
-from typing import Any, Callable
+from typing import Any
 
 
 def _get_project_root() -> Path:
@@ -137,7 +138,7 @@ class ResearchPipeline:
         self._init_logger()
 
         # Initialize Agents
-        self.agents = {}
+        self.agents: dict[str, Any] = {}
         self._init_agents()
 
         # Tool instances
@@ -168,22 +169,40 @@ class ResearchPipeline:
 
         self.agents = {
             "rephrase": RephraseAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
             "decompose": DecomposeAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
             "manager": ManagerAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
             "research": ResearchAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
             "note": NoteAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
             "reporting": ReportingAgent(
-                self.config, self.api_key, self.base_url, api_version=self.api_version
+                self.config,
+                self.api_key,
+                self.base_url,
+                api_version=self.api_version,
             ),
         }
 
@@ -212,7 +231,7 @@ class ResearchPipeline:
         """
         try:
             return await asyncio.wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.warning(f"Tool {tool_name} timed out after {timeout}s")
             raise
 
@@ -245,7 +264,9 @@ class ResearchPipeline:
             try:
                 if asyncio.iscoroutinefunction(tool_func):
                     result = await self._call_tool_with_timeout(
-                        tool_func(*args, **kwargs), timeout=timeout, tool_name=tool_name
+                        tool_func(*args, **kwargs),
+                        timeout=timeout,
+                        tool_name=tool_name,
                     )
                 else:
                     # For sync functions, run in executor
@@ -257,7 +278,7 @@ class ResearchPipeline:
                         timeout=timeout,
                     )
                 return result
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 last_error = e
                 if attempt < max_retries:
                     self.logger.warning(
@@ -384,7 +405,12 @@ class ResearchPipeline:
             return json.dumps(res, ensure_ascii=False)
         except Exception as e:
             return json.dumps(
-                {"status": "failed", "error": str(e), "tool": tool_type, "query": query},
+                {
+                    "status": "failed",
+                    "error": str(e),
+                    "tool": tool_type,
+                    "query": query,
+                },
                 ensure_ascii=False,
             )
 
@@ -445,7 +471,12 @@ class ResearchPipeline:
             if "outline" in report_result:
                 outline_file = self.cache_dir / "outline.json"
                 with open(outline_file, "w", encoding="utf-8") as f:
-                    json.dump(report_result["outline"], f, ensure_ascii=False, indent=2)
+                    json.dump(
+                        report_result["outline"],
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
                 self.logger.success(f"Report Outline: {outline_file}")
 
             # Save metadata
@@ -465,7 +496,9 @@ class ResearchPipeline:
 
             # ===== Token Cost Statistics =====
             try:
-                from src.agents.research.utils.token_tracker import get_token_tracker
+                from src.agents.research.utils.token_tracker import (
+                    get_token_tracker,
+                )
 
                 tracker = get_token_tracker()
                 cost_summary = tracker.format_summary()
@@ -542,7 +575,9 @@ class ResearchPipeline:
                 # Continue rephrasing based on user feedback
                 elif user_feedback:
                     rephrase_result = await self.agents["rephrase"].process(
-                        user_feedback, iteration=iteration, previous_result=rephrase_result
+                        user_feedback,
+                        iteration=iteration,
+                        previous_result=rephrase_result,
                     )
                 else:
                     # If no feedback, use previous result
@@ -583,7 +618,10 @@ class ResearchPipeline:
                     )
                     self.logger.info("   - Press Enter directly to use current result")
 
-                    user_input = input("\nYour choice: ").strip()
+                    if not sys.stdin.isatty() or os.getenv("PYTEST_CURRENT_TEST"):
+                        user_input = ""
+                    else:
+                        user_input = input("\nYour choice: ").strip()
 
                     if not user_input:
                         self.logger.success("Using current result, proceeding to next stage")
@@ -637,7 +675,8 @@ class ResearchPipeline:
         if mode == "auto":
             # Auto mode: use auto_max_subtopics as limit
             num_subtopics = decompose_config.get(
-                "auto_max_subtopics", decompose_config.get("initial_subtopics", 5)
+                "auto_max_subtopics",
+                decompose_config.get("initial_subtopics", 5),
             )
             self.logger.info(f"📌 Using Auto mode, max subtopics: {num_subtopics}")
         else:
@@ -646,7 +685,10 @@ class ResearchPipeline:
             self.logger.info(f"📌 Using Manual mode, expected subtopics: {num_subtopics}")
 
         self._log_progress(
-            "planning", "decompose_started", requested_subtopics=num_subtopics, mode=mode
+            "planning",
+            "decompose_started",
+            requested_subtopics=num_subtopics,
+            mode=mode,
         )
 
         # Set citation manager to DecomposeAgent
@@ -701,7 +743,10 @@ class ResearchPipeline:
                 )
             except RuntimeError as err:
                 self._log_progress(
-                    "planning", "queue_capacity_reached", error=str(err), attempted_topic=title
+                    "planning",
+                    "queue_capacity_reached",
+                    error=str(err),
+                    attempted_topic=title,
                 )
                 self.logger.warning(
                     f"Queue reached capacity limit, stopping addition of initial topics: {err}"
@@ -709,7 +754,11 @@ class ResearchPipeline:
                 break
 
         stats = self.queue.get_statistics()
-        self._log_progress("planning", "planning_completed", total_blocks=stats["total_blocks"])
+        self._log_progress(
+            "planning",
+            "planning_completed",
+            total_blocks=stats["total_blocks"],
+        )
         self.logger.success("\nPhase 1 Completed:")
         self.logger.info(f"  - Optimized Topic: {optimized_topic}")
         self.logger.info(f"  - Subtopic Count: {stats['total_blocks']}")
@@ -744,7 +793,9 @@ class ResearchPipeline:
         completed_blocks = 0
 
         self._log_researching_progress(
-            "researching_started", total_blocks=total_blocks, execution_mode="series"
+            "researching_started",
+            total_blocks=total_blocks,
+            execution_mode="series",
         )
 
         while not manager.is_research_complete():
@@ -1142,8 +1193,8 @@ class ResearchPipeline:
         block_id: str,
         sub_topic: str,
         execution_mode: str,
-        current_block: int = None,
-        total_blocks: int = None,
+        current_block: int | None = None,
+        total_blocks: int | None = None,
     ) -> Callable:
         """
         Create a progress callback for research iterations
@@ -1258,7 +1309,10 @@ async def main():
     parser.add_argument("--topic", type=str, required=True, help="Research topic")
     parser.add_argument("--config", type=str, default="config.yaml", help="Configuration file")
     parser.add_argument(
-        "--preset", type=str, choices=["quick", "medium", "deep", "auto"], help="Preset mode"
+        "--preset",
+        type=str,
+        choices=["quick", "medium", "deep", "auto"],
+        help="Preset mode",
     )
 
     args = parser.parse_args()

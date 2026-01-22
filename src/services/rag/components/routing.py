@@ -9,7 +9,6 @@ Determines the appropriate processing method for each document type.
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List
 
 from src.logging import get_logger
 
@@ -38,9 +37,9 @@ class FileClassification:
         unsupported: Files with unsupported formats
     """
 
-    needs_mineru: List[str]
-    text_files: List[str]
-    unsupported: List[str]
+    needs_mineru: list[str]
+    text_files: list[str]
+    unsupported: list[str]
 
 
 class FileTypeRouter:
@@ -135,7 +134,16 @@ class FileTypeRouter:
     DOCX_EXTENSIONS = {".docx", ".doc"}
 
     # Image extensions (may need OCR)
-    IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff", ".tif"}
+    IMAGE_EXTENSIONS = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tiff",
+        ".tif",
+    }
 
     @classmethod
     def get_document_type(cls, file_path: str) -> DocumentType:
@@ -187,11 +195,11 @@ class FileTypeRouter:
             # Try to decode as UTF-8
             chunk.decode("utf-8")
             return True
-        except (UnicodeDecodeError, IOError, OSError):
+        except (UnicodeDecodeError, OSError):
             return False
 
     @classmethod
-    def classify_files(cls, file_paths: List[str]) -> FileClassification:
+    def classify_files(cls, file_paths: list[str]) -> FileClassification:
         """
         Classify a list of files by processing method.
 
@@ -244,11 +252,19 @@ class FileTypeRouter:
         Returns:
             File content as string
         """
-        encodings = ["utf-8", "utf-8-sig", "gbk", "gb2312", "gb18030", "latin-1", "cp1252"]
+        encodings = [
+            "utf-8",
+            "utf-8-sig",
+            "gbk",
+            "gb2312",
+            "gb18030",
+            "latin-1",
+            "cp1252",
+        ]
 
         for encoding in encodings:
             try:
-                with open(file_path, "r", encoding=encoding) as f:
+                with open(file_path, encoding=encoding) as f:
                     return f.read()
             except UnicodeDecodeError:
                 continue
@@ -269,7 +285,11 @@ class FileTypeRouter:
             True if file requires MinerU
         """
         doc_type = cls.get_document_type(file_path)
-        return doc_type in (DocumentType.PDF, DocumentType.DOCX, DocumentType.IMAGE)
+        return doc_type in (
+            DocumentType.PDF,
+            DocumentType.DOCX,
+            DocumentType.IMAGE,
+        )
 
     @classmethod
     def is_text_readable(cls, file_path: str) -> bool:
@@ -284,3 +304,50 @@ class FileTypeRouter:
         """
         doc_type = cls.get_document_type(file_path)
         return doc_type in (DocumentType.TEXT, DocumentType.MARKDOWN)
+
+    @classmethod
+    def get_extensions_for_provider(cls, provider: str) -> set[str]:
+        """
+        Get supported file extensions for a specific RAG provider.
+
+        Args:
+            provider: RAG provider name (llamaindex, lightrag, raganything, raganything_docling)
+
+        Returns:
+            Set of supported file extensions (with leading dot, e.g., {".pdf", ".txt"})
+        """
+        # Base text extensions supported by all providers
+        text_extensions = cls.TEXT_EXTENSIONS.copy()
+
+        if provider == "llamaindex":
+            # LlamaIndex: PDF + all text files (reads any text file directly)
+            return cls.MINERU_EXTENSIONS | text_extensions
+
+        elif provider == "lightrag":
+            # LightRAG: PDF + all text files (uses FileTypeRouter)
+            return cls.MINERU_EXTENSIONS | text_extensions
+
+        elif provider in ("raganything", "raganything_docling"):
+            # RAGAnything: PDF + Word + Images + all text files (full multimodal via MinerU)
+            return (
+                cls.MINERU_EXTENSIONS | cls.DOCX_EXTENSIONS | cls.IMAGE_EXTENSIONS | text_extensions
+            )
+
+        else:
+            # Default: same as llamaindex (most conservative)
+            logger.warning(f"Unknown provider '{provider}', using default extensions")
+            return cls.MINERU_EXTENSIONS | text_extensions
+
+    @classmethod
+    def get_glob_patterns_for_provider(cls, provider: str) -> list[str]:
+        """
+        Get glob patterns for file searching based on RAG provider.
+
+        Args:
+            provider: RAG provider name (llamaindex, lightrag, raganything, raganything_docling)
+
+        Returns:
+            List of glob patterns (e.g., ["*.pdf", "*.txt", "*.md"])
+        """
+        extensions = cls.get_extensions_for_provider(provider)
+        return [f"*{ext}" for ext in sorted(extensions)]

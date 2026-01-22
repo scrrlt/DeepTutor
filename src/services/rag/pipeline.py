@@ -8,7 +8,7 @@ Composable RAG pipeline with fluent API.
 import asyncio
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.logging import get_logger
 
@@ -41,7 +41,7 @@ class RAGPipeline:
         result = await pipeline.search("query", "kb_name")
     """
 
-    def __init__(self, name: str = "default", kb_base_dir: Optional[str] = None):
+    def __init__(self, name: str = "default", kb_base_dir: str | None = None):
         """
         Initialize RAG pipeline.
 
@@ -52,11 +52,11 @@ class RAGPipeline:
         self.name = name
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
         self.logger = get_logger(f"Pipeline:{name}")
-        self._parser: Optional[Component] = None
-        self._chunkers: List[Component] = []
-        self._embedder: Optional[Component] = None
-        self._indexers: List[Component] = []
-        self._retriever: Optional[Component] = None
+        self._parser: Component | None = None
+        self._chunkers: list[Component] = []
+        self._embedder: Component | None = None
+        self._indexers: list[Component] = []
+        self._retriever: Component | None = None
 
     # Fluent API methods
     def parser(self, p: Component) -> "RAGPipeline":
@@ -84,7 +84,7 @@ class RAGPipeline:
         self._retriever = r
         return self
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs) -> bool:
         """
         Run full initialization pipeline.
 
@@ -166,7 +166,7 @@ class RAGPipeline:
         self.logger.info(f"KB '{kb_name}' initialized successfully")
         return True
 
-    async def search(self, query: str, kb_name: str, **kwargs) -> Dict[str, Any]:
+    async def search(self, query: str, kb_name: str, **kwargs) -> dict[str, Any]:
         """
         Search the knowledge base.
 

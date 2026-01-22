@@ -1,26 +1,26 @@
-"use client";
+'use client'
 
-import { useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { useEffect, useCallback } from 'react'
+import { X } from 'lucide-react'
 
 interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title?: string;
-  titleIcon?: React.ReactNode;
-  children: React.ReactNode;
-  footer?: React.ReactNode;
-  width?: "sm" | "md" | "lg" | "xl";
-  closeOnBackdrop?: boolean;
-  closeOnEscape?: boolean;
+  isOpen: boolean
+  onClose: () => void
+  title?: string
+  titleIcon?: React.ReactNode
+  children: React.ReactNode
+  footer?: React.ReactNode
+  width?: 'sm' | 'md' | 'lg' | 'xl'
+  closeOnBackdrop?: boolean
+  closeOnEscape?: boolean
 }
 
 const widthClasses = {
-  sm: "w-[400px]",
-  md: "w-[500px]",
-  lg: "w-[600px]",
-  xl: "w-[800px]",
-};
+  sm: 'w-[400px]',
+  md: 'w-[500px]',
+  lg: 'w-[600px]',
+  xl: 'w-[800px]',
+}
 
 /**
  * Shared Modal base component
@@ -32,39 +32,39 @@ export default function Modal({
   titleIcon,
   children,
   footer,
-  width = "md",
+  width = 'md',
   closeOnBackdrop = true,
   closeOnEscape = true,
 }: ModalProps) {
   // Handle escape key
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (closeOnEscape && e.key === "Escape") {
-        onClose();
+      if (closeOnEscape && e.key === 'Escape') {
+        onClose()
       }
     },
-    [closeOnEscape, onClose],
-  );
+    [closeOnEscape, onClose]
+  )
 
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
+      document.addEventListener('keydown', handleEscape)
       // Prevent body scroll when modal is open
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden'
     }
     return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "";
-    };
-  }, [isOpen, handleEscape]);
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = ''
+    }
+  }, [isOpen, handleEscape])
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (closeOnBackdrop && e.target === e.currentTarget) {
-      onClose();
+      onClose()
     }
-  };
+  }
 
   return (
     <div
@@ -101,5 +101,5 @@ export default function Modal({
         )}
       </div>
     </div>
-  );
+  )
 }

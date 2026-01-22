@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 RephraseAgent - Topic rephrasing Agent
 Responsible for rephrasing and optimizing user input
@@ -13,6 +12,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..utils.json_utils import extract_json_from_text
 
@@ -27,7 +29,7 @@ class RephraseAgent(BaseAgent):
         base_url: str | None = None,
         api_version: str | None = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="rephrase_agent",
@@ -67,7 +69,10 @@ class RephraseAgent(BaseAgent):
         return "\n\n".join(history_parts)
 
     async def process(
-        self, user_input: str, iteration: int = 0, previous_result: dict[str, Any] = None
+        self,
+        user_input: str,
+        iteration: int = 0,
+        previous_result: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Rephrase and optimize user input, supports user interaction confirmation
@@ -85,17 +90,17 @@ class RephraseAgent(BaseAgent):
                 "iteration": int,              # Iteration count
             }
         """
-        print(f"\n{'=' * 70}")
-        print(f"🔄 RephraseAgent - Topic Rephrasing (Iteration {iteration})")
-        print(f"{'=' * 70}")
+        logger.info(f"\n{'=' * 70}")
+        logger.info(f"🔄 RephraseAgent - Topic Rephrasing (Iteration {iteration})")
+        logger.info(f"{'=' * 70}")
 
         # Reset history for new session (iteration 0)
         if iteration == 0:
             self.reset_history()
-            print(f"Original Input: {user_input}\n")
+            logger.info(f"Original Input: {user_input}\n")
         else:
-            print(f"User Feedback: {user_input}\n")
-            print(f"Conversation History: {len(self.conversation_history)} entries\n")
+            logger.info(f"User Feedback: {user_input}\n")
+            logger.info(f"Conversation History: {len(self.conversation_history)} entries\n")
 
         # Add current user input to history
         self.conversation_history.append(
@@ -133,7 +138,9 @@ class RephraseAgent(BaseAgent):
 
         # Call LLM
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, stage="rephrase"
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            stage="rephrase",
         )
 
         # Parse JSON output
@@ -165,8 +172,8 @@ class RephraseAgent(BaseAgent):
             }
         )
 
-        print("\n✓ Rephrasing Completed:")
-        print(f"  Optimized Research Topic: {result.get('topic', '')}")
+        logger.info("\n✓ Rephrasing Completed:")
+        logger.info(f"  Optimized Research Topic: {result.get('topic', '')}")
 
         return result
 
@@ -189,10 +196,10 @@ class RephraseAgent(BaseAgent):
                 "suggested_action": str        # Suggested next action
             }
         """
-        print(f"\n{'=' * 70}")
-        print("🤔 RephraseAgent - Judging User Intent")
-        print(f"{'=' * 70}")
-        print(f"User Feedback: {user_feedback}\n")
+        logger.info(f"\n{'=' * 70}")
+        logger.info("🤔 RephraseAgent - Judging User Intent")
+        logger.info(f"{'=' * 70}")
+        logger.info(f"User Feedback: {user_feedback}\n")
 
         system_prompt = self.get_prompt("system", "role")
         if not system_prompt:
@@ -227,7 +234,16 @@ class RephraseAgent(BaseAgent):
         except Exception:
             # Fallback: judge based on keywords
             feedback_lower = user_feedback.lower()
-            satisfied_keywords = ["ok", "yes", "satisfied", "good", "fine", "agree", "approved"]
+            satisfied_keywords = [
+                "ok",
+                "yes",
+                "satisfied",
+                "good",
+                "fine",
+                "agree",
+                "approved",
+                "happy",
+            ]
             continue_keywords = [
                 "modify",
                 "change",
@@ -252,10 +268,10 @@ class RephraseAgent(BaseAgent):
                 ),
             }
 
-        print("\n📊 Judgment Result:")
-        print(f"  User Satisfied: {'Yes' if result.get('user_satisfied') else 'No'}")
-        print(f"  Continue Rephrasing: {'Yes' if result.get('should_continue') else 'No'}")
-        print(f"  Intent Interpretation: {result.get('interpretation', '')}")
+        logger.info("\n📊 Judgment Result:")
+        logger.info(f"  User Satisfied: {'Yes' if result.get('user_satisfied') else 'No'}")
+        logger.info(f"  Continue Rephrasing: {'Yes' if result.get('should_continue') else 'No'}")
+        logger.info(f"  Intent Interpretation: {result.get('interpretation', '')}")
 
         return result
 

@@ -50,7 +50,10 @@ class ChatAgent(BaseAgent):
         return "\n\n".join(formatted)
 
     async def process(
-        self, knowledge: dict[str, Any], chat_history: list[dict[str, str]], user_question: str
+        self,
+        knowledge: dict[str, Any],
+        chat_history: list[dict[str, str]],
+        user_question: str,
     ) -> dict[str, Any]:
         """
         Answer user questions about current knowledge point
@@ -64,7 +67,11 @@ class ChatAgent(BaseAgent):
             Dictionary containing answer
         """
         if not user_question.strip():
-            return {"success": False, "error": "Question cannot be empty", "answer": ""}
+            return {
+                "success": False,
+                "error": "Question cannot be empty",
+                "answer": "",
+            }
 
         system_prompt = self.get_prompt("system")
         if not system_prompt:

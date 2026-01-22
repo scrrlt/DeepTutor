@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 System Setup and Initialization
 Combines user directory initialization and port configuration management.
@@ -147,7 +146,11 @@ def init_user_directories(project_root: Path | None = None) -> None:
         # Create user_history.json if it doesn't exist
         user_history_file = user_data_dir / "user_history.json"
         if not user_history_file.exists():
-            initial_history = {"version": "1.0", "created_at": None, "sessions": []}
+            initial_history = {
+                "version": "1.0",
+                "created_at": None,
+                "sessions": [],
+            }
             try:
                 with open(user_history_file, "w", encoding="utf-8") as f:
                     json.dump(initial_history, f, indent=2, ensure_ascii=False)
@@ -160,7 +163,11 @@ def init_user_directories(project_root: Path | None = None) -> None:
         settings_dir.mkdir(parents=True, exist_ok=True)
         interface_file = settings_dir / "interface.json"
         if not interface_file.exists():
-            initial_settings = {"theme": "light", "language": "en", "output_language": "en"}
+            initial_settings = {
+                "theme": "light",
+                "language": "en",
+                "output_language": "en",
+            }
             try:
                 with open(interface_file, "w", encoding="utf-8") as f:
                     json.dump(initial_settings, f, indent=2, ensure_ascii=False)
@@ -192,7 +199,11 @@ def init_user_directories(project_root: Path | None = None) -> None:
         # Ensure user_history.json exists
         user_history_file = user_data_dir / "user_history.json"
         if not user_history_file.exists():
-            initial_history = {"version": "1.0", "created_at": None, "sessions": []}
+            initial_history = {
+                "version": "1.0",
+                "created_at": None,
+                "sessions": [],
+            }
             try:
                 with open(user_history_file, "w", encoding="utf-8") as f:
                     json.dump(initial_history, f, indent=2, ensure_ascii=False)
@@ -204,7 +215,11 @@ def init_user_directories(project_root: Path | None = None) -> None:
         settings_dir.mkdir(parents=True, exist_ok=True)
         interface_file = settings_dir / "interface.json"
         if not interface_file.exists():
-            initial_settings = {"theme": "light", "language": "en", "output_language": "en"}
+            initial_settings = {
+                "theme": "light",
+                "language": "en",
+                "output_language": "en",
+            }
             try:
                 with open(interface_file, "w", encoding="utf-8") as f:
                     json.dump(initial_settings, f, indent=2, ensure_ascii=False)

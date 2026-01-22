@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 RetrieveAgent - Responsible for generating RAG queries and retrieving knowledge.
 
@@ -108,16 +107,12 @@ class RetrieveAgent(BaseAgent):
         Returns:
             List of query strings
         """
-        system_prompt = self.get_prompt("system", "")
-        user_prompt_template = self.get_prompt("generate_queries", "")
-
-        if not user_prompt_template:
-            # Fallback prompt
-            user_prompt_template = (
-                f"Extract {num_queries} knowledge point names from this requirement for retrieval:\n"
-                "{requirement_text}\n\n"
-                'Return JSON: {{"queries": ["point1", "point2", ...]}}'
-            )
+        system_prompt = self.get_prompt("system", "") or ""
+        user_prompt_template = self.get_prompt("generate_queries", "") or (
+            f"Extract {num_queries} knowledge point names from this requirement for retrieval:\n"
+            "{requirement_text}\n\n"
+            'Return JSON: {{"queries": ["point1", "point2", ...]}}'
+        )
 
         user_prompt = user_prompt_template.format(
             requirement_text=requirement_text,

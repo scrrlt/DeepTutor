@@ -47,8 +47,10 @@ Usage:
     from src.services.llm import sanitize_url, is_local_llm_server
 """
 
-# Also expose the providers for direct access if needed
-from . import cloud_provider, local_provider
+# Note: cloud_provider and local_provider are lazy-loaded via __getattr__
+# to avoid importing lightrag at module load time
+from typing import TYPE_CHECKING
+
 from .capabilities import (
     DEFAULT_CAPABILITIES,
     MODEL_OVERRIDES,
@@ -98,6 +100,9 @@ from .utils import (
     sanitize_url,
 )
 
+if TYPE_CHECKING:
+    from . import cloud_provider, local_provider
+
 __all__ = [
     # Client (legacy, prefer factory functions)
     "LLMClient",
@@ -139,7 +144,7 @@ __all__ = [
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RETRY_DELAY",
     "DEFAULT_EXPONENTIAL_BACKOFF",
-    # Providers
+    # Providers (lazy loaded)
     "cloud_provider",
     "local_provider",
     # Utils
@@ -150,3 +155,14 @@ __all__ = [
     "clean_thinking_tags",
     "extract_response_content",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy import for provider modules that depend on heavy libraries."""
+    import importlib
+
+    if name == "cloud_provider":
+        return importlib.import_module(".cloud_provider", __package__)
+    if name == "local_provider":
+        return importlib.import_module(".local_provider", __package__)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

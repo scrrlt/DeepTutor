@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ToolAgent - Tool executor
 Responsible for reading tool calls in solve-chain, actually executing tools and producing summary
@@ -35,7 +34,7 @@ class ToolAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="tool_agent",
@@ -101,7 +100,9 @@ Rules:
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
         self.logger.log_stage_progress(
-            "Tool", "start", f"step={step.step_id}, pending_calls={len(pending)}"
+            "Tool",
+            "start",
+            f"step={step.step_id}, pending_calls={len(pending)}",
         )
 
         for record in pending:
@@ -128,7 +129,9 @@ Rules:
                         is_failed = True
 
                 summary = await self._summarize_tool_result(
-                    tool_type=record.tool_type, query=record.query, raw_answer=raw_answer
+                    tool_type=record.tool_type,
+                    query=record.query,
+                    raw_answer=raw_answer,
                 )
 
                 # Set correct status based on execution result
@@ -203,7 +206,9 @@ Rules:
                     cite_id=record.cite_id,
                 )
                 self.logger.log_stage_progress(
-                    "Tool", "warning", f"step={step.step_id}, call={call_label}, error={error_msg}"
+                    "Tool",
+                    "warning",
+                    f"step={step.step_id}, call={call_label}, error={error_msg}",
                 )
                 logs.append(
                     {
@@ -222,7 +227,11 @@ Rules:
             "Tool", "complete", f"step={step.step_id}, executed={len(logs)}"
         )
 
-        return {"step_id": step.step_id, "executed": logs, "status": "completed"}
+        return {
+            "step_id": step.step_id,
+            "executed": logs,
+            "status": "completed",
+        }
 
     async def _execute_single_call(
         self,
@@ -239,14 +248,22 @@ Rules:
             result = await rag_search(query=query, kb_name=kb_name, mode="naive")
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
-            metadata = {"source": source, "auto_sources": auto_sources, "mode": "naive"}
+            metadata = {
+                "source": source,
+                "auto_sources": auto_sources,
+                "mode": "naive",
+            }
             return answer, metadata
 
         if tool_type == "rag_hybrid":
             result = await rag_search(query=query, kb_name=kb_name, mode="hybrid")
             answer = result.get("answer", "")
             source, auto_sources = self._infer_sources(answer)
-            metadata = {"source": source, "auto_sources": auto_sources, "mode": "hybrid"}
+            metadata = {
+                "source": source,
+                "auto_sources": auto_sources,
+                "mode": "hybrid",
+            }
             return answer, metadata
 
         if tool_type == "web_search":
@@ -254,7 +271,10 @@ Rules:
             answer = result.get("answer") or result.get("summary") or ""
             used_citation_ids = self._extract_answer_citations(answer)
             filtered_citations = self._select_web_citations(used_citation_ids, result)
-            metadata = {"result_file": result.get("result_file"), "citations": filtered_citations}
+            metadata = {
+                "result_file": result.get("result_file"),
+                "citations": filtered_citations,
+            }
             return answer, metadata
 
         if tool_type == "code_execution":
@@ -443,7 +463,10 @@ Rules:
         return snapshot
 
     def _collect_new_image_artifacts(
-        self, artifacts_path: Path, before_snapshot: set, output_dir: str | None
+        self,
+        artifacts_path: Path,
+        before_snapshot: set,
+        output_dir: str | None,
     ) -> list[str]:
         after_snapshot = self._snapshot_image_artifacts(artifacts_path)
         new_files = sorted(after_snapshot - before_snapshot)

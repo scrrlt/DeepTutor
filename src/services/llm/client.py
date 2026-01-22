@@ -8,7 +8,7 @@ Note: This is a legacy interface. Prefer using the factory functions directly:
     from src.services.llm import complete, stream
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.logging import get_logger
 
@@ -24,21 +24,51 @@ class LLMClient:
     Prefer using factory functions (complete, stream) directly for new code.
     """
 
-    def __init__(self, config: Optional[LLMConfig] = None):
+    def __init__(self, config: LLMConfig | None = None):
         """
         Initialize LLM client.
 
         Args:
             config: LLM configuration. If None, loads from environment.
         """
+
         self.config = config or get_llm_config()
         self.logger = get_logger("LLMClient")
+
+        # Set environment variables for LightRAG compatibility
+        # LightRAG's internal functions (openai_complete_if_cache, etc.) read from
+        # os.environ["OPENAI_API_KEY"] even when api_key is passed as parameter.
+        # We must set these env vars early to ensure all LightRAG operations work.
+        self._setup_openai_env_vars()
+
+    def _setup_openai_env_vars(self):
+        """
+        Set OpenAI environment variables for LightRAG compatibility.
+
+        LightRAG's internal functions read from os.environ["OPENAI_API_KEY"]
+        even when api_key is passed as parameter. This method ensures the
+        environment variables are set for all LightRAG operations.
+        """
+        import os
+
+        binding = getattr(self.config, "binding", "openai")
+        binding_lower = binding.lower() if isinstance(binding, str) else "openai"
+
+        # Only set env vars for OpenAI-compatible bindings
+        if binding_lower in ("openai", "azure", "azure_openai", "gemini"):
+            if self.config.api_key:
+                os.environ["OPENAI_API_KEY"] = self.config.api_key
+                self.logger.debug("Set OPENAI_API_KEY env var for LightRAG compatibility")
+
+            if self.config.base_url:
+                os.environ["OPENAI_BASE_URL"] = self.config.base_url
+                self.logger.debug("Set OPENAI_BASE_URL env var to %s", self.config.base_url)
 
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -70,8 +100,8 @@ class LLMClient:
     def complete_sync(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -110,8 +140,8 @@ class LLMClient:
 
             def llm_model_func_via_factory(
                 prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
+                system_prompt: str | None = None,
+                history_messages: list[dict] | None = None,
                 **kwargs: Any,
             ):
                 return factory.complete(
@@ -128,12 +158,13 @@ class LLMClient:
             return llm_model_func_via_factory
 
         # OpenAI-compatible bindings use lightrag (has caching)
+        # Note: Environment variables are already set in __init__ via _setup_openai_env_vars()
         from lightrag.llm.openai import openai_complete_if_cache
 
         def llm_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
+            system_prompt: str | None = None,
+            history_messages: list[dict] | None = None,
             **kwargs: Any,
         ):
             # Only pass api_version if set (for Azure OpenAI)
@@ -173,10 +204,10 @@ class LLMClient:
 
             def vision_model_func_via_factory(
                 prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
-                image_data: Optional[str] = None,
-                messages: Optional[List[Dict]] = None,
+                system_prompt: str | None = None,
+                history_messages: list[dict] | None = None,
+                image_data: str | None = None,
+                messages: list[dict] | None = None,
                 **kwargs: Any,
             ):
                 # Use factory for unified handling
@@ -196,6 +227,7 @@ class LLMClient:
             return vision_model_func_via_factory
 
         # OpenAI-compatible bindings
+        # Note: Environment variables are already set in __init__ via _setup_openai_env_vars()
         from lightrag.llm.openai import openai_complete_if_cache
 
         # Get api_version once for reuse
@@ -203,10 +235,10 @@ class LLMClient:
 
         def vision_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
-            image_data: Optional[str] = None,
-            messages: Optional[List[Dict]] = None,
+            system_prompt: str | None = None,
+            history_messages: list[dict] | None = None,
+            image_data: str | None = None,
+            messages: list[dict] | None = None,
             **kwargs: Any,
         ):
             # Handle multimodal messages
@@ -277,10 +309,10 @@ class LLMClient:
 
 
 # Singleton instance
-_client: Optional[LLMClient] = None
+_client: LLMClient | None = None
 
 
-def get_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
+def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
     """
     Get or create the singleton LLM client.
 

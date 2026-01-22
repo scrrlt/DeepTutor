@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Incrementally add documents to existing knowledge base.
 Improved version with Hash-based duplicate checking, robust error handling,
@@ -17,17 +16,21 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
 
+# Load LLM environment early to ensure OPENAI_API_KEY env var is set before LightRAG imports
+# This is critical because LightRAG reads os.environ["OPENAI_API_KEY"] directly
+from src.services.llm.config import initialize_environment
+
+initialize_environment()
+
 # Attempt imports for dynamic dependencies
 try:
-    from lightrag.llm.openai import openai_complete_if_cache
     from lightrag.utils import EmbeddingFunc
 except ImportError:
-    # These will be caught during runtime if needed
-    openai_complete_if_cache = None
+    # This will be caught during runtime if needed
     EmbeddingFunc = None
 
 # Type hinting support for dynamic imports
@@ -116,7 +119,11 @@ class DocumentAdder:
         self._ensure_working_directories()
 
     def _ensure_working_directories(self):
-        for directory in [self.raw_dir, self.images_dir, self.content_list_dir]:
+        for directory in [
+            self.raw_dir,
+            self.images_dir,
+            self.content_list_dir,
+        ]:
             directory.mkdir(parents=True, exist_ok=True)
 
     def _get_file_hash(self, file_path: Path) -> str:
@@ -131,11 +138,11 @@ class DocumentAdder:
                 sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
 
-    def get_ingested_hashes(self) -> Dict[str, str]:
+    def get_ingested_hashes(self) -> dict[str, str]:
         """Get map of filename -> hash from metadata."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, "r", encoding="utf-8") as f:
+                with open(self.metadata_file, encoding="utf-8") as f:
                     data = json.load(f)
                     return data.get("file_hashes", {})
             except Exception:
@@ -146,7 +153,7 @@ class DocumentAdder:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
-    def add_documents(self, source_files: List[str], allow_duplicates: bool = False) -> List[Path]:
+    def add_documents(self, source_files: list[str], allow_duplicates: bool = False) -> list[Path]:
         """
         Synchronous phase: Validates hashes and prepares files.
         Treats 'raw/' as a Write-Ahead Log: files exist there before being canonized in metadata.
@@ -198,7 +205,7 @@ class DocumentAdder:
 
         return files_to_process
 
-    async def process_new_documents(self, new_files: List[Path]):
+    async def process_new_documents(self, new_files: list[Path]):
         """
         Async phase: Ingests files into the RAG system.
 
@@ -219,99 +226,16 @@ class DocumentAdder:
         if self.progress_tracker:
             from src.knowledge.progress_tracker import ProgressStage
 
-        self.llm_cfg = get_llm_config()
-        model = self.llm_cfg.model
-        api_key = self.api_key or self.llm_cfg.api_key
-        base_url = self.base_url or self.llm_cfg.base_url
+        # Use unified LLM client from src/services/llm
+        from src.services.llm import get_llm_client
 
-        # LLM Function Wrapper
-        def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-            if history_messages is None:
-                history_messages = []
-            return openai_complete_if_cache(
-                model,
-                prompt,
-                system_prompt=system_prompt,
-                history_messages=history_messages,
-                api_key=api_key,
-                base_url=base_url,
-                **kwargs,
-            )
+        llm_client = get_llm_client()
+        self.llm_cfg = llm_client.config
 
-        # Vision Function Wrapper - Robust history handling
-        def vision_model_func(
-            prompt,
-            system_prompt=None,
-            history_messages=None,
-            image_data=None,
-            messages=None,
-            **kwargs,
-        ):
-            if history_messages is None:
-                history_messages = []
-            # If pre-formatted messages are provided, sanitize them
-            if messages:
-                safe_messages = self._filter_valid_messages(messages)
-                return openai_complete_if_cache(
-                    model,
-                    prompt="",
-                    messages=safe_messages,
-                    api_key=api_key,
-                    base_url=base_url,
-                    **kwargs,
-                )
-
-            # --- Construct Message History ---
-            current_messages = []
-
-            # 1. Add System Prompt (if provided)
-            if system_prompt:
-                current_messages.append({"role": "system", "content": system_prompt})
-
-            # 2. Add History (Filtering out conflicting system prompts)
-            if history_messages:
-                # Filter out system messages from history to avoid duplicates/conflicts with the new system_prompt
-                filtered_history = [
-                    msg
-                    for msg in history_messages
-                    if isinstance(msg, dict) and msg.get("role") != "system"
-                ]
-                current_messages.extend(filtered_history)
-
-            # 3. Construct New User Message
-            user_content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
-            if image_data:
-                user_content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
-                    }
-                )
-
-            # 4. Merge Logic: Avoid back-to-back user messages
-            if current_messages and current_messages[-1].get("role") == "user":
-                last_msg = current_messages[-1]
-                # If last content is string, convert to list format first
-                if isinstance(last_msg["content"], str):
-                    last_msg["content"] = [{"type": "text", "text": last_msg["content"]}]
-
-                # Append new content blocks
-                if isinstance(last_msg["content"], list):
-                    last_msg["content"].extend(user_content)
-                else:
-                    # Fallback if structure is unexpected, just append new message
-                    current_messages.append({"role": "user", "content": user_content})
-            else:
-                current_messages.append({"role": "user", "content": user_content})
-
-            return openai_complete_if_cache(
-                model,
-                prompt="",
-                messages=current_messages,
-                api_key=api_key,
-                base_url=base_url,
-                **kwargs,
-            )
+        # Get model functions from unified LLM client
+        # These handle all provider differences (OpenAI, Anthropic, Azure, local, etc.)
+        llm_model_func = llm_client.get_model_func()
+        vision_model_func = llm_client.get_vision_model_func()
 
         # Embedding Setup
         reset_embedding_client()
@@ -436,7 +360,7 @@ class DocumentAdder:
         try:
             metadata = {}
             if self.metadata_file.exists():
-                with open(self.metadata_file, "r", encoding="utf-8") as f:
+                with open(self.metadata_file, encoding="utf-8") as f:
                     metadata = json.load(f)
 
             if "file_hashes" not in metadata:
@@ -464,36 +388,50 @@ class DocumentAdder:
         ]
 
     async def fix_structure(self):
-        """Robustly moves nested outputs and cleans up."""
-        logger.info("Organizing storage structure...")
+        """
+        Clean up parser output directories after image migration.
 
-        # 1. Identify moves
-        moves = []
-        for doc_dir in self.content_list_dir.glob("*"):
+        NOTE: Image migration and path updates are now handled by the RAG pipeline
+        (raganything.py / raganything_docling.py) BEFORE RAG insertion. This ensures
+        RAG stores the correct canonical image paths (kb/images/) from the start.
+
+        This method now only cleans up empty temporary parser output directories.
+        """
+        logger.info("Checking for leftover parser output directories...")
+
+        # Support both 'auto' (MinerU) and 'docling' parser output directories
+        parser_subdirs = ["auto", "docling"]
+        cleaned_count = 0
+
+        for doc_dir in list(self.content_list_dir.glob("*")):
             if not doc_dir.is_dir():
                 continue
 
-            # Content List
-            json_src = next(doc_dir.glob("auto/*_content_list.json"), None)
-            if json_src:
-                moves.append((json_src, self.content_list_dir / f"{doc_dir.name}.json"))
+            for parser_subdir in parser_subdirs:
+                subdir = doc_dir / parser_subdir
+                if subdir.exists():
+                    try:
+                        # Check if directory is empty or only contains empty subdirs
+                        has_content = any(
+                            f.is_file() or (f.is_dir() and any(f.iterdir()))
+                            for f in subdir.iterdir()
+                        )
 
-            # Images
-            for img in doc_dir.glob("auto/images/*"):
-                moves.append((img, self.images_dir / img.name))
+                        if not has_content:
+                            await self._run_in_executor(shutil.rmtree, subdir)
+                            cleaned_count += 1
+                    except Exception as e:
+                        logger.debug(f"Could not clean up {subdir}: {e}")
 
-        # 2. Execute moves
-        for src, dest in moves:
-            if src.exists():
-                await self._run_in_executor(shutil.copy2, src, dest)
+            # Remove doc_dir if it's now empty
+            try:
+                if doc_dir.exists() and not any(doc_dir.iterdir()):
+                    doc_dir.rmdir()
+            except Exception:
+                pass
 
-        # 3. Safe Cleanup: Only delete directories we actually processed
-        for doc_dir in self.content_list_dir.glob("*"):
-            if doc_dir.is_dir():
-                # Safety check: only delete if it looks like a parser output (has 'auto' subdir)
-                # This prevents wiping manual user folders in content_list_dir
-                if (doc_dir / "auto").exists():
-                    await self._run_in_executor(shutil.rmtree, doc_dir, ignore_errors=True)
+        if cleaned_count > 0:
+            logger.info(f"Cleaned up {cleaned_count} empty parser directories")
 
     def extract_numbered_items_for_new_docs(self, processed_files, batch_size=20):
         if not processed_files:
@@ -522,7 +460,7 @@ class DocumentAdder:
         if not self.metadata_file.exists():
             return
         try:
-            with open(self.metadata_file, "r", encoding="utf-8") as f:
+            with open(self.metadata_file, encoding="utf-8") as f:
                 metadata = json.load(f)
 
             metadata["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

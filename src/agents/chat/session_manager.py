@@ -11,10 +11,36 @@ This module handles:
 """
 
 import json
+import os
 from pathlib import Path
 import time
 from typing import Any
 import uuid
+
+try:
+    from filelock import FileLock
+except Exception:  # pragma: no cover
+
+    class FileLock:  # type: ignore[no-redef]
+        def __init__(self, *_: Any, **__: Any) -> None:
+            pass
+
+        def __enter__(self) -> "FileLock":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: Any,
+        ) -> None:
+            return None
+
+
+try:
+    from redis import Redis  # type: ignore
+except Exception:  # pragma: no cover
+    Redis = None  # type: ignore[assignment]
 
 
 class SessionManager:
@@ -65,15 +91,19 @@ class SessionManager:
     def _load_data(self) -> dict[str, Any]:
         """Load sessions data from file."""
         try:
-            with open(self.sessions_file, encoding="utf-8") as f:
-                return json.load(f)
+            lock_path = f"{self.sessions_file}.lock"
+            with FileLock(lock_path):
+                with open(self.sessions_file, encoding="utf-8") as f:
+                    return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return {"version": "1.0", "sessions": []}
 
     def _save_data(self, data: dict[str, Any]):
         """Save sessions data to file."""
-        with open(self.sessions_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        lock_path = f"{self.sessions_file}.lock"
+        with FileLock(lock_path):
+            with open(self.sessions_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _get_sessions(self) -> list[dict[str, Any]]:
         """Get list of all sessions."""
@@ -296,6 +326,168 @@ class SessionManager:
         return count
 
 
+class RedisSessionManager(SessionManager):
+    """Session manager backed by Redis for multi-worker durability."""
+
+    def __init__(self, redis_url: str):
+        if Redis is None:
+            raise ImportError("redis is not installed")
+
+        self.redis = Redis.from_url(redis_url, decode_responses=True)
+
+    def _session_key(self, session_id: str) -> str:
+        return f"chat:session:{session_id}"
+
+    def _index_key(self) -> str:
+        return "chat:sessions:index"
+
+    def _load_session(self, session_id: str) -> dict[str, Any] | None:
+        raw = self.redis.get(self._session_key(session_id))
+        if not raw:
+            return None
+        return json.loads(raw)
+
+    def _save_session(self, session: dict[str, Any]) -> None:
+        session_id = session["session_id"]
+        pipe = self.redis.pipeline()
+        pipe.set(self._session_key(session_id), json.dumps(session))
+        pipe.zadd(self._index_key(), {session_id: session["updated_at"]})
+        pipe.execute()
+
+    def _delete_session(self, session_id: str) -> bool:
+        pipe = self.redis.pipeline()
+        pipe.delete(self._session_key(session_id))
+        pipe.zrem(self._index_key(), session_id)
+        results = pipe.execute()
+        deleted = results[0] if results else 0
+        return bool(deleted)
+
+    def _list_session_ids(self, limit: int) -> list[str]:
+        return self.redis.zrevrange(self._index_key(), 0, limit - 1)
+
+    def _enforce_limit(self, max_sessions: int) -> None:
+        try:
+            count = int(self.redis.zcard(self._index_key()))
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning("Failed to enforce session limit: %s", exc)
+            return
+
+        excess = count - max_sessions
+        if excess <= 0:
+            return
+        to_remove = self.redis.zrange(self._index_key(), 0, excess - 1)
+        if not to_remove:
+            return
+        pipe = self.redis.pipeline()
+        for session_id in to_remove:
+            pipe.delete(self._session_key(session_id))
+            pipe.zrem(self._index_key(), session_id)
+        pipe.execute()
+
+    def create_session(
+        self,
+        title: str = "New Chat",
+        settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        session_id = f"chat_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+        now = time.time()
+        session = {
+            "session_id": session_id,
+            "title": title[:100],
+            "messages": [],
+            "settings": settings or {},
+            "created_at": now,
+            "updated_at": now,
+        }
+        self._save_session(session)
+        self._enforce_limit(100)
+        return session
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        return self._load_session(session_id)
+
+    def update_session(
+        self,
+        session_id: str,
+        messages: list[dict[str, Any]] | None = None,
+        title: str | None = None,
+        settings: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        session = self._load_session(session_id)
+        if session is None:
+            return None
+        if messages is not None:
+            session["messages"] = messages
+        if title is not None:
+            session["title"] = title[:100]
+        if settings is not None:
+            session["settings"] = settings
+        session["updated_at"] = time.time()
+        self._save_session(session)
+        return session
+
+    def add_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        sources: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        key = self._session_key(session_id)
+        self.redis.watch(key)
+        session = self._load_session(session_id)
+        if session is None:
+            try:
+                self.redis.unwatch()
+            except Exception as exc:
+                import logging
+
+                logging.getLogger(__name__).warning("Failed to unwatch Redis key: %s", exc)
+            return None
+
+        message = {
+            "role": role,
+            "content": content,
+            "timestamp": time.time(),
+        }
+        if sources:
+            message["sources"] = sources
+
+        session.setdefault("messages", []).append(message)
+        if session.get("title") == "New Chat" and role == "user":
+            session["title"] = content[:100]
+        session["updated_at"] = time.time()
+
+        pipe = self.redis.pipeline()
+        pipe.multi()
+        pipe.set(key, json.dumps(session))
+        pipe.zadd(self._index_key(), {session_id: session["updated_at"]})
+        pipe.execute()
+        return session
+
+    def list_sessions(
+        self,
+        limit: int = 20,
+        include_messages: bool = False,
+    ) -> list[dict[str, Any]]:
+        session_ids = self._list_session_ids(limit)
+        sessions = []
+        for session_id in session_ids:
+            session = self._load_session(session_id)
+            if session is None:
+                continue
+            if not include_messages:
+                session = dict(session)
+                session.pop("messages", None)
+            sessions.append(session)
+        return sessions
+
+    def delete_session(self, session_id: str) -> bool:
+        return self._delete_session(session_id)
+
+
 # Singleton instance for convenience
 _session_manager: SessionManager | None = None
 
@@ -304,8 +496,15 @@ def get_session_manager() -> SessionManager:
     """Get or create the global SessionManager instance."""
     global _session_manager
     if _session_manager is None:
-        _session_manager = SessionManager()
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            try:
+                _session_manager = RedisSessionManager(redis_url)
+            except ImportError:
+                _session_manager = SessionManager()
+        else:
+            _session_manager = SessionManager()
     return _session_manager
 
 
-__all__ = ["SessionManager", "get_session_manager"]
+__all__ = ["RedisSessionManager", "SessionManager", "get_session_manager"]

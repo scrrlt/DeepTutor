@@ -88,9 +88,8 @@ class IdeaGenerationWorkflow(BaseAgent):
 
         points_text = ""
         for i, point in enumerate(knowledge_points, 1):
-            points_text += (
-                f"\n{i}. {point['knowledge_point']}\n   Description: {point['description']}\n"
-            )
+            description = point.get("description", "")
+            points_text += f"\n{i}. {point['knowledge_point']}\n   Description: {description}\n"
 
         user_prompt = user_template.format(points_text=points_text)
 
@@ -120,7 +119,9 @@ class IdeaGenerationWorkflow(BaseAgent):
             # Save filtered results
             if self.output_dir:
                 with open(
-                    self.output_dir / "02_filtered_knowledge_points.json", "w", encoding="utf-8"
+                    self.output_dir / "02_filtered_knowledge_points.json",
+                    "w",
+                    encoding="utf-8",
                 ) as f:
                     json.dump(
                         {
@@ -136,7 +137,8 @@ class IdeaGenerationWorkflow(BaseAgent):
                     )
 
             await self._emit_progress(
-                "loose_filter", {"status": "complete", "filtered": len(filtered)}
+                "loose_filter",
+                {"status": "complete", "filtered": len(filtered)},
             )
             return filtered
         except json.JSONDecodeError as e:
@@ -196,7 +198,9 @@ class IdeaGenerationWorkflow(BaseAgent):
                     .replace(" ", "_")
                 )
                 with open(
-                    self.output_dir / f"03_ideas_{safe_name}.json", "w", encoding="utf-8"
+                    self.output_dir / f"03_ideas_{safe_name}.json",
+                    "w",
+                    encoding="utf-8",
                 ) as f:
                     json.dump(
                         {
@@ -242,7 +246,7 @@ class IdeaGenerationWorkflow(BaseAgent):
 
         user_prompt = user_template.format(
             knowledge_point=knowledge_point["knowledge_point"],
-            description=knowledge_point["description"],
+            description=knowledge_point.get("description", ""),
             ideas_text=ideas_text,
         )
 
@@ -289,7 +293,9 @@ class IdeaGenerationWorkflow(BaseAgent):
                     .replace(" ", "_")
                 )
                 with open(
-                    self.output_dir / f"04_filtered_ideas_{safe_name}.json", "w", encoding="utf-8"
+                    self.output_dir / f"04_filtered_ideas_{safe_name}.json",
+                    "w",
+                    encoding="utf-8",
                 ) as f:
                     json.dump(
                         {
@@ -335,11 +341,11 @@ class IdeaGenerationWorkflow(BaseAgent):
         for i, idea in enumerate(research_ideas, 1):
             ideas_text += f"{i}. {idea}\n"
 
-        user_prompt = user_template.format(
-            knowledge_point=knowledge_point["knowledge_point"],
-            description=knowledge_point["description"],
-            ideas_text=ideas_text,
-        )
+            user_prompt = user_template.format(
+                knowledge_point=knowledge_point["knowledge_point"],
+                description=knowledge_point.get("description", ""),
+                ideas_text=ideas_text,
+            )
 
         response = await self.call_llm(user_prompt=user_prompt, system_prompt=system_prompt)
 
@@ -366,14 +372,23 @@ class IdeaGenerationWorkflow(BaseAgent):
 
         for idx, point in enumerate(filtered_points):
             await self._emit_progress(
-                "explore", {"status": "processing", "index": idx + 1, "total": len(filtered_points)}
+                "explore",
+                {
+                    "status": "processing",
+                    "index": idx + 1,
+                    "total": len(filtered_points),
+                },
             )
 
             # 3.2 Explore knowledge points
             research_ideas = await self.explore_ideas(point)
             await self._emit_progress(
                 "explore",
-                {"status": "complete", "index": idx + 1, "ideas_count": len(research_ideas)},
+                {
+                    "status": "complete",
+                    "index": idx + 1,
+                    "ideas_count": len(research_ideas),
+                },
             )
 
             if not research_ideas:
@@ -382,7 +397,12 @@ class IdeaGenerationWorkflow(BaseAgent):
             # 3.3 Strict filtering
             kept_ideas = await self.strict_filter(point, research_ideas)
             await self._emit_progress(
-                "filter", {"status": "complete", "index": idx + 1, "kept": len(kept_ideas)}
+                "filter",
+                {
+                    "status": "complete",
+                    "index": idx + 1,
+                    "kept": len(kept_ideas),
+                },
             )
 
             if not kept_ideas:
@@ -420,7 +440,11 @@ class IdeaGenerationWorkflow(BaseAgent):
                 "final_statements_count": len(final_statements),
                 "timestamp": datetime.now().isoformat(),
             }
-            with open(self.output_dir / "06_workflow_summary.json", "w", encoding="utf-8") as f:
+            with open(
+                self.output_dir / "06_workflow_summary.json",
+                "w",
+                encoding="utf-8",
+            ) as f:
                 json.dump(workflow_summary, f, ensure_ascii=False, indent=2)
 
         return final_markdown

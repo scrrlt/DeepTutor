@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 NoteAgent - Note taker
 Based on new knowledge, generates or updates notes, annotates covered pain points and missing points
@@ -14,6 +13,9 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 from ..memory import CitationMemory, InvestigateMemory, KnowledgeItem
 from ..utils import ParseError, validate_note_output
@@ -31,7 +33,7 @@ class NoteAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="note_agent",
@@ -79,7 +81,10 @@ class NoteAgent(BaseAgent):
         failed_ids = []
 
         for cite_id in target_ids:
-            knowledge_item = next((k for k in memory.knowledge_chain if k.cite_id == cite_id), None)
+            knowledge_item = next(
+                (k for k in memory.knowledge_chain if k.cite_id == cite_id),
+                None,
+            )
             if not knowledge_item:
                 failed_ids.append({"cite_id": cite_id, "reason": "knowledge_item not found"})
                 continue
@@ -113,7 +118,7 @@ class NoteAgent(BaseAgent):
                 validate_note_output(parsed_result)
                 if verbose:
                     summary_len = len(parsed_result.get("summary", ""))
-                    print(f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}")
+                    logger.info(f"📝 [NoteAgent] cite_id={cite_id} summary length: {summary_len}")
             except ParseError as e:
                 failed_ids.append({"cite_id": cite_id, "reason": str(e)})
                 continue
@@ -140,7 +145,7 @@ class NoteAgent(BaseAgent):
                     citation_memory.save()
                 except ValueError:
                     if verbose:
-                        print(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
+                        logger.info(f"⚠️ cite_id not found in CitationMemory: {cite_id}")
 
             processed_details.append(
                 {
@@ -161,7 +166,10 @@ class NoteAgent(BaseAgent):
         }
 
     def _build_context(
-        self, question: str, knowledge_item: KnowledgeItem, memory: InvestigateMemory
+        self,
+        question: str,
+        knowledge_item: KnowledgeItem,
+        memory: InvestigateMemory,
     ) -> dict[str, Any]:
         """Build context (pass complete content)"""
         return {

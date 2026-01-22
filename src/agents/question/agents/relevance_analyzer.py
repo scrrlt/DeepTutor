@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 RelevanceAnalyzer - Analyzes the relevance between questions and knowledge base.
 

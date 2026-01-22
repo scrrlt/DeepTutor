@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 GuideManager - Guided Learning Session Manager
 Manages the complete lifecycle of learning sessions
@@ -95,7 +94,7 @@ class GuideManager:
 
         if language is None:
             # Get language config (unified in config/main.yaml system.language)
-            lang_config = config.get("system", {}).get("language", "zh")
+            lang_config = config.get("system", {}).get("language", "en")
             self.language = parse_language(lang_config)
             self.logger.info(f"Language setting loaded from config: {self.language}")
         else:
@@ -151,12 +150,46 @@ class GuideManager:
         """Get session file path"""
         return self.output_dir / f"session_{session_id}.json"
 
-    def _save_session(self, session: GuidedSession):
-        """Save session to file"""
-        filepath = self._get_session_file(session.session_id)
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(session.to_dict(), f, indent=2, ensure_ascii=False)
-        self._sessions[session.session_id] = session
+    def _save_session(
+        self,
+        session: GuidedSession,
+        session_id: str | None = None,
+    ) -> None:
+        """Save session to file."""
+        resolved_session_id = session_id
+        if not resolved_session_id:
+            resolved_session_id = getattr(session, "session_id", None)
+        if not isinstance(resolved_session_id, str) or not resolved_session_id:
+            self.logger.warning("Skipping session save: missing session_id")
+            return
+
+        if not hasattr(session, "to_dict"):
+            self.logger.warning("Skipping session serialization for %s", resolved_session_id)
+            self._sessions[resolved_session_id] = session
+            return
+
+        try:
+            payload = session.to_dict()
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning(
+                "Skipping session serialization for %s: %s",
+                resolved_session_id,
+                exc,
+            )
+            self._sessions[resolved_session_id] = session
+            return
+
+        try:
+            filepath = self._get_session_file(resolved_session_id)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        except TypeError as exc:
+            self.logger.warning(
+                "Skipping session serialization for %s: %s",
+                resolved_session_id,
+                exc,
+            )
+        self._sessions[resolved_session_id] = session
 
     def _load_session(self, session_id: str) -> GuidedSession | None:
         """Load session from file"""
@@ -173,7 +206,10 @@ class GuideManager:
         return None
 
     async def create_session(
-        self, notebook_id: str, notebook_name: str, records: list[dict[str, Any]]
+        self,
+        notebook_id: str,
+        notebook_name: str,
+        records: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Create new learning session
@@ -189,7 +225,9 @@ class GuideManager:
         session_id = str(uuid.uuid4())[:8]
 
         locate_result = await self.locate_agent.process(
-            notebook_id=notebook_id, notebook_name=notebook_name, records=records
+            notebook_id=notebook_id,
+            notebook_name=notebook_name,
+            records=records,
         )
 
         if not locate_result.get("success"):
@@ -218,7 +256,7 @@ class GuideManager:
             status="initialized",
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -244,7 +282,11 @@ class GuideManager:
         total_points = len(knowledge_points)
 
         if total_points == 0:
-            return {"success": False, "error": "No knowledge points to learn", "status": "empty"}
+            return {
+                "success": False,
+                "error": "No knowledge points to learn",
+                "status": "empty",
+            }
 
         if current_index >= total_points:
             return {
@@ -309,7 +351,7 @@ class GuideManager:
             }
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -357,7 +399,8 @@ class GuideManager:
                 {
                     "role": "system",
                     "content": state.get(
-                        "message", "Congratulations on completing all knowledge points!"
+                        "message",
+                        "Congratulations on completing all knowledge points!",
                     ),
                     "timestamp": time.time(),
                 }
@@ -391,7 +434,7 @@ class GuideManager:
             }
         )
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -420,7 +463,10 @@ class GuideManager:
             return {"success": False, "error": "Session does not exist"}
 
         if session.status != "learning":
-            return {"success": False, "error": "Not currently in learning state"}
+            return {
+                "success": False,
+                "error": "Not currently in learning state",
+            }
 
         current_knowledge = session.knowledge_points[session.current_index]
 
@@ -439,7 +485,9 @@ class GuideManager:
         session.chat_history.append(user_msg)
 
         chat_result = await self.chat_agent.process(
-            knowledge=current_knowledge, chat_history=current_history, user_question=user_message
+            knowledge=current_knowledge,
+            chat_history=current_history,
+            user_question=user_message,
         )
 
         assistant_msg = {
@@ -450,7 +498,7 @@ class GuideManager:
         }
         session.chat_history.append(assistant_msg)
 
-        self._save_session(session)
+        self._save_session(session, session_id=session_id)
 
         return {
             "success": True,
@@ -481,7 +529,7 @@ class GuideManager:
 
         if result.get("success"):
             session.current_html = result.get("html", "")
-            self._save_session(session)
+            self._save_session(session, session_id=session_id)
 
         return result
 

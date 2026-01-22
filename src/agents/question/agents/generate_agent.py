@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 GenerateAgent - Responsible for generating questions based on knowledge context.
 

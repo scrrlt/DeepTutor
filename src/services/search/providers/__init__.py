@@ -5,11 +5,10 @@ This module manages the registration and retrieval of search providers.
 """
 
 import os
-from typing import Type
 
 from ..base import BaseSearchProvider
 
-_PROVIDERS: dict[str, Type[BaseSearchProvider]] = {}
+_PROVIDERS: dict[str, type[BaseSearchProvider]] = {}
 
 
 def register_provider(name: str):
@@ -23,7 +22,7 @@ def register_provider(name: str):
         Decorator function.
     """
 
-    def decorator(cls: Type[BaseSearchProvider]):
+    def decorator(cls: type[BaseSearchProvider]):
         _PROVIDERS[name.lower()] = cls
         cls.name = name.lower()
         return cls

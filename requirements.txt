@@ -11,16 +11,17 @@ python-dotenv>=1.0.0
 PyYAML>=6.0
 tiktoken>=0.5.0
 jinja2>=3.1.0              # Template engine for search consolidation
+minja>=0.1.0               # Lightweight Jinja renderer for chat templates
 
 # ============================================
 # HTTP and API clients
 # ============================================
-requests>=2.32.2
 openai>=1.30.0
 anthropic>=0.30.0          # Anthropic Claude API
 perplexityai>=0.1.0
 dashscope>=1.14.0
-aiohttp>=3.9.4
+aiohttp>=3.9.0
+redis>=5.0.0
 httpx>=0.27.0
 urllib3>=2.2.1
 
@@ -29,6 +30,7 @@ urllib3>=2.2.1
 # ============================================
 nest_asyncio>=1.5.8
 tenacity>=8.0.0
+aiofiles>=23.0.0
 
 # ============================================
 # Web framework and server
@@ -42,8 +44,9 @@ pydantic>=2.0.0
 # ============================================
 # RAG and knowledge base
 # ============================================
-lightrag-hku>=1.0.0
 raganything>=0.1.0
+lightrag>=0.1.0b6
+docling>=2.31.0                # Document parser for Office/HTML (alternative to MinerU)
 
 # ============================================
 # LlamaIndex
@@ -74,6 +77,8 @@ PyMuPDF>=1.26.0      # For PDF text extraction (fast and reliable)
 # Development and testing tools
 # ============================================
 pytest>=7.0.0              # Testing framework
+pytest-asyncio>=0.22.0     # Async test support for pytest
+hypothesis>=6.90.0
 pre-commit>=3.0.0
 safety<3.0.0               # Pin to stable 2.x version, 3.0.0 is broken
 bandit>=1.8.0

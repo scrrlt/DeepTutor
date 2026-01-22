@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ManagerAgent - Queue management Agent
 Responsible for managing DynamicTopicQueue state and task distribution
@@ -15,6 +14,9 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.base_agent import BaseAgent
 from src.agents.research.data_structures import DynamicTopicQueue, TopicBlock
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ManagerAgent(BaseAgent):
@@ -27,7 +29,7 @@ class ManagerAgent(BaseAgent):
         base_url: str | None = None,
         api_version: str | None = None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="research",
             agent_name="manager_agent",
@@ -63,8 +65,8 @@ class ManagerAgent(BaseAgent):
         if block:
             # Mark as researching
             self.queue.mark_researching(block.block_id)
-            print(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
-            print(f"   Topic: {block.sub_topic}")
+            self.logger.info(f"\n📋 ManagerAgent: Assigned task {block.block_id}")
+            self.logger.info(f"   Topic: {block.sub_topic}")
 
         return block
 
@@ -83,7 +85,7 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_completed(block_id)
         if success:
-            print(f"✓ ManagerAgent: Task {block_id} completed")
+            self.logger.info(f"✓ ManagerAgent: Task {block_id} completed")
 
         return success
 
@@ -154,9 +156,9 @@ class ManagerAgent(BaseAgent):
 
         success = self.queue.mark_failed(block_id)
         if success:
-            print(f"✗ ManagerAgent: Task {block_id} failed")
+            self.logger.error(f"✗ ManagerAgent: Task {block_id} failed")
             if reason:
-                print(f"   Reason: {reason}")
+                self.logger.info(f"   Reason: {reason}")
 
         return success
 
@@ -178,24 +180,35 @@ class ManagerAgent(BaseAgent):
         if not normalized:
             raise ValueError("New topic title cannot be empty")
         if self.queue.has_topic(normalized):
-            print(f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition")
+            self.logger.info(
+                f"⚠️ ManagerAgent: Topic《{normalized}》already exists, skipping addition"
+            )
             return None
 
         block = self.queue.add_block(normalized, overview)
-        print(f"✓ ManagerAgent: Added new topic {block.block_id}")
-        print(f"   Topic: {sub_topic}")
+        self.logger.info(f"✓ ManagerAgent: Added new topic {block.block_id}")
+        self.logger.info(f"   Topic: {sub_topic}")
 
         return block
 
     def is_research_complete(self) -> bool:
         """
-        Check if research is complete (all tasks are completed)
+        Check if research is complete (all tasks are completed).
+
+        Note: At the ManagerAgent level an empty queue is considered "complete"
+        (no work to do). This keeps the ManagerAgent semantics convenient for
+        callers while preserving the Queue semantics (is_all_completed returns
+        False for empty queues to avoid masking missing work at the data layer).
 
         Returns:
             Whether all tasks are completed
         """
         if not self.queue:
-            return False
+            return True
+
+        # If there are no blocks, treat as complete at this higher level
+        if not self.queue.blocks:
+            return True
 
         return self.queue.is_all_completed()
 
@@ -210,13 +223,13 @@ class ManagerAgent(BaseAgent):
             return {}
 
         stats = self.queue.get_statistics()
-        print("\n📊 Queue Status:")
-        print(f"   Total Topics: {stats['total_blocks']}")
-        print(f"   Pending: {stats['pending']}")
-        print(f"   Researching: {stats['researching']}")
-        print(f"   Completed: {stats['completed']}")
-        print(f"   Failed: {stats['failed']}")
-        print(f"   Total Tool Calls: {stats['total_tool_calls']}")
+        self.logger.info("\n📊 Queue Status:")
+        self.logger.info(f"   Total Topics: {stats['total_blocks']}")
+        self.logger.info(f"   Pending: {stats['pending']}")
+        self.logger.info(f"   Researching: {stats['researching']}")
+        self.logger.info(f"   Completed: {stats['completed']}")
+        self.logger.error(f"   Failed: {stats['failed']}")
+        self.logger.info(f"   Total Tool Calls: {stats['total_tool_calls']}")
 
         return stats
 

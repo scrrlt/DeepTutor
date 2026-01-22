@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 CitationManager - Citation management system
 Responsible for extracting citation information from tool calls and managing citation JSON files
@@ -14,6 +13,10 @@ from typing import Any
 
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class CitationManager:
@@ -128,7 +131,7 @@ class CitationManager:
                         # Fallback: restore counters from existing citations
                         self._restore_counters_from_citations()
             except Exception as e:
-                print(f"⚠️ Failed to load citation file: {e}")
+                logger.error(f"⚠️ Failed to load citation file: {e}")
                 self._citations = {}
         else:
             self._citations = {}
@@ -171,7 +174,7 @@ class CitationManager:
             with open(self.citations_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"⚠️ Failed to save citation file: {e}")
+            logger.error(f"⚠️ Failed to save citation file: {e}")
 
     def validate_citation_references(self, text: str) -> dict[str, Any]:
         """
@@ -278,11 +281,15 @@ class CitationManager:
                 return True
             return False
         except Exception as e:
-            print(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
+            logger.error(f"⚠️ Failed to add citation (citation_id={citation_id}): {e}")
             return False
 
     def _extract_rag_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for RAG retrieval with source documents"""
         citation_info = {
@@ -303,7 +310,13 @@ class CitationManager:
             sources = []
 
             # Try different field names for source documents
-            for field_name in ["chunks", "documents", "sources", "context", "retrieved_docs"]:
+            for field_name in [
+                "chunks",
+                "documents",
+                "sources",
+                "context",
+                "retrieved_docs",
+            ]:
                 if field_name in answer_data:
                     source_list = answer_data[field_name]
                     if isinstance(source_list, list):
@@ -315,7 +328,8 @@ class CitationManager:
                                     "content", doc.get("text", "")
                                 )[:200]
                                 source_info["source_file"] = doc.get(
-                                    "source", doc.get("file_path", doc.get("filename", ""))
+                                    "source",
+                                    doc.get("file_path", doc.get("filename", "")),
                                 )
                                 source_info["page"] = doc.get("page", doc.get("page_number", ""))
                                 source_info["chunk_id"] = doc.get("chunk_id", doc.get("id", i))
@@ -333,12 +347,16 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse RAG source info: {e}")
+            logger.error(f"⚠️ Failed to parse RAG source info: {e}")
 
         return citation_info
 
     def _extract_web_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for web search with URLs"""
         citation_info = {
@@ -357,7 +375,12 @@ class CitationManager:
             web_sources = []
 
             # Try different field names for web results
-            for field_name in ["results", "web_results", "search_results", "urls"]:
+            for field_name in [
+                "results",
+                "web_results",
+                "search_results",
+                "urls",
+            ]:
                 if field_name in answer_data:
                     result_list = answer_data[field_name]
                     if isinstance(result_list, list):
@@ -366,9 +389,10 @@ class CitationManager:
                                 web_source = {
                                     "title": result.get("title", ""),
                                     "url": result.get("url", result.get("link", "")),
-                                    "snippet": result.get("snippet", result.get("description", ""))[
-                                        :200
-                                    ],
+                                    "snippet": result.get(
+                                        "snippet",
+                                        result.get("description", ""),
+                                    )[:200],
                                     "domain": result.get("domain", ""),
                                 }
                                 if web_source["url"]:  # Only add if URL exists
@@ -380,12 +404,16 @@ class CitationManager:
 
         except (json.JSONDecodeError, Exception) as e:
             # If parsing fails, still return basic citation info
-            print(f"⚠️ Failed to parse web source info: {e}")
+            logger.error(f"⚠️ Failed to parse web source info: {e}")
 
         return citation_info
 
     def _extract_paper_citation(
-        self, citation_id: str, tool_type: str, raw_answer: str, tool_trace: Any
+        self,
+        citation_id: str,
+        tool_type: str,
+        raw_answer: str,
+        tool_trace: Any,
     ) -> dict[str, Any]:
         """Extract citation information for paper search - supports multiple papers"""
         citation_info = {
@@ -443,7 +471,7 @@ class CitationManager:
 
             return citation_info
         except Exception as e:
-            print(f"⚠️ Failed to parse paper citation: {e}")
+            logger.error(f"⚠️ Failed to parse paper citation: {e}")
             # Still return the basic citation info
             return citation_info
 
@@ -573,7 +601,7 @@ class CitationManager:
 
     # ========== Reference Number Mapping Methods ==========
 
-    def _get_citation_dedup_key(self, citation: dict, paper: dict = None) -> str:
+    def _get_citation_dedup_key(self, citation: dict, paper: dict | None = None) -> str:
         """
         Generate unique key for citation deduplication
 

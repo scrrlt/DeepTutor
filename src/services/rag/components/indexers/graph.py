@@ -7,7 +7,7 @@ Knowledge graph indexer using LightRAG.
 
 from pathlib import Path
 import sys
-from typing import Dict, List, Optional
+from typing import Any
 
 from ...types import Document
 from ..base import BaseComponent
@@ -21,9 +21,9 @@ class GraphIndexer(BaseComponent):
     """
 
     name = "graph_indexer"
-    _instances: Dict[str, any] = {}  # Cache RAG instances
+    _instances: dict[str, Any] = {}  # Cache RAG instances
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize graph indexer.
 
@@ -51,58 +51,18 @@ class GraphIndexer(BaseComponent):
             sys.path.insert(0, str(raganything_path))
 
         try:
-            from openai import AsyncOpenAI
             from raganything import RAGAnything, RAGAnythingConfig
 
             from src.services.embedding import get_embedding_client
             from src.services.llm import get_llm_client
 
+            # Use unified LLM client from src/services/llm
             llm_client = get_llm_client()
             embed_client = get_embedding_client()
 
-            # Create AsyncOpenAI client directly
-            openai_client = AsyncOpenAI(
-                api_key=llm_client.config.api_key,
-                base_url=llm_client.config.base_url,
-            )
-
-            # LLM function using services (ASYNC - LightRAG expects async functions)
-            async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-                """Custom async LLM function that bypasses LightRAG's openai_complete_if_cache."""
-                if history_messages is None:
-                    history_messages = []
-
-                # Build messages
-                messages = []
-                if system_prompt:
-                    messages.append({"role": "system", "content": system_prompt})
-                messages.extend(history_messages)
-                messages.append({"role": "user", "content": prompt})
-
-                # Whitelist only valid OpenAI parameters
-                valid_params = {
-                    "temperature",
-                    "top_p",
-                    "n",
-                    "stream",
-                    "stop",
-                    "max_tokens",
-                    "presence_penalty",
-                    "frequency_penalty",
-                    "logit_bias",
-                    "user",
-                    "seed",
-                }
-                clean_kwargs = {k: v for k, v in kwargs.items() if k in valid_params}
-
-                # Call OpenAI API directly (async)
-                response = await openai_client.chat.completions.create(
-                    model=llm_client.config.model,
-                    messages=messages,
-                    **clean_kwargs,
-                )
-
-                return response.choices[0].message.content
+            # Get model function from unified LLM client
+            # This handles all provider differences and env var setup for LightRAG
+            llm_model_func = llm_client.get_model_func()
 
             config = RAGAnythingConfig(
                 working_dir=working_dir,
@@ -124,7 +84,12 @@ class GraphIndexer(BaseComponent):
             self.logger.error(f"Failed to import RAG-Anything: {e}")
             raise
 
-    async def process(self, kb_name: str, documents: List[Document], **kwargs) -> bool:
+    async def process(
+        self,
+        kb_name: str,
+        documents: list[Document],
+        **kwargs: object,
+    ) -> bool:
         """
         Build knowledge graph from documents.
 
@@ -154,7 +119,10 @@ class GraphIndexer(BaseComponent):
                     tmp_path = None
                     try:
                         with tempfile.NamedTemporaryFile(
-                            mode="w", encoding="utf-8", suffix=".txt", delete=False
+                            mode="w",
+                            encoding="utf-8",
+                            suffix=".txt",
+                            delete=False,
                         ) as tmp_file:
                             tmp_file.write(doc.content)
                             tmp_path = tmp_file.name

@@ -32,7 +32,7 @@ class InvestigateAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="investigate_agent",
@@ -254,7 +254,8 @@ class InvestigateAgent(BaseAgent):
             if web_search_disabled_prompt:
                 # Replace web_search description with disabled message
                 prompt = prompt.replace(
-                    self.get_prompt("web_search_description") or "", web_search_disabled_prompt
+                    self.get_prompt("web_search_description") or "",
+                    web_search_disabled_prompt,
                 )
             else:
                 # Simple filter: remove lines containing web_search tool description
@@ -303,7 +304,11 @@ class InvestigateAgent(BaseAgent):
         import time
 
         start_time = time.time()
-        tool_input = {"query": query, "identifier": identifier, "kb_name": kb_name}
+        tool_input = {
+            "query": query,
+            "identifier": identifier,
+            "kb_name": kb_name,
+        }
 
         try:
             if tool_selection == "rag_naive":

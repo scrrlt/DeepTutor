@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ResponseAgent - Step response generator
 Based on materials in solve-chain, generates formal response for current step
@@ -16,7 +15,12 @@ if str(project_root) not in sys.path:
 
 from src.agents.base_agent import BaseAgent
 
-from ..memory import CitationMemory, InvestigateMemory, SolveChainStep, SolveMemory
+from ..memory import (
+    CitationMemory,
+    InvestigateMemory,
+    SolveChainStep,
+    SolveMemory,
+)
 
 
 class ResponseAgent(BaseAgent):
@@ -30,7 +34,7 @@ class ResponseAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="response_agent",
@@ -72,14 +76,18 @@ class ResponseAgent(BaseAgent):
         user_prompt = self._build_user_prompt(context)
 
         response = await self.call_llm(
-            user_prompt=user_prompt, system_prompt=system_prompt, verbose=verbose
+            user_prompt=user_prompt,
+            system_prompt=system_prompt,
+            verbose=verbose,
         )
 
         # Directly use LLM's raw output as step_response, no parsing
         step_response = response.strip() if response else ""
         used_citations = self._extract_used_citations(step_response, step)
         solve_memory.submit_step_response(
-            step_id=step.step_id, response=step_response, used_citations=used_citations
+            step_id=step.step_id,
+            response=step_response,
+            used_citations=used_citations,
         )
         solve_memory.save()
 
@@ -177,7 +185,8 @@ class ResponseAgent(BaseAgent):
         lines: list[str] = []
         for cite in step.available_cite:
             knowledge = next(
-                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite), None
+                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite),
+                None,
             )
             if not knowledge:
                 continue
@@ -228,7 +237,14 @@ class ResponseAgent(BaseAgent):
                 # Use absolute paths, but convert to relative paths relative to output_dir for display
                 for abs_path in artifact_paths:
                     path = Path(abs_path)
-                    if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".gif", ".bmp"}:
+                    if path.suffix.lower() in {
+                        ".png",
+                        ".jpg",
+                        ".jpeg",
+                        ".svg",
+                        ".gif",
+                        ".bmp",
+                    }:
                         # If output_dir exists, calculate relative path; otherwise use absolute path
                         if output_dir:
                             try:
@@ -243,7 +259,14 @@ class ResponseAgent(BaseAgent):
                 # Fall back to using artifacts list
                 for artifact in artifacts:
                     path = Path(artifact)
-                    if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".gif", ".bmp"}:
+                    if path.suffix.lower() in {
+                        ".png",
+                        ".jpg",
+                        ".jpeg",
+                        ".svg",
+                        ".gif",
+                        ".bmp",
+                    }:
                         # Build relative path to artifacts directory
                         rel_path = Path("artifacts") / path.name
                         _append_image(str(rel_path))

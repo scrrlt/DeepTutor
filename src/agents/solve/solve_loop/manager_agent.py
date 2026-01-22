@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 ManagerAgent - Manager (Refactored: directly plans step-level solution steps)
 Based on user question and knowledge chain, plans solution steps
@@ -30,7 +29,7 @@ class ManagerAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="manager_agent",
@@ -63,7 +62,9 @@ class ManagerAgent(BaseAgent):
         """
         stage_label = "Plan"
         self.logger.log_stage_progress(
-            stage_label, "start", f"question={question[:60]}{'...' if len(question) > 60 else ''}"
+            stage_label,
+            "start",
+            f"question={question[:60]}{'...' if len(question) > 60 else ''}",
         )
 
         # 1. Check if steps already exist

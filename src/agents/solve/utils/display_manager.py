@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Display Manager - Terminal display manager
 Uses rich library to implement beautiful terminal interface, including fixed header (status/statistics) and scrolling log area
@@ -19,6 +18,10 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class DisplayManager:
@@ -192,7 +195,7 @@ class DisplayManager:
     def log(self, message: str):
         """Add log"""
         if not self.rich_available:
-            print(message)
+            logger.info(message)
             return
 
         # Simple cleaning

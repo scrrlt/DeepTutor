@@ -16,7 +16,12 @@ if str(project_root) not in sys.path:
 
 from src.agents.base_agent import BaseAgent
 
-from ..memory import CitationMemory, InvestigateMemory, SolveChainStep, SolveMemory
+from ..memory import (
+    CitationMemory,
+    InvestigateMemory,
+    SolveChainStep,
+    SolveMemory,
+)
 from ..utils.json_utils import extract_json_from_text
 
 
@@ -40,7 +45,7 @@ class SolveAgent(BaseAgent):
         api_version: str | None = None,
         token_tracker=None,
     ):
-        language = config.get("system", {}).get("language", "zh")
+        language = config.get("system", {}).get("language", "en")
         super().__init__(
             module_name="solve",
             agent_name="solve_agent",
@@ -212,7 +217,9 @@ class SolveAgent(BaseAgent):
     # Parsing and Formatting
     # ------------------------------------------------------------------ #
     def _format_available_cite(
-        self, current_step: SolveChainStep, investigate_memory: InvestigateMemory
+        self,
+        current_step: SolveChainStep,
+        investigate_memory: InvestigateMemory,
     ) -> str:
         if not current_step.available_cite:
             return "(No available knowledge chain)"
@@ -220,7 +227,8 @@ class SolveAgent(BaseAgent):
         lines: list[str] = []
         for cite_id in current_step.available_cite:
             knowledge = next(
-                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite_id), None
+                (k for k in investigate_memory.knowledge_chain if k.cite_id == cite_id),
+                None,
             )
             if not knowledge:
                 continue

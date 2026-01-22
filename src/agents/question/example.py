@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Example script that demonstrates how to use the Agent coordinator.
 """
@@ -17,7 +16,14 @@ os.environ["RAGANYTHING_VERBOSE"] = "0"
 os.environ["LIGHTRAG_VERBOSE"] = "0"
 
 logging.basicConfig(level=logging.WARNING, force=True)
-for logger_name in ["lightrag", "raganything", "nano-vectordb", "openai", "httpx", "httpcore"]:
+for logger_name in [
+    "lightrag",
+    "raganything",
+    "nano-vectordb",
+    "openai",
+    "httpx",
+    "httpcore",
+]:
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.WARNING)
     logger.propagate = False

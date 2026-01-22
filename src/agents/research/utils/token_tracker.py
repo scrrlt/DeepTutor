@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Token Tracker - LLM Token usage and cost tracking system (DR-in-KG version)
 References student_TA/solve_agents/utils/token_tracker.py, with minor trimming and added global singleton getter method.
@@ -68,7 +67,11 @@ def count_tokens_with_litellm(messages: list[dict], model_name: str) -> dict[str
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
         token_count = token_counter(model=model_name, messages=messages)  # type: ignore
-        return {"prompt_tokens": token_count, "completion_tokens": 0, "total_tokens": token_count}
+        return {
+            "prompt_tokens": token_count,
+            "completion_tokens": 0,
+            "total_tokens": token_count,
+        }
     except Exception:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
@@ -281,7 +284,10 @@ class TokenTracker:
         self.total_cost_usd = 0.0
 
     def save(self, filepath: str):
-        data = {"summary": self.get_summary(), "records": [u.to_dict() for u in self.usage_records]}
+        data = {
+            "summary": self.get_summary(),
+            "records": [u.to_dict() for u in self.usage_records],
+        }
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 

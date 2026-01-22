@@ -34,7 +34,10 @@ async def get_system_status():
         Dictionary containing status of backend, LLM, embeddings, and TTS
     """
     result = {
-        "backend": {"status": "online", "timestamp": datetime.now().isoformat()},
+        "backend": {
+            "status": "online",
+            "timestamp": datetime.now().isoformat(),
+        },
         "llm": {"status": "unknown", "model": None, "testable": True},
         "embeddings": {"status": "unknown", "model": None, "testable": True},
         "tts": {"status": "unknown", "model": None, "testable": True},
@@ -139,7 +142,11 @@ async def test_llm_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"LLM configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=f"LLM configuration error: {e!s}",
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(
@@ -189,7 +196,9 @@ async def test_embeddings_connection():
 
     except ValueError as e:
         return TestResponse(
-            success=False, message=f"Embeddings configuration error: {e!s}", error=str(e)
+            success=False,
+            message=f"Embeddings configuration error: {e!s}",
+            error=str(e),
         )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
@@ -241,7 +250,11 @@ async def test_tts_connection():
         )
 
     except ValueError as e:
-        return TestResponse(success=False, message=f"TTS configuration error: {e!s}", error=str(e))
+        return TestResponse(
+            success=False,
+            message=f"TTS configuration error: {e!s}",
+            error=str(e),
+        )
     except Exception as e:
         response_time = (time.time() - start_time) * 1000
         return TestResponse(

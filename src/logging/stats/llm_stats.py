@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 LLM Stats Tracker
 =================
 
 Simple utility for tracking LLM token usage and costs across all modules.
-Outputs summary to terminal at the end of processing.
+Outputs summary via the unified logging system.
 
 Usage:
     from src.logging import LLMStats
 
-    stats = LLMStats()
+    stats = LLMStats("Solver")
 
     # After each LLM call:
     stats.add_call(
@@ -19,12 +18,20 @@ Usage:
     )
 
     # At the end:
-    stats.print_summary()
+    stats.log_summary()  # Uses logging system
 """
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..logger import Logger
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Model pricing per 1K tokens (USD)
 MODEL_PRICING = {
@@ -62,6 +69,7 @@ class LLMCall:
     prompt_tokens: int
     completion_tokens: int
     cost: float
+    stage: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -80,21 +88,23 @@ class LLMStats:
         """
         self.module_name = module_name
         self.calls: list[LLMCall] = []
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0
-        self.model_used: Optional[str] = None
+        self.model_used: str | None = None
 
     def add_call(
         self,
         model: str,
-        prompt_tokens: Optional[int] = None,
-        completion_tokens: Optional[int] = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
         # Alternative: estimate from text
-        system_prompt: Optional[str] = None,
-        user_prompt: Optional[str] = None,
-        response: Optional[str] = None,
-    ):
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        response: str | None = None,
+        stage: str | None = None,
+    ) -> None:
         """
         Add an LLM call to the stats.
 
@@ -105,6 +115,7 @@ class LLMStats:
             system_prompt: System prompt text (for estimation)
             user_prompt: User prompt text (for estimation)
             response: Response text (for estimation)
+            stage: Optional stage label for the call
         """
         # Estimate tokens if not provided
         if prompt_tokens is None and (system_prompt or user_prompt):
@@ -125,9 +136,14 @@ class LLMStats:
 
         # Record call
         call = LLMCall(
-            model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost=cost,
+            stage=stage,
         )
         self.calls.append(call)
+        self.total_calls += 1
 
         # Update totals
         self.total_prompt_tokens += prompt_tokens
@@ -150,30 +166,100 @@ class LLMStats:
             "cost_usd": self.total_cost,
         }
 
-    def print_summary(self):
-        """Print summary to terminal."""
+    def log_summary(self, logger: Optional["Logger"] = None) -> None:
+        """
+        Log summary using the unified logging system.
+
+        Args:
+            logger: Optional Logger instance. If None, creates one using module_name.
+        """
         if len(self.calls) == 0:
             return
 
+        # Import here to avoid circular imports
+        from ..logger import get_logger
+
+        if logger is None:
+            logger = get_logger(self.module_name)
+
         total_tokens = self.total_prompt_tokens + self.total_completion_tokens
 
-        print()
-        print("=" * 60)
-        print(f"📊 [{self.module_name}] LLM Usage Summary")
-        print("=" * 60)
-        print(f"  Model       : {self.model_used or 'Unknown'}")
-        print(f"  API Calls   : {len(self.calls)}")
-        print(
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info(f"📊 [{self.module_name}] LLM Usage Summary")
+        logger.info("=" * 60)
+        logger.info(f"  Model       : {self.model_used or 'Unknown'}")
+        logger.info(f"  API Calls   : {len(self.calls)}")
+        logger.info(
             f"  Tokens      : {total_tokens:,} (Input: {self.total_prompt_tokens:,}, Output: {self.total_completion_tokens:,})"
         )
-        print(f"  Cost        : ${self.total_cost:.6f} USD")
-        print("=" * 60)
-        print()
+        logger.info(f"  Cost        : ${self.total_cost:.6f} USD")
+        logger.info("=" * 60)
+        logger.info("")
 
     def reset(self):
         """Reset all statistics."""
         self.calls.clear()
+        self.total_calls = 0
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost = 0.0
         self.model_used = None
+
+
+@dataclass
+class ProviderUsageStats:
+    """Aggregate usage stats for a single provider."""
+
+    calls: int = 0
+    tokens: int = 0
+    cost: float = 0.0
+    model_tokens: dict[str, int] = field(default_factory=dict)
+    model_costs: dict[str, float] = field(default_factory=dict)
+
+
+class LLMTelemetryStats:
+    """
+    Lightweight in-memory telemetry recorder for LLM calls.
+
+    This tracker is intended for decorator-driven metrics such as latency,
+    time-to-first-token (TTFT), usage, and error counts.
+    """
+
+    def __init__(self) -> None:
+        self.latencies: dict[str, list[float]] = defaultdict(list)
+        self.ttft: dict[str, list[float]] = defaultdict(list)
+        self.errors: dict[str, dict[str, int]] = defaultdict(dict)
+        self.usage: dict[str, ProviderUsageStats] = defaultdict(ProviderUsageStats)
+
+    def record_latency(self, provider: str, duration: float) -> None:
+        """Record total request latency for a provider."""
+        self.latencies[provider].append(duration)
+
+    def record_ttft(self, provider: str, duration: float) -> None:
+        """Record time-to-first-token for a provider."""
+        self.ttft[provider].append(duration)
+
+    def record_usage(
+        self,
+        provider: str,
+        model: str,
+        tokens: int,
+        cost: float,
+    ) -> None:
+        """Record token usage and cost for a provider/model."""
+        usage = self.usage[provider]
+        usage.calls += 1
+        usage.tokens += tokens
+        usage.cost += cost
+        usage.model_tokens[model] = usage.model_tokens.get(model, 0) + tokens
+        usage.model_costs[model] = usage.model_costs.get(model, 0.0) + cost
+
+    def record_error(self, provider: str, error_type: str) -> None:
+        """Record an error occurrence for a provider."""
+        errors = self.errors.setdefault(provider, {})
+        errors[error_type] = errors.get(error_type, 0) + 1
+
+
+llm_stats = LLMTelemetryStats()
+# Global telemetry recorder for LLM decorators.

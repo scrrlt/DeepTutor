@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 AgentCoordinator - Orchestrates question generation workflow.
 
@@ -22,6 +21,10 @@ sys.path.insert(0, str(project_root))
 
 from src.logging import Logger, get_logger
 from src.services.config import load_config_with_main
+
+# Test seam: expose a module-level 'llm_complete' that tests can patch. If not
+# patched, the real implementation will be imported lazily within the function.
+llm_complete: Callable[..., Any] | None = None
 
 from .agents.generate_agent import GenerateAgent
 from .agents.relevance_analyzer import RelevanceAnalyzer
@@ -185,7 +188,8 @@ class AgentCoordinator:
         self.logger.info(f"Knowledge point: {requirement.get('knowledge_point', 'N/A')}")
 
         await self._send_ws_update(
-            "progress", {"stage": "generating", "progress": {"status": "initializing"}}
+            "progress",
+            {"stage": "generating", "progress": {"status": "initializing"}},
         )
 
         # Step 1: Retrieve knowledge
@@ -294,7 +298,11 @@ class AgentCoordinator:
         self.logger.stage("Stage 1: Researching")
         await self._send_ws_update(
             "progress",
-            {"stage": "researching", "progress": {"status": "retrieving"}, "total": num_questions},
+            {
+                "stage": "researching",
+                "progress": {"status": "retrieving"},
+                "total": num_questions,
+            },
         )
 
         retrieve_agent = self._create_retrieve_agent()
@@ -326,7 +334,8 @@ class AgentCoordinator:
         # =====================================================================
         self.logger.stage("Stage 2: Planning")
         await self._send_ws_update(
-            "progress", {"stage": "planning", "progress": {"status": "creating_plan"}}
+            "progress",
+            {"stage": "planning", "progress": {"status": "creating_plan"}},
         )
 
         plan = await self._generate_question_plan(requirement, knowledge_context, num_questions)
@@ -344,7 +353,10 @@ class AgentCoordinator:
         self.logger.stage("Stage 3: Generating")
         await self._send_ws_update(
             "progress",
-            {"stage": "generating", "progress": {"current": 0, "total": num_questions}},
+            {
+                "stage": "generating",
+                "progress": {"current": 0, "total": num_questions},
+            },
         )
 
         results = []
@@ -382,7 +394,8 @@ class AgentCoordinator:
                     }
                 )
                 await self._send_ws_update(
-                    "question_update", {"question_id": question_id, "status": "error"}
+                    "question_update",
+                    {"question_id": question_id, "status": "error"},
                 )
                 continue
 
@@ -390,7 +403,8 @@ class AgentCoordinator:
 
             # Analyze relevance
             await self._send_ws_update(
-                "question_update", {"question_id": question_id, "status": "analyzing"}
+                "question_update",
+                {"question_id": question_id, "status": "analyzing"},
             )
 
             analysis = await analyzer.process(
@@ -421,7 +435,8 @@ class AgentCoordinator:
             results.append(result)
 
             await self._send_ws_update(
-                "question_update", {"question_id": question_id, "status": "done"}
+                "question_update",
+                {"question_id": question_id, "status": "done"},
             )
             await self._send_ws_update(
                 "result",
@@ -435,7 +450,10 @@ class AgentCoordinator:
             )
             await self._send_ws_update(
                 "progress",
-                {"stage": "generating", "progress": {"current": idx + 1, "total": num_questions}},
+                {
+                    "stage": "generating",
+                    "progress": {"current": idx + 1, "total": num_questions},
+                },
             )
 
         # =====================================================================
@@ -499,7 +517,13 @@ class AgentCoordinator:
         Returns:
             Plan dict with focuses array
         """
-        from src.services.llm import complete as llm_complete
+        # Allow tests to patch 'llm_complete' at module level. If not patched, import
+        # the real one lazily.
+        global llm_complete
+        if llm_complete is not None:
+            _llm = llm_complete
+        else:
+            from src.services.llm import complete as _llm
         from src.services.llm.config import get_llm_config
 
         llm_config = get_llm_config()
@@ -530,7 +554,7 @@ class AgentCoordinator:
         )
 
         try:
-            response = await llm_complete(
+            response = await _llm(
                 prompt=user_prompt,
                 system_prompt=system_prompt,
                 model=llm_config.model,

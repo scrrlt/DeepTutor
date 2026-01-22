@@ -11,8 +11,10 @@ Key features:
 - Extended timeouts for potentially slower local inference
 """
 
+from collections.abc import AsyncGenerator
 import json
-from typing import AsyncGenerator, Dict, List, Optional
+import logging
+from typing import Any
 
 import aiohttp
 
@@ -21,9 +23,41 @@ from .utils import (
     build_auth_headers,
     build_chat_url,
     clean_thinking_tags,
+    collect_model_names,
     extract_response_content,
     sanitize_url,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_message_from_payload(payload: dict[str, Any]) -> str:
+    """Extract message content from a local provider payload.
+
+    Args:
+        payload: Provider response payload.
+    Returns:
+        Extracted content string.
+    Raises:
+        None.
+    """
+    if not payload:
+        return ""
+
+    if "choices" in payload and payload["choices"]:
+        choice = payload["choices"][0]
+        for key in ("message", "delta"):
+            part = choice.get(key)
+            if part is not None:
+                return extract_response_content(part)
+        if "text" in choice:
+            return str(choice.get("text") or "")
+
+    if "message" in payload:
+        return extract_response_content(payload.get("message"))
+
+    return ""
+
 
 # Extended timeout for local servers (may be slower than cloud)
 DEFAULT_TIMEOUT = 300  # 5 minutes
@@ -32,11 +66,11 @@ DEFAULT_TIMEOUT = 300  # 5 minutes
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> str:
     """
     Complete a prompt using local LLM server.
@@ -99,26 +133,23 @@ async def complete(
                 )
 
             result = await response.json()
-
-            if "choices" in result and result["choices"]:
-                msg = result["choices"][0].get("message", {})
-                # Use unified response extraction
-                content = extract_response_content(msg)
-                # Clean thinking tags using unified utility
-                content = clean_thinking_tags(content)
+            content = _extract_message_from_payload(result)
+            content = clean_thinking_tags(content)
+            if content:
                 return content
 
+            logger.warning("Local LLM returned no choices: %s", result)
             return ""
 
 
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
-    **kwargs,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    messages: list[dict[str, str]] | None = None,
+    **kwargs: Any,
 ) -> AsyncGenerator[str, None]:
     """
     Stream a response from local LLM server.
@@ -201,43 +232,51 @@ async def stream(
 
                         try:
                             chunk_data = json.loads(data_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
+                            content = _extract_message_from_payload(chunk_data)
+                            if content:
+                                # Handle thinking tags in streaming
+                                if "<think>" in content:
+                                    in_thinking_block = True
+                                    # Handle case where content has text BEFORE <think>
+                                    parts = content.split("<think>", 1)
+                                    if parts[0]:
+                                        yield parts[0]
+                                    thinking_buffer = "<think>" + parts[1]
 
-                                if content:
-                                    # Handle thinking tags in streaming
-                                    if "<think>" in content:
-                                        in_thinking_block = True
-                                        thinking_buffer = content
-                                        continue
-                                    elif in_thinking_block:
-                                        thinking_buffer += content
-                                        if "</think>" in thinking_buffer:
-                                            # End of thinking block, clean and yield
-                                            cleaned = clean_thinking_tags(thinking_buffer)
-                                            if cleaned:
-                                                yield cleaned
-                                            in_thinking_block = False
-                                            thinking_buffer = ""
-                                        continue
-                                    else:
-                                        yield content
+                                    # Check if closed immediately in same chunk
+                                    if "</think>" in thinking_buffer:
+                                        cleaned = clean_thinking_tags(thinking_buffer)
+                                        if cleaned:
+                                            yield cleaned
+                                        thinking_buffer = ""
+                                        in_thinking_block = False
+                                    continue
+                                elif in_thinking_block:
+                                    thinking_buffer += content
+                                    if "</think>" in thinking_buffer:
+                                        # Block finished
+                                        cleaned = clean_thinking_tags(thinking_buffer)
+                                        if cleaned:
+                                            yield cleaned
+                                        in_thinking_block = False
+                                        thinking_buffer = ""
+                                    continue
+                                else:
+                                    yield content
 
                         except json.JSONDecodeError:
-                            # Non-JSON response, might be raw text
-                            if data_str and not data_str.startswith("{"):
-                                yield data_str
+                            # Log and skip malformed JSON chunks
+                            logger.warning(f"Skipping malformed JSON chunk: {data_str[:50]}...")
+                            continue
 
                     # Some servers don't use SSE format
                     elif line_str.startswith("{"):
                         try:
                             chunk_data = json.loads(line_str)
-                            if "choices" in chunk_data and chunk_data["choices"]:
-                                delta = chunk_data["choices"][0].get("delta", {})
-                                content = delta.get("content")
-                                if content:
-                                    yield content
+                            content = _extract_message_from_payload(chunk_data)
+                            if content:
+                                # TODO: Implement <think> tag parsing for non-SSE JSON streams if supported
+                                yield content
                         except json.JSONDecodeError:
                             pass
 
@@ -245,7 +284,7 @@ async def stream(
         raise  # Re-raise LLM errors as-is
     except Exception as e:
         # Streaming failed, fall back to non-streaming
-        print(f"⚠️ Streaming failed ({e}), falling back to non-streaming")
+        logger.warning("Streaming failed (%s), falling back to non-streaming", e)
 
         try:
             content = await complete(
@@ -268,8 +307,8 @@ async def stream(
 
 async def fetch_models(
     base_url: str,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """
     Fetch available models from local LLM server.
 
@@ -303,9 +342,9 @@ async def fetch_models(
                     if resp.status == 200:
                         data = await resp.json()
                         if "models" in data:
-                            return [m["name"] for m in data.get("models", [])]
+                            return collect_model_names(data["models"])
             except Exception:
-                pass
+                pass  # Fail silently if model fetching fails for this endpoint
 
         # Try OpenAI-compatible /models
         try:
@@ -316,26 +355,13 @@ async def fetch_models(
 
                     # Handle different response formats
                     if "data" in data and isinstance(data["data"], list):
-                        return [
-                            m.get("id") or m.get("name")
-                            for m in data["data"]
-                            if m.get("id") or m.get("name")
-                        ]
+                        return collect_model_names(data["data"])
                     elif "models" in data and isinstance(data["models"], list):
-                        if data["models"] and isinstance(data["models"][0], dict):
-                            return [
-                                m.get("id") or m.get("name")
-                                for m in data["models"]
-                                if m.get("id") or m.get("name")
-                            ]
-                        return [str(m) for m in data["models"]]
+                        return collect_model_names(data["models"])
                     elif isinstance(data, list):
-                        return [
-                            m.get("id") or m.get("name") if isinstance(m, dict) else str(m)
-                            for m in data
-                        ]
+                        return collect_model_names(data)
         except Exception as e:
-            print(f"Error fetching models from {base_url}: {e}")
+            logger.error("Error fetching models from %s: %s", base_url, e)
 
         return []
 

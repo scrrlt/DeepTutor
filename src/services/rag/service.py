@@ -5,16 +5,41 @@ RAG Service
 Unified RAG service providing a single entry point for all RAG operations.
 """
 
+import asyncio
+import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+import shutil
+from typing import Any, Protocol
+
+import aiofiles
 
 from src.logging import get_logger
+
+from .factory import get_pipeline, has_pipeline, list_pipelines
 
 # Default knowledge base directory
 DEFAULT_KB_BASE_DIR = str(
     Path(__file__).resolve().parent.parent.parent.parent / "data" / "knowledge_bases"
 )
+
+
+class RAGPipelineProtocol(Protocol):
+    """
+    Protocol for RAG pipeline behaviors used by the service.
+
+    This avoids coupling to a concrete pipeline implementation while keeping
+    typed access to initialize/search/delete calls.
+    """
+
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
+        """Initialize a knowledge base with documents."""
+
+    async def search(self, query: str, kb_name: str, **kwargs: Any) -> dict[str, Any]:
+        """Search a knowledge base for relevant context."""
+
+    async def delete(self, kb_name: str) -> bool:
+        """Delete a knowledge base."""
 
 
 class RAGService:
@@ -39,8 +64,8 @@ class RAGService:
 
     def __init__(
         self,
-        kb_base_dir: Optional[str] = None,
-        provider: Optional[str] = None,
+        kb_base_dir: str | None = None,
+        provider: str | None = None,
     ):
         """
         Initialize RAG service.
@@ -54,17 +79,31 @@ class RAGService:
         self.logger = get_logger("RAGService")
         self.kb_base_dir = kb_base_dir or DEFAULT_KB_BASE_DIR
         self.provider = provider or os.getenv("RAG_PROVIDER", "raganything")
-        self._pipeline = None
+        self._pipeline_cache: dict[str, RAGPipelineProtocol] = {}
 
-    def _get_pipeline(self):
-        """Get or create pipeline instance."""
-        if self._pipeline is None:
-            from .factory import get_pipeline
+    def _get_cached_pipeline(self, provider: str) -> RAGPipelineProtocol:
+        """
+        Get or create a cached pipeline instance for a provider.
 
-            self._pipeline = get_pipeline(self.provider, kb_base_dir=self.kb_base_dir)
-        return self._pipeline
+        Args:
+            provider: Pipeline provider name.
 
-    async def initialize(self, kb_name: str, file_paths: List[str], **kwargs) -> bool:
+        Returns:
+            Cached pipeline instance.
+        """
+        cache_key = f"{provider}:{self.kb_base_dir}"
+        if cache_key not in self._pipeline_cache:
+            self._pipeline_cache[cache_key] = get_pipeline(
+                provider,
+                kb_base_dir=self.kb_base_dir,
+            )
+        return self._pipeline_cache[cache_key]
+
+    def _get_pipeline(self) -> RAGPipelineProtocol:
+        """Get or create the default pipeline instance."""
+        return self._get_cached_pipeline(self.provider)
+
+    async def initialize(self, kb_name: str, file_paths: list[str], **kwargs: Any) -> bool:
         """
         Initialize a knowledge base with documents.
 
@@ -85,8 +124,8 @@ class RAGService:
         return await pipeline.initialize(kb_name=kb_name, file_paths=file_paths, **kwargs)
 
     async def search(
-        self, query: str, kb_name: str, mode: str = "hybrid", **kwargs
-    ) -> Dict[str, Any]:
+        self, query: str, kb_name: str, mode: str = "hybrid", **kwargs: Any
+    ) -> dict[str, Any]:
         """
         Search a knowledge base.
 
@@ -107,19 +146,17 @@ class RAGService:
         Example:
             service = RAGService()
             result = await service.search("What is ML?", "textbook")
-            print(result["answer"])
+            logger.info(result["answer"])
         """
         # Get the provider from KB metadata, fallback to instance provider
-        provider = self._get_provider_for_kb(kb_name)
+        provider = await self._get_provider_for_kb(kb_name)
 
         self.logger.info(
             f"Searching KB '{kb_name}' with provider '{provider}' and query: {query[:50]}..."
         )
 
         # Get pipeline for the specific provider
-        from .factory import get_pipeline
-
-        pipeline = get_pipeline(provider, kb_base_dir=self.kb_base_dir)
+        pipeline = self._get_cached_pipeline(provider)
 
         result = await pipeline.search(query=query, kb_name=kb_name, mode=mode, **kwargs)
 
@@ -137,7 +174,7 @@ class RAGService:
 
         return result
 
-    def _get_provider_for_kb(self, kb_name: str) -> str:
+    async def _get_provider_for_kb(self, kb_name: str) -> str:
         """
         Get the RAG provider for a specific knowledge base from its metadata.
         Falls back to instance provider or env var if not found in metadata.
@@ -149,20 +186,27 @@ class RAGService:
             Provider name (e.g., 'llamaindex', 'lightrag', 'raganything')
         """
         try:
-            import json
-
             metadata_file = Path(self.kb_base_dir) / kb_name / "metadata.json"
 
-            if metadata_file.exists():
-                with open(metadata_file, encoding="utf-8") as f:
-                    metadata = json.load(f)
-                    provider = metadata.get("rag_provider")
-                    if provider:
+            metadata_exists = metadata_file.exists()
+            if metadata_exists:
+                async with aiofiles.open(metadata_file, encoding="utf-8") as file_handle:
+                    content = await file_handle.read()
+                metadata = json.loads(content)
+                provider = metadata.get("rag_provider")
+                if provider:
+                    if has_pipeline(provider):
                         self.logger.info(f"Using provider '{provider}' from KB metadata")
                         return provider
+                    self.logger.warning(
+                        f"Unknown provider '{provider}' in KB metadata; falling back to instance provider",
+                    )
 
             # Fallback to instance provider
-            self.logger.info(f"No provider in metadata, using instance provider: {self.provider}")
+            self.logger.info(
+                "No provider in metadata, using instance provider: %s",
+                self.provider,
+            )
             return self.provider
 
         except Exception as e:
@@ -192,17 +236,16 @@ class RAGService:
             return await pipeline.delete(kb_name=kb_name)
 
         # Fallback: delete directory manually
-        import shutil
-
         kb_dir = Path(self.kb_base_dir) / kb_name
-        if kb_dir.exists():
-            shutil.rmtree(kb_dir)
+        kb_exists = kb_dir.exists()
+        if kb_exists:
+            await asyncio.to_thread(shutil.rmtree, kb_dir)
             self.logger.info(f"Deleted KB directory: {kb_dir}")
             return True
         return False
 
     @staticmethod
-    def list_providers() -> List[Dict[str, str]]:
+    def list_providers() -> list[dict[str, str]]:
         """
         List available RAG pipeline providers.
 
@@ -212,10 +255,8 @@ class RAGService:
         Example:
             providers = RAGService.list_providers()
             for p in providers:
-                print(f"{p['id']}: {p['description']}")
+                logger.info(f"{p['id']}: {p['description']}")
         """
-        from .factory import list_pipelines
-
         return list_pipelines()
 
     @staticmethod
@@ -239,6 +280,4 @@ class RAGService:
         Returns:
             True if provider exists
         """
-        from .factory import has_pipeline
-
         return has_pipeline(name)

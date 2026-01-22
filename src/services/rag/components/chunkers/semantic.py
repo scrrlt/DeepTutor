@@ -5,8 +5,6 @@ Semantic Chunker
 Chunker that splits documents based on semantic boundaries.
 """
 
-from typing import List
-
 from ...types import Chunk, Document
 from ..base import BaseComponent
 
@@ -25,7 +23,7 @@ class SemanticChunker(BaseComponent):
         self,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
-        separators: List[str] = None,
+        separators: list[str] | None = None,
     ):
         """
         Initialize semantic chunker.
@@ -40,7 +38,7 @@ class SemanticChunker(BaseComponent):
         self.chunk_overlap = chunk_overlap
         self.separators = separators or ["\n\n", "\n", ". ", " "]
 
-    async def process(self, doc: Document, **kwargs) -> List[Chunk]:
+    async def process(self, doc: Document, **kwargs) -> list[Chunk]:
         """
         Chunk a document semantically.
 

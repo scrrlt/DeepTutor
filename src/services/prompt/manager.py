@@ -9,7 +9,10 @@ from typing import Any
 
 import yaml
 
+from src.logging import get_logger
 from src.services.config import PROJECT_ROOT, parse_language
+
+logger = get_logger(__name__)
 
 
 class PromptManager:
@@ -20,12 +23,19 @@ class PromptManager:
 
     # Language fallback chain: if primary language not found, try alternatives
     LANGUAGE_FALLBACKS = {
-        "zh": ["zh", "en"],
-        "en": ["en", "zh"],
+        "zh": ["zh", "cn", "en"],
+        "en": ["en", "zh", "cn"],
     }
 
     # Supported modules
-    MODULES = ["research", "solve", "guide", "question", "ideagen", "co_writer"]
+    MODULES = [
+        "research",
+        "solve",
+        "guide",
+        "question",
+        "ideagen",
+        "co_writer",
+    ]
 
     def __new__(cls) -> "PromptManager":
         if cls._instance is None:
@@ -90,10 +100,10 @@ class PromptManager:
                     with open(prompt_file, encoding="utf-8") as f:
                         return yaml.safe_load(f) or {}
                 except Exception as e:
-                    print(f"Warning: Failed to load {prompt_file}: {e}")
+                    logger.error(f"Warning: Failed to load {prompt_file}: {e}")
                     continue
 
-        print(f"Warning: No prompt file found for {module_name}/{agent_name}")
+        logger.warning(f"Warning: No prompt file found for {module_name}/{agent_name}")
         return {}
 
     def _resolve_prompt_path(

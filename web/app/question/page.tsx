@@ -1,6 +1,6 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react'
 import {
   PenTool,
   Loader2,
@@ -18,18 +18,21 @@ import {
   ChevronUp,
   AlertCircle,
   Lightbulb,
-} from "lucide-react";
-import { useGlobal } from "@/context/GlobalContext";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { apiUrl } from "@/lib/api";
-import { processLatexContent } from "@/lib/latex";
-import AddToNotebookModal from "@/components/AddToNotebookModal";
-import { LogDrawer } from "@/components/question";
-import { useQuestionReducer } from "@/hooks/useQuestionReducer";
+  Cpu,
+  DollarSign,
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import { useGlobal } from '@/context/GlobalContext'
+import AddToNotebookModal from '@/components/AddToNotebookModal'
+import { LogDrawer } from '@/components/question'
+import { useQuestionReducer } from '@/hooks/useQuestionReducer'
+import { apiUrl } from '@/lib/api'
+import { processLatexContent } from '@/lib/latex'
+import 'katex/dist/katex.min.css'
 
 export default function QuestionPage() {
   const {
@@ -38,84 +41,78 @@ export default function QuestionPage() {
     startQuestionGen,
     startMimicQuestionGen,
     resetQuestionGen,
-  } = useGlobal();
+  } = useGlobal()
+  const { t } = useTranslation()
 
   // Dashboard state for parallel generation
-  const [dashboardState, dispatchDashboard] = useQuestionReducer();
+  const [dashboardState, dispatchDashboard] = useQuestionReducer()
 
   // UI state
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
-  const [submittedMap, setSubmittedMap] = useState<Record<number, boolean>>({});
-  const [kbs, setKbs] = useState<string[]>([]);
-  const [showLogDrawer, setShowLogDrawer] = useState(false);
-  const [showNotebookModal, setShowNotebookModal] = useState(false);
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({})
+  const [submittedMap, setSubmittedMap] = useState<Record<number, boolean>>({})
+  const [kbs, setKbs] = useState<string[]>([])
+  const [showLogDrawer, setShowLogDrawer] = useState(false)
+  const [showNotebookModal, setShowNotebookModal] = useState(false)
+  const [showAnalysis, setShowAnalysis] = useState(false)
 
   // Derived state
-  const isGenerating = questionState.step === "generating";
-  const isComplete = questionState.step === "result";
-  const isConfigMode = questionState.step === "config";
-  const totalQuestions = questionState.results.length;
-  const currentQuestion = questionState.results[activeIdx];
-  const extendedCount = questionState.results.filter(
-    (r: any) => r.extended,
-  ).length;
+  const isGenerating = questionState.step === 'generating'
+  const isComplete = questionState.step === 'result'
+  const isConfigMode = questionState.step === 'config'
+  const totalQuestions = questionState.results.length
+  const currentQuestion = questionState.results[activeIdx]
+  const extendedCount = questionState.results.filter((r: any) => r.extended).length
 
   // Progress info from questionState
-  const progress = questionState.progress || {};
-  const stage =
-    progress.stage ||
-    (isGenerating ? "generating" : isComplete ? "complete" : null);
-  const subFocuses = progress.subFocuses || [];
+  const progress = questionState.progress || {}
+  const stage = progress.stage || (isGenerating ? 'generating' : isComplete ? 'complete' : null)
+  const subFocuses = progress.subFocuses || []
 
   // Fetch KBs on mount
   useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
+    let isMounted = true
+    const controller = new AbortController()
 
-    fetch(apiUrl("/api/v1/knowledge/list"), { signal: controller.signal })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isMounted) return;
-        const names = data.map((kb: any) => kb.name);
-        setKbs(names);
+    fetch(apiUrl('/api/v1/knowledge/list'), { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (!isMounted) return
+        const names = data.map((kb: any) => kb.name)
+        setKbs(names)
         if (!questionState.selectedKb && names.length > 0) {
-          setQuestionState((prev) => ({ ...prev, selectedKb: names[0] }));
+          setQuestionState(prev => ({ ...prev, selectedKb: names[0] }))
         }
       })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          console.error("Failed to fetch KBs:", err);
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch KBs:', err)
         }
-      });
+      })
 
     return () => {
-      isMounted = false;
-      controller.abort();
-    };
+      isMounted = false
+      controller.abort()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   // Auto-select first question when results come in
   useEffect(() => {
-    if (
-      questionState.results.length > 0 &&
-      activeIdx >= questionState.results.length
-    ) {
-      setActiveIdx(0);
+    if (questionState.results.length > 0 && activeIdx >= questionState.results.length) {
+      setActiveIdx(0)
     }
-  }, [questionState.results.length, activeIdx]);
+  }, [questionState.results.length, activeIdx])
 
   const handleStart = () => {
-    if (questionState.mode === "knowledge") {
+    if (questionState.mode === 'knowledge') {
       startQuestionGen(
         questionState.topic,
         questionState.difficulty,
         questionState.type,
         questionState.count,
-        questionState.selectedKb,
-      );
+        questionState.selectedKb
+      )
     } else {
       // Mimic mode: don't limit questions by default (process all reference questions)
       // Only limit if user explicitly sets a value via maxQuestions state
@@ -123,48 +120,47 @@ export default function QuestionPage() {
         questionState.uploadedFile,
         questionState.paperPath,
         questionState.selectedKb,
-        undefined, // Let backend process all reference questions
-      );
+        undefined // Let backend process all reference questions
+      )
     }
-    setUserAnswers({});
-    setSubmittedMap({});
-    setActiveIdx(0);
-  };
+    setUserAnswers({})
+    setSubmittedMap({})
+    setActiveIdx(0)
+  }
 
   const handleAnswer = (val: string) => {
-    if (submittedMap[activeIdx]) return;
-    setUserAnswers((prev) => ({ ...prev, [activeIdx]: val }));
-  };
+    if (submittedMap[activeIdx]) return
+    setUserAnswers(prev => ({ ...prev, [activeIdx]: val }))
+  }
 
   const handleSubmit = () => {
-    setSubmittedMap((prev) => ({ ...prev, [activeIdx]: true }));
-  };
+    setSubmittedMap(prev => ({ ...prev, [activeIdx]: true }))
+  }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.type !== "application/pdf") {
-      alert("Please upload a PDF exam paper");
-      return;
+    const file = e.target.files?.[0] || null
+    if (file && file.type !== 'application/pdf') {
+      alert(t('Please upload a PDF exam paper'))
+      return
     }
-    setQuestionState((prev) => ({
+    setQuestionState(prev => ({
       ...prev,
       uploadedFile: file,
-      paperPath: file ? "" : prev.paperPath,
-    }));
-  };
+      paperPath: file ? '' : prev.paperPath,
+    }))
+  }
 
   const handleReset = () => {
-    resetQuestionGen();
-    setUserAnswers({});
-    setSubmittedMap({});
-    setActiveIdx(0);
-  };
+    resetQuestionGen()
+    setUserAnswers({})
+    setSubmittedMap({})
+    setActiveIdx(0)
+  }
 
   const canStart =
-    questionState.mode === "knowledge"
+    questionState.mode === 'knowledge'
       ? questionState.topic.trim().length > 0
-      : questionState.uploadedFile !== null ||
-        questionState.paperPath.trim().length > 0;
+      : questionState.uploadedFile !== null || questionState.paperPath.trim().length > 0
 
   return (
     <div className="h-screen flex gap-0 p-4 animate-fade-in overflow-hidden">
@@ -175,37 +171,33 @@ export default function QuestionPage() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-semibold">
               <PenTool className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              Question Generator
+              {t('Question Generator')}
             </div>
 
             {/* Mode Switching */}
             {isConfigMode && (
               <div className="flex bg-slate-100 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600">
                 <button
-                  onClick={() =>
-                    setQuestionState((prev) => ({ ...prev, mode: "knowledge" }))
-                  }
+                  onClick={() => setQuestionState(prev => ({ ...prev, mode: 'knowledge' }))}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    questionState.mode === "knowledge"
-                      ? "bg-white dark:bg-slate-600 text-purple-700 dark:text-purple-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    questionState.mode === 'knowledge'
+                      ? 'bg-white dark:bg-slate-600 text-purple-700 dark:text-purple-400 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <BrainCircuit className="w-4 h-4" />
-                  Custom
+                  {t('Custom')}
                 </button>
                 <button
-                  onClick={() =>
-                    setQuestionState((prev) => ({ ...prev, mode: "mimic" }))
-                  }
+                  onClick={() => setQuestionState(prev => ({ ...prev, mode: 'mimic' }))}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    questionState.mode === "mimic"
-                      ? "bg-white dark:bg-slate-600 text-purple-700 dark:text-purple-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    questionState.mode === 'mimic'
+                      ? 'bg-white dark:bg-slate-600 text-purple-700 dark:text-purple-400 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <FileText className="w-4 h-4" />
-                  Mimic Exam
+                  {t('Mimic Exam')}
                 </button>
               </div>
             )}
@@ -217,16 +209,18 @@ export default function QuestionPage() {
                   <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>
-                      Generating {totalQuestions}/{questionState.count}...
+                      {t('Generating')} {totalQuestions}/{questionState.count}...
                     </span>
                   </div>
                 ) : isComplete ? (
                   <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{totalQuestions} questions</span>
+                    <span>
+                      {totalQuestions} {t('questions')}
+                    </span>
                     {extendedCount > 0 && (
                       <span className="text-amber-600 dark:text-amber-400">
-                        ({extendedCount} extended)
+                        ({extendedCount} {t('extended')})
                       </span>
                     )}
                   </div>
@@ -236,13 +230,34 @@ export default function QuestionPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Token usage & cost (when available) */}
+            {questionState.tokenStats.calls > 0 && (
+              <div className="hidden md:flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+                <div className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                  <span>{questionState.tokenStats.model}</span>
+                </div>
+                <div className="h-3 w-px bg-slate-200 dark:bg-slate-600" />
+                <span>Calls: {questionState.tokenStats.calls}</span>
+                <div className="h-3 w-px bg-slate-200 dark:bg-slate-600" />
+                <span>Tokens: {questionState.tokenStats.tokens.toLocaleString()}</span>
+                <div className="h-3 w-px bg-slate-200 dark:bg-slate-600" />
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-3 h-3 text-amber-500" />
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                    {`$${questionState.tokenStats.cost.toFixed(4)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Knowledge Base selector */}
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-slate-400 dark:text-slate-500" />
               <select
                 value={questionState.selectedKb}
-                onChange={(e) =>
-                  setQuestionState((prev) => ({
+                onChange={e =>
+                  setQuestionState(prev => ({
                     ...prev,
                     selectedKb: e.target.value,
                   }))
@@ -250,7 +265,7 @@ export default function QuestionPage() {
                 disabled={isGenerating}
                 className="text-sm bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-1.5 outline-none focus:border-purple-400 dark:text-slate-200 disabled:opacity-50"
               >
-                {kbs.map((kb) => (
+                {kbs.map(kb => (
                   <option key={kb} value={kb}>
                     {kb}
                   </option>
@@ -265,7 +280,7 @@ export default function QuestionPage() {
                 className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1.5 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
               >
                 <Activity className="w-4 h-4" />
-                Logs
+                {t('Logs')}
               </button>
             )}
 
@@ -276,7 +291,7 @@ export default function QuestionPage() {
                 className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-1.5 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
-                New
+                {t('New')}
               </button>
             )}
           </div>
@@ -291,13 +306,13 @@ export default function QuestionPage() {
                 {/* Mode Info Banner */}
                 <div
                   className={`p-4 rounded-xl border ${
-                    questionState.mode === "knowledge"
-                      ? "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800"
-                      : "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+                    questionState.mode === 'knowledge'
+                      ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800'
+                      : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    {questionState.mode === "knowledge" ? (
+                    {questionState.mode === 'knowledge' ? (
                       <BrainCircuit className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                     ) : (
                       <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -305,41 +320,41 @@ export default function QuestionPage() {
                     <div>
                       <h3
                         className={`font-semibold ${
-                          questionState.mode === "knowledge"
-                            ? "text-purple-800 dark:text-purple-300"
-                            : "text-blue-800 dark:text-blue-300"
+                          questionState.mode === 'knowledge'
+                            ? 'text-purple-800 dark:text-purple-300'
+                            : 'text-blue-800 dark:text-blue-300'
                         }`}
                       >
-                        {questionState.mode === "knowledge"
-                          ? "Custom Mode"
-                          : "Mimic Exam Paper Mode"}
+                        {questionState.mode === 'knowledge'
+                          ? t('Custom Mode')
+                          : t('Mimic Exam Paper Mode')}
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {questionState.mode === "knowledge"
-                          ? "Generate questions based on knowledge base content"
-                          : "Generate similar questions based on an exam paper"}
+                        {questionState.mode === 'knowledge'
+                          ? t('Generate questions based on knowledge base content')
+                          : t('Generate similar questions based on an exam paper')}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Knowledge Base Mode Config */}
-                {questionState.mode === "knowledge" && (
+                {questionState.mode === 'knowledge' && (
                   <>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Knowledge Point / Topic
+                        {t('Knowledge Point / Topic')}
                       </label>
                       <input
                         type="text"
                         value={questionState.topic}
-                        onChange={(e) =>
-                          setQuestionState((prev) => ({
+                        onChange={e =>
+                          setQuestionState(prev => ({
                             ...prev,
                             topic: e.target.value,
                           }))
                         }
-                        placeholder="e.g. Gradient Descent Optimization"
+                        placeholder={t('e.g. Gradient Descent Optimization')}
                         className="w-full p-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 transition-all text-lg dark:text-slate-200 placeholder:text-slate-400"
                       />
                     </div>
@@ -347,38 +362,38 @@ export default function QuestionPage() {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Count
+                          {t('Count')}
                         </label>
                         <input
                           type="number"
                           min="1"
                           max="50"
-                          value={questionState.count || ""}
-                          onChange={(e) => {
-                            const rawVal = e.target.value;
+                          value={questionState.count || ''}
+                          onChange={e => {
+                            const rawVal = e.target.value
                             // Allow empty input while typing
-                            if (rawVal === "") {
-                              setQuestionState((prev) => ({
+                            if (rawVal === '') {
+                              setQuestionState(prev => ({
                                 ...prev,
                                 count: 0,
-                              }));
-                              return;
+                              }))
+                              return
                             }
-                            const val = parseInt(rawVal);
+                            const val = parseInt(rawVal)
                             if (!isNaN(val)) {
-                              setQuestionState((prev) => ({
+                              setQuestionState(prev => ({
                                 ...prev,
                                 count: Math.min(50, Math.max(0, val)),
-                              }));
+                              }))
                             }
                           }}
-                          onBlur={(e) => {
+                          onBlur={e => {
                             // Ensure valid value on blur
-                            const val = parseInt(e.target.value) || 1;
-                            setQuestionState((prev) => ({
+                            const val = parseInt(e.target.value) || 1
+                            setQuestionState(prev => ({
                               ...prev,
                               count: Math.max(1, Math.min(50, val)),
-                            }));
+                            }))
                           }}
                           className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-center outline-none focus:border-purple-500 dark:text-slate-200"
                         />
@@ -386,40 +401,40 @@ export default function QuestionPage() {
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Difficulty
+                          {t('Difficulty')}
                         </label>
                         <select
                           value={questionState.difficulty}
-                          onChange={(e) =>
-                            setQuestionState((prev) => ({
+                          onChange={e =>
+                            setQuestionState(prev => ({
                               ...prev,
                               difficulty: e.target.value,
                             }))
                           }
                           className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200"
                         >
-                          <option value="easy">Easy</option>
-                          <option value="medium">Medium</option>
-                          <option value="hard">Hard</option>
+                          <option value="easy">{t('Easy')}</option>
+                          <option value="medium">{t('Medium')}</option>
+                          <option value="hard">{t('Hard')}</option>
                         </select>
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Type
+                          {t('Type')}
                         </label>
                         <select
                           value={questionState.type}
-                          onChange={(e) =>
-                            setQuestionState((prev) => ({
+                          onChange={e =>
+                            setQuestionState(prev => ({
                               ...prev,
                               type: e.target.value,
                             }))
                           }
                           className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200"
                         >
-                          <option value="choice">Multiple Choice</option>
-                          <option value="written">Written</option>
+                          <option value="choice">{t('Multiple Choice')}</option>
+                          <option value="written">{t('Written')}</option>
                         </select>
                       </div>
                     </div>
@@ -427,11 +442,11 @@ export default function QuestionPage() {
                 )}
 
                 {/* Mimic Mode Config */}
-                {questionState.mode === "mimic" && (
+                {questionState.mode === 'mimic' && (
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Upload Exam Paper (PDF)
+                        {t('Upload Exam Paper (PDF)')}
                       </label>
                       <div className="relative">
                         <input
@@ -449,25 +464,18 @@ export default function QuestionPage() {
                             <div className="flex items-center gap-3 text-purple-700 dark:text-purple-400">
                               <FileText className="w-8 h-8" />
                               <div>
-                                <p className="font-medium">
-                                  {questionState.uploadedFile.name}
-                                </p>
+                                <p className="font-medium">{questionState.uploadedFile.name}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                  {(
-                                    questionState.uploadedFile.size /
-                                    1024 /
-                                    1024
-                                  ).toFixed(2)}{" "}
-                                  MB
+                                  {(questionState.uploadedFile.size / 1024 / 1024).toFixed(2)} MB
                                 </p>
                               </div>
                             </div>
                           ) : (
                             <div className="text-center text-slate-500 dark:text-slate-400">
                               <Upload className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                              <p className="font-medium">Click to upload PDF</p>
+                              <p className="font-medium">{t('Click to upload PDF')}</p>
                               <p className="text-xs">
-                                The system will parse and generate questions
+                                {t('The system will parse and generate questions')}
                               </p>
                             </div>
                           )}
@@ -477,27 +485,25 @@ export default function QuestionPage() {
 
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600"></div>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
-                        OR
-                      </span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{t('OR')}</span>
                       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600"></div>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Pre-parsed Directory
+                        {t('Pre-parsed Directory')}
                       </label>
                       <input
                         type="text"
                         value={questionState.paperPath}
-                        onChange={(e) =>
-                          setQuestionState((prev) => ({
+                        onChange={e =>
+                          setQuestionState(prev => ({
                             ...prev,
                             paperPath: e.target.value,
                             uploadedFile: null,
                           }))
                         }
-                        placeholder="e.g. 2211asm1"
+                        placeholder={t('e.g. 2211asm1')}
                         className="w-full p-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 dark:text-slate-200 placeholder:text-slate-400"
                       />
                     </div>
@@ -511,7 +517,7 @@ export default function QuestionPage() {
                   className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-purple-500/30 hover:from-purple-700 hover:to-indigo-700 hover:shadow-purple-500/50 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-5 h-5" />
-                  Generate Questions
+                  {t('Generate Questions')}
                 </button>
               </div>
             </div>
@@ -525,7 +531,7 @@ export default function QuestionPage() {
                 <div className="p-3 border-b border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Questions
+                      {t('Questions')}
                     </span>
                     <span className="text-xs text-slate-400">
                       {totalQuestions}/{questionState.count}
@@ -546,7 +552,7 @@ export default function QuestionPage() {
                   {totalQuestions === 0 && isGenerating && (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400">
                       <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                      <p className="text-sm">Generating...</p>
+                      <p className="text-sm">{t('Generating...')}</p>
                     </div>
                   )}
                   {questionState.results.map((result: any, idx: number) => (
@@ -555,20 +561,20 @@ export default function QuestionPage() {
                       onClick={() => setActiveIdx(idx)}
                       className={`w-full text-left px-3 py-2.5 rounded-lg transition-all mb-1 ${
                         activeIdx === idx
-                          ? "bg-purple-50 dark:bg-purple-900/30 border-l-2 border-purple-500"
-                          : "hover:bg-slate-50 dark:hover:bg-slate-700"
+                          ? 'bg-purple-50 dark:bg-purple-900/30 border-l-2 border-purple-500'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div
                           className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                             result.extended
-                              ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600"
+                              ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600'
                               : submittedMap[idx]
-                                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600"
+                                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600'
                                 : activeIdx === idx
-                                  ? "bg-purple-100 dark:bg-purple-900/40 text-purple-600"
-                                  : "bg-slate-100 dark:bg-slate-700 text-slate-500"
+                                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600'
+                                  : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
                           }`}
                         >
                           {result.extended ? (
@@ -581,19 +587,16 @@ export default function QuestionPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p
-                            className={`text-sm line-clamp-2 ${activeIdx === idx ? "text-slate-800 dark:text-slate-100 font-medium" : "text-slate-600 dark:text-slate-300"}`}
+                            className={`text-sm line-clamp-2 ${activeIdx === idx ? 'text-slate-800 dark:text-slate-100 font-medium' : 'text-slate-600 dark:text-slate-300'}`}
                           >
                             {result.question.question.slice(0, 80)}...
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-slate-400 uppercase">
-                              {result.question.type ||
-                                result.question.question_type}
+                              {result.question.type || result.question.question_type}
                             </span>
                             {result.extended && (
-                              <span className="text-xs text-amber-500">
-                                Extended
-                              </span>
+                              <span className="text-xs text-amber-500">{t('Extended')}</span>
                             )}
                           </div>
                         </div>
@@ -614,13 +617,12 @@ export default function QuestionPage() {
                           Question {activeIdx + 1}
                         </span>
                         <span className="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-500 rounded">
-                          {currentQuestion.question.type ||
-                            currentQuestion.question.question_type}
+                          {currentQuestion.question.type || currentQuestion.question.question_type}
                         </span>
                         {currentQuestion.extended && (
                           <span className="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded flex items-center gap-1">
                             <Zap className="w-3 h-3" />
-                            Extended
+                            {t('Extended')}
                           </span>
                         )}
                       </div>
@@ -629,7 +631,7 @@ export default function QuestionPage() {
                         className="text-xs text-indigo-500 hover:text-indigo-600 flex items-center gap-1 px-2 py-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                       >
                         <Book className="w-3 h-3" />
-                        Add to Notebook
+                        {t('Add to Notebook')}
                       </button>
                     </div>
 
@@ -641,83 +643,72 @@ export default function QuestionPage() {
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[rehypeKatex]}
                         >
-                          {processLatexContent(
-                            currentQuestion.question.question,
-                          )}
+                          {processLatexContent(currentQuestion.question.question)}
                         </ReactMarkdown>
                       </div>
 
                       {/* Options or Input */}
-                      {(currentQuestion.question.question_type === "choice" ||
-                        currentQuestion.question.type === "choice") &&
+                      {(currentQuestion.question.question_type === 'choice' ||
+                        currentQuestion.question.type === 'choice') &&
                       currentQuestion.question.options &&
-                      Object.keys(currentQuestion.question.options).length >
-                        0 ? (
+                      Object.keys(currentQuestion.question.options).length > 0 ? (
                         <div className="space-y-3">
-                          {Object.entries(currentQuestion.question.options).map(
-                            ([key, val]) => {
-                              const isSelected = userAnswers[activeIdx] === key;
-                              const isCorrect =
-                                key === currentQuestion.question.correct_answer;
-                              const showCorrectness = submittedMap[activeIdx];
+                          {Object.entries(currentQuestion.question.options).map(([key, val]) => {
+                            const isSelected = userAnswers[activeIdx] === key
+                            const isCorrect = key === currentQuestion.question.correct_answer
+                            const showCorrectness = submittedMap[activeIdx]
 
-                              return (
-                                <button
-                                  key={key}
-                                  onClick={() =>
-                                    !submittedMap[activeIdx] &&
-                                    handleAnswer(key)
-                                  }
-                                  disabled={submittedMap[activeIdx]}
-                                  className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-4 prose dark:prose-invert max-w-none ${
-                                    showCorrectness
-                                      ? isCorrect
-                                        ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300"
-                                        : isSelected
-                                          ? "bg-red-50 dark:bg-red-900/30 border-red-300"
-                                          : "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600"
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => !submittedMap[activeIdx] && handleAnswer(key)}
+                                disabled={submittedMap[activeIdx]}
+                                className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-4 prose dark:prose-invert max-w-none ${
+                                  showCorrectness
+                                    ? isCorrect
+                                      ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300'
                                       : isSelected
-                                        ? "bg-purple-50 dark:bg-purple-900/30 border-purple-300"
-                                        : "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:border-purple-300"
+                                        ? 'bg-red-50 dark:bg-red-900/30 border-red-300'
+                                        : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600'
+                                    : isSelected
+                                      ? 'bg-purple-50 dark:bg-purple-900/30 border-purple-300'
+                                      : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:border-purple-300'
+                                }`}
+                              >
+                                <span
+                                  className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                                    showCorrectness && isCorrect
+                                      ? 'bg-emerald-500 text-white'
+                                      : showCorrectness && isSelected && !isCorrect
+                                        ? 'bg-red-500 text-white'
+                                        : isSelected
+                                          ? 'bg-purple-500 text-white'
+                                          : 'bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                   }`}
                                 >
-                                  <span
-                                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                                      showCorrectness && isCorrect
-                                        ? "bg-emerald-500 text-white"
-                                        : showCorrectness &&
-                                            isSelected &&
-                                            !isCorrect
-                                          ? "bg-red-500 text-white"
-                                          : isSelected
-                                            ? "bg-purple-500 text-white"
-                                            : "bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-300"
-                                    }`}
+                                  {key}
+                                </span>
+                                <div className="flex-1">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
                                   >
-                                    {key}
-                                  </span>
-                                  <div className="flex-1">
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm, remarkMath]}
-                                      rehypePlugins={[rehypeKatex]}
-                                    >
-                                      {processLatexContent(String(val))}
-                                    </ReactMarkdown>
-                                  </div>
-                                  {showCorrectness && isCorrect && (
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                                  )}
-                                </button>
-                              );
-                            },
-                          )}
+                                    {processLatexContent(String(val))}
+                                  </ReactMarkdown>
+                                </div>
+                                {showCorrectness && isCorrect && (
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                                )}
+                              </button>
+                            )
+                          })}
                         </div>
                       ) : (
                         <textarea
-                          value={userAnswers[activeIdx] || ""}
-                          onChange={(e) => handleAnswer(e.target.value)}
+                          value={userAnswers[activeIdx] || ''}
+                          onChange={e => handleAnswer(e.target.value)}
                           disabled={submittedMap[activeIdx]}
-                          placeholder="Type your answer here..."
+                          placeholder={t('Type your answer here...')}
                           className="w-full h-40 p-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 resize-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                         />
                       )}
@@ -728,7 +719,7 @@ export default function QuestionPage() {
                           {/* Correct Answer */}
                           <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
                             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
-                              Correct Answer
+                              {t('Correct Answer')}
                             </p>
                             <div className="text-emerald-800 dark:text-emerald-200 prose prose-sm dark:prose-invert max-w-none">
                               <ReactMarkdown
@@ -736,9 +727,7 @@ export default function QuestionPage() {
                                 rehypePlugins={[rehypeKatex]}
                               >
                                 {processLatexContent(
-                                  String(
-                                    currentQuestion.question.correct_answer,
-                                  ),
+                                  String(currentQuestion.question.correct_answer)
                                 )}
                               </ReactMarkdown>
                             </div>
@@ -748,16 +737,14 @@ export default function QuestionPage() {
                           {currentQuestion.question.explanation && (
                             <div>
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                Explanation
+                                {t('Explanation')}
                               </p>
                               <div className="text-slate-700 dark:text-slate-300 prose prose-sm dark:prose-invert max-w-none">
                                 <ReactMarkdown
                                   remarkPlugins={[remarkGfm, remarkMath]}
                                   rehypePlugins={[rehypeKatex]}
                                 >
-                                  {processLatexContent(
-                                    currentQuestion.question.explanation,
-                                  )}
+                                  {processLatexContent(currentQuestion.question.explanation)}
                                 </ReactMarkdown>
                               </div>
                             </div>
@@ -773,13 +760,11 @@ export default function QuestionPage() {
                                 <div className="flex items-center gap-2 text-sm">
                                   <AlertCircle className="w-4 h-4 text-slate-400" />
                                   <span className="font-medium text-slate-600 dark:text-slate-300">
-                                    Relevance Analysis
+                                    {t('Relevance Analysis')}
                                   </span>
                                   <span className="text-xs px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 text-slate-500 rounded">
-                                    {currentQuestion.rounds || 1} round
-                                    {(currentQuestion.rounds || 1) > 1
-                                      ? "s"
-                                      : ""}
+                                    {currentQuestion.rounds || 1} {t('round')}
+                                    {(currentQuestion.rounds || 1) > 1 ? t('s') : ''}
                                   </span>
                                 </div>
                                 {showAnalysis ? (
@@ -795,90 +780,71 @@ export default function QuestionPage() {
                                     <div>
                                       <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">
                                         <Database className="w-3 h-3" />
-                                        KB Coverage
+                                        {t('KB Coverage')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[
-                                            remarkGfm,
-                                            remarkMath,
-                                          ]}
+                                          remarkPlugins={[remarkGfm, remarkMath]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(
-                                            currentQuestion.validation
-                                              .kb_coverage,
+                                            currentQuestion.validation.kb_coverage
                                           )}
                                         </ReactMarkdown>
                                       </div>
                                     </div>
                                   )}
-                                  {currentQuestion.validation
-                                    .extension_points && (
+                                  {currentQuestion.validation.extension_points && (
                                     <div>
                                       <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
                                         <Zap className="w-3 h-3" />
-                                        Extension Points
+                                        {t('Extension Points')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[
-                                            remarkGfm,
-                                            remarkMath,
-                                          ]}
+                                          remarkPlugins={[remarkGfm, remarkMath]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(
-                                            currentQuestion.validation
-                                              .extension_points,
+                                            currentQuestion.validation.extension_points
                                           )}
                                         </ReactMarkdown>
                                       </div>
                                     </div>
                                   )}
                                   {currentQuestion.extended &&
-                                    currentQuestion.validation
-                                      .kb_connection && (
+                                    currentQuestion.validation.kb_connection && (
                                       <div>
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
                                           <Database className="w-3 h-3" />
-                                          KB Connection
+                                          {t('KB Connection')}
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
-                                            remarkPlugins={[
-                                              remarkGfm,
-                                              remarkMath,
-                                            ]}
+                                            remarkPlugins={[remarkGfm, remarkMath]}
                                             rehypePlugins={[rehypeKatex]}
                                           >
                                             {processLatexContent(
-                                              currentQuestion.validation
-                                                .kb_connection,
+                                              currentQuestion.validation.kb_connection
                                             )}
                                           </ReactMarkdown>
                                         </div>
                                       </div>
                                     )}
                                   {currentQuestion.extended &&
-                                    currentQuestion.validation
-                                      .extended_aspect && (
+                                    currentQuestion.validation.extended_aspect && (
                                       <div>
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-orange-600 uppercase tracking-wider mb-1">
                                           <Lightbulb className="w-3 h-3" />
-                                          Extended Aspects
+                                          {t('Extended Aspects')}
                                         </div>
                                         <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                           <ReactMarkdown
-                                            remarkPlugins={[
-                                              remarkGfm,
-                                              remarkMath,
-                                            ]}
+                                            remarkPlugins={[remarkGfm, remarkMath]}
                                             rehypePlugins={[rehypeKatex]}
                                           >
                                             {processLatexContent(
-                                              currentQuestion.validation
-                                                .extended_aspect,
+                                              currentQuestion.validation.extended_aspect
                                             )}
                                           </ReactMarkdown>
                                         </div>
@@ -887,19 +853,15 @@ export default function QuestionPage() {
                                   {currentQuestion.validation.reasoning && (
                                     <div>
                                       <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                                        Reasoning
+                                        {t('Reasoning')}
                                       </div>
                                       <div className="text-slate-600 dark:text-slate-300 prose prose-xs dark:prose-invert max-w-none">
                                         <ReactMarkdown
-                                          remarkPlugins={[
-                                            remarkGfm,
-                                            remarkMath,
-                                          ]}
+                                          remarkPlugins={[remarkGfm, remarkMath]}
                                           rehypePlugins={[rehypeKatex]}
                                         >
                                           {processLatexContent(
-                                            currentQuestion.validation
-                                              .reasoning,
+                                            currentQuestion.validation.reasoning
                                           )}
                                         </ReactMarkdown>
                                       </div>
@@ -921,12 +883,12 @@ export default function QuestionPage() {
                           disabled={!userAnswers[activeIdx]}
                           className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/20 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                          Submit Answer
+                          {t('Submit Answer')}
                         </button>
                       ) : (
                         <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl">
                           <CheckCircle2 className="w-4 h-4" />
-                          <span className="font-medium">Submitted</span>
+                          <span className="font-medium">{t('Submitted')}</span>
                         </div>
                       )}
                     </div>
@@ -938,18 +900,14 @@ export default function QuestionPage() {
                         <>
                           <Loader2 className="w-12 h-12 animate-spin mx-auto mb-3 text-purple-500" />
                           <p className="text-lg font-medium text-slate-600 dark:text-slate-300">
-                            Generating questions...
+                            {t('Generating questions...')}
                           </p>
-                          <p className="text-sm">
-                            View progress in the Logs panel
-                          </p>
+                          <p className="text-sm">{t('View progress in the Logs panel')}</p>
                         </>
                       ) : (
                         <>
                           <Book className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm">
-                            Select a question to view details
-                          </p>
+                          <p className="text-sm">{t('Select a question to view details')}</p>
                         </>
                       )}
                     </div>
@@ -969,12 +927,12 @@ export default function QuestionPage() {
         stage={stage}
         progress={progress.progress}
         subFocuses={subFocuses}
-        mode={questionState.mode === "knowledge" ? "custom" : "mimic"}
+        mode={questionState.mode === 'knowledge' ? 'custom' : 'mimic'}
         topic={questionState.topic}
         difficulty={questionState.difficulty}
         questionType={questionState.type}
         count={questionState.count}
-        onClearLogs={() => setQuestionState((prev) => ({ ...prev, logs: [] }))}
+        onClearLogs={() => setQuestionState(prev => ({ ...prev, logs: [] }))}
       />
 
       {/* Add to Notebook Modal */}
@@ -989,8 +947,8 @@ export default function QuestionPage() {
             currentQuestion.question.options
               ? Object.entries(currentQuestion.question.options)
                   .map(([k, v]) => `${k}. ${v}`)
-                  .join("\n")
-              : "N/A"
+                  .join('\n')
+              : 'N/A'
           }\n\n**Correct Answer:** ${currentQuestion.question.correct_answer}\n\n**Explanation:**\n${currentQuestion.question.explanation}`}
           metadata={{
             difficulty: questionState.difficulty,
@@ -1002,5 +960,5 @@ export default function QuestionPage() {
         />
       )}
     </div>
-  );
+  )
 }

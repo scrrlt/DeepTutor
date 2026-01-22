@@ -1,1 +1,1 @@
-export { ResearchProvider, useResearch } from "./ResearchContext";
+export { ResearchProvider, useResearch } from './ResearchContext'

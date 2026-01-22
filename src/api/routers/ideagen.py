@@ -23,6 +23,7 @@ from src.api.utils.task_id_manager import TaskIDManager
 from src.logging import get_logger
 from src.services.config import load_config_with_main
 from src.services.llm import get_llm_config
+from src.services.settings.interface_settings import get_ui_language
 
 router = APIRouter()
 
@@ -57,7 +58,11 @@ class IdeaGenStage:
 
 
 async def send_status(
-    websocket: WebSocket, stage: str, message: str, data: dict = None, task_id: str = None
+    websocket: WebSocket,
+    stage: str,
+    message: str,
+    data: dict | None = None,
+    task_id: str | None = None,
 ):
     """Unified status sending function"""
     payload = {
@@ -148,6 +153,7 @@ async def websocket_ideagen(websocket: WebSocket):
 
         # Get LLM configuration
         llm_config = get_llm_config()
+        ui_language = get_ui_language(default=config.get("system", {}).get("language", "en"))
 
         # Get records
         records = []
@@ -157,10 +163,13 @@ async def websocket_ideagen(websocket: WebSocket):
             logger.info(f"Using {len(records)} direct records")
         elif notebook_id:
             nb_manager = NotebookManager()
-            notebook = nb_manager.get_notebook(notebook_id)
+            notebook = await nb_manager.get_notebook(notebook_id)
             if not notebook:
                 await send_status(
-                    websocket, IdeaGenStage.ERROR, "Notebook not found", task_id=task_id
+                    websocket,
+                    IdeaGenStage.ERROR,
+                    "Notebook not found",
+                    task_id=task_id,
                 )
                 await websocket.close()
                 return
@@ -198,6 +207,7 @@ async def websocket_ideagen(websocket: WebSocket):
                 base_url=llm_config.base_url,
                 api_version=getattr(llm_config, "api_version", None),
                 model=llm_config.model,
+                language=ui_language,
             )
 
             knowledge_points = await organizer.process(
@@ -228,7 +238,10 @@ async def websocket_ideagen(websocket: WebSocket):
             websocket,
             IdeaGenStage.KNOWLEDGE_EXTRACTED,
             f"Extracted {len(knowledge_points)} knowledge points",
-            {"knowledge_points": knowledge_points, "count": len(knowledge_points)},
+            {
+                "knowledge_points": knowledge_points,
+                "count": len(knowledge_points),
+            },
             task_id=task_id,
         )
 
@@ -258,6 +271,7 @@ async def websocket_ideagen(websocket: WebSocket):
             api_version=getattr(llm_config, "api_version", None),
             model=llm_config.model,
             progress_callback=None,  # We manually manage status here
+            language=ui_language,
         )
 
         filtered_points = await workflow.loose_filter(knowledge_points)
@@ -302,7 +316,11 @@ async def websocket_ideagen(websocket: WebSocket):
                 websocket,
                 IdeaGenStage.EXPLORING,
                 f"Exploring research ideas for: {point_name} ({idx + 1}/{total_points})",
-                {"index": idx + 1, "total": total_points, "knowledge_point": point_name},
+                {
+                    "index": idx + 1,
+                    "total": total_points,
+                    "knowledge_point": point_name,
+                },
                 task_id=task_id,
             )
 
@@ -351,7 +369,11 @@ async def websocket_ideagen(websocket: WebSocket):
                 websocket,
                 IdeaGenStage.GENERATING,
                 f"Generating statement for: {point_name}",
-                {"index": idx + 1, "kept_ideas": len(kept_ideas), "knowledge_point": point_name},
+                {
+                    "index": idx + 1,
+                    "kept_ideas": len(kept_ideas),
+                    "knowledge_point": point_name,
+                },
                 task_id=task_id,
             )
 
@@ -412,6 +434,9 @@ async def websocket_ideagen(websocket: WebSocket):
             task_manager.update_task_status(task_id, "error", error=str(e))
 
         try:
+            # Send unified error message via send_status
+            # Note: send_status sends {"type": "status", "stage": "error", ...}
+            # which is the standard format for this WebSocket protocol
             await send_status(
                 websocket,
                 IdeaGenStage.ERROR,

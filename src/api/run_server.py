@@ -29,6 +29,11 @@ if __name__ == "__main__":
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
+    # Initialize environment variables for LightRAG/OpenAI compatibility
+    from src.services.llm.config import initialize_environment
+
+    initialize_environment()
+
     # Get port from configuration
     from src.services.setup import get_backend_port
 
@@ -51,9 +56,13 @@ if __name__ == "__main__":
     reload_excludes = [d for d in reload_excludes if Path(d).exists()]
 
     # Start uvicorn server with reload enabled
+    # Bind explicitly to 127.0.0.1 so the development server is only accessible
+    # from localhost and not from other machines or containers. For externally
+    # accessible deployments, use a separate production entry point that binds
+    # to 0.0.0.0 or is fronted by a reverse proxy.
     uvicorn.run(
         "src.api.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=backend_port,
         reload=True,
         reload_excludes=reload_excludes,

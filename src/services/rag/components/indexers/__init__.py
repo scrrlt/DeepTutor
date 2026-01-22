@@ -1,9 +1,4 @@
-"""
-Document Indexers
-=================
-
-Indexers for building searchable indexes from documents.
-"""
+"""Indexers for building searchable document indexes."""
 
 from .base import BaseIndexer
 from .graph import GraphIndexer

@@ -1,1 +1,1 @@
-export { IdeaGenProvider, useIdeaGen } from "./IdeaGenContext";
+export { IdeaGenProvider, useIdeaGen } from './IdeaGenContext'

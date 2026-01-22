@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Robust JSON parsing utilities with automatic repair and markdown extraction.
 

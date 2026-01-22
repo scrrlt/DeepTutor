@@ -5,8 +5,6 @@ Base Chunker
 Base class for document chunkers.
 """
 
-from typing import List
-
 from ...types import Chunk, Document
 from ..base import BaseComponent
 
@@ -20,7 +18,7 @@ class BaseChunker(BaseComponent):
 
     name = "base_chunker"
 
-    async def process(self, doc: Document, **kwargs) -> List[Chunk]:
+    async def process(self, doc: Document, **kwargs) -> list[Chunk]:
         """
         Chunk a document.
 

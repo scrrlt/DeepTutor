@@ -59,7 +59,7 @@ class CitationMemory:
 
         # File path
         if output_dir:
-            self.file_path = Path(output_dir) / "citation_memory.json"
+            self.file_path: Path | None = Path(output_dir) / "citation_memory.json"
         else:
             self.file_path = None
 

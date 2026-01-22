@@ -3,10 +3,10 @@ Error Rate Tracker - Track error rates per provider with alerting.
 """
 
 from collections import defaultdict, deque
+from collections.abc import Callable
 import logging
 import threading
 import time
-from typing import Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +20,15 @@ class ErrorRateTracker:
         self,
         window_size: int = 60,
         threshold: float = 0.5,
-        alert_callback: Optional[Callable[[str, float], None]] = None,
+        alert_callback: Callable[[str, float], None] | None = None,
     ):
         self.window_size = window_size  # seconds
         self.threshold = threshold  # failure rate threshold
         self.alert_callback = alert_callback
         self._lock = threading.RLock()  # Use RLock to allow reentrant locking
-        self._errors: Dict[str, deque[float]] = defaultdict(deque)
-        self._total_calls: Dict[str, deque[float]] = defaultdict(deque)
-        self._alerted: Dict[str, bool] = defaultdict(bool)  # to avoid repeated alerts
+        self._errors: dict[str, deque[float]] = defaultdict(deque)
+        self._total_calls: dict[str, deque[float]] = defaultdict(deque)
+        self._alerted: dict[str, bool] = defaultdict(bool)  # to avoid repeated alerts
 
     def record_call(self, provider: str, success: bool):
         """Record a call for the provider."""

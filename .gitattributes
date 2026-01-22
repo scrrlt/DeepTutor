@@ -1,4 +1,4 @@
-*.mp4 filter=lfs diff=lfs merge=lfs -text
+
 
 # Force critical build and script files to use LF line endings for cross-platform compatibility
 # This prevents CRLF-related security issues in Docker containers and shell scripts

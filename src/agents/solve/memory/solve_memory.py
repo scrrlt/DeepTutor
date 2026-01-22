@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 SolveMemory - Solve-chain based solving memory system
 """
@@ -10,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 import uuid
 
 
@@ -24,20 +23,20 @@ class ToolCallRecord:
 
     tool_type: str
     query: str
-    cite_id: Optional[str] = None
-    raw_answer: Optional[str] = None
-    summary: Optional[str] = None
+    cite_id: str | None = None
+    raw_answer: str | None = None
+    summary: str | None = None
     status: str = "pending"  # pending | running | success | failed | none | finish
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
     call_id: str = field(default_factory=lambda: f"tc_{uuid.uuid4().hex[:8]}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ToolCallRecord":
+    def from_dict(cls, data: dict[str, Any]) -> ToolCallRecord:
         data.setdefault("metadata", {})
         data.setdefault("status", "pending")
         data.setdefault("created_at", _now())
@@ -54,7 +53,7 @@ class ToolCallRecord:
         raw_answer: str,
         summary: str,
         status: str = "success",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         self.raw_answer = raw_answer
         self.summary = summary
@@ -70,21 +69,21 @@ class SolveChainStep:
 
     step_id: str
     step_target: str
-    available_cite: List[str] = field(default_factory=list)
-    tool_calls: List[ToolCallRecord] = field(default_factory=list)
-    step_response: Optional[str] = None
+    available_cite: list[str] = field(default_factory=list)
+    tool_calls: list[ToolCallRecord] = field(default_factory=list)
+    step_response: str | None = None
     status: str = "undone"  # undone | in_progress | waiting_response | done | failed
-    used_citations: List[str] = field(default_factory=list)
+    used_citations: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["tool_calls"] = [tc.to_dict() for tc in self.tool_calls]
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SolveChainStep":
+    def from_dict(cls, data: dict[str, Any]) -> SolveChainStep:
         tool_calls = [ToolCallRecord.from_dict(tc) for tc in data.get("tool_calls", [])]
         data.setdefault("available_cite", [])
         data.setdefault("used_citations", [])
@@ -110,7 +109,7 @@ class SolveChainStep:
         if self.status == "undone":
             self.status = "in_progress"
 
-    def update_response(self, response: str, used_citations: Optional[List[str]] = None):
+    def update_response(self, response: str, used_citations: list[str] | None = None):
         self.step_response = response
         self.status = "done"
         self.used_citations = used_citations or []
@@ -126,9 +125,9 @@ class SolveMemory:
 
     def __init__(
         self,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
         user_question: str = "",
-        output_dir: Optional[str] = None,
+        output_dir: str | None = None,
     ):
         self.task_id = task_id or f"solve_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         self.user_question = user_question
@@ -138,9 +137,9 @@ class SolveMemory:
         self.created_at = _now()
         self.updated_at = _now()
 
-        self.solve_chains: List[SolveChainStep] = []
+        self.solve_chains: list[SolveChainStep] = []
 
-        self.metadata: Dict[str, Any] = {
+        self.metadata: dict[str, Any] = {
             "total_steps": 0,
             "completed_steps": 0,
             "total_tool_calls": 0,
@@ -156,19 +155,27 @@ class SolveMemory:
         cls,
         output_dir: str,
         user_question: str = "",
-        task_id: Optional[str] = None,
-    ) -> "SolveMemory":
+        task_id: str | None = None,
+    ) -> SolveMemory:
         file_path = Path(output_dir) / "solve_chain.json"
         legacy_path = Path(output_dir) / "solve_memory.json"
         if not file_path.exists() and legacy_path.exists():
-            memory = cls(task_id=task_id, user_question=user_question, output_dir=output_dir)
+            memory = cls(
+                task_id=task_id,
+                user_question=user_question,
+                output_dir=output_dir,
+            )
             memory._load_from_legacy_file(legacy_path)
             memory.save()
             return memory
         if not file_path.exists():
-            return cls(task_id=task_id, user_question=user_question, output_dir=output_dir)
+            return cls(
+                task_id=task_id,
+                user_question=user_question,
+                output_dir=output_dir,
+            )
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         memory = cls(
@@ -196,7 +203,7 @@ class SolveMemory:
         with open(self.file_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
             "task_id": self.task_id,
@@ -210,17 +217,20 @@ class SolveMemory:
     # ------------------------------------------------------------------ #
     # Step Management
     # ------------------------------------------------------------------ #
-    def create_chains(self, chains: List[SolveChainStep]):
+    def create_chains(self, chains: list[SolveChainStep]):
         self.solve_chains = chains
         self.metadata["total_steps"] = len(chains)
         self.metadata["completed_steps"] = sum(1 for c in chains if c.status == "done")
         self.metadata["total_tool_calls"] = sum(len(c.tool_calls) for c in chains)
         self.updated_at = _now()
 
-    def get_step(self, step_id: str) -> Optional[SolveChainStep]:
-        return next((step for step in self.solve_chains if step.step_id == step_id), None)
+    def get_step(self, step_id: str) -> SolveChainStep | None:
+        return next(
+            (step for step in self.solve_chains if step.step_id == step_id),
+            None,
+        )
 
-    def get_current_step(self) -> Optional[SolveChainStep]:
+    def get_current_step(self) -> SolveChainStep | None:
         for step in self.solve_chains:
             if step.status in {"undone", "in_progress", "waiting_response"}:
                 return step
@@ -231,8 +241,8 @@ class SolveMemory:
         step_id: str,
         tool_type: str,
         query: str,
-        cite_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        cite_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ToolCallRecord:
         step = self.get_step(step_id)
         if not step:
@@ -255,7 +265,7 @@ class SolveMemory:
         raw_answer: str,
         summary: str,
         status: str = "success",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         step = self.get_step(step_id)
         if not step:
@@ -263,7 +273,12 @@ class SolveMemory:
         record = next((tc for tc in step.tool_calls if tc.call_id == call_id), None)
         if not record:
             raise ValueError(f"Tool call {call_id} not found in step {step_id}")
-        record.mark_result(raw_answer=raw_answer, summary=summary, status=status, metadata=metadata)
+        record.mark_result(
+            raw_answer=raw_answer,
+            summary=summary,
+            status=status,
+            metadata=metadata,
+        )
         self.updated_at = _now()
 
     def mark_step_waiting_response(self, step_id: str):
@@ -277,7 +292,7 @@ class SolveMemory:
         self,
         step_id: str,
         response: str,
-        used_citations: Optional[List[str]] = None,
+        used_citations: list[str] | None = None,
     ):
         step = self.get_step(step_id)
         if not step:
@@ -302,16 +317,16 @@ class SolveMemory:
     # ------------------------------------------------------------------ #
     def _load_from_legacy_file(self, legacy_path: Path):
         try:
-            with open(legacy_path, "r", encoding="utf-8") as f:
+            with open(legacy_path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             return
 
         steps_data = data.get("steps", [])
-        converted: List[SolveChainStep] = []
+        converted: list[SolveChainStep] = []
         for idx, item in enumerate(steps_data, start=1):
             tool_logs = item.get("tool_logs", [])
-            records: List[ToolCallRecord] = []
+            records: list[ToolCallRecord] = []
             for log in tool_logs:
                 records.append(
                     ToolCallRecord(

@@ -6,7 +6,7 @@ Parser for plain text documents (.txt files).
 """
 
 from pathlib import Path
-from typing import Union
+from typing import Any
 
 from ...types import Document
 from ..base import BaseComponent
@@ -25,18 +25,21 @@ class TextParser(BaseComponent):
     # Supported extensions
     SUPPORTED_EXTENSIONS = {".txt", ".text", ".log", ".csv", ".tsv"}
 
-    async def process(self, file_path: Union[str, Path], **kwargs) -> Document:
+    async def process(self, data: str | Path, **kwargs: Any) -> Document:
         """
         Parse a text file into a Document.
 
         Args:
-            file_path: Path to the text file
+            data: Path to the text file (str or Path)
             **kwargs: Additional arguments
 
         Returns:
             Parsed Document
         """
-        file_path = Path(file_path)
+        if not isinstance(data, (str, Path)):
+            raise TypeError(f"Expected str or Path, got {type(data).__name__}")
+
+        file_path = Path(data)
 
         if not file_path.exists():
             raise FileNotFoundError(f"Text file not found: {file_path}")
@@ -49,16 +52,25 @@ class TextParser(BaseComponent):
 
         for encoding in encodings:
             try:
-                with open(file_path, "r", encoding=encoding) as f:
+                with open(file_path, encoding=encoding) as f:
                     content = f.read()
-                break
             except UnicodeDecodeError:
+                self.logger.warning(
+                    f"Unicode decode error for file {file_path}, trying next encoding."
+                )
                 continue
+            except OSError as e:
+                self.logger.error(f"Failed to read file {file_path}: {e}")
+                raise
 
         if content is None:
             # Last resort: read as binary and decode with error handling
-            with open(file_path, "rb") as f:
-                content = f.read().decode("utf-8", errors="replace")
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read().decode("utf-8", errors="replace")
+            except OSError as e:
+                self.logger.error(f"Failed to read file {file_path} as binary: {e}")
+                raise
 
         return Document(
             content=content,
@@ -72,7 +84,7 @@ class TextParser(BaseComponent):
         )
 
     @classmethod
-    def can_parse(cls, file_path: Union[str, Path]) -> bool:
+    def can_parse(cls, file_path: str | Path) -> bool:
         """
         Check if this parser can handle the given file.
 

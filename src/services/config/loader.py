@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Configuration Loader
 ====================
@@ -13,6 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+from src.logging import get_logger
+
+logger = get_logger(__name__)
 
 # PROJECT_ROOT points to the actual project root directory (DeepTutor/)
 # Path(__file__) = src/services/config/loader.py
@@ -58,9 +61,13 @@ async def _load_yaml_file_async(file_path: Path) -> dict[str, Any]:
     return await asyncio.to_thread(_load_yaml_file, file_path)
 
 
-def load_config_with_main(config_file: str, project_root: Path | None = None) -> dict[str, Any]:
+def load_config_with_main(
+    config_file: str = "main.yaml", project_root: Path | None = None
+) -> dict[str, Any]:
     """
     Load configuration file, automatically merge with main.yaml common configuration
+
+    If config_file is omitted, defaults to "main.yaml" for convenience.
 
     Args:
         config_file: Sub-module configuration file name (e.g., "solve_config.yaml")
@@ -81,7 +88,7 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
         try:
             main_config = _load_yaml_file(main_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load main.yaml: {e}")
+            logger.error(f"⚠️ Failed to load main.yaml: {e}")
 
     # 2. Load sub-module configuration file
     module_config = {}
@@ -90,7 +97,7 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
         try:
             module_config = _load_yaml_file(module_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load {config_file}: {e}")
+            logger.error(f"⚠️ Failed to load {config_file}: {e}")
 
     # 3. Merge configurations: main.yaml as base, sub-module config overrides
     merged_config = _deep_merge(main_config, module_config)
@@ -99,10 +106,12 @@ def load_config_with_main(config_file: str, project_root: Path | None = None) ->
 
 
 async def load_config_with_main_async(
-    config_file: str, project_root: Path | None = None
+    config_file: str = "main.yaml", project_root: Path | None = None
 ) -> dict[str, Any]:
     """
     Async version of load_config_with_main for non-blocking file operations.
+
+    If config_file is omitted, defaults to "main.yaml".
 
     Load configuration file, automatically merge with main.yaml common configuration
 
@@ -125,7 +134,7 @@ async def load_config_with_main_async(
         try:
             main_config = await _load_yaml_file_async(main_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load main.yaml: {e}")
+            logger.error(f"⚠️ Failed to load main.yaml: {e}")
 
     # 2. Load sub-module configuration file
     module_config = {}
@@ -134,7 +143,7 @@ async def load_config_with_main_async(
         try:
             module_config = await _load_yaml_file_async(module_config_path)
         except Exception as e:
-            print(f"⚠️ Failed to load {config_file}: {e}")
+            logger.error(f"⚠️ Failed to load {config_file}: {e}")
 
     # 3. Merge configurations: main.yaml as base, sub-module config overrides
     merged_config = _deep_merge(main_config, module_config)
@@ -185,16 +194,16 @@ def parse_language(language: Any) -> str:
         Standardized language code: 'zh' or 'en', defaults to 'zh'
     """
     if not language:
-        return "zh"
+        return "en"
 
     if isinstance(language, str):
         lang_lower = language.lower()
         if lang_lower in ["en", "english"]:
             return "en"
-        if lang_lower in ["zh", "chinese"]:
+        if lang_lower in ["zh", "chinese", "cn"]:
             return "zh"
 
-    return "zh"  # Default Chinese
+    return "zh"  # Default to Chinese
 
 
 def get_agent_params(module_name: str) -> dict:
@@ -245,7 +254,7 @@ def get_agent_params(module_name: str) -> dict:
                     "max_tokens": module_config.get("max_tokens", defaults["max_tokens"]),
                 }
     except Exception as e:
-        print(f"⚠️ Failed to load agents.yaml: {e}, using defaults")
+        logger.error(f"⚠️ Failed to load agents.yaml: {e}, using defaults")
 
     return defaults
 

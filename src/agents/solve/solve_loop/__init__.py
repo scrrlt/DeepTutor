@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Solve Loop - Solve loop (Manager → Solve → Check → Format)
 Based on Analysis output, plan and execute problem-solving process, generate high-quality answers

@@ -1,13 +1,10 @@
-"""
-Hybrid Retriever
-================
-
-Hybrid retriever combining multiple retrieval strategies.
-"""
+"""Hybrid retriever combining multiple retrieval strategies."""
 
 from pathlib import Path
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
+
+from openai import AsyncOpenAI
 
 from ..base import BaseComponent
 
@@ -20,9 +17,9 @@ class HybridRetriever(BaseComponent):
     """
 
     name = "hybrid_retriever"
-    _instances: Dict[str, Any] = {}
+    _instances: dict[str, Any] = {}
 
-    def __init__(self, kb_base_dir: Optional[str] = None):
+    def __init__(self, kb_base_dir: str | None = None):
         """
         Initialize hybrid retriever.
 
@@ -50,12 +47,12 @@ class HybridRetriever(BaseComponent):
             sys.path.insert(0, str(raganything_path))
 
         try:
-            from openai import AsyncOpenAI
             from raganything import RAGAnything, RAGAnythingConfig
 
             from src.services.embedding import get_embedding_client
             from src.services.llm import get_llm_client
 
+            # Use unified LLM client from src/services/llm
             llm_client = get_llm_client()
             embed_client = get_embedding_client()
 
@@ -67,7 +64,7 @@ class HybridRetriever(BaseComponent):
 
             # LLM function using services (ASYNC - LightRAG expects async functions)
             async def llm_model_func(prompt, system_prompt=None, history_messages=None, **kwargs):
-                """Custom async LLM function that bypasses LightRAG's openai_complete_if_cache."""
+                """Call OpenAI chat completion directly for LightRAG."""
                 if history_messages is None:
                     history_messages = []
 
@@ -130,7 +127,7 @@ class HybridRetriever(BaseComponent):
         mode: str = "hybrid",
         only_need_context: bool = False,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Search using hybrid retrieval.
 

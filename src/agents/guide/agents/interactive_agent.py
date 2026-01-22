@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 InteractiveAgent - Agent for generating interactive HTML pages
 Converts knowledge points into visual, interactive learning pages

@@ -6,7 +6,7 @@ Data types for the RAG pipeline.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -19,8 +19,8 @@ class Chunk:
 
     content: str
     chunk_type: str = "text"  # text, definition, theorem, equation, figure, table...
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    embedding: Optional[List[float]] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    embedding: list[float] | None = None
 
     def __post_init__(self):
         if self.metadata is None:
@@ -37,9 +37,9 @@ class Document:
 
     content: str
     file_path: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    chunks: List[Chunk] = field(default_factory=list)
-    content_items: List[Dict] = field(default_factory=list)  # MinerU format
+    metadata: dict[str, Any] = field(default_factory=dict)
+    chunks: list[Chunk] = field(default_factory=list)
+    content_items: list[dict] = field(default_factory=list)  # MinerU format
 
     def __post_init__(self):
         if self.metadata is None:
@@ -53,7 +53,7 @@ class Document:
         """Add a chunk to the document."""
         self.chunks.append(chunk)
 
-    def get_chunks_by_type(self, chunk_type: str) -> List[Chunk]:
+    def get_chunks_by_type(self, chunk_type: str) -> list[Chunk]:
         """Get all chunks of a specific type."""
         return [c for c in self.chunks if c.chunk_type == chunk_type]
 
@@ -69,5 +69,5 @@ class SearchResult:
     content: str
     mode: str = "hybrid"
     provider: str = "raganything"
-    chunks: List[Chunk] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    chunks: list[Chunk] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)

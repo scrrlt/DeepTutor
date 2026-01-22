@@ -1,17 +1,29 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 JSON Utils - JSON parsing and validation utilities
 - Robustly extract JSON from LLM text output
 - Provide strict structure validation and error messages
 """
 
+from collections.abc import Iterable
 import json
 import re
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any
 
 
-def extract_json_from_text(text: str) -> Union[Dict[str, Any], List[Any], None]:
+def _parse_if_json(value: str) -> dict[str, Any] | list[Any] | None:
+    """Return parsed JSON only when it is an object or array."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return None
+
+    if isinstance(parsed, (dict, list)):
+        return parsed
+    return None
+
+
+def extract_json_from_text(text: str) -> dict[str, Any] | list[Any] | None:
     """
     Extract JSON object or array from text.
     Allows the following formats:
@@ -26,31 +38,27 @@ def extract_json_from_text(text: str) -> Union[Dict[str, Any], List[Any], None]:
     code_block = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if code_block:
         snippet = code_block.group(1).strip()
-        try:
-            return json.loads(snippet)
-        except json.JSONDecodeError:
-            pass
+        parsed = _parse_if_json(snippet)
+        if parsed is not None:
+            return parsed
 
     # 2) Parse entire text
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
+    parsed_full = _parse_if_json(text)
+    if parsed_full is not None:
+        return parsed_full
 
     # 3) Fragment parsing
     obj_match = re.search(r"\{[\s\S]*\}", text)
     if obj_match:
-        try:
-            return json.loads(obj_match.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_obj = _parse_if_json(obj_match.group(0))
+        if parsed_obj is not None:
+            return parsed_obj
 
     arr_match = re.search(r"\[[\s\S]*\]", text)
     if arr_match:
-        try:
-            return json.loads(arr_match.group(0))
-        except json.JSONDecodeError:
-            pass
+        parsed_arr = _parse_if_json(arr_match.group(0))
+        if parsed_arr is not None:
+            return parsed_arr
 
     return None
 
@@ -58,19 +66,19 @@ def extract_json_from_text(text: str) -> Union[Dict[str, Any], List[Any], None]:
 # --------- Strict Validation Utilities ---------
 
 
-def ensure_json_dict(data: Any, err: str = "Expected JSON object") -> Dict[str, Any]:
+def ensure_json_dict(data: Any, err: str = "Expected JSON object") -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(err)
     return data
 
 
-def ensure_json_list(data: Any, err: str = "Expected JSON array") -> List[Any]:
+def ensure_json_list(data: Any, err: str = "Expected JSON array") -> list[Any]:
     if not isinstance(data, list):
         raise ValueError(err)
     return data
 
 
-def ensure_keys(data: Dict[str, Any], keys: Iterable[str]) -> Dict[str, Any]:
+def ensure_keys(data: dict[str, Any], keys: Iterable[str]) -> dict[str, Any]:
     missing = [k for k in keys if k not in data]
     if missing:
         raise KeyError(f"Missing required keys: {', '.join(missing)}")

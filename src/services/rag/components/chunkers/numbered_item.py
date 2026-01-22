@@ -5,8 +5,6 @@ Numbered Item Extractor
 Extracts numbered items (definitions, theorems, equations) from documents.
 """
 
-from typing import List
-
 from ...types import Chunk, Document
 from ..base import BaseComponent
 
@@ -33,7 +31,7 @@ class NumberedItemExtractor(BaseComponent):
         self.batch_size = batch_size
         self.max_concurrent = max_concurrent
 
-    async def process(self, doc: Document, **kwargs) -> List[Chunk]:
+    async def process(self, doc: Document, **kwargs) -> list[Chunk]:
         """
         Extract numbered items from a document.
 

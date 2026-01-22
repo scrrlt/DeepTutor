@@ -11,7 +11,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 import uuid
 
 from dotenv import load_dotenv
@@ -47,9 +47,23 @@ PROVIDER_OPTIONS = {
         "lm_studio",
         "vllm",
     ],
-    ConfigType.EMBEDDING: ["openai", "azure_openai", "ollama", "jina", "cohere", "huggingface"],
+    ConfigType.EMBEDDING: [
+        "openai",
+        "azure_openai",
+        "ollama",
+        "jina",
+        "cohere",
+        "huggingface",
+    ],
     ConfigType.TTS: ["openai", "azure_openai"],
-    ConfigType.SEARCH: ["perplexity", "tavily", "exa", "jina", "serper", "baidu"],
+    ConfigType.SEARCH: [
+        "perplexity",
+        "tavily",
+        "exa",
+        "jina",
+        "serper",
+        "baidu",
+    ],
 }
 
 # Environment variable mappings for each service type
@@ -97,7 +111,7 @@ def _resolve_env_value(value: Any) -> Any:
     return value
 
 
-def _get_env_value(env_var: str) -> Optional[str]:
+def _get_env_value(env_var: str) -> str | None:
     """Get and strip an environment variable value."""
     value = os.environ.get(env_var)
     if value:
@@ -119,9 +133,18 @@ class UnifiedConfigManager:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(UnifiedConfigManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
+
+    @classmethod
+    def reset_for_tests(cls) -> None:
+        """Reset the singleton for tests.
+
+        Tests should call this method instead of manipulating the private
+        _instance attribute directly to avoid breaking encapsulation.
+        """
+        cls._instance = None
 
     def __init__(self):
         if getattr(self, "_initialized", False):
@@ -199,8 +222,8 @@ class UnifiedConfigManager:
         self._save_configs(config_type, data)
 
     def _build_stored_default_config(
-        self, config_type: ConfigType, env_mapping: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, config_type: ConfigType, env_mapping: dict[str, str]
+    ) -> dict[str, Any]:
         """Build the default configuration to be stored in JSON (with env references)."""
         base_config = {
             "id": "default",
@@ -254,29 +277,29 @@ class UnifiedConfigManager:
         """Get the storage file path for a config type."""
         return SETTINGS_DIR / f"{config_type.value}_configs.json"
 
-    def _load_configs(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _load_configs(self, config_type: ConfigType) -> dict[str, Any]:
         """Load configurations from storage."""
         path = self._get_storage_path(config_type)
         if path.exists():
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to load {config_type.value} configs: {e}")
         return {"configs": [], "active_id": "default"}
 
-    def _save_configs(self, config_type: ConfigType, data: Dict[str, Any]) -> bool:
+    def _save_configs(self, config_type: ConfigType, data: dict[str, Any]) -> bool:
         """Save configurations to storage."""
         path = self._get_storage_path(config_type)
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             return True
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save {config_type.value} configs: {e}")
             return False
 
-    def _build_default_config(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _build_default_config(self, config_type: ConfigType) -> dict[str, Any]:
         """Build the default configuration from environment variables."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
 
@@ -329,9 +352,13 @@ class UnifiedConfigManager:
                 "api_key": "***",
             }
 
-        return {"id": "default", "name": "Default (from .env)", "is_default": True}
+        return {
+            "id": "default",
+            "name": "Default (from .env)",
+            "is_default": True,
+        }
 
-    def _get_default_config_resolved(self, config_type: ConfigType) -> Dict[str, Any]:
+    def _get_default_config_resolved(self, config_type: ConfigType) -> dict[str, Any]:
         """Get the default configuration with actual values resolved (for internal use)."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
 
@@ -378,7 +405,7 @@ class UnifiedConfigManager:
 
         return {"id": "default"}
 
-    def _resolve_config(self, config: Dict[str, Any], config_type: ConfigType) -> Dict[str, Any]:
+    def _resolve_config(self, config: dict[str, Any], config_type: ConfigType) -> dict[str, Any]:
         """Resolve all {"use_env": ...} references in a configuration."""
         resolved = {}
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
@@ -392,11 +419,11 @@ class UnifiedConfigManager:
 
         return resolved
 
-    def get_provider_options(self, config_type: ConfigType) -> List[str]:
+    def get_provider_options(self, config_type: ConfigType) -> list[str]:
         """Get available provider options for a config type."""
         return PROVIDER_OPTIONS.get(config_type, [])
 
-    def list_configs(self, config_type: ConfigType) -> List[Dict[str, Any]]:
+    def list_configs(self, config_type: ConfigType) -> list[dict[str, Any]]:
         """
         List all configurations for a service type.
         Includes the default config (from .env) and user-defined configs.
@@ -441,7 +468,7 @@ class UnifiedConfigManager:
 
         return result
 
-    def get_config(self, config_type: ConfigType, config_id: str) -> Optional[Dict[str, Any]]:
+    def get_config(self, config_type: ConfigType, config_id: str) -> dict[str, Any] | None:
         """Get a specific configuration by ID."""
         if config_id == "default":
             return self._build_default_config(config_type)
@@ -452,7 +479,7 @@ class UnifiedConfigManager:
                 return cfg
         return None
 
-    def get_active_config(self, config_type: ConfigType) -> Optional[Dict[str, Any]]:
+    def get_active_config(self, config_type: ConfigType) -> dict[str, Any] | None:
         """
         Get the currently active configuration with all values resolved.
         This is used internally when services need actual configuration values.
@@ -470,7 +497,7 @@ class UnifiedConfigManager:
         # Fallback to default if active config not found
         return self._get_default_config_resolved(config_type)
 
-    def add_config(self, config_type: ConfigType, config: Dict[str, Any]) -> Dict[str, Any]:
+    def add_config(self, config_type: ConfigType, config: dict[str, Any]) -> dict[str, Any]:
         """Add a new configuration."""
         data = self._load_configs(config_type)
 
@@ -488,8 +515,8 @@ class UnifiedConfigManager:
         return config
 
     def update_config(
-        self, config_type: ConfigType, config_id: str, updates: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, config_type: ConfigType, config_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Update an existing configuration."""
         if config_id == "default":
             return None  # Cannot update default config
@@ -537,9 +564,54 @@ class UnifiedConfigManager:
                 return False
 
         data["active_id"] = config_id
-        return self._save_configs(config_type, data)
+        success = self._save_configs(config_type, data)
 
-    def get_env_status(self, config_type: ConfigType) -> Dict[str, bool]:
+        # Update environment variables for LightRAG compatibility when LLM config changes
+        if success and config_type == ConfigType.LLM:
+            self._update_openai_env_vars_for_lightrag()
+
+        return success
+
+    def _update_openai_env_vars_for_lightrag(self):
+        """
+        Update OPENAI_API_KEY and OPENAI_BASE_URL environment variables for LightRAG.
+
+        LightRAG's internal functions read directly from os.environ["OPENAI_API_KEY"]
+        instead of using passed parameters. This method ensures the environment
+        variables are updated when the active LLM configuration changes.
+        """
+        try:
+            config = self.get_active_config(ConfigType.LLM)
+            if not config:
+                return
+
+            provider = config.get("provider", "openai")
+            api_key = config.get("api_key", "")
+            base_url = config.get("base_url", "")
+
+            # Only set env vars for OpenAI-compatible providers
+            if provider in ("openai", "azure_openai", "gemini", "deepseek"):
+                if api_key:
+                    os.environ["OPENAI_API_KEY"] = api_key
+                    logger.debug("Updated OPENAI_API_KEY env var for LightRAG compatibility")
+
+                if base_url:
+                    os.environ["OPENAI_BASE_URL"] = base_url
+                    logger.debug(f"Updated OPENAI_BASE_URL env var to {base_url}")
+
+            # Reset LLM client singleton to pick up new configuration
+            try:
+                from src.services.llm import reset_llm_client
+
+                reset_llm_client()
+                logger.debug("Reset LLM client singleton after config change")
+            except ImportError:
+                pass
+
+        except Exception as e:
+            logger.warning(f"Failed to update OpenAI env vars: {e}")
+
+    def get_env_status(self, config_type: ConfigType) -> dict[str, bool]:
         """Check which environment variables are configured for a service type."""
         env_mapping = ENV_VAR_MAPPINGS.get(config_type, {})
         status = {}
@@ -550,14 +622,14 @@ class UnifiedConfigManager:
 
         return status
 
-    def get_default_config(self, config_type: ConfigType) -> Dict[str, Any]:
+    def get_default_config(self, config_type: ConfigType) -> dict[str, Any]:
         """
         Get the default configuration with actual values resolved.
         Used for testing the default configuration.
         """
         return self._get_default_config_resolved(config_type)
 
-    def resolve_config_env_values(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def resolve_config_env_values(self, config: dict[str, Any]) -> dict[str, Any]:
         """
         Resolve all {"use_env": "VAR_NAME"} references in a user configuration.
         Returns a copy with actual values from environment variables.
@@ -570,34 +642,32 @@ class UnifiedConfigManager:
         return resolved
 
 
-# Global instance
-_config_manager: Optional[UnifiedConfigManager] = None
-
-
 def get_config_manager() -> UnifiedConfigManager:
-    """Get the global config manager instance."""
-    global _config_manager
-    if _config_manager is None:
-        _config_manager = UnifiedConfigManager()
-    return _config_manager
+    """Get the global config manager instance.
+
+    Always return the current UnifiedConfigManager singleton. Avoid caching a
+    module-level variable that can get out-of-sync with the class-level
+    singleton (e.g., when tests reset UnifiedConfigManager._instance).
+    """
+    return UnifiedConfigManager()
 
 
 # Convenience functions for services
-def get_active_llm_config() -> Optional[Dict[str, Any]]:
+def get_active_llm_config() -> dict[str, Any] | None:
     """Get the active LLM configuration."""
     return get_config_manager().get_active_config(ConfigType.LLM)
 
 
-def get_active_embedding_config() -> Optional[Dict[str, Any]]:
+def get_active_embedding_config() -> dict[str, Any] | None:
     """Get the active embedding configuration."""
     return get_config_manager().get_active_config(ConfigType.EMBEDDING)
 
 
-def get_active_tts_config() -> Optional[Dict[str, Any]]:
+def get_active_tts_config() -> dict[str, Any] | None:
     """Get the active TTS configuration."""
     return get_config_manager().get_active_config(ConfigType.TTS)
 
 
-def get_active_search_config() -> Optional[Dict[str, Any]]:
+def get_active_search_config() -> dict[str, Any] | None:
     """Get the active search configuration."""
     return get_config_manager().get_active_config(ConfigType.SEARCH)

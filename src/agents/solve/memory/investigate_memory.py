@@ -91,13 +91,16 @@ class InvestigateMemory:
 
         # File path
         if output_dir:
-            self.file_path = Path(output_dir) / "investigate_memory.json"
+            self.file_path: Path | None = Path(output_dir) / "investigate_memory.json"
         else:
             self.file_path = None
 
     @classmethod
     def load_or_create(
-        cls, output_dir: str, user_question: str = "", task_id: str | None = None
+        cls,
+        output_dir: str,
+        user_question: str = "",
+        task_id: str | None = None,
     ) -> "InvestigateMemory":
         """Load existing memory or create new memory (supports v1.0/v2.0 backward compatibility)"""
         file_path = Path(output_dir) / "investigate_memory.json"
@@ -182,7 +185,9 @@ class InvestigateMemory:
         raise ValueError(f"cite_id not found: {cite_id}")
 
     def get_available_knowledge(
-        self, tool_types: list[str] | None = None, cite_ids: list[str] | None = None
+        self,
+        tool_types: list[str] | None = None,
+        cite_ids: list[str] | None = None,
     ) -> list[KnowledgeItem]:
         """Get available knowledge (supports filtering)"""
         results = self.knowledge_chain

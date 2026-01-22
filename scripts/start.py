@@ -1,11 +1,15 @@
 #!/usr/bin/env python
-"""
-DeepTutor CLI Launcher
+"""DeepTutor CLI launcher.
 
-Provides a command-line interface for users to easily access:
-1. Solver system (solve_agents)
-2. Question generation system (question_agents)
-3. Deep research system (DR-in-KG)
+Provides a command-line interface for the solver, question generation, research,
+idea generation, and web service workflows.
+
+Args:
+    None.
+Returns:
+    None.
+Raises:
+    None.
 """
 
 import asyncio
@@ -25,7 +29,7 @@ if sys.platform == "win32":
 load_dotenv()
 
 # Add project root directory to path
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.agents.question import AgentCoordinator
@@ -39,10 +43,26 @@ logger = get_logger("CLI", console_output=True, file_output=True)
 
 
 class AITutorStarter:
-    """DeepTutor CLI Launcher"""
+    """DeepTutor CLI launcher.
 
-    def __init__(self):
-        """Initialize launcher"""
+    Args:
+        None.
+    Returns:
+        None.
+    Raises:
+        None.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the CLI launcher.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            SystemExit: Raised when LLM configuration is missing.
+        """
         # Initialize user data directories
         try:
             from src.services.setup import init_user_directories
@@ -54,8 +74,8 @@ class AITutorStarter:
 
         try:
             llm_config = get_llm_config()
-            self.api_key = llm_config.api_key
-            self.base_url = llm_config.base_url
+            self.api_key: str = llm_config.api_key
+            self.base_url: str | None = llm_config.base_url
         except ValueError as e:
             logger.error(str(e))
             logger.error("Please configure LLM settings in .env or DeepTutor.env file")
@@ -69,9 +89,17 @@ class AITutorStarter:
         logger.info(f"Available knowledge bases: {', '.join(self.available_kbs)}")
         logger.separator()
 
-    def _load_available_kbs(self) -> list:
-        """Load available knowledge base list"""
-        kb_base_dir = Path(__file__).parent / "data/knowledge_bases"
+    def _load_available_kbs(self) -> list[str]:
+        """Load available knowledge base list.
+
+        Args:
+            None.
+        Returns:
+            The list of available knowledge base names.
+        Raises:
+            None.
+        """
+        kb_base_dir = project_root / "data" / "knowledge_bases"
         if not kb_base_dir.exists():
             return ["ai_textbook"]  # Default knowledge base
 
@@ -93,17 +121,23 @@ class AITutorStarter:
         return kbs if kbs else ["ai_textbook"]
 
     def show_main_menu(self) -> str:
-        """Display main menu and get user selection"""
+        """Display the main menu and get user selection.
+
+        Args:
+            None.
+        Returns:
+            The selected menu option.
+        Raises:
+            None.
+        """
         logger.section("Please select a function:")
-        print("1. 🧠 Solver System (Solve)        - Intelligent academic problem solving")
-        print(
-            "2. 📝 Question Generator (Question)     - Generate questions based on knowledge base"
-        )
-        print("3. 🔬 Deep Research (Research)     - Multi-round deep knowledge research")
-        print("4. 💡 Idea Generation (IdeaGen)      - Extract research ideas from notes")
-        print("5. 🌐 Start Web Service (Web)       - Start frontend and backend services")
-        print("6. ⚙️  System Settings (Settings)     - View/modify configuration")
-        print("7. 🚪 Exit")
+        logger.info("1. 🧠 Solver System (Solve) - Intelligent academic problem solving")
+        logger.info("2. 📝 Question Generator (Question) - Generate questions")
+        logger.info("3. 🔬 Deep Research (Research) - Multi-round research")
+        logger.info("4. 💡 Idea Generation (IdeaGen) - Extract research ideas")
+        logger.info("5. 🌐 Start Web Service (Web) - Start frontend/backend")
+        logger.info("6. ⚙️  System Settings (Settings) - View configuration")
+        logger.info("7. 🚪 Exit")
         logger.separator()
 
         while True:
@@ -112,8 +146,16 @@ class AITutorStarter:
                 return choice
             logger.warning("Invalid option, please try again")
 
-    def select_kb(self, default: str = None) -> str:
-        """Select knowledge base"""
+    def select_kb(self, default: str | None = None) -> str:
+        """Select a knowledge base.
+
+        Args:
+            default: Optional default knowledge base name.
+        Returns:
+            The selected knowledge base name.
+        Raises:
+            None.
+        """
         if len(self.available_kbs) == 1:
             return self.available_kbs[0]
 
@@ -122,7 +164,7 @@ class AITutorStarter:
         logger.separator()
         for i, kb in enumerate(self.available_kbs, 1):
             default_mark = " (default)" if kb == default else ""
-            print(f"{i}. {kb}{default_mark}")
+            logger.info(f"{i}. {kb}{default_mark}")
         logger.separator()
 
         while True:
@@ -140,22 +182,37 @@ class AITutorStarter:
             except ValueError:
                 logger.warning("Please enter a valid number")
 
-    async def run_solve_mode(self):
-        """Run solver mode"""
-        logger.section("Solver System")
+    def _prompt_text(self, prompt: str) -> str | None:
+        """Prompt the user for a single-line response.
 
-        # Select knowledge base
-        kb_name = self.select_kb(default="ai_textbook")
-        logger.success(f"Selected knowledge base: {kb_name}")
-
-        # Input question
+        Args:
+            prompt: The prompt message to display.
+        Returns:
+            The response string, or None when empty.
+        Raises:
+            None.
+        """
         logger.separator()
-        logger.info(
-            "Please enter your question (multi-line input supported, empty line to finish):"
-        )
+        logger.info(prompt)
+        logger.separator()
+        response = input().strip()
+        return response or None
+
+    def _prompt_multiline(self, prompt: str) -> str | None:
+        """Prompt the user for a multi-line response.
+
+        Args:
+            prompt: The prompt message to display.
+        Returns:
+            The response string, or None when empty.
+        Raises:
+            None.
+        """
+        logger.separator()
+        logger.info(prompt)
         logger.separator()
 
-        lines = []
+        lines: list[str] = []
         while True:
             line = input()
             if not line:
@@ -163,10 +220,67 @@ class AITutorStarter:
             lines.append(line)
 
         if not lines:
+            return None
+
+        return "\n".join(lines)
+
+    def _prompt_choice(
+        self,
+        title: str,
+        prompt: str,
+        options: list[tuple[str, str, str]],
+        default_key: str,
+    ) -> str:
+        """Prompt the user to choose from options.
+
+        Args:
+            title: Section title to display before options.
+            prompt: Input prompt string.
+            options: List of tuples (key, label, value).
+            default_key: Default option key when input is empty.
+        Returns:
+            The selected option value.
+        Raises:
+            None.
+        """
+        logger.separator()
+        logger.info(title)
+        logger.separator()
+        value_map = {key: value for key, _, value in options}
+        for key, label, _ in options:
+            logger.info(f"{key}. {label}")
+        logger.separator()
+
+        while True:
+            choice = input(prompt).strip()
+            if not choice:
+                return value_map[default_key]
+            if choice in value_map:
+                return value_map[choice]
+            logger.warning("Invalid option, please try again")
+
+    async def run_solve_mode(self) -> None:
+        """Run solver mode.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("Solver System")
+
+        # Select knowledge base
+        kb_name = self.select_kb(default="ai_textbook")
+        logger.success(f"Selected knowledge base: {kb_name}")
+
+        question = self._prompt_multiline(
+            "Please enter your question (multi-line input supported, empty line to finish):"
+        )
+        if not question:
             logger.warning("No question entered, returning to main menu")
             return
-
-        question = "\n".join(lines)
 
         # Display solver mode description
         logger.separator()
@@ -224,7 +338,7 @@ class AITutorStarter:
                 preview = "\n".join(preview_lines)
                 if len(formatted_solution) > len(preview):
                     preview += "\n\n... (more content available in output file) ..."
-                print(preview)
+                logger.info(preview)
                 logger.separator()
 
             # Save to history
@@ -257,67 +371,49 @@ class AITutorStarter:
             logger.debug("Debug information:")
             logger.debug(traceback.format_exc())
 
-    async def run_question_mode(self):
-        """Run question generation mode"""
-        print("\n" + "=" * 70)
-        print("📝 Question Generation System")
-        print("=" * 70)
+    async def run_question_mode(self) -> None:
+        """Run question generation mode.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("Question Generation System")
 
         # Select knowledge base
         kb_name = self.select_kb(default="ai_textbook")
-        print(f"✅ Selected knowledge base: {kb_name}")
+        logger.success(f"Selected knowledge base: {kb_name}")
 
-        # Input knowledge point
-        print("\n" + "-" * 70)
-        print("Please enter knowledge point:")
-        print("-" * 70)
-        knowledge_point = input().strip()
-
+        knowledge_point = self._prompt_text("Please enter knowledge point:")
         if not knowledge_point:
-            print("❌ No knowledge point entered, returning to main menu")
+            logger.warning("No knowledge point entered, returning to main menu")
             return
 
-        # Select difficulty
-        print("\n" + "-" * 70)
-        print("📊 Difficulty selection:")
-        print("-" * 70)
-        print("1. Easy")
-        print("2. Medium")
-        print("3. Hard")
-        print("-" * 70)
+        difficulty = self._prompt_choice(
+            title="Difficulty selection:",
+            prompt="\nPlease select difficulty (1-3) [default: 2]: ",
+            options=[
+                ("1", "Easy", "easy"),
+                ("2", "Medium", "medium"),
+                ("3", "Hard", "hard"),
+            ],
+            default_key="2",
+        )
 
-        difficulty_map = {"1": "easy", "2": "medium", "3": "hard"}
-        while True:
-            diff_choice = input("\nPlease select difficulty (1-3) [default: 2]: ").strip()
-            if not diff_choice:
-                difficulty = "medium"
-                break
-            if diff_choice in difficulty_map:
-                difficulty = difficulty_map[diff_choice]
-                break
-            print("❌ Invalid option, please try again")
+        question_type = self._prompt_choice(
+            title="Question type selection:",
+            prompt="\nPlease select question type (1/2) [default: 1]: ",
+            options=[
+                ("1", "Multiple choice (choice)", "choice"),
+                ("2", "Written answer (written)", "written"),
+            ],
+            default_key="1",
+        )
 
-        # Select question type
-        print("\n" + "-" * 70)
-        print("📋 Question type selection:")
-        print("-" * 70)
-        print("1. Multiple choice (choice)")
-        print("2. Written answer (written)")
-        print("-" * 70)
-
-        while True:
-            type_choice = input("\nPlease select question type (1/2) [default: 1]: ").strip()
-            if not type_choice or type_choice == "1":
-                question_type = "choice"
-                break
-            if type_choice == "2":
-                question_type = "written"
-                break
-            print("❌ Invalid option, please try again")
-
-        print("\n" + "=" * 70)
-        print("🚀 Starting question generation...")
-        print("=" * 70)
+        logger.section("Starting question generation")
 
         try:
             # Create coordinator
@@ -340,27 +436,23 @@ class AITutorStarter:
             result = await coordinator.generate_question(requirement)
 
             if result.get("success"):
-                print("\n" + "=" * 70)
-                print("✅ Question generation completed!")
-                print("=" * 70)
+                logger.section("Question generation completed")
 
                 question_data = result.get("question", {})
-                print("\n📝 Question:")
-                print(question_data.get("question", ""))
+                logger.info("Question:")
+                logger.info(question_data.get("question", ""))
 
                 if question_data.get("options"):
-                    print("\n📋 Options:")
+                    logger.info("Options:")
                     for key, value in question_data.get("options", {}).items():
-                        print(f"  {key}. {value}")
+                        logger.info(f"  {key}. {value}")
 
-                print(f"\n✅ Answer: {question_data.get('correct_answer', '')}")
-                print("\n💡 Explanation:")
-                print(question_data.get("explanation", ""))
+                logger.info(f"Answer: {question_data.get('correct_answer', '')}")
+                logger.info("Explanation:")
+                logger.info(question_data.get("explanation", ""))
 
                 if result.get("output_dir"):
-                    print(f"\n📁 Output directory: {result['output_dir']}")
-
-                print("=" * 70)
+                    logger.info(f"Output directory: {result['output_dir']}")
 
                 # Save to history
                 try:
@@ -381,67 +473,55 @@ class AITutorStarter:
                     )
                 except Exception as hist_error:
                     # History save failure does not affect main flow
-                    print(f"\n⚠️  History save failed: {hist_error!s}")
+                    logger.warning(f"History save failed: {hist_error!s}")
             else:
-                print("\n" + "=" * 70)
-                print(f"❌ Question generation failed: {result.get('error', 'Unknown error')}")
+                logger.section("Question generation failed")
+                logger.error(result.get("error", "Unknown error"))
                 if result.get("reason"):
-                    print(f"Reason: {result['reason']}")
-                print("=" * 70)
+                    logger.error(f"Reason: {result['reason']}")
 
         except Exception as e:
-            print("\n" + "=" * 70)
-            print(f"❌ Question generation failed: {e!s}")
+            logger.section("Question generation failed")
+            logger.error(str(e))
             import traceback
 
-            print("\nDebug information:")
-            print(traceback.format_exc())
-            print("=" * 70)
+            logger.debug("Debug information:")
+            logger.debug(traceback.format_exc())
 
-    async def run_research_mode(self):
-        """Run deep research mode"""
-        print("\n" + "=" * 70)
-        print("🔬 Deep Research System")
-        print("=" * 70)
+    async def run_research_mode(self) -> None:
+        """Run deep research mode.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("Deep Research System")
 
         # Select knowledge base
         kb_name = self.select_kb(default="ai_textbook")
-        print(f"✅ Selected knowledge base: {kb_name}")
+        logger.success(f"Selected knowledge base: {kb_name}")
 
-        # Input research topic
-        print("\n" + "-" * 70)
-        print("Please enter research topic:")
-        print("-" * 70)
-        topic = input().strip()
-
+        topic = self._prompt_text("Please enter research topic:")
         if not topic:
-            print("❌ No topic entered, returning to main menu")
+            logger.warning("No topic entered, returning to main menu")
             return
 
-        # Select research mode
-        print("\n" + "-" * 70)
-        print("🎯 Research mode:")
-        print("-" * 70)
-        print("1. Quick - 2 subtopics, 2 iterations")
-        print("2. Standard - 5 subtopics, 5 iterations")
-        print("3. Deep - 8 subtopics, 7 iterations")
-        print("4. Auto - Automatically generate subtopic count")
-        print("-" * 70)
+        preset = self._prompt_choice(
+            title="Research mode:",
+            prompt="\nPlease select mode (1-4) [default: 1]: ",
+            options=[
+                ("1", "Quick - 2 subtopics, 2 iterations", "quick"),
+                ("2", "Standard - 5 subtopics, 5 iterations", "standard"),
+                ("3", "Deep - 8 subtopics, 7 iterations", "deep"),
+                ("4", "Auto - Automatically generate subtopic count", "auto"),
+            ],
+            default_key="1",
+        )
 
-        preset_map = {"1": "quick", "2": "standard", "3": "deep", "4": "auto"}
-        while True:
-            mode_choice = input("\nPlease select mode (1-4) [default: 1]: ").strip()
-            if not mode_choice:
-                preset = "quick"
-                break
-            if mode_choice in preset_map:
-                preset = preset_map[mode_choice]
-                break
-            print("❌ Invalid option, please try again")
-
-        print("\n" + "=" * 70)
-        print("🚀 Starting deep research...")
-        print("=" * 70)
+        logger.section("Starting deep research")
 
         try:
             # Import research pipeline
@@ -506,37 +586,38 @@ class AITutorStarter:
                     config["researching"].update(preset_cfg["researching"])
 
                 if preset == "auto":
-                    print(
-                        f"✅ Auto mode enabled (automatically generate subtopic count, max: {config['planning']['decompose'].get('auto_max_subtopics', 8)})"
+                    logger.success(
+                        "Auto mode enabled (automatically generate subtopic "
+                        "count, max: "
+                        f"{config['planning']['decompose'].get('auto_max_subtopics', 8)})"
                     )
                 else:
-                    print(f"✅ {preset.capitalize()} mode enabled")
+                    logger.success(f"{preset.capitalize()} mode enabled")
 
             # Create research pipeline
             pipeline = ResearchPipeline(
-                config=config, api_key=self.api_key, base_url=self.base_url, kb_name=kb_name
+                config=config,
+                api_key=self.api_key,
+                base_url=self.base_url,
+                kb_name=kb_name,
             )
 
             # Execute research
             result = await pipeline.run(topic)
 
-            print("\n" + "=" * 70)
-            print("✅ Research completed!")
-            print("=" * 70)
-            print(f"📁 Report location: {result['final_report_path']}")
-            print(f"📊 Research ID: {result['research_id']}")
+            logger.section("Research completed")
+            logger.info(f"Report location: {result['final_report_path']}")
+            logger.info(f"Research ID: {result['research_id']}")
 
             metadata = result.get("metadata", {})
             if metadata:
-                print("\n📈 Research statistics:")
-                print(f"   Report word count: {metadata.get('report_word_count', 0)}")
+                logger.info("Research statistics:")
+                logger.info(f"   Report word count: {metadata.get('report_word_count', 0)}")
                 stats = metadata.get("statistics", {})
                 if stats:
-                    print(f"   Topic blocks: {stats.get('total_blocks', 0)}")
-                    print(f"   Completed topics: {stats.get('completed', 0)}")
-                    print(f"   Tool calls: {stats.get('total_tool_calls', 0)}")
-
-            print("=" * 70)
+                    logger.info(f"   Topic blocks: {stats.get('total_blocks', 0)}")
+                    logger.info(f"   Completed topics: {stats.get('completed', 0)}")
+                    logger.info(f"   Tool calls: {stats.get('total_tool_calls', 0)}")
 
             # Save to history
             try:
@@ -575,67 +656,59 @@ class AITutorStarter:
             logger.debug("Debug information:")
             logger.debug(traceback.format_exc())
 
-    async def run_ideagen_mode(self):
-        """Run idea generation mode"""
-        print("\n" + "=" * 70)
-        print("💡 Idea Generation System")
-        print("=" * 70)
+    async def run_ideagen_mode(self) -> None:
+        """Run idea generation mode.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("Idea Generation System")
 
         # Select knowledge base
         kb_name = self.select_kb()
-        print(f"✅ Selected knowledge base: {kb_name}")
+        logger.success(f"Selected knowledge base: {kb_name}")
 
-        # Input materials
-        print("\n" + "-" * 70)
-        print(
-            "Please enter knowledge points or material content (multi-line input supported, empty line to finish):"
+        materials = self._prompt_multiline(
+            "Please enter knowledge points or material content "
+            "(multi-line input supported, empty line to finish):"
         )
-        print("-" * 70)
-
-        lines = []
-        while True:
-            line = input()
-            if not line:
-                break
-            lines.append(line)
-
-        if not lines:
-            print("❌ No content entered, returning to main menu")
+        if not materials:
+            logger.warning("No content entered, returning to main menu")
             return
 
-        materials = "\n".join(lines)
-
-        print("\n" + "=" * 70)
-        print("🚀 Starting research idea generation...")
-        print("=" * 70)
+        logger.section("Starting research idea generation")
 
         try:
             # Import ideagen module
-            from src.agents.ideagen.idea_generation_workflow import IdeaGenerationWorkflow
-            from src.agents.ideagen.material_organizer_agent import MaterialOrganizerAgent
+            from src.agents.ideagen.idea_generation_workflow import (
+                IdeaGenerationWorkflow,
+            )
+            from src.agents.ideagen.material_organizer_agent import (
+                MaterialOrganizerAgent,
+            )
 
             # Organize materials
             organizer = MaterialOrganizerAgent(api_key=self.api_key, base_url=self.base_url)
 
-            print("📊 Extracting knowledge points...")
+            logger.info("Extracting knowledge points...")
             knowledge_points = await organizer.extract_knowledge_points(materials)
-            print(f"✅ Extracted {len(knowledge_points)} knowledge points")
+            logger.success(f"Extracted {len(knowledge_points)} knowledge points")
 
             if not knowledge_points:
-                print("❌ Failed to extract valid knowledge points")
+                logger.warning("Failed to extract valid knowledge points")
                 return
 
             # Generate ideas
             workflow = IdeaGenerationWorkflow(api_key=self.api_key, base_url=self.base_url)
 
-            print("🔍 Generating research ideas...")
+            logger.info("Generating research ideas...")
             result = await workflow.process(knowledge_points)
-
-            print("\n" + "=" * 70)
-            print("✅ Research idea generation completed!")
-            print("=" * 70)
-            print(result)
-            print("=" * 70)
+            logger.section("Research idea generation completed")
+            logger.info(result)
 
         except Exception as e:
             logger.section("Generation failed")
@@ -645,24 +718,30 @@ class AITutorStarter:
             logger.debug("Debug information:")
             logger.debug(traceback.format_exc())
 
-    def run_web_mode(self):
-        """Start web service"""
-        print("\n" + "=" * 70)
-        print("🌐 Start Web Service")
-        print("=" * 70)
-        print("1. Start backend API only (port 8000)")
-        print("2. Start frontend only (port 3000)")
-        print("3. Start both frontend and backend")
-        print("4. Return to main menu")
-        print("=" * 70)
+    def run_web_mode(self) -> None:
+        """Start the web service.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("Start Web Service")
+        logger.info("1. Start backend API only (port 8000)")
+        logger.info("2. Start frontend only (port 3000)")
+        logger.info("3. Start both frontend and backend")
+        logger.info("4. Return to main menu")
 
         while True:
             choice = input("\nPlease select (1-4): ").strip()
             if choice == "1":
-                print("\n🚀 Starting backend service...")
-                print("Command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload")
-                print("-" * 70)
-                import subprocess
+                logger.section("Starting backend service")
+                logger.info(
+                    "Command: python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload"
+                )
+                import subprocess  # nosec B404
 
                 subprocess.run(
                     [
@@ -671,76 +750,88 @@ class AITutorStarter:
                         "uvicorn",
                         "api.main:app",
                         "--host",
-                        "0.0.0.0",
+                        "127.0.0.1",
                         "--port",
                         "8000",
                         "--reload",
                     ],
                     check=False,
+                    shell=False,
                 )
                 break
             if choice == "2":
-                print("\n🚀 Starting frontend service...")
-                print("Command: cd web && npm run dev")
-                print("-" * 70)
-                import subprocess
+                logger.section("Starting frontend service")
+                logger.info("Command: cd web && npm run dev")
+                import subprocess  # nosec B404
 
-                web_dir = Path(__file__).parent / "web"
+                web_dir = project_root / "web"
                 subprocess.run(["npm", "run", "dev"], check=False, cwd=web_dir)
                 break
             if choice == "3":
-                print("\n🚀 Starting both frontend and backend services...")
-                print("Command: python start_web.py")
-                print("-" * 70)
-                import subprocess
+                logger.section("Starting frontend and backend services")
+                logger.info("Command: python start_web.py")
+                import subprocess  # nosec B404
 
                 subprocess.run([sys.executable, "start_web.py"], check=False)
                 break
             if choice == "4":
                 return
-            print("❌ Invalid option, please try again")
+            logger.warning("Invalid option, please try again")
 
-    def show_settings(self):
-        """Display settings"""
-        print("\n" + "=" * 70)
-        print("⚙️  System Settings")
-        print("=" * 70)
+    def show_settings(self) -> None:
+        """Display settings.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
+        logger.section("System Settings")
 
         # Display LLM configuration
         try:
             llm_config = get_llm_config()
-            print("\n📦 LLM Configuration:")
-            print(f"   Model: {llm_config.model or 'N/A'}")
-            print(f"   API Endpoint: {llm_config.base_url or 'N/A'}")
-            print(f"   API Key: {'Configured' if llm_config.api_key else 'Not configured'}")
+            logger.info("LLM Configuration:")
+            logger.info(f"   Model: {llm_config.model or 'N/A'}")
+            logger.info(f"   API Endpoint: {llm_config.base_url or 'N/A'}")
+            logger.info(f"   API Key: {'Configured' if llm_config.api_key else 'Not configured'}")
         except Exception as e:
-            print(f"   ❌ Load failed: {e}")
+            logger.error(f"Load failed: {e}")
 
         # Display knowledge bases
-        print("\n📚 Available knowledge bases:")
+        logger.info("Available knowledge bases:")
         for i, kb in enumerate(self.available_kbs, 1):
-            print(f"   {i}. {kb}")
+            logger.info(f"   {i}. {kb}")
 
         # Display configuration file locations
-        print("\n📁 Configuration file locations:")
+        logger.info("Configuration file locations:")
         env_files = [".env", "DeepTutor.env"]
         for env_file in env_files:
-            env_path = Path(__file__).parent / env_file
+            env_path = project_root / env_file
             if env_path.exists():
-                print(f"   ✅ {env_path}")
+                logger.info(f"   ✅ {env_path}")
             else:
-                print(f"   ⚪ {env_path} (not found)")
+                logger.info(f"   ⚪ {env_path} (not found)")
 
-        print("\n" + "=" * 70)
-        print(
-            "💡 Tip: To modify settings, edit the .env file directly, or use the Settings page in the Web interface"
+        logger.info(
+            "Tip: To modify settings, edit the .env file directly, or use "
+            "the Settings page in the Web interface."
         )
-        print("=" * 70)
 
         input("\nPress Enter to return to main menu...")
 
-    async def run(self):
-        """Run main loop"""
+    async def run(self) -> None:
+        """Run the main loop.
+
+        Args:
+            None.
+        Returns:
+            None.
+        Raises:
+            None.
+        """
         while True:
             try:
                 choice = self.show_main_menu()
@@ -760,32 +851,38 @@ class AITutorStarter:
                     self.show_settings()
                     continue  # Don't ask to continue after settings
                 elif choice == "7":
-                    print("\n" + "=" * 70)
-                    print("👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!")
-                    print("=" * 70)
+                    logger.section(
+                        "Thank you for using DeepTutor Intelligent Teaching Assistant System"
+                    )
                     break
 
                 # Ask if continue
-                print("\n" + "-" * 70)
+                logger.separator()
                 continue_choice = input("Continue using? (y/n) [default: y]: ").strip().lower()
                 if continue_choice == "n":
-                    print("\n" + "=" * 70)
-                    print("👋 Thank you for using DeepTutor Intelligent Teaching Assistant System!")
-                    print("=" * 70)
+                    logger.section(
+                        "Thank you for using DeepTutor Intelligent Teaching Assistant System"
+                    )
                     break
 
             except KeyboardInterrupt:
-                print("\n\n" + "=" * 70)
-                print("👋 Program interrupted, thank you for using!")
-                print("=" * 70)
+                logger.section("Program interrupted, thank you for using")
                 break
             except Exception as e:
-                print(f"\n❌ Error occurred: {e!s}")
-                print("Please retry or exit the program")
+                logger.error(f"Error occurred: {e!s}")
+                logger.info("Please retry or exit the program")
 
 
-def main():
-    """Main function"""
+def main() -> None:
+    """Run the CLI entrypoint.
+
+    Args:
+        None.
+    Returns:
+        None.
+    Raises:
+        SystemExit: Raised when startup fails.
+    """
     try:
         starter = AITutorStarter()
         asyncio.run(starter.run())

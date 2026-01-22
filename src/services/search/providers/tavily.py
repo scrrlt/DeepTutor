@@ -16,7 +16,7 @@ from datetime import datetime
 import json
 from typing import Any
 
-import requests
+import httpx
 
 from ..base import BaseSearchProvider
 from ..types import Citation, SearchResult, WebSearchResponse
@@ -87,7 +87,11 @@ class TavilyProvider(BaseSearchProvider):
         if exclude_domains:
             payload["exclude_domains"] = exclude_domains
 
-        response = requests.post(self.BASE_URL, json=payload, timeout=timeout)
+        response = httpx.post(
+            self.BASE_URL,
+            json=payload,
+            timeout=timeout,
+        )
 
         if response.status_code != 200:
             try:
