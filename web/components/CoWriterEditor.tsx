@@ -341,7 +341,7 @@ export default function CoWriterEditor({
   // Synchronized scroll functionality
   const handleEditorScroll = useCallback(() => {
     if (isSyncingScroll.current) return;
-    const editor = editorContainerRef.current;
+    const editor = textareaRef.current;
     const preview = previewRef.current;
     if (!editor || !preview) return;
 
@@ -358,7 +358,7 @@ export default function CoWriterEditor({
 
   const handlePreviewScroll = useCallback(() => {
     if (isSyncingScroll.current) return;
-    const editor = editorContainerRef.current;
+    const editor = textareaRef.current;
     const preview = previewRef.current;
     if (!editor || !preview) return;
 
@@ -1477,19 +1477,16 @@ export default function CoWriterEditor({
               {content.length} chars · {content.split("\n").length} lines
             </div>
           </div>
-          <div
-            ref={editorContainerRef}
-            className="flex-1 overflow-y-auto"
-            onScroll={handleEditorScroll}
-          >
+          <div ref={editorContainerRef} className="flex-1 overflow-y-hidden">
             <textarea
               ref={textareaRef}
               value={hideAiMarks ? getDisplayContent() : content}
               onChange={(e) => handleContentChange(e.target.value)}
               onMouseUp={handleMouseUp}
-              className="w-full h-full min-h-full p-4 resize-none outline-none font-mono text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full h-full min-h-full p-4 resize-none outline-none font-mono text-sm leading-relaxed text-slate-800 dark:text-slate-200 bg-transparent placeholder-slate-400 dark:placeholder-slate-500 overflow-y-auto"
               placeholder={t("Type your markdown here...")}
               style={{ minHeight: "100%" }}
+              onScroll={handleEditorScroll}
             />
           </div>
         </div>
