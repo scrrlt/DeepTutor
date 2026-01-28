@@ -37,8 +37,9 @@ class CircuitBreaker:
                 return False
             elif state == "half-open":
                 return True
+        return False
 
-    def record_success(self, provider: str):
+    def record_success(self, provider: str) -> None:
         """Record successful call."""
         with self.lock:
             if self.state.get(provider) == "half-open":
@@ -48,7 +49,7 @@ class CircuitBreaker:
             elif self.state.get(provider) == "closed":
                 self.failure_count[provider] = 0
 
-    def record_failure(self, provider: str):
+    def record_failure(self, provider: str) -> None:
         """Record failed call."""
         with self.lock:
             self.failure_count[provider] = self.failure_count.get(provider, 0) + 1
@@ -64,7 +65,7 @@ class CircuitBreaker:
 circuit_breaker = CircuitBreaker()
 
 
-def alert_callback(provider: str, rate: float):
+def alert_callback(provider: str, rate: float) -> None:
     """Alert callback to trigger circuit breaker."""
     circuit_breaker.record_failure(provider)
 
@@ -74,6 +75,11 @@ def is_call_allowed(provider: str) -> bool:
     return circuit_breaker.call(provider)
 
 
-def record_call_success(provider: str):
+def record_call_success(provider: str) -> None:
     """Record successful call."""
     circuit_breaker.record_success(provider)
+
+
+def record_call_failure(provider: str) -> None:
+    """Record failed call."""
+    circuit_breaker.record_failure(provider)

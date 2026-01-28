@@ -18,11 +18,10 @@ Usage:
         # use streaming
 """
 
-from typing import Any, Optional
 
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
-PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
+PROVIDER_CAPABILITIES: dict[str, dict[str, object]] = {
     # OpenAI and OpenAI-compatible providers
     "openai": {
         "supports_response_format": True,
@@ -124,7 +123,7 @@ PROVIDER_CAPABILITIES: dict[str, dict[str, Any]] = {
 }
 
 # Default capabilities for unknown providers (assume OpenAI-compatible)
-DEFAULT_CAPABILITIES: dict[str, Any] = {
+DEFAULT_CAPABILITIES: dict[str, object] = {
     "supports_response_format": True,
     "supports_streaming": True,
     "supports_tools": False,
@@ -136,7 +135,7 @@ DEFAULT_CAPABILITIES: dict[str, Any] = {
 # Model-specific overrides
 # Format: {model_pattern: {capability: value}}
 # Patterns are matched with case-insensitive startswith
-MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
+MODEL_OVERRIDES: dict[str, dict[str, object]] = {
     "deepseek": {
         "supports_response_format": False,
         "has_thinking_tags": True,
@@ -180,9 +179,9 @@ MODEL_OVERRIDES: dict[str, dict[str, Any]] = {
 def get_capability(
     binding: str,
     capability: str,
-    model: Optional[str] = None,
-    default: Any = None,
-) -> Any:
+    model: str | None = None,
+    default: object = None,
+) -> object:
     """
     Get a capability value for a provider/model combination.
 
@@ -225,7 +224,7 @@ def get_capability(
     return default
 
 
-def supports_response_format(binding: str, model: Optional[str] = None) -> bool:
+def supports_response_format(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports response_format parameter.
 
@@ -238,10 +237,11 @@ def supports_response_format(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if response_format is supported
     """
-    return get_capability(binding, "supports_response_format", model, default=True)
+    value = get_capability(binding, "supports_response_format", model, default=True)
+    return bool(value)
 
 
-def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
+def supports_streaming(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports streaming responses.
 
@@ -252,10 +252,11 @@ def supports_streaming(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if streaming is supported
     """
-    return get_capability(binding, "supports_streaming", model, default=True)
+    value = get_capability(binding, "supports_streaming", model, default=True)
+    return bool(value)
 
 
-def system_in_messages(binding: str, model: Optional[str] = None) -> bool:
+def system_in_messages(binding: str, model: str | None = None) -> bool:
     """
     Check if system prompt should be in messages array (OpenAI style)
     or as a separate parameter (Anthropic style).
@@ -267,10 +268,11 @@ def system_in_messages(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if system prompt goes in messages array
     """
-    return get_capability(binding, "system_in_messages", model, default=True)
+    value = get_capability(binding, "system_in_messages", model, default=True)
+    return bool(value)
 
 
-def has_thinking_tags(binding: str, model: Optional[str] = None) -> bool:
+def has_thinking_tags(binding: str, model: str | None = None) -> bool:
     """
     Check if the model output may contain thinking tags (<think>...</think>).
 
@@ -281,10 +283,11 @@ def has_thinking_tags(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if thinking tags should be filtered
     """
-    return get_capability(binding, "has_thinking_tags", model, default=False)
+    value = get_capability(binding, "has_thinking_tags", model, default=False)
+    return bool(value)
 
 
-def supports_tools(binding: str, model: Optional[str] = None) -> bool:
+def supports_tools(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider/model supports function calling / tools.
 
@@ -295,10 +298,11 @@ def supports_tools(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if tools/function calling is supported
     """
-    return get_capability(binding, "supports_tools", model, default=False)
+    value = get_capability(binding, "supports_tools", model, default=False)
+    return bool(value)
 
 
-def requires_api_version(binding: str, model: Optional[str] = None) -> bool:
+def requires_api_version(binding: str, model: str | None = None) -> bool:
     """
     Check if the provider requires an API version parameter (e.g., Azure OpenAI).
 
@@ -309,12 +313,13 @@ def requires_api_version(binding: str, model: Optional[str] = None) -> bool:
     Returns:
         True if api_version is required
     """
-    return get_capability(binding, "requires_api_version", model, default=False)
+    value = get_capability(binding, "requires_api_version", model, default=False)
+    return bool(value)
 
 
 def get_effective_temperature(
     binding: str,
-    model: Optional[str] = None,
+    model: str | None = None,
     requested_temp: float = 0.7,
 ) -> float:
     """
@@ -332,8 +337,8 @@ def get_effective_temperature(
         The effective temperature to use for the API call
     """
     forced_temp = get_capability(binding, "forced_temperature", model)
-    if forced_temp is not None:
-        return forced_temp
+    if isinstance(forced_temp, (int, float)):
+        return float(forced_temp)
     return requested_temp
 
 

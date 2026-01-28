@@ -9,7 +9,8 @@ Note: This is a legacy interface. Prefer using the factory functions directly:
     from src.services.llm import complete, stream
 """
 
-from typing import Any, Dict, List, Optional
+from collections.abc import Awaitable, Callable
+from typing import cast
 
 from src.logging import get_logger
 
@@ -25,7 +26,7 @@ class LLMClient:
     Prefer using factory functions (complete, stream) directly for new code.
     """
 
-    def __init__(self, config: Optional[LLMConfig] = None):
+    def __init__(self, config: LLMConfig | None = None) -> None:
         """
         Initialize LLM client.
 
@@ -42,7 +43,7 @@ class LLMClient:
         # We must set these env vars early to ensure all LightRAG operations work.
         self._setup_openai_env_vars()
 
-    def _setup_openai_env_vars(self):
+    def _setup_openai_env_vars(self) -> None:
         """
         Set OpenAI environment variables for LightRAG compatibility.
 
@@ -62,14 +63,14 @@ class LLMClient:
 
             if self.config.base_url:
                 os.environ["OPENAI_BASE_URL"] = self.config.base_url
-                self.logger.debug(f"Set OPENAI_BASE_URL env var to {self.config.base_url}")
+                self.logger.debug("Set OPENAI_BASE_URL env var to %s" % self.config.base_url)
 
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
-        **kwargs: Any,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
+        **kwargs: object,
     ) -> str:
         """
         Call LLM completion via Factory.
@@ -85,8 +86,8 @@ class LLMClient:
         """
         from . import factory
 
-        # Delegate to factory for unified routing and retry handling
-        return await factory.complete(
+        factory_complete = cast(Callable[..., Awaitable[str]], factory.complete)
+        return await factory_complete(
             prompt=prompt,
             system_prompt=system_prompt or "You are a helpful assistant.",
             model=self.config.model,
@@ -100,9 +101,9 @@ class LLMClient:
     def complete_sync(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        history: Optional[List[Dict[str, str]]] = None,
-        **kwargs: Any,
+        system_prompt: str | None = None,
+        history: list[dict[str, str]] | None = None,
+        **kwargs: object,
     ) -> str:
         """
         Synchronous wrapper for complete().
@@ -122,7 +123,7 @@ class LLMClient:
             "Use `await llm.complete(...)` instead."
         )
 
-    def get_model_func(self):
+    def get_model_func(self) -> Callable[..., object]:
         """
         Get a function compatible with LightRAG's llm_model_func parameter.
 
@@ -140,11 +141,12 @@ class LLMClient:
 
             def llm_model_func_via_factory(
                 prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
-                **kwargs: Any,
-            ):
-                return factory.complete(
+                system_prompt: str | None = None,
+                history_messages: list[dict[str, object]] | None = None,
+                **kwargs: object,
+            ) -> object:
+                factory_complete = cast(Callable[..., object], factory.complete)
+                return factory_complete(
                     prompt=prompt,
                     system_prompt=system_prompt or "You are a helpful assistant.",
                     model=self.config.model,
@@ -163,12 +165,12 @@ class LLMClient:
 
         def llm_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
-            **kwargs: Any,
-        ):
+            system_prompt: str | None = None,
+            history_messages: list[dict[str, object]] | None = None,
+            **kwargs: object,
+        ) -> object:
             # Only pass api_version if set (for Azure OpenAI)
-            lightrag_kwargs = {
+            lightrag_kwargs: dict[str, object] = {
                 "system_prompt": system_prompt,
                 "history_messages": history_messages or [],
                 "api_key": self.config.api_key,
@@ -178,15 +180,11 @@ class LLMClient:
             api_version = getattr(self.config, "api_version", None)
             if api_version:
                 lightrag_kwargs["api_version"] = api_version
-            return openai_complete_if_cache(
-                self.config.model,
-                prompt,
-                **lightrag_kwargs,
-            )
+            return openai_complete_if_cache(self.config.model, prompt, **lightrag_kwargs)
 
         return llm_model_func
 
-    def get_vision_model_func(self):
+    def get_vision_model_func(self) -> Callable[..., object]:
         """
         Get a function compatible with RAG-Anything's vision_model_func parameter.
 
@@ -204,14 +202,15 @@ class LLMClient:
 
             def vision_model_func_via_factory(
                 prompt: str,
-                system_prompt: Optional[str] = None,
-                history_messages: Optional[List[Dict]] = None,
-                image_data: Optional[str] = None,
-                messages: Optional[List[Dict]] = None,
-                **kwargs: Any,
-            ):
+                system_prompt: str | None = None,
+                history_messages: list[dict[str, object]] | None = None,
+                image_data: str | None = None,
+                messages: list[dict[str, object]] | None = None,
+                **kwargs: object,
+            ) -> object:
                 # Use factory for unified handling
-                return factory.complete(
+                factory_complete = cast(Callable[..., object], factory.complete)
+                return factory_complete(
                     prompt=prompt,
                     system_prompt=system_prompt or "You are a helpful assistant.",
                     model=self.config.model,
@@ -235,12 +234,12 @@ class LLMClient:
 
         def vision_model_func(
             prompt: str,
-            system_prompt: Optional[str] = None,
-            history_messages: Optional[List[Dict]] = None,
-            image_data: Optional[str] = None,
-            messages: Optional[List[Dict]] = None,
-            **kwargs: Any,
-        ):
+            system_prompt: str | None = None,
+            history_messages: list[dict[str, object]] | None = None,
+            image_data: str | None = None,
+            messages: list[dict[str, object]] | None = None,
+            **kwargs: object,
+        ) -> object:
             # Handle multimodal messages
             if messages:
                 clean_kwargs = {
@@ -308,11 +307,10 @@ class LLMClient:
         return vision_model_func
 
 
-# Singleton instance
-_client: Optional[LLMClient] = None
+_client: LLMClient | None = None
 
 
-def get_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
+def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
     """
     Get or create the singleton LLM client.
 
@@ -328,7 +326,7 @@ def get_llm_client(config: Optional[LLMConfig] = None) -> LLMClient:
     return _client
 
 
-def reset_llm_client():
+def reset_llm_client() -> None:
     """Reset the singleton LLM client."""
     global _client
     _client = None
