@@ -11,9 +11,11 @@ def test_registry_register_and_lookup() -> None:
 
     name = "registry_test"
     registry._provider_registry.pop(name, None)
+    try:
+        decorated = registry.register_provider(name)(_Provider)
 
-    decorated = registry.register_provider(name)(_Provider)
-
-    assert registry.is_provider_registered(name) is True
-    assert registry.get_provider_class(name) is decorated
-    assert name in registry.list_providers()
+        assert registry.is_provider_registered(name) is True
+        assert registry.get_provider_class(name) is decorated
+        assert name in registry.list_providers()
+    finally:
+        registry._provider_registry.pop(name, None)

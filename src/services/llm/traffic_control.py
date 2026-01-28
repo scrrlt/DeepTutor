@@ -35,6 +35,8 @@ class TrafficController:
         """
         self.provider_name = provider_name
         self.max_concurrency = max_concurrency
+        if requests_per_minute <= 0:
+            raise ValueError("requests_per_minute must be > 0")
         self.rpm = requests_per_minute
         self.acquisition_timeout = acquisition_timeout
 

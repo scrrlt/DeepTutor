@@ -58,6 +58,9 @@ class OpenAIProvider(BaseLLMProvider):
         super().__init__(config)
         http_client = None
         if os.getenv("DISABLE_SSL_VERIFY", "").lower() in ("true", "1", "yes"):
+            if os.getenv("ENVIRONMENT", "").lower() in ("prod", "production"):
+                raise LLMConfigError("DISABLE_SSL_VERIFY is not allowed in production")
+            logger.warning("SSL verification disabled for OpenAI HTTP client")
             http_client = httpx.AsyncClient(verify=False)  # nosec B501
         self.client = openai.AsyncOpenAI(
             api_key=self.api_key,

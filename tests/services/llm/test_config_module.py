@@ -19,6 +19,8 @@ def _reset_config_cache() -> None:
 def test_get_llm_config_from_env(monkeypatch) -> None:
     """Environment-based config loading should populate required fields."""
     _reset_config_cache()
+    fake_module = type("_Config", (), {"get_active_llm_config": lambda: None})
+    monkeypatch.setitem(sys.modules, "src.services.config", fake_module)
     monkeypatch.setenv("LLM_MODEL", "gpt-test")
     monkeypatch.setenv("LLM_HOST", "https://api.openai.com")
     monkeypatch.setenv("LLM_API_KEY", "key")

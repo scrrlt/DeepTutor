@@ -47,7 +47,7 @@ def test_client_complete_sync(monkeypatch: MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_client_complete_sync_running_loop(monkeypatch: MonkeyPatch) -> None:
+async def test_client_complete_sync_running_loop() -> None:
     """complete_sync should raise when called from a running event loop."""
     config = LLMConfig(model="model", api_key="key", base_url="https://example.com")
     client = LLMClient(config)
@@ -63,9 +63,9 @@ def test_client_get_model_func_openai(monkeypatch: MonkeyPatch) -> None:
 
     module = types.ModuleType("lightrag.llm.openai")
     module.openai_complete_if_cache = lambda *_args, **_kwargs: "ok"
-    sys.modules["lightrag"] = types.ModuleType("lightrag")
-    sys.modules["lightrag.llm"] = types.ModuleType("lightrag.llm")
-    sys.modules["lightrag.llm.openai"] = module
+    monkeypatch.setitem(sys.modules, "lightrag", types.ModuleType("lightrag"))
+    monkeypatch.setitem(sys.modules, "lightrag.llm", types.ModuleType("lightrag.llm"))
+    monkeypatch.setitem(sys.modules, "lightrag.llm.openai", module)
 
     monkeypatch.setattr("src.services.llm.client.system_in_messages", lambda *_a: True)
 
@@ -113,9 +113,9 @@ def test_client_get_vision_model_func_openai(monkeypatch: MonkeyPatch) -> None:
 
     module = types.ModuleType("lightrag.llm.openai")
     module.openai_complete_if_cache = lambda *_args, **_kwargs: "ok"
-    sys.modules["lightrag"] = types.ModuleType("lightrag")
-    sys.modules["lightrag.llm"] = types.ModuleType("lightrag.llm")
-    sys.modules["lightrag.llm.openai"] = module
+    monkeypatch.setitem(sys.modules, "lightrag", types.ModuleType("lightrag"))
+    monkeypatch.setitem(sys.modules, "lightrag.llm", types.ModuleType("lightrag.llm"))
+    monkeypatch.setitem(sys.modules, "lightrag.llm.openai", module)
 
     monkeypatch.setattr("src.services.llm.client.system_in_messages", lambda *_a: True)
 

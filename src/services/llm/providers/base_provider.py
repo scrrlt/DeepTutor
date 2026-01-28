@@ -85,22 +85,29 @@ class BaseLLMProvider(ABC):
             raise error
 
     def _should_record_failure(self, error: LLMError) -> bool:
+        """Return True when failures should trip the circuit breaker."""
         if isinstance(error, (LLMRateLimitError, LLMTimeoutError)):
             return True
         if isinstance(error, LLMAPIError):
-            status_code = getattr(error, "status_code", None)
-            return status_code is not None and status_code >= 500
+            status_code = error.status_code
+            if status_code is None:
+                return True
+            return status_code >= 500
         return False
 
     def _should_retry_error(self, error: BaseException) -> bool:
+        """Return True when an error should trigger a retry."""
         if isinstance(error, (LLMRateLimitError, LLMTimeoutError)):
             return True
         if isinstance(error, LLMAPIError):
-            status_code = getattr(error, "status_code", None)
-            return status_code is not None and status_code >= 500
+            status_code = error.status_code
+            if status_code is None:
+                return True
+            return status_code >= 500
         return False
 
     def _wait_strategy(self, retry_state: tenacity.RetryCallState) -> float:
+        """Return the next retry delay based on error context."""
         outcome = retry_state.outcome
         if outcome is None:
             return BASE_RETRY_DELAY_SECONDS

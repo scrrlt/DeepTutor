@@ -87,6 +87,7 @@ class LLMClient:
         from . import factory
 
         factory_complete = cast(Callable[..., Awaitable[str]], factory.complete)
+        messages = history or None
         return await factory_complete(
             prompt=prompt,
             system_prompt=system_prompt or "You are a helpful assistant.",
@@ -95,6 +96,7 @@ class LLMClient:
             base_url=self.config.base_url,
             api_version=getattr(self.config, "api_version", None),
             binding=getattr(self.config, "binding", "openai"),
+            messages=messages,
             **kwargs,
         )
 

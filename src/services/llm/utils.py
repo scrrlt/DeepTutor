@@ -78,12 +78,9 @@ def is_local_llm_server(base_url: str, allow_private: bool | None = None) -> boo
     if any(domain in base_url_lower for domain in CLOUD_DOMAINS):
         return False
 
-    try:
-        parsed = urlparse(base_url)
-        hostname = parsed.hostname or parsed.netloc
-        if not hostname:
-            return False
-    except Exception:
+    parsed = urlparse(base_url)
+    hostname = parsed.hostname or parsed.netloc
+    if not hostname:
         hostname = base_url
 
     hostname_lower = hostname.lower()
@@ -103,6 +100,7 @@ def is_local_llm_server(base_url: str, allow_private: bool | None = None) -> boo
 
 
 def _needs_v1_suffix(base_url: str) -> bool:
+    """Return True when base_url should receive a /v1 suffix."""
     return any(port in base_url for port in V1_SUFFIX_PORTS) and not base_url.endswith("/v1")
 
 

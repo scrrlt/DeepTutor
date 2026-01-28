@@ -176,6 +176,9 @@ async def complete(
     if model is None or not model.strip():
         raise LLMConfigError("Model is required for cloud LLM provider")
 
+    if binding_lower == "cohere":
+        raise LLMConfigError("Cohere streaming is not supported yet.")
+
     if binding_lower in ["anthropic", "claude"]:
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
         temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
@@ -337,9 +340,9 @@ async def _openai_complete(
         # Skip cache failures and fall back to direct aiohttp call
         logger.debug("Exception occurred: %s", exc)
     # Fallback: Direct aiohttp call
-    if not content and base_url:
-        # Build URL using unified utility (use binding for Azure detection)
-        url = build_chat_url(base_url, api_version, binding)
+    if not content:
+        effective_base = base_url or "https://api.openai.com/v1"
+        url = build_chat_url(effective_base, api_version, binding)
 
         # Build headers using unified utility
         headers = build_auth_headers(api_key, binding)

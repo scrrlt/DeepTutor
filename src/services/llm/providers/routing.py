@@ -222,26 +222,28 @@ class RoutingProvider(BaseLLMProvider):
                 accumulated = ""
 
                 try:
-                    iterator = stream_func(**call_kwargs)
-                    async for delta in iterator:
-                        emitted_any = True
-                        accumulated += str(delta)
+                    self._check_circuit_breaker()
+                    async with self.traffic_controller:
+                        iterator = stream_func(**call_kwargs)
+                        async for delta in iterator:
+                            emitted_any = True
+                            accumulated += str(delta)
+                            yield TutorStreamChunk(
+                                content=accumulated,
+                                delta=str(delta),
+                                provider=self.provider_name,
+                                model=model,
+                                is_complete=False,
+                            )
+
                         yield TutorStreamChunk(
                             content=accumulated,
-                            delta=str(delta),
+                            delta="",
                             provider=self.provider_name,
                             model=model,
-                            is_complete=False,
+                            is_complete=True,
                         )
-
-                    yield TutorStreamChunk(
-                        content=accumulated,
-                        delta="",
-                        provider=self.provider_name,
-                        model=model,
-                        is_complete=True,
-                    )
-                    return
+                        return
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:

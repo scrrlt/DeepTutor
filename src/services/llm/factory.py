@@ -256,7 +256,10 @@ async def complete(
         except Exception as exc:
             from .error_mapping import map_error
 
-            provider_name = binding_value if isinstance(binding_value, str) else "unknown"
+            if use_local:
+                provider_name = "local"
+            else:
+                provider_name = binding_value if isinstance(binding_value, str) else "unknown"
             mapped_error = map_error(exc, provider=provider_name)
             raise mapped_error from exc
 

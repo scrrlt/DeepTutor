@@ -16,6 +16,7 @@ class CircuitBreaker:
     """
 
     def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60):
+        """Initialize circuit breaker state for providers."""
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.failure_count: Dict[str, int] = {}
@@ -32,11 +33,14 @@ class CircuitBreaker:
             elif state == "open":
                 if time.time() - self.last_failure_time.get(provider, 0) > self.recovery_timeout:
                     self.state[provider] = "half-open"
-                    logger.info(f"Circuit breaker for {provider} entering half-open state")
+                    logger.info(
+                        "Circuit breaker for %s entering half-open state" % provider
+                    )
                     return True
                 return False
             elif state == "half-open":
                 return True
+        logger.error("Circuit breaker for %s has unexpected state: %s" % (provider, state))
         return False
 
     def record_success(self, provider: str) -> None:
@@ -45,7 +49,7 @@ class CircuitBreaker:
             if self.state.get(provider) == "half-open":
                 self.state[provider] = "closed"
                 self.failure_count[provider] = 0
-                logger.info(f"Circuit breaker for {provider} closed")
+                logger.info("Circuit breaker for %s closed" % provider)
             elif self.state.get(provider) == "closed":
                 self.failure_count[provider] = 0
 
@@ -57,7 +61,8 @@ class CircuitBreaker:
             if self.failure_count[provider] >= self.failure_threshold:
                 self.state[provider] = "open"
                 logger.warning(
-                    f"Circuit breaker for {provider} opened due to {self.failure_count[provider]} failures"
+                    "Circuit breaker for %s opened due to %s failures"
+                    % (provider, self.failure_count[provider])
                 )
 
 
@@ -65,7 +70,7 @@ class CircuitBreaker:
 circuit_breaker = CircuitBreaker()
 
 
-def alert_callback(provider: str, rate: float) -> None:
+def alert_callback(provider: str, _rate: float) -> None:
     """Alert callback to trigger circuit breaker."""
     circuit_breaker.record_failure(provider)
 

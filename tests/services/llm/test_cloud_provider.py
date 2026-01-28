@@ -8,6 +8,8 @@ from types import TracebackType
 from _pytest.monkeypatch import MonkeyPatch
 import pytest
 
+from src.services.llm.exceptions import LLMAPIError
+
 cloud_provider = importlib.import_module("src.services.llm.cloud_provider")
 
 
@@ -145,16 +147,17 @@ async def test_cloud_complete_error(monkeypatch: MonkeyPatch) -> None:
     """Non-200 responses should raise LLMAPIError."""
     response = _FakeResponse(500, {})
 
-    monkeypatch.setattr(
-        cloud_provider, "_get_openai_complete_if_cache", lambda: (lambda *_a, **_k: None)
-    )
+    async def _no_cache(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(cloud_provider, "_get_openai_complete_if_cache", lambda: _no_cache)
     monkeypatch.setattr(
         cloud_provider.aiohttp,
         "ClientSession",
         lambda *args, **kwargs: _FakeSession(response),
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(LLMAPIError):
         await cloud_provider.complete(
             prompt="hello",
             model="gpt-test",
