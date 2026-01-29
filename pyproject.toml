@@ -89,7 +89,6 @@ ignore = [
     "PTH123", # open() should be replaced by Path.open() (允许使用 open)
     "PTH103", # os.makedirs() should be replaced by Path.mkdir() (允许使用 os.makedirs)
     "PTH118", # os.path.join() should be replaced by Path (允许使用 os.path.join)
-    "B904",  # Within except clause, raise exceptions with raise ... from err
     "EM101",  # Exception must not use a string literal
     "EM102",  # Exception must not use an f-string literal
     "TRY002", # Create your own exception
