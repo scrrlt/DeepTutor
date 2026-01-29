@@ -68,6 +68,10 @@ select = [
     # 其他规则都忽略，不强制要求
 ]
 
+extend-select = [
+    "B006",  # Do not use mutable data structures for argument defaults
+]
+
 # Ignore specific rules (放宽检查，只保留重要规则)
 ignore = [
     "E501",  # Line too long (handled by formatter)
@@ -95,7 +99,6 @@ ignore = [
     "PLW2901", # for loop variable overwritten by assignment target
     "F841",  # Local variable assigned but never used
     "ERA001", # Found commented-out code (允许注释代码)
-    "B006",  # Do not use mutable data structures for argument defaults
 ]
 
 # Exclude patterns

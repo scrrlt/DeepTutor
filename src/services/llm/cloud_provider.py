@@ -179,6 +179,9 @@ async def complete(
     if binding_lower == "cohere":
         raise LLMConfigError("Cohere streaming is not supported yet.")
 
+    if binding_lower == "cohere":
+        raise LLMConfigError("Cohere streaming is not supported yet.")
+
     if binding_lower in ["anthropic", "claude"]:
         max_tokens_value = _coerce_int(kwargs.get("max_tokens"), None)
         temperature_value = _coerce_float(kwargs.get("temperature"), 0.7)
