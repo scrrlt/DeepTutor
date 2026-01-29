@@ -136,7 +136,7 @@ jobs:
       - name: Run unit tests
         run: |
           echo "🧪 Running tests with Python ${{ matrix.python-version }}"
-          pytest tests/ -v --tb=short --ignore=tests/agents/ || echo "⚠️ Some tests failed or no tests found"
+          pytest tests/ -v --tb=short
         env:
           PYTHONPATH: ${{ github.workspace }}
 

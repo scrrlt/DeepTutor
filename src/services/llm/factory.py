@@ -2,10 +2,16 @@
 """
 LLM Factory - Central Hub for LLM Calls
 =======================================
-
 This module serves as the central hub for all LLM calls in DeepTutor.
 It provides a unified interface for agents to call LLMs, routing requests
 to the appropriate provider (cloud or local) based on URL detection.
+
+Compatibility:
+    This factory preserves legacy behaviors from the pre-provider refactor,
+    including BaseAgent.call_llm()/stream_llm() signatures and retry semantics.
+    The adapter layer remains until all legacy entry points migrate to direct
+    provider calls. Once all agents and tools depend on provider modules
+    directly, this wrapper can be removed.
 
 Architecture:
     Agents (ChatAgent, GuideAgent, etc.)
@@ -32,14 +38,16 @@ Retry Mechanism:
 """
 
 import asyncio
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from collections.abc import AsyncGenerator, Mapping
+from typing import TYPE_CHECKING, TypedDict
 
 import tenacity
 
-from src.logging.logger import get_logger
+from src.config.settings import settings
+from src.logging.logger import Logger, get_logger
 
-from . import cloud_provider, local_provider
-from .config import get_llm_config
+from . import local_provider
+from .config import LLMConfig, get_llm_config
 from .exceptions import (
     LLMAPIError,
     LLMAuthenticationError,
@@ -48,16 +56,21 @@ from .exceptions import (
 )
 from .utils import is_local_llm_server
 
+if TYPE_CHECKING:
+    from .providers.base_provider import BaseLLMProvider
+
 # Initialize logger
-logger = get_logger("LLMFactory")
+logger: Logger = get_logger("LLMFactory")
 
-# Default retry configuration
-DEFAULT_MAX_RETRIES = 5  # Increased for complex agents like Research
-DEFAULT_RETRY_DELAY = 2.0  # seconds
-DEFAULT_EXPONENTIAL_BACKOFF = True
+# Default retry configuration (bound to settings)
+DEFAULT_MAX_RETRIES = settings.retry.max_retries
+DEFAULT_RETRY_DELAY = settings.retry.base_delay
+DEFAULT_EXPONENTIAL_BACKOFF = settings.retry.exponential_backoff
+
+CallKwargs = dict[str, object]
 
 
-def _is_retriable_error(error: Exception) -> bool:
+def _is_retriable_error(error: BaseException) -> bool:
     """
     Check if an error is retriable.
 
@@ -74,9 +87,8 @@ def _is_retriable_error(error: Exception) -> bool:
     - Client errors (4xx except 429)
     """
     from aiohttp import ClientError
-    from requests.exceptions import RequestException
 
-    if isinstance(error, (asyncio.TimeoutError, ClientError, RequestException)):
+    if isinstance(error, (asyncio.TimeoutError, ClientError)):
         return True
     if isinstance(error, LLMTimeoutError):
         return True
@@ -94,13 +106,15 @@ def _is_retriable_error(error: Exception) -> bool:
             # Don't retry on client errors (4xx except 429)
             if 400 <= status_code < 500:
                 return False
-        return True  # Retry by default for unknown API errors
+
+        # When status_code is None (e.g. connection drop), retry.
+        return True
 
     # For other exceptions (network errors, etc.), retry
     return True
 
 
-def _should_use_local(base_url: Optional[str]) -> bool:
+def _should_use_local(base_url: str | None) -> bool:
     """
     Determine if we should use the local provider based on URL.
 
@@ -116,16 +130,16 @@ def _should_use_local(base_url: Optional[str]) -> bool:
 async def complete(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    binding: str | None = None,
+    messages: list[dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
+    **kwargs: object,
 ) -> str:
     """
     Unified LLM completion function with automatic retry.
@@ -162,125 +176,137 @@ async def complete(
     # Determine which provider to use
     use_local = _should_use_local(base_url)
 
-    # Define helper to determine if a generic LLMAPIError is retriable
     def _is_retriable_llm_api_error(exc: BaseException) -> bool:
-        """
-        Return True for LLMAPIError instances that represent retriable conditions.
+        """Delegate retriable checks to shared helper."""
+        return _is_retriable_error(exc)
 
-        We only retry on:
-          - HTTP 429 (rate limit), or
-          - HTTP 5xx server errors.
+    def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
+        """Log retry warnings with safe handling for missing exceptions."""
+        outcome = retry_state.outcome
+        exception = outcome.exception() if outcome else None
+        error_message = str(exception) if exception else "unknown error"
+        logger.warning(
+            "LLM call failed (attempt %s/%s), retrying in %.1fs... Error: %s"
+            % (
+                retry_state.attempt_number,
+                max_retries + 1,
+                retry_state.upcoming_sleep,
+                error_message,
+            )
+        )
 
-        All other LLMAPIError instances (e.g., 4xx like 400, 401, 403, 404) are treated
-        as non-retriable to avoid unnecessary retries.
-        """
-        if not isinstance(exc, LLMAPIError):
-            return False
+    wait_strategy = (
+        tenacity.wait_exponential(
+            multiplier=retry_delay,
+            min=retry_delay,
+            max=120,
+        )
+        if exponential_backoff
+        else tenacity.wait_fixed(retry_delay)
+    )
 
-        status_code = getattr(exc, "status_code", None)
-        if status_code is None:
-            # Do not retry when status code is unknown to avoid retrying non-transient errors
-            return False
-
-        if status_code == 429:
-            return True
-
-        if 500 <= status_code < 600:
-            return True
-
-        return False
-
-    # Calculate total attempts for logging (1 initial + max_retries)
     total_attempts = max_retries + 1
 
-    # Define the actual completion function with tenacity retry
     @tenacity.retry(
         retry=(
             tenacity.retry_if_exception_type(LLMRateLimitError)
             | tenacity.retry_if_exception_type(LLMTimeoutError)
             | tenacity.retry_if_exception(_is_retriable_llm_api_error)
         ),
-        wait=tenacity.wait_exponential(multiplier=retry_delay, min=retry_delay, max=120),
+        wait=wait_strategy,
         stop=tenacity.stop_after_attempt(total_attempts),
-        before_sleep=lambda retry_state: logger.warning(
-            f"LLM call failed (attempt {retry_state.attempt_number}/{total_attempts}), "
-            f"retrying in {retry_state.upcoming_sleep:.1f}s... Error: {str(retry_state.outcome.exception())}"
-        ),
+        before_sleep=_log_retry_warning,
     )
-    async def _do_complete(**call_kwargs):
+    async def _do_complete(
+        *,
+        prompt_value: str,
+        system_prompt_value: str,
+        model_value: str,
+        api_key_value: str | None,
+        base_url_value: str | None,
+        api_version_value: str | None,
+        binding_value: str | None,
+        extra_kwargs: CallKwargs,
+        messages_value: list[dict[str, str]] | None,
+    ) -> str:
         try:
             if use_local:
-                return await local_provider.complete(**call_kwargs)
-            else:
-                return await cloud_provider.complete(**call_kwargs)
-        except Exception as e:
-            # Map raw SDK exceptions to unified exceptions for retry logic
+                return await local_provider.complete(
+                    prompt=prompt_value,
+                    system_prompt=system_prompt_value,
+                    model=model_value,
+                    api_key=api_key_value,
+                    base_url=base_url_value,
+                    messages=messages_value,
+                    **extra_kwargs,
+                )
+            from . import cloud_provider
+
+            return await cloud_provider.complete(
+                prompt=prompt_value,
+                system_prompt=system_prompt_value,
+                model=model_value,
+                api_key=api_key_value,
+                base_url=base_url_value,
+                api_version=api_version_value,
+                binding=binding_value or "openai",
+                messages=messages_value,
+                **extra_kwargs,
+            )
+        except Exception as exc:
             from .error_mapping import map_error
 
-            mapped_error = map_error(e, provider=call_kwargs.get("binding", "unknown"))
-            raise mapped_error from e
+            if use_local:
+                provider_name = "local"
+            else:
+                provider_name = binding_value if isinstance(binding_value, str) else "unknown"
+            mapped_error = map_error(exc, provider=provider_name)
+            raise mapped_error from exc
 
-    # Build call kwargs
-    call_kwargs = {
-        "prompt": prompt,
-        "system_prompt": system_prompt,
-        "model": model,
-        "api_key": api_key,
-        "base_url": base_url,
-        "messages": messages,
-        **kwargs,
-    }
+    extra_kwargs: CallKwargs = dict(kwargs)
+    extra_kwargs.pop("messages", None)
 
-    # Add cloud-specific kwargs if not local
-    if not use_local:
-        call_kwargs["api_version"] = api_version
-        call_kwargs["binding"] = binding or "openai"
+    if use_local:
+        return await _do_complete(
+            prompt_value=prompt,
+            system_prompt_value=system_prompt,
+            model_value=model,
+            api_key_value=api_key,
+            base_url_value=base_url,
+            api_version_value=None,
+            binding_value=None,
+            extra_kwargs=extra_kwargs,
+            messages_value=messages,
+        )
 
-    # Execute with retry (handled by tenacity decorator)
-    return await _do_complete(**call_kwargs)
+    return await _do_complete(
+        prompt_value=prompt,
+        system_prompt_value=system_prompt,
+        model_value=model,
+        api_key_value=api_key,
+        base_url_value=base_url,
+        api_version_value=api_version,
+        binding_value=binding or "openai",
+        extra_kwargs=extra_kwargs,
+        messages_value=messages,
+    )
 
 
 async def stream(
     prompt: str,
     system_prompt: str = "You are a helpful assistant.",
-    model: Optional[str] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
-    api_version: Optional[str] = None,
-    binding: Optional[str] = None,
-    messages: Optional[List[Dict[str, str]]] = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    binding: str | None = None,
+    messages: list[dict[str, str]] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     exponential_backoff: bool = DEFAULT_EXPONENTIAL_BACKOFF,
-    **kwargs,
+    **kwargs: object,
 ) -> AsyncGenerator[str, None]:
-    """
-    Unified LLM streaming function with automatic retry.
-
-    Routes to cloud_provider or local_provider based on configuration.
-    Includes automatic retry with exponential backoff for connection errors.
-
-    Note: Retry only applies to initial connection errors. Once streaming
-    starts, errors during streaming will not be automatically retried.
-
-    Args:
-        prompt: The user prompt
-        system_prompt: System prompt for context
-        model: Model name (optional, uses effective config if not provided)
-        api_key: API key (optional)
-        base_url: Base URL for the API (optional)
-        api_version: API version for Azure OpenAI (optional)
-        binding: Provider binding type (optional)
-        messages: Pre-built messages array (optional)
-        max_retries: Maximum number of retry attempts (default: 5)
-        retry_delay: Initial delay between retries in seconds (default: 2.0)
-        exponential_backoff: Whether to use exponential backoff (default: True)
-        **kwargs: Additional parameters (temperature, max_tokens, etc.)
-
-    Yields:
-        str: Response chunks
-    """
-    # Get config if parameters not provided
+    """Stream LLM responses with retry handling."""
     if not model or not base_url:
         config = get_llm_config()
         model = model or config.model
@@ -289,70 +315,68 @@ async def stream(
         api_version = api_version or config.api_version
         binding = binding or config.binding or "openai"
 
-    # Determine which provider to use
     use_local = _should_use_local(base_url)
+    extra_kwargs: CallKwargs = dict(kwargs)
+    extra_kwargs.pop("messages", None)
 
-    # Build call kwargs
-    call_kwargs = {
-        "prompt": prompt,
-        "system_prompt": system_prompt,
-        "model": model,
-        "api_key": api_key,
-        "base_url": base_url,
-        "messages": messages,
-        **kwargs,
-    }
-
-    # Add cloud-specific kwargs if not local
-    if not use_local:
-        call_kwargs["api_version"] = api_version
-        call_kwargs["binding"] = binding or "openai"
-
-    # Retry logic for streaming (retry on connection errors)
-    # Total attempts = 1 initial + max_retries
     total_attempts = max_retries + 1
-    last_exception = None
+    last_exception: Exception | None = None
     delay = retry_delay
-    max_delay = 120  # Cap maximum delay at 120 seconds (consistent with complete())
+    has_yielded = False
+    max_delay = 120
 
     for attempt in range(total_attempts):
         try:
-            # Route to appropriate provider
             if use_local:
-                async for chunk in local_provider.stream(**call_kwargs):
+                async for chunk in local_provider.stream(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    messages=messages,
+                    **extra_kwargs,
+                ):
+                    has_yielded = True
                     yield chunk
             else:
-                async for chunk in cloud_provider.stream(**call_kwargs):
-                    yield chunk
-            # If we get here, streaming completed successfully
-            return
-        except Exception as e:
-            last_exception = e
+                from . import cloud_provider
 
-            # Check if we should retry
-            if attempt >= max_retries or not _is_retriable_error(e):
+                async for chunk in cloud_provider.stream(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    model=model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    api_version=api_version,
+                    binding=binding or "openai",
+                    messages=messages,
+                    **extra_kwargs,
+                ):
+                    has_yielded = True
+                    yield chunk
+            return
+        except Exception as exc:
+            last_exception = exc
+            if has_yielded:
+                raise
+            if attempt >= max_retries or not _is_retriable_error(exc):
                 raise
 
-            # Calculate delay for next attempt
             if exponential_backoff:
                 current_delay = min(delay * (2**attempt), max_delay)
             else:
                 current_delay = delay
 
-            # Special handling for rate limit errors with retry_after
-            if isinstance(e, LLMRateLimitError) and e.retry_after:
-                current_delay = max(current_delay, e.retry_after)
+            if isinstance(exc, LLMRateLimitError) and exc.retry_after:
+                current_delay = max(current_delay, exc.retry_after)
 
-            # Log retry attempt (consistent with complete() function)
             logger.warning(
-                f"LLM streaming failed (attempt {attempt + 1}/{total_attempts}), "
-                f"retrying in {current_delay:.1f}s... Error: {str(e)}"
+                "LLM streaming failed (attempt %s/%s), retrying in %.1fs... Error: %s"
+                % (attempt + 1, total_attempts, current_delay, exc)
             )
-
-            # Wait before retrying
             await asyncio.sleep(current_delay)
 
-    # Should not reach here, but just in case
     if last_exception:
         raise last_exception
 
@@ -360,8 +384,8 @@ async def stream(
 async def fetch_models(
     binding: str,
     base_url: str,
-    api_key: Optional[str] = None,
-) -> List[str]:
+    api_key: str | None = None,
+) -> list[str]:
     """
     Fetch available models from the provider.
 
@@ -378,11 +402,37 @@ async def fetch_models(
     if is_local_llm_server(base_url):
         return await local_provider.fetch_models(base_url, api_key)
     else:
+        from . import cloud_provider
+
         return await cloud_provider.fetch_models(base_url, api_key, binding)
 
 
+class ApiProviderPreset(TypedDict, total=False):
+    """Typed representation of API provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    models: list[str]
+    binding: str
+
+
+class LocalProviderPreset(TypedDict, total=False):
+    """Typed representation of local provider presets."""
+
+    name: str
+    base_url: str
+    requires_key: bool
+    default_key: str
+
+
+ProviderPreset = ApiProviderPreset | LocalProviderPreset
+ProviderPresetMap = Mapping[str, ProviderPreset]
+ProviderPresetBundle = Mapping[str, ProviderPresetMap]
+
+
 # API Provider Presets
-API_PROVIDER_PRESETS = {
+API_PROVIDER_PRESETS: dict[str, ApiProviderPreset] = {
     "openai": {
         "name": "OpenAI",
         "base_url": "https://api.openai.com/v1",
@@ -406,12 +456,12 @@ API_PROVIDER_PRESETS = {
         "name": "OpenRouter",
         "base_url": "https://openrouter.ai/api/v1",
         "requires_key": True,
-        "models": [],  # Dynamic
+        "models": [],
     },
 }
 
 # Local Provider Presets
-LOCAL_PROVIDER_PRESETS = {
+LOCAL_PROVIDER_PRESETS: dict[str, LocalProviderPreset] = {
     "ollama": {
         "name": "Ollama",
         "base_url": "http://localhost:11434/v1",
@@ -439,7 +489,7 @@ LOCAL_PROVIDER_PRESETS = {
 }
 
 
-def get_provider_presets() -> Dict[str, Any]:
+def get_provider_presets() -> ProviderPresetBundle:
     """
     Get all provider presets for frontend display.
     """
@@ -460,4 +510,16 @@ __all__ = [
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_RETRY_DELAY",
     "DEFAULT_EXPONENTIAL_BACKOFF",
+    "LLMFactory",
 ]
+
+
+class LLMFactory:
+    """Compatibility factory for legacy agent integrations."""
+
+    @staticmethod
+    def get_provider(config: "LLMConfig") -> "BaseLLMProvider":
+        """Return a provider instance for the supplied config."""
+        from .providers.routing import RoutingProvider
+
+        return RoutingProvider(config)
