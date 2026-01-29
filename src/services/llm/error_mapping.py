@@ -5,9 +5,9 @@ Error Mapping - Map provider-specific errors to unified exceptions.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Optional, Type
 
 # Import unified exceptions from exceptions.py
 from .exceptions import (
@@ -19,7 +19,7 @@ from .exceptions import (
 )
 
 try:
-    import openai  # type: ignore
+    import openai
 
     _HAS_OPENAI = True
 except ImportError:  # pragma: no cover
@@ -36,10 +36,10 @@ ErrorClassifier = Callable[[Exception], bool]
 @dataclass(frozen=True)
 class MappingRule:
     classifier: ErrorClassifier
-    factory: Callable[[Exception, Optional[str]], LLMError]
+    factory: Callable[[Exception, str | None], LLMError]
 
 
-def _instance_of(*types: Type[BaseException]) -> ErrorClassifier:
+def _instance_of(*types: type[BaseException]) -> ErrorClassifier:
     return lambda exc: isinstance(exc, types)
 
 
@@ -51,7 +51,7 @@ def _message_contains(*needles: str) -> ErrorClassifier:
     return _classifier
 
 
-_GLOBAL_RULES: List[MappingRule] = [
+_GLOBAL_RULES: list[MappingRule] = [
     MappingRule(
         classifier=_message_contains("rate limit", "429", "quota"),
         factory=lambda exc, provider: LLMRateLimitError(str(exc), provider=provider),
@@ -62,7 +62,7 @@ _GLOBAL_RULES: List[MappingRule] = [
     ),
 ]
 
-if _HAS_OPENAI:
+if _HAS_OPENAI and openai is not None:
     _GLOBAL_RULES[:0] = [
         MappingRule(
             classifier=_instance_of(openai.AuthenticationError),
@@ -88,7 +88,7 @@ except ImportError:
     pass
 
 
-def map_error(exc: Exception, provider: Optional[str] = None) -> LLMError:
+def map_error(exc: Exception, provider: str | None = None) -> LLMError:
     """Map provider-specific errors to unified internal exceptions."""
     # Heuristic check for status codes before rules
     status_code = getattr(exc, "status_code", None)

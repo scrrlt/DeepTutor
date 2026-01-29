@@ -6,13 +6,13 @@ LLM Provider Registry
 Simple provider registration system for LLM providers.
 """
 
-from typing import Dict, Type
+from collections.abc import Callable
 
 # Global registry for LLM providers
-_provider_registry: Dict[str, Type] = {}
+_provider_registry: dict[str, type] = {}
 
 
-def register_provider(name: str):
+def register_provider(name: str) -> Callable[[type], type]:
     """
     Decorator to register an LLM provider class.
 
@@ -23,17 +23,17 @@ def register_provider(name: str):
         Decorator function
     """
 
-    def decorator(cls):
+    def decorator(cls: type) -> type:
         if name in _provider_registry:
             raise ValueError(f"Provider '{name}' is already registered")
         _provider_registry[name] = cls
-        cls.__provider_name__ = name  # Store name on class for introspection
+        setattr(cls, "__provider_name__", name)
         return cls
 
     return decorator
 
 
-def get_provider_class(name: str) -> Type:
+def get_provider_class(name: str) -> type:
     """
     Get a registered provider class by name.
 
