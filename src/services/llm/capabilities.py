@@ -18,7 +18,6 @@ Usage:
         # use streaming
 """
 
-
 # Provider capabilities configuration
 # Keys are binding names (lowercase), values are capability dictionaries
 PROVIDER_CAPABILITIES: dict[str, dict[str, object]] = {

@@ -118,7 +118,7 @@ async def test_cloud_complete_fallback(monkeypatch: MonkeyPatch) -> None:
 async def test_cloud_stream_yields_chunks(monkeypatch: MonkeyPatch) -> None:
     """Streaming should yield delta content from SSE lines."""
     lines = [
-        b"data: {\"choices\": [{\"delta\": {\"content\": \"hi\"}}]}\n\n",
+        b'data: {"choices": [{"delta": {"content": "hi"}}]}\n\n',
         b"data: [DONE]\n\n",
     ]
     fake_response = _FakeStreamResponse(200, lines)

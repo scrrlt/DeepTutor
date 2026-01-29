@@ -33,9 +33,7 @@ class CircuitBreaker:
             elif state == "open":
                 if time.time() - self.last_failure_time.get(provider, 0) > self.recovery_timeout:
                     self.state[provider] = "half-open"
-                    logger.info(
-                        "Circuit breaker for %s entering half-open state" % provider
-                    )
+                    logger.info("Circuit breaker for %s entering half-open state" % provider)
                     return True
                 return False
             elif state == "half-open":
