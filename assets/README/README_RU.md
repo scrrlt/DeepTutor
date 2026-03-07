@@ -5,18 +5,25 @@
 # DeepTutor: Персональный учебный ассистент на базе ИИ
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square)](../../LICENSE)
-[![Discord](https://img.shields.io/badge/Discord-Join-7289DA?style=flat&logo=discord&logoColor=white)](https://discord.gg/eRsjPgMU4t)
-[![Feishu](https://img.shields.io/badge/Feishu-Group-blue?style=flat)](../../Communication.md)
-[![WeChat](https://img.shields.io/badge/WeChat-Group-green?style=flat&logo=wechat)](https://github.com/HKUDS/DeepTutor/issues/78)
+
+<p align="center">
+  <a href="https://discord.gg/eRsjPgMU4t"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+  &nbsp;&nbsp;
+  <a href="../../Communication.md"><img src="https://img.shields.io/badge/Feishu-Join_Group-00D4AA?style=for-the-badge&logo=feishu&logoColor=white" alt="Feishu"></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/HKUDS/DeepTutor/issues/78"><img src="https://img.shields.io/badge/WeChat-Join_Group-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChat"></a>
+</p>
 
 
 
-[**Быстрый Старт**](#быстрый-старт) · [**Основные Модули**](#основные-модули) · [**Часто Задаваемые Вопросы**](#часто-задаваемые-вопросы)
+[**Быстрый старт**](#-быстрый-старт) · [**Основные модули**](#-основные-модули) · [**Часто задаваемые вопросы**](#-часто-задаваемые-вопросы)
 
-[🇬🇧 English](../../README.md) · [🇨🇳 中文](README_CN.md) · [🇯🇵 日本語](README_JA.md) · [🇪🇸 Español](README_ES.md) · [🇫🇷 Français](README_FR.md) · [🇸🇦 العربية](README_AR.md) · [🇵🇹 Português](README_PT.md) · [🇮🇳 हिन्दी](README_HI.md)
+[🇬🇧 English](../../README.md) · [🇨🇳 中文](README_CN.md) · [🇯🇵 日本語](README_JA.md) · [🇪🇸 Español](README_ES.md) · [🇫🇷 Français](README_FR.md) · [🇸🇦 العربية](README_AR.md) · [🇮🇳 हिन्दी](README_HI.md) · [🇵🇹 Português](README_PT.md)
 
 </div>
 
@@ -28,13 +35,36 @@
 </div>
 
 ---
-> **[2026.1.18]** Релиз [v0.5.2](https://github.com/HKUDS/DeepTutor/releases/tag/v0.5.1) — улучшение RAG-пайплайна (поддержка Docling) и улучшения CI/CD с исправлением нескольких мелких ошибок — спасибо за отзывы!
+### 📰 Новости
 
 > **[2026.1.1]** С Новым годом! Присоединяйтесь к нашему [Discord-сообществу](https://discord.gg/zpP9cssj), [WeChat-сообществу](https://github.com/HKUDS/DeepTutor/issues/78) или [Discussions](https://github.com/HKUDS/DeepTutor/discussions) — формируйте будущее DeepTutor! 💬
 
 > **[2025.12.30]** Посетите наш [официальный сайт](https://hkuds.github.io/DeepTutor/) для получения дополнительной информации!
 
 > **[2025.12.29]** DeepTutor уже в сети! ✨
+
+### 📦 Релизы
+
+> **[2026.1.23]** Релиз [v0.6.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.6.0) - Сохранение сеансов интерфейса, полная поддержка китайского языка, обновления развертывания Docker и исправления незначительных ошибок -- Спасибо всем за обратную связь!
+
+<details>
+<summary>История релизов</summary>
+
+> **[2026.1.18]** Релиз [v0.5.2](https://github.com/HKUDS/DeepTutor/releases/tag/v0.5.1) - Улучшение конвейера RAG с поддержкой Docling и улучшение рабочих процессов CI/CD с исправлением нескольких незначительных ошибок -- Спасибо всем за отзывы!
+
+
+> **[2026.1.15]** Релиз [v0.5.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.5.0) - Унифицированные службы LLM и встраивания, выбор конвейера RAG и значительные улучшения модулей Home, History, QuestionGen и Settings -- Спасибо всем участникам!
+
+> **[2026.1.9]** Релиз [v0.4.1](https://github.com/HKUDS/DeepTutor/releases/tag/v0.4.1) с полной переработкой системы провайдера LLM, улучшением надежности генерации вопросов и очисткой кодовой базы - Спасибо всем участникам!
+
+> **[2026.1.9]** Релиз [v0.4.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.4.0) с новой структурой кода, поддержкой нескольких llm и встраиваний - Спасибо всем участникам!
+
+> **[2026.1.5]** [v0.3.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.3.0) - Унифицированная архитектура PromptManager, автоматизация CI/CD и предварительно собранные образы Docker на GHCR
+
+> **[2026.1.2]** [v0.2.0](https://github.com/HKUDS/DeepTutor/releases/tag/v0.2.0) - Развертывание Docker, обновление до Next.js 16 и React 19, исправления безопасности WebSocket и критических уязвимостей
+
+</details>
+
 ---
 
 ## Ключевые особенности DeepTutor
@@ -216,12 +246,15 @@
 • **Система памяти**: Управление состоянием сеанса и отслеживание цитат для контекстной непрерывности.
 
 ## 📋 Будущие задачи
-
 > 🌟 Поставьте звезду, чтобы следить за нашими будущими обновлениями!
-- [ ] Поддержка локальных LLM-сервисов (например, ollama)
-- [ ] Рефакторинг модуля RAG (см. [Обсуждения](https://github.com/HKUDS/DeepTutor/discussions))
-- [ ] Глубокое кодирование из генерации идей
-- [ ] Персонализированное взаимодействие с блокнотом
+- [x] Поддержка многоязычности
+- [x] Сообщество DeepTutor
+- [x] Поддержка видео- и аудиофайлов
+- [x] Настройка атомарного конвейера RAG
+- [ ] Пошаговое редактирование базы знаний
+- [ ] Персонализированное рабочее пространство
+- [ ] Визуализация базы данных
+- [ ] Онлайн-демонстрация
 
 ## 🚀 Быстрый старт
 
@@ -299,22 +332,23 @@ cp .env.example .env
 
 ### Шаг 2: Выберите метод установки
 
-<table>
-<tr>
-<td width="50%" valign="top">
+#### 🐳 Вариант A: Установка через Docker
 
-<h3 align="center">🐳 Развертывание Docker</h3>
-<p align="center"><b>Рекомендуется</b> — Без настройки Python/Node.js</p>
+> Установка Python/Node.js не требуется
 
----
+**Требования**: [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/)
 
-**Требования**: [Docker](https://docs.docker.com/get-docker/) и [Docker Compose](https://docs.docker.com/compose/install/)
-
-<details open>
-<summary><b>🚀 Вариант A: Предварительно Собранный Образ (Быстрее Всего)</b></summary>
+**Быстрый старт** — Сборка из исходного кода:
 
 ```bash
-# Работает на всех платформах — Docker автоматически определяет вашу архитектуру
+docker compose up                  # Сборка и запуск (~11 мин при первом запуске на mac mini M4)
+docker compose build --no-cache    # Очистка кэша и пересборка после обновления репозитория
+```
+
+**Или использовать предварительно собранный образ** (быстрее):
+
+```bash
+# Работает на всех платформах — Docker автоматически определяет архитектуру
 docker run -d --name deeptutor \
   -p 8001:8001 -p 3782:3782 \
   --env-file .env \
@@ -325,67 +359,74 @@ docker run -d --name deeptutor \
 # Windows PowerShell: используйте ${PWD} вместо $(pwd)
 ```
 
-Или использовать файл `.env`:
+**Общие команды**:
+
+```bash
+docker compose up -d      # Запуск
+docker compose down       # Остановка
+docker compose logs -f    # Просмотр логов
+docker compose up --build # Пересборка после изменений
+```
+
+<details>
+<summary>📋 <b>Дополнительные параметры Docker</b> (предварительно собранные образы, облачная установка, пользовательские порты)</summary>
+
+**Теги предварительно собранных образов:**
+
+| Тег | Архитектуры | Описание |
+|:----|:--------------|:------------|
+| `:latest` | AMD64 + ARM64 | Последний стабильный выпуск (автоопределение архитектуры) |
+| `:v0.5.x` | AMD64 + ARM64 | Конкретная версия (автоопределение архитектуры) |
+| `:v0.5.x-amd64` | Только AMD64 | Явный образ AMD64 |
+| `:v0.5.x-arm64` | Только ARM64 | Явный образ ARM64 |
+
+> 💡 Тег `:latest` является **мультиархитектурным образом** — Docker автоматически загружает правильную версию для вашей системы (Intel/AMD или Apple Silicon/ARM)
+
+**Облачная установка** — Необходимо установить внешний URL-адрес API:
 
 ```bash
 docker run -d --name deeptutor \
   -p 8001:8001 -p 3782:3782 \
+  -e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:8001 \
   --env-file .env \
   -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config:ro \
+  ghcr.io/hkuds/deeptutor:latest
+```
+
+**Пример пользовательских портов:**
+
+```bash
+docker run -d --name deeptutor \
+  -p 9001:9001 -p 3000:3000 \
+  -e BACKEND_PORT=9001 \
+  -e FRONTEND_PORT=3000 \
+  -e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:9001 \
+  --env-file .env \
+  -v $(pwd)/data:/app/data \
   ghcr.io/hkuds/deeptutor:latest
 ```
 
 </details>
 
-<details>
-<summary><b>🔨 Вариант B: Собрать из Исходного Кода</b></summary>
-
-```bash
-# Собрать и запустить (~5-10 мин при первом запуске)
-docker compose up --build -d
-
-# Просмотр логов
-docker compose logs -f
-```
-
-</details>
-
-**Команды**:
-
-```bash
-docker compose up -d      # Запустить
-docker compose logs -f    # Логи
-docker compose down       # Остановить
-docker compose up --build # Пересобрать
-docker pull ghcr.io/hkuds/deeptutor:latest  # Обновить образ
-```
-
-> **Режим Разработки**: Добавьте `-f docker-compose.dev.yml`
-
-</td>
-<td width="50%" valign="top">
-
-<h3 align="center">💻 Ручная Установка</h3>
-<p align="center">Для разработки или сред без Docker</p>
-
 ---
+
+#### 💻 Вариант B: Ручная установка
+
+> Для разработки или сред без Docker
 
 **Требования**: Python 3.10+, Node.js 18+
 
-**Настроить Окружение**:
+**1. Настройка окружения**:
 
 ```bash
-# Использовать conda (Рекомендуется)
-conda create -n deeptutor python=3.10
-conda activate deeptutor
+# Использование conda (Рекомендуется)
+conda create -n deeptutor python=3.10 && conda activate deeptutor
 
-# Или использовать venv
-python -m venv venv
-source venv/bin/activate
+# Или использование venv
+python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
-**Установить Зависимости**:
+**2. Установка зависимостей**:
 
 ```bash
 # Установка в один клик (Рекомендуется)
@@ -397,21 +438,39 @@ pip install -r requirements.txt
 npm install --prefix web
 ```
 
-**Запустить**:
+**3. Запуск**:
 
 ```bash
-# Запустить веб-интерфейс
-python scripts/start_web.py
-
-# Или только CLI
-python scripts/start.py
-
-# Остановить: Ctrl+C
+python scripts/start_web.py    # Запуск интерфейса и бэкенда
+# Или: python scripts/start.py  # Только CLI
+# Остановка: Ctrl+C
 ```
 
-</td>
-</tr>
-</table>
+<details>
+<summary>🔧 <b>Запуск интерфейса и бэкенда отдельно</b></summary>
+
+**Бэкенд** (FastAPI):
+```bash
+python src/api/run_server.py
+# Или: uvicorn src.api.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+**Интерфейс** (Next.js):
+```bash
+cd web && npm install && npm run dev -- -p 3782
+```
+
+**Примечание**: Создайте `web/.env.local`:
+```bash
+NEXT_PUBLIC_API_BASE=http://localhost:8001
+```
+
+| Сервис | Порт по умолчанию |
+|:---:|:---:|
+| Бэкенд | `8001` |
+| Интерфейс | `3782` |
+
+</details>
 
 ### URLs Доступа
 
@@ -735,107 +794,107 @@ data/user/co-writer/
 
 **Основные особенности**
 
-| Feature | Description |
+| Особенность | Описание |
 |:---:|:---|
-| Three-Phase Architecture | **Phase 1 (Planning)**: RephraseAgent (topic optimization) + DecomposeAgent (subtopic decomposition)<br>**Phase 2 (Researching)**: ManagerAgent (queue scheduling) + ResearchAgent (research decisions) + NoteAgent (info compression)<br>**Phase 3 (Reporting)**: Deduplication → Three-level outline generation → Report writing with citations |
-| Dynamic Topic Queue | Core scheduling system with TopicBlock state management: `PENDING → RESEARCHING → COMPLETED/FAILED`. Supports dynamic topic discovery during research |
-| Execution Modes | **Series Mode**: Sequential topic processing<br>**Parallel Mode**: Concurrent multi-topic processing with `AsyncCitationManagerWrapper` for thread-safe operations |
-| Multi-Tool Integration | **RAG** (hybrid/naive), **Query Item** (entity lookup), **Paper Search**, **Web Search**, **Code Execution** — dynamically selected by ResearchAgent |
-| Unified Citation System | Centralized CitationManager as single source of truth for citation ID generation, ref_number mapping, and deduplication |
-| Preset Configurations | **quick**: Fast research (1-2 subtopics, 1-2 iterations)<br>**medium/standard**: Balanced depth (5 subtopics, 4 iterations)<br>**deep**: Thorough research (8 subtopics, 7 iterations)<br>**auto**: Agent autonomously decides depth |
+| Трехфазная архитектура | **Фаза 1 (Планирование)**: RephraseAgent (оптимизация темы) + DecomposeAgent (декомпозиция подтем)<br>**Фаза 2 (Исследование)**: ManagerAgent (планирование очереди) + ResearchAgent (принятие решений об исследованиях) + NoteAgent (сжатие информации)<br>**Фаза 3 (Отчетность)**: Дедупликация → Генерация структуры из трех уровней → Написание отчета с цитатами |
+| Динамическая очередь тем | Основная система планирования с управлением состоянием TopicBlock: `PENDING → RESEARCHING → COMPLETED/FAILED`. Поддерживает динамическое обнаружение тем во время исследования |
+| Режимы выполнения | **Последовательный режим**: Последовательная обработка тем<br>**Параллельный режим**: Одновременная обработка нескольких тем с `AsyncCitationManagerWrapper` для потокобезопасных операций |
+| Интеграция нескольких инструментов | **RAG** (гибридный/наивный), **Поиск по запросу** (поиск сущностей), **Поиск статей**, **Веб-поиск**, **Выполнение кода** — динамически выбирается ResearchAgent |
+| Единая система цитирования | Централизованный CitationManager как единый источник истины для генерации ID цитирования, сопоставления ref_number и дедупликации |
+| Предустановленные конфигурации | **quick**: Быстрое исследование (1-2 подтемы, 1-2 итерации)<br>**medium/standard**: Сбалансированная глубина (5 подтем, 4 итерации)<br>**deep**: Тщательное исследование (8 подтем, 7 итераций)<br>**auto**: Агент самостоятельно решает глубину |
 
-**Citation System Architecture**
+**Архитектура системы цитирования**
 
-The citation system follows a centralized design with CitationManager as the single source of truth:
+Система цитирования следует централизованному дизайну с CitationManager как единым источником истины:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      CitationManager                            │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │  ID Generation  │  │  ref_number Map │  │   Deduplication │  │
-│  │  PLAN-XX        │  │  citation_id →  │  │   (papers only) │  │
+│  │  Генерация ID   │  │  Карта ref_number│  │   Дедупликация  │  │
+│  │  PLAN-XX        │  │  citation_id →  │  │   (только статьи)│  │
 │  │  CIT-X-XX       │  │  ref_number     │  │                 │  │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
 └───────────┼────────────────────┼────────────────────┼───────────┘
             │                    │                    │
      ┌──────┴──────┐      ┌──────┴──────┐      ┌──────┴──────┐
-     │DecomposeAgent│      │ReportingAgent│      │ References │
-     │ ResearchAgent│      │ (inline [N]) │      │  Section   │
+     │DecomposeAgent│      │ReportingAgent│      │ Раздел     │
+     │ ResearchAgent│      │ (inline [N]) │      │ Ссылок     │
      │  NoteAgent   │      └─────────────┘      └────────────┘
      └─────────────┘
 ```
 
-| Component | Description |
+| Компонент | Описание |
 |:---:|:---|
-| ID Format | **PLAN-XX** (planning stage RAG queries) + **CIT-X-XX** (research stage, X=block number) |
-| ref_number Mapping | Sequential 1-based numbers built from sorted citation IDs, with paper deduplication |
-| Inline Citations | Simple `[N]` format in LLM output, post-processed to clickable `[[N]](#ref-N)` links |
-| Citation Table | Clear reference table provided to LLM: `Cite as [1] → (RAG) query preview...` |
-| Post-processing | Automatic format conversion + validation to remove invalid citation references |
-| Parallel Safety | Thread-safe async methods (`get_next_citation_id_async`, `add_citation_async`) for concurrent execution |
+| Формат ID | **PLAN-XX** (запросы RAG на этапе планирования) + **CIT-X-XX** (этап исследований, X=номер блока) |
+| Сопоставление ref_number | Последовательные номера, начинающиеся с 1, созданные из отсортированных ID цитирования, с дедупликацией статей |
+| Встроенные цитаты | Простой формат `[N]` в выводе LLM, пост-обработка в кликабельные ссылки `[[N]](#ref-N)` |
+| Таблица цитирования | Четкая таблица ссылок, предоставленная LLM: `Цитировать как [1] → (RAG) предпросмотр запроса...` |
+| Пост-обработка | Автоматическое преобразование формата + проверка для удаления недействительных ссылок на цитаты |
+| Параллельная безопасность | Потокобезопасные асинхронные методы (`get_next_citation_id_async`, `add_citation_async`) для параллельного выполнения |
 
-**Parallel Execution Architecture**
+**Архитектура параллельного выполнения**
 
-When `execution_mode: "parallel"` is enabled, multiple topic blocks are researched concurrently:
+Когда включено `execution_mode: "parallel"`, несколько блоков тем исследуются одновременно:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Parallel Research Execution                          │
+│                    Параллельное выполнение исследований                │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │   DynamicTopicQueue                    AsyncCitationManagerWrapper      │
 │   ┌─────────────────┐                  ┌─────────────────────────┐      │
-│   │ Topic 1 (PENDING)│ ──┐             │  Thread-safe wrapper    │      │
-│   │ Topic 2 (PENDING)│ ──┼──→ asyncio  │  for CitationManager    │      │
-│   │ Topic 3 (PENDING)│ ──┤   Semaphore │                         │      │
-│   │ Topic 4 (PENDING)│ ──┤   (max=5)   │  • get_next_citation_   │      │
-│   │ Topic 5 (PENDING)│ ──┘             │    id_async()           │      │
+│   │ Тема 1 (PENDING)│ ──┐             │  Потокобезопасная       │      │
+│   │ Тема 2 (PENDING)│ ──┼──→ asyncio  │  обертка для            │      │
+│   │ Тема 3 (PENDING)│ ──┤   Semaphore │                         │      │
+│   │ Тема 4 (PENDING)│ ──┤   (max=5)   │  • get_next_citation_   │      │
+│   │ Тема 5 (PENDING)│ ──┘             │    id_async()           │      │
 │   └─────────────────┘                  │  • add_citation_async() │      │
 │            │                           └───────────┬─────────────┘      │
 │            ▼                                       │                    │
 │   ┌─────────────────────────────────────────────────────────────┐      │
-│   │              Concurrent ResearchAgent Tasks                  │      │
+│   │              Задачи параллельных ResearchAgent               │      │
 │   │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │      │
-│   │  │ Task 1  │  │ Task 2  │  │ Task 3  │  │ Task 4  │  ...   │      │
-│   │  │(Topic 1)│  │(Topic 2)│  │(Topic 3)│  │(Topic 4)│        │      │
+│   │  │ Задача 1│  │ Задача 2│  │ Задача 3│  │ Задача 4│  ...   │      │
+│   │  │(Тема 1) │  │(Тема 2) │  │(Тема 3) │  │(Тема 4) │        │      │
 │   │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘        │      │
 │   │       │            │            │            │              │      │
 │   │       └────────────┴────────────┴────────────┘              │      │
 │   │                         │                                    │      │
 │   │                         ▼                                    │      │
 │   │              AsyncManagerAgentWrapper                        │      │
-│   │              (Thread-safe queue updates)                     │      │
+│   │              (Обновления очереди, безопасные для потоков)    │      │
 │   └─────────────────────────────────────────────────────────────┘      │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Component | Description |
+| Компонент | Описание |
 |:---:|:---|
-| `asyncio.Semaphore` | Limits concurrent tasks to `max_parallel_topics` (default: 5) |
-| `AsyncCitationManagerWrapper` | Wraps CitationManager with `asyncio.Lock()` for thread-safe ID generation |
-| `AsyncManagerAgentWrapper` | Ensures queue state updates are atomic across parallel tasks |
-| Real-time Progress | Live display of all active research tasks with status indicators |
+| `asyncio.Semaphore` | Ограничивает количество одновременных задач до `max_parallel_topics` (по умолчанию: 5) |
+| `AsyncCitationManagerWrapper` | Оборачивает CitationManager с `asyncio.Lock()` для потокобезопасной генерации ID |
+| `AsyncManagerAgentWrapper` | Обеспечивает атомарность обновлений состояния очереди в параллельных задачах |
+| Отслеживание прогресса в реальном времени | Отображение всех активных задач исследования с индикаторами состояния |
 
-**Agent Responsibilities**
+**Обязанности агентов**
 
-| Agent | Phase | Responsibility |
+| Агент | Фаза | Обязанности |
 |:---:|:---:|:---|
-| RephraseAgent | Planning | Optimizes user input topic, supports multi-turn user interaction for refinement |
-| DecomposeAgent | Planning | Decomposes topic into subtopics with RAG context, obtains citation IDs from CitationManager |
-| ManagerAgent | Researching | Queue state management, task scheduling, dynamic topic addition |
-| ResearchAgent | Researching | Knowledge sufficiency check, query planning, tool selection, requests citation IDs before each tool call |
-| NoteAgent | Researching | Compresses raw tool outputs into summaries, creates ToolTraces with pre-assigned citation IDs |
-| ReportingAgent | Reporting | Builds citation map, generates three-level outline, writes report sections with citation tables, post-processes citations |
+| RephraseAgent | Планирование | Оптимизация входной темы пользователя, поддержка многораундового взаимодействия пользователя для уточнения |
+| DecomposeAgent | Планирование | Декомпозиция темы на подтемы с контекстом RAG, получение ID цитирования из CitationManager |
+| ManagerAgent | Исследование | Управление состоянием очереди, планирование задач, динамическое добавление тем |
+| ResearchAgent | Исследование | Проверка достаточности знаний, планирование запросов, выбор инструментов, запрос ID цитирования перед каждым вызовом инструмента |
+| NoteAgent | Исследование | Сжатие необработанных выходных данных инструментов в сводки, создание ToolTraces с заранее назначенными ID цитирования |
+| ReportingAgent | Отчетность | Построение карты цитирования, генерация структуры из трех уровней, написание разделов отчета с таблицами цитирования, пост-обработка цитирований |
 
-**Report Generation Pipeline**
+**Конвейер генерации отчетов**
 
 ```
-1. Build Citation Map     →  CitationManager.build_ref_number_map()
-2. Generate Outline       →  Three-level headings (H1 → H2 → H3)
-3. Write Sections         →  LLM uses [N] citations with provided citation table
-4. Post-process           →  Convert [N] → [[N]](#ref-N), validate references
-5. Generate References    →  Academic-style entries with collapsible source details
+1. Построить карту цитирования →  CitationManager.build_ref_number_map()
+2. Генерация структуры →  Трехуровневые заголовки (H1 → H2 → H3)
+3. Написание разделов →  LLM использует [N] цитирования с предоставленной таблицей цитирования
+4. Пост-обработка →  Преобразование [N] → [[N]](#ref-N), проверка ссылок
+5. Генерация списка литературы →  Стилизованные академические записи с раскрывающимися деталями источника
 ```
 
 **Использование**
@@ -1125,7 +1184,7 @@ asyncio.run(main())
 </tr>
 </table>
 
-## ❓ ЧаВо
+## ❓ Часто задаваемые вопросы
 
 <details>
 <summary><b>Не удается запустить backend?</b></summary>
@@ -1203,6 +1262,29 @@ npm --version   # Должно показывать номер версии
 </details>
 
 <details>
+<summary><b>Проблемы с длинными именами файлов при установке в Windows?</b></summary>
+
+**Проблема**
+
+В Windows вы можете столкнуться с ошибками, связанными с длинными путями файлов во время установки, такими как "Имя файла или расширение слишком длинное" или аналогичные проблемы с длиной пути.
+
+**Причина**
+
+Windows имеет ограничение по умолчанию на длину пути (260 символов), которое может быть превышено из-за вложенной структуры каталогов и зависимостей DeepTutor.
+
+**Решение**
+
+Включите поддержку длинных путей в системе, выполнив следующую команду в командной строке от имени администратора:
+
+```cmd
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
+```
+
+После выполнения этой команды перезапустите терминал, чтобы изменения вступили в силу.
+
+</details>
+
+<details>
 <summary><b>Frontend не может подключиться к backend?</b></summary>
 
 **Контрольный список**
@@ -1220,6 +1302,62 @@ NEXT_PUBLIC_API_BASE=http://localhost:8001
 </details>
 
 <details>
+<summary><b>Docker: Frontend не может подключиться при облачном развертывании?</b></summary>
+
+**Проблема**
+
+При развертывании на облачном сервере интерфейс показывает ошибки подключения, такие как "Не удалось получить данные" или "NEXT_PUBLIC_API_BASE не настроен".
+
+**Причина**
+
+Стандартный URL API - `localhost:8001`, который указывает на локальную машину пользователя в браузере, а не на ваш сервер.
+
+**Решение**
+
+Установите переменную окружения `NEXT_PUBLIC_API_BASE_EXTERNAL` на публичный URL вашего сервера:
+
+```bash
+# Использование docker run
+docker run -d --name deeptutor \
+  -e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:8001 \
+  ... другие параметры ...
+  ghcr.io/hkuds/deeptutor:latest
+
+# Или в файле .env
+NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:8001
+```
+
+**Пример пользовательского порта:**
+```bash
+# Если используется порт бэкенда 9001
+-e BACKEND_PORT=9001 \
+-e NEXT_PUBLIC_API_BASE_EXTERNAL=https://your-server.com:9001
+```
+
+</details>
+
+<details>
+<summary><b>Docker: Как использовать пользовательские порты?</b></summary>
+
+**Решение**
+
+Установите как переменные окружения портов, так и сопоставления портов:
+
+```bash
+docker run -d --name deeptutor \
+  -p 9001:9001 -p 4000:4000 \
+  -e BACKEND_PORT=9001 \
+  -e FRONTEND_PORT=4000 \
+  -e NEXT_PUBLIC_API_BASE_EXTERNAL=http://localhost:9001 \
+  ... другие переменные окружения ...
+  ghcr.io/hkuds/deeptutor:latest
+```
+
+**Важно**: Сопоставление портов `-p` должно соответствовать значениям `BACKEND_PORT`/`FRONTEND_PORT`.
+
+</details>
+
+<details>
 <summary><b>Соединение WebSocket не удается?</b></summary>
 
 **Контрольный список**
@@ -1230,6 +1368,66 @@ NEXT_PUBLIC_API_BASE=http://localhost:8001
 **Решение**
 - **Проверьте логи backend**
 - **Подтвердите формат URL**: `ws://localhost:8001/api/v1/...`
+
+</details>
+
+<details>
+<summary><b>На странице настроек отображается "Ошибка загрузки данных" при использовании HTTPS обратного прокси?</b></summary>
+
+**Проблема**
+
+При развертывании за HTTPS обратным прокси (например, nginx), на странице настроек отображается "Ошибка загрузки данных", и инструменты разработчика браузера показывают, что HTTPS-запросы перенаправляются на HTTP (307 редирект).
+
+**Причина**
+
+Эта проблема была исправлена в версии v0.5.0+. Если вы используете более старую версию, проблема была вызвана автоматическими перенаправлениями с завершающей косой чертой от FastAPI, которые генерировали HTTP URL-адреса вместо сохранения исходного протокола HTTPS.
+
+**Решение (для v0.5.0+)**
+
+Обновитесь до последней версии. Исправление отключает автоматические перенаправления с косой чертой, чтобы предотвратить понижение протокола.
+
+**Рекомендуемая конфигурация nginx**
+
+При использовании nginx в качестве HTTPS обратного прокси используйте следующую конфигурацию:
+
+```nginx
+# Фронтенд
+location / {
+    proxy_pass http://localhost:3782;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+# API бэкенда
+location /api/ {
+    proxy_pass http://localhost:8001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;  # Важно: сохраняет исходный протокол
+}
+
+# Поддержка WebSocket
+location /api/v1/ {
+    proxy_pass http://localhost:8001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+**Переменная окружения**
+
+Установите в `.env`:
+```bash
+NEXT_PUBLIC_API_BASE=https://your-domain.com:port
+```
+
+См.: [GitHub Issue #112](https://github.com/HKUDS/DeepTutor/issues/112)
 
 </details>
 
@@ -1308,22 +1506,38 @@ python src/knowledge/extract_numbered_items.py --kb <kb_name> --base-dir ./data/
 
 </details>
 
-## 📄 Лицензия
 
-Этот проект лицензирован по **[Лицензии AGPL-3.0](../../LICENSE)**.
+</div>
 
-<!--
 ## ⭐ История звезд
 
 <div align="center">
-<a href="https://star-history.com/#HKUDS/DeepTutor&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=Date" />
-   <img alt="График истории звезд" src="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=Date" />
- </picture>
+
+<p>
+  <a href="https://github.com/HKUDS/DeepTutor/stargazers"><img src="../../assets/roster/stargazers.svg" alt="Stargazers"/></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/HKUDS/DeepTutor/network/members"><img src="../../assets/roster/forkers.svg" alt="Forkers"/></a>
+</p>
+
+<a href="https://www.star-history.com/#HKUDS/DeepTutor&type=timeline&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=timeline&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=timeline&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=timeline&legend=top-left" />
+  </picture>
 </a>
-</div> 2-->
+
+</div>
+
+## 🤝 Участие в разработке
+
+<div align="center">
+
+Мы надеемся, что DeepTutor сможет стать подарком для сообщества. 🎁
+
+<a href="https://github.com/HKUDS/DeepTutor/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=HKUDS/DeepTutor&max=999" alt="Участники HKUDS/DeepTutor" />
+</a>
 
 </div>
 
@@ -1339,18 +1553,13 @@ python src/knowledge/extract_numbered_items.py --kb <kb_name> --base-dir ./data/
 
 [⭐ Поставьте звезду](https://github.com/HKUDS/DeepTutor/stargazers) · [🐛 Сообщить об ошибке](https://github.com/HKUDS/DeepTutor/issues) · [💬 Обсуждения](https://github.com/HKUDS/DeepTutor/discussions)
 
-[![Рейтинг звезд репозитория для @HKUDS/DeepTutor](https://reporoster.com/stars/dark/HKUDS/DeepTutor)](https://github.com/HKUDS/DeepTutor/stargazers)
-
-[![Форкеры репозитория для @HKUDS/DeepTutor](https://reporoster.com/forks/dark/HKUDS/DeepTutor)](https://github.com/HKUDS/DeepTutor/network/members)
-
-## История звезд
-
-[![График истории звезд](https://api.star-history.com/svg?repos=HKUDS/DeepTutor&type=timeline&legend=top-left)](https://www.star-history.com/#HKUDS/DeepTutor&type=timeline&legend=top-left)
-
 ---
 
-*✨ Спасибо за посещение **DeepTutor**!*
+Этот проект распространяется под лицензией ***[AGPL-3.0](../../LICENSE)***.
 
-<img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.DeepTutor&style=for-the-badge&color=00d4ff" alt="Просмотры">
+<p align="center">
+  <em> Спасибо, что посетили ✨ DeepTutor!</em><br><br>
+  <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.DeepTutor&style=for-the-badge&color=00d4ff" alt="Views">
+</p>
 
 </div>

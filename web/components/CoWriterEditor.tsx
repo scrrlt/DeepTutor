@@ -1522,7 +1522,7 @@ export default function CoWriterEditor({
 
             <div className="p-4 space-y-4">
               {/* Selected Text Preview */}
-              <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 p-2 rounded-lg border border-slate-100 dark:border-slate-600 line-clamp-2 italic">
+              <div className="text-xs overflow-y-auto text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700 p-2 rounded-lg border border-slate-100 dark:border-slate-600 line-clamp-2 italic">
                 &quot;{selection?.text}&quot;
               </div>
 
