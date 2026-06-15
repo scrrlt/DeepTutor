@@ -279,6 +279,7 @@ app.mount(
 # Import routers only after runtime settings are initialized.
 # Some router modules load YAML settings at import time.
 from deeptutor.api.routers import (
+    write,
     agent_config,
     attachments,
     auth,
@@ -306,6 +307,7 @@ from deeptutor.api.routers import (
     vision_solver,
 )
 from deeptutor.api.routers import (
+    write,
     tools as tools_router,
 )
 from deeptutor.multi_user.router import router as multi_user_router  # noqa: E402
@@ -410,6 +412,7 @@ app.include_router(unified_ws.router, prefix="/api/v1", tags=["unified-ws"])
 # Quiz AI-judge WebSocket — same caveat as unified_ws above; auth is checked
 # inside the handler so the WS upgrade isn't rejected by an HTTP-style dep.
 app.include_router(quiz_judge.router, prefix="/api/v1", tags=["quiz-judge"])
+app.include_router(write.router, prefix="/api/v1/write", tags=["write"], dependencies=_auth)
 
 
 @app.get("/")
