@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import re
+from concurrent.futures import ProcessPoolExecutor
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Literal
 
@@ -98,22 +100,38 @@ _DEFAULT_EMBEDDING_MODELS: dict[ProviderName, str] = {
 
 
 class ProviderClientRegistry:
-    """Runtime registry for provider-aware API clients and shared state."""
+    """Runtime registry for provider-aware API clients."""
 
     def __init__(self) -> None:
         self.llm_client: AsyncOpenAI | None = None
         self.embedding_client: AsyncOpenAI | None = None
-        self.logit_bias_map: dict[str, int] | None = None
 
 
-_registry = ProviderClientRegistry()
+_registry_ctx: ContextVar[ProviderClientRegistry] = ContextVar(
+    "provider_client_registry", default=ProviderClientRegistry()
+)
+
+_logit_bias_cache: dict[str, int] | None = None
 _logit_bias_lock = asyncio.Lock()
+_process_pool: ProcessPoolExecutor | None = None
+
+
+def _get_process_pool() -> ProcessPoolExecutor:
+    """Lazy initialization of the process pool for CPU-bound tasks."""
+    global _process_pool
+    if _process_pool is None:
+        _process_pool = ProcessPoolExecutor(max_workers=1)
+    return _process_pool
+
+
+def get_registry() -> ProviderClientRegistry:
+    """Return the request-isolated provider client registry."""
+    return _registry_ctx.get()
 
 
 def set_provider_client_registry(registry: ProviderClientRegistry) -> None:
-    """Inject a provider client registry (useful for tests)."""
-    global _registry
-    _registry = registry
+    """Inject a provider client registry into the current context (useful for tests)."""
+    _registry_ctx.set(registry)
 
 
 def _resolve_provider(kind: ClientKind) -> ProviderName:
@@ -216,17 +234,19 @@ def _make_client(
 
 
 def get_llm_client() -> AsyncOpenAI:
-    """Return cached provider-aware LLM client."""
-    if _registry.llm_client is None:
-        _registry.llm_client = _make_client("llm")
-    return _registry.llm_client
+    """Return request-isolated cached provider-aware LLM client."""
+    registry = get_registry()
+    if registry.llm_client is None:
+        registry.llm_client = _make_client("llm")
+    return registry.llm_client
 
 
 def get_embedding_client() -> AsyncOpenAI:
-    """Return cached provider-aware embedding client."""
-    if _registry.embedding_client is None:
-        _registry.embedding_client = _make_client("embedding")
-    return _registry.embedding_client
+    """Return request-isolated cached provider-aware embedding client."""
+    registry = get_registry()
+    if registry.embedding_client is None:
+        registry.embedding_client = _make_client("embedding")
+    return registry.embedding_client
 
 
 def create_llm_client(provider: ProviderName) -> AsyncOpenAI:
@@ -240,10 +260,12 @@ def create_embedding_client(provider: ProviderName) -> AsyncOpenAI:
 
 
 def reset_provider_clients() -> None:
-    """Clear cached provider clients for isolated tests."""
-    _registry.llm_client = None
-    _registry.embedding_client = None
-    _registry.logit_bias_map = None
+    """Clear cached provider clients for the current context."""
+    global _logit_bias_cache
+    registry = get_registry()
+    registry.llm_client = None
+    registry.embedding_client = None
+    _logit_bias_cache = None
 
 
 def resolve_llm_model() -> str:
@@ -304,6 +326,28 @@ def resolve_embedding_model() -> str:
     ):
         return _DEFAULT_EMBEDDING_MODELS[provider]
     return settings.embedding_model
+
+
+def get_embedding_dimensions() -> int | None:
+    """Dynamically resolve embedding dimensions from the model catalog or settings."""
+    try:
+        from deeptutor.services.config.model_catalog import get_model_catalog_service
+
+        catalog_svc = get_model_catalog_service()
+        catalog = catalog_svc.load()
+        active_model = catalog_svc.get_active_model(catalog, "embedding")
+        if active_model:
+            dim = active_model.get("dimension")
+            if isinstance(dim, (int, float)):
+                return int(dim)
+            if isinstance(dim, str) and dim.isdigit():
+                return int(dim)
+    except Exception:
+        pass
+
+    settings = get_settings()
+    # Support explicit setting override if present
+    return getattr(settings, "embedding_dimensions", None)
 
 
 def should_send_embedding_dimensions() -> bool:
@@ -385,30 +429,33 @@ def _token_ids_for_blocklist(terms: list[str]) -> list[int]:
 
 
 def build_logit_bias_map() -> dict[str, int]:
-    """Build a suppression map for high-severity filler vocabulary tokens."""
-    if _registry.logit_bias_map is not None:
-        return _registry.logit_bias_map
+    """Build a suppression map for high-severity filler vocabulary tokens (sync fallback)."""
+    global _logit_bias_cache
+    if _logit_bias_cache is not None:
+        return _logit_bias_cache
 
     blocked_terms = _load_blocked_terms()
     token_ids = _token_ids_for_blocklist(blocked_terms)
-    _registry.logit_bias_map = {str(token_id): -100 for token_id in token_ids}
-    return _registry.logit_bias_map
+    _logit_bias_cache = {str(token_id): -100 for token_id in token_ids}
+    return _logit_bias_cache
 
 
 async def get_logit_bias_map() -> dict[str, int]:
     """Asynchronous, non-blocking retrieval of the logit-bias map."""
-    if _registry.logit_bias_map is not None:
-        return _registry.logit_bias_map
+    global _logit_bias_cache
+    if _logit_bias_cache is not None:
+        return _logit_bias_cache
 
     async with _logit_bias_lock:
-        if _registry.logit_bias_map is not None:
-            return _registry.logit_bias_map
+        if _logit_bias_cache is not None:
+            return _logit_bias_cache
 
         loop = asyncio.get_running_loop()
-        blocked_terms = await loop.run_in_executor(None, _load_blocked_terms)
-        token_ids = await loop.run_in_executor(None, _token_ids_for_blocklist, blocked_terms)
-        _registry.logit_bias_map = {str(token_id): -100 for token_id in token_ids}
-        return _registry.logit_bias_map
+        executor = _get_process_pool()
+        blocked_terms = await loop.run_in_executor(executor, _load_blocked_terms)
+        token_ids = await loop.run_in_executor(executor, _token_ids_for_blocklist, blocked_terms)
+        _logit_bias_cache = {str(token_id): -100 for token_id in token_ids}
+        return _logit_bias_cache
 
 
 def prepare_completion_payload(

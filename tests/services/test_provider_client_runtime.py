@@ -165,7 +165,7 @@ def test_get_llm_model_sequence_uses_provider_specific_models() -> None:
 def test_reset_provider_clients_clears_logit_bias_cache() -> None:
     registry = ProviderClientRegistry()
     set_provider_client_registry(registry)
-    build_logit_bias_map.cache_clear()
+    reset_provider_clients()
 
     with (
         patch(

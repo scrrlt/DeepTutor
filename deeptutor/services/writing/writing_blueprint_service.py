@@ -211,6 +211,7 @@ async def perform_syllabus_gap_analysis(
     """Orchestrate embedding generation and coverage analysis for a student text."""
     from deeptutor.services.writing.provider_client import (
         get_embedding_client,
+        get_embedding_dimensions,
         resolve_embedding_model,
         should_send_embedding_dimensions,
     )
@@ -220,8 +221,9 @@ async def perform_syllabus_gap_analysis(
 
     kwargs: dict[str, object] = {"model": model, "input": student_text}
     if should_send_embedding_dimensions():
-        # text-embedding-3-small uses 1536 by default.
-        kwargs["dimensions"] = 1536
+        dims = get_embedding_dimensions()
+        if dims:
+            kwargs["dimensions"] = dims
 
     response = await client.embeddings.create(**kwargs)
     student_embedding = response.data[0].embedding

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import re
 import statistics
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -191,20 +192,11 @@ async def get_user_stylometric_profile(
     if row is None:
         return None
 
-    features_obj = json.loads(row.profile_json)
-    exemplars_obj = json.loads(row.exemplar_json)
+    features_adapter = TypeAdapter(dict[str, float])
+    exemplars_adapter = TypeAdapter(list[str])
 
-    features: dict[str, float] = {}
-    if isinstance(features_obj, dict):
-        for key, value in features_obj.items():
-            if isinstance(key, str) and isinstance(value, (int, float)):
-                features[key] = float(value)
-
-    exemplars: list[str] = []
-    if isinstance(exemplars_obj, list):
-        for item in exemplars_obj:
-            if isinstance(item, str) and item.strip():
-                exemplars.append(item.strip())
+    features = features_adapter.validate_python(json.loads(row.profile_json))
+    exemplars = exemplars_adapter.validate_python(json.loads(row.exemplar_json))
 
     return StylometricProfileSnapshot(
         user_id=row.user_id,
@@ -253,21 +245,13 @@ async def upsert_user_stylometric_profile(
             last_grade=grade,
         )
 
-    current_obj = json.loads(existing.profile_json)
-    current_features: dict[str, float] = {}
-    if isinstance(current_obj, dict):
-        for key, value in current_obj.items():
-            if isinstance(key, str) and isinstance(value, (int, float)):
-                current_features[key] = float(value)
+    features_adapter = TypeAdapter(dict[str, float])
+    exemplars_adapter = TypeAdapter(list[str])
 
+    current_features = features_adapter.validate_python(json.loads(existing.profile_json))
     merged = _merge_features(current_features, features, existing.sample_count)
 
-    existing_exemplar_obj = json.loads(existing.exemplar_json)
-    existing_exemplars: list[str] = []
-    if isinstance(existing_exemplar_obj, list):
-        for item in existing_exemplar_obj:
-            if isinstance(item, str) and item.strip():
-                existing_exemplars.append(item.strip())
+    existing_exemplars = exemplars_adapter.validate_python(json.loads(existing.exemplar_json))
 
     exemplar_union = (unique_exemplars + existing_exemplars)[:12]
 
@@ -377,11 +361,17 @@ async def aggregate_telemetry_stream(
         processed += 1
 
     profiles_updated = 0
+    from deeptutor.services.writing.provider_client import _get_process_pool
+
+    loop = asyncio.get_running_loop()
+    executor = _get_process_pool()
+
     for user_id, fragments in grouped.items():
         merged_text = " ".join(fragment for fragment in fragments if fragment.strip())
         if len(merged_text) < 80:
             continue
-        features = compute_stylometric_features(merged_text)
+        
+        features = await loop.run_in_executor(executor, compute_stylometric_features, merged_text)
         await upsert_user_stylometric_profile(
             db,
             user_id=user_id,

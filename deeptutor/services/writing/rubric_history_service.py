@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from statistics import median
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,6 +126,7 @@ async def create_rubric_assessment(
     auto_commit: bool = True,
 ) -> RubricAssessmentRecord:
     """Persist one rubric assessment entry and return typed projection."""
+    criteria_adapter = TypeAdapter(list[RubricCriterion])
     row = RubricAssessment(
         user_id=user_id,
         unit_id=unit_id,
@@ -139,7 +140,7 @@ async def create_rubric_assessment(
         raw_total=raw_total,
         raw_max=raw_max,
         grade_descriptor=grade_descriptor,
-        criteria_json=json.dumps([c.model_dump() for c in criteria]),
+        criteria_json=json.dumps(criteria_adapter.dump_python(criteria)),
         improvement_suggestions_json=json.dumps(improvement_suggestions),
         assessor_notes=assessor_notes,
     )
