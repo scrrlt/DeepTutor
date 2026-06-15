@@ -7,8 +7,7 @@ import logging
 import os
 import re
 import statistics
-from dataclasses import dataclass
-
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,20 +23,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-STREAM_KEY = "leo_rag:stylometry:events"
-STREAM_CURSOR_KEY = "leo_rag:stylometry:cursor"
+STREAM_KEY = "deeptutor:stylometry:events"
+STREAM_CURSOR_KEY = "deeptutor:stylometry:cursor"
 
 
-@dataclass(frozen=True)
-class StylometricProfileSnapshot:
-    """Typed view of one user stylometric profile row."""
+class StylometricProfileSnapshot(BaseModel):
+    """Strict Pydantic contract for user stylometric profile views."""
 
     user_id: str
     features: dict[str, float]
     exemplars: list[str]
     sample_count: int
-    last_score: float | None
-    last_grade: str | None
+    last_score: float | None = None
+    last_grade: str | None = None
 
 
 def _safe_mean(values: list[float]) -> float:

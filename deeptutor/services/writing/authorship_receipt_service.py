@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import time
-from dataclasses import dataclass
 from typing import Literal, cast
 
+from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,9 +23,8 @@ class MutationReceiptAppendError(RuntimeError):
     """Raised when append_mutation_receipt cannot persist a valid next event."""
 
 
-@dataclass(frozen=True)
-class MutationReceiptRecord:
-    """Typed projection of one persisted mutation receipt."""
+class MutationReceiptRecord(BaseModel):
+    """Strict Pydantic contract for persisted mutation receipts."""
 
     id: int
     user_id: str
@@ -38,16 +37,16 @@ class MutationReceiptRecord:
     signature_hash: str
 
 
-@dataclass(frozen=True)
-class MutationChainVerificationResult:
-    """Chain verification outcome for one user/document provenance ledger."""
+class MutationChainVerificationResult(BaseModel):
+    """Strict Pydantic contract for chain verification outcomes."""
 
     user_id: str
     document_id: str
     checked_count: int
     is_valid: bool
-    first_invalid_sequence_index: int | None
-    reason: str | None
+    first_invalid_sequence_index: int | None = None
+    reason: str | None = None
+
 
 
 def _signature_hash(

@@ -5,11 +5,12 @@ from __future__ import annotations
 import math
 import re
 import statistics
-from dataclasses import dataclass
+from pydantic import BaseModel
 from pathlib import Path
 from typing import Literal
 
 from yaml import safe_load
+
 
 type TokenArray = list[str]
 type PatternDictionary = dict[str, str]
@@ -20,9 +21,8 @@ type VocabularyFrequencyMap = dict[str, int]
 type SubstitutionDictionary = dict[str, str]
 
 
-@dataclass(frozen=True)
-class StylometricProfile:
-    """Chronological stylometric indicators for one submission."""
+class StylometricProfile(BaseModel):
+    """Strict Pydantic contract for chronological stylometric indicators."""
 
     lexical_density_ttr: float
     mean_sentence_length: float
@@ -30,18 +30,16 @@ class StylometricProfile:
     passive_voice_ratio: float
 
 
-@dataclass(frozen=True)
-class TextSegment:
-    """A paragraph segment with source coordinates."""
+class TextSegment(BaseModel):
+    """Strict Pydantic contract for a paragraph segment with source coordinates."""
 
     start_index: int
     end_index: int
     text: str
 
 
-@dataclass(frozen=True)
-class ContextChunkPlacement:
-    """Placement details for one chunk inside the full prompt context."""
+class ContextChunkPlacement(BaseModel):
+    """Strict Pydantic contract for chunk placement inside prompt context."""
 
     chunk_id: str
     filename: str
@@ -50,9 +48,8 @@ class ContextChunkPlacement:
     retention_risk_zone: Literal["optimal_top", "vulnerable_middle", "optimal_bottom"]
 
 
-@dataclass(frozen=True)
-class SyllabusGap:
-    """Coverage gap record for one syllabus chunk."""
+class SyllabusGap(BaseModel):
+    """Strict Pydantic contract for syllabus coverage gaps."""
 
     module_name: str
     missing_theory_title: str
@@ -205,6 +202,33 @@ def compute_inverse_coverage(
     return sorted(gaps, key=lambda item: item.max_similarity_resolved)
 
 
+async def perform_syllabus_gap_analysis(
+    student_text: str,
+    syllabus_chunks: list[dict[str, object]],
+    *,
+    threshold: float = 0.5,
+) -> list[SyllabusGap]:
+    """Orchestrate embedding generation and coverage analysis for a student text."""
+    from deeptutor.services.writing.provider_client import (
+        get_embedding_client,
+        resolve_embedding_model,
+        should_send_embedding_dimensions,
+    )
+
+    client = get_embedding_client()
+    model = resolve_embedding_model()
+
+    kwargs: dict[str, object] = {"model": model, "input": student_text}
+    if should_send_embedding_dimensions():
+        # text-embedding-3-small uses 1536 by default.
+        kwargs["dimensions"] = 1536
+
+    response = await client.embeddings.create(**kwargs)
+    student_embedding = response.data[0].embedding
+
+    return compute_inverse_coverage(student_embedding, syllabus_chunks, threshold=threshold)
+
+
 class SlopPhraseSanitiser:
     """Identifies and removes machine-slop terminology via regex mapping."""
 
@@ -284,9 +308,8 @@ class StructuralEntropyExtrapolator:
         return f"{pattern_directive}\n\nDraft prose for these notes:\n{user_notes}"
 
 
-@dataclass(frozen=True)
-class SyntacticTopology:
-    """Hierarchical grammar topology metrics for prose."""
+class SyntacticTopology(BaseModel):
+    """Strict Pydantic contract for hierarchical grammar topology metrics."""
 
     mean_dependency_depth: float
     branching_coefficient: float

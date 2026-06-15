@@ -2,18 +2,59 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from openai import AsyncOpenAI
+from pydantic import BaseModel
 from yaml import safe_load
 
-from deeptutor.config import ProviderName, get_settings
-from deeptutor.exceptions import ConfigurationValidationError
+try:
+    from deeptutor.exceptions import ConfigurationValidationError
+except ImportError:
+
+    class ConfigurationValidationError(Exception):
+        """Fallback for missing ConfigurationValidationError."""
+
+# PEP 695 type aliases for provider identifiers
+type ProviderName = Literal[
+    "openai",
+    "gemini",
+    "openrouter",
+    "groq",
+    "together",
+    "deepseek",
+    "xai",
+    "mistral",
+    "ollama",
+    "custom",
+]
 
 type ClientKind = Literal["llm", "embedding"]
+
+
+def get_settings() -> object:
+    """Fallback settings accessor that merges defaults with environment overrides."""
+    try:
+        from deeptutor.config import get_settings as _get_settings
+
+        return _get_settings()
+    except ImportError:
+        from deeptutor.config.settings import settings
+
+        return settings
+
+
+class CompletionPayload(BaseModel):
+    """Strict Pydantic contract for LLM completion parameters."""
+
+    model: str
+    messages: list[dict[str, str]]
+    temperature: float = 0.78
+    max_tokens: int = 1200
+    logit_bias: dict[str, int] | None = None
 
 
 _PROVIDER_BASE_URLS: dict[ProviderName, str] = {
@@ -57,14 +98,16 @@ _DEFAULT_EMBEDDING_MODELS: dict[ProviderName, str] = {
 
 
 class ProviderClientRegistry:
-    """Runtime registry for provider-aware API clients."""
+    """Runtime registry for provider-aware API clients and shared state."""
 
     def __init__(self) -> None:
         self.llm_client: AsyncOpenAI | None = None
         self.embedding_client: AsyncOpenAI | None = None
+        self.logit_bias_map: dict[str, int] | None = None
 
 
 _registry = ProviderClientRegistry()
+_logit_bias_lock = asyncio.Lock()
 
 
 def set_provider_client_registry(registry: ProviderClientRegistry) -> None:
@@ -200,7 +243,7 @@ def reset_provider_clients() -> None:
     """Clear cached provider clients for isolated tests."""
     _registry.llm_client = None
     _registry.embedding_client = None
-    build_logit_bias_map.cache_clear()
+    _registry.logit_bias_map = None
 
 
 def resolve_llm_model() -> str:
@@ -341,12 +384,31 @@ def _token_ids_for_blocklist(terms: list[str]) -> list[int]:
     return unique_ids
 
 
-@lru_cache(maxsize=1)
 def build_logit_bias_map() -> dict[str, int]:
     """Build a suppression map for high-severity filler vocabulary tokens."""
+    if _registry.logit_bias_map is not None:
+        return _registry.logit_bias_map
+
     blocked_terms = _load_blocked_terms()
     token_ids = _token_ids_for_blocklist(blocked_terms)
-    return {str(token_id): -100 for token_id in token_ids}
+    _registry.logit_bias_map = {str(token_id): -100 for token_id in token_ids}
+    return _registry.logit_bias_map
+
+
+async def get_logit_bias_map() -> dict[str, int]:
+    """Asynchronous, non-blocking retrieval of the logit-bias map."""
+    if _registry.logit_bias_map is not None:
+        return _registry.logit_bias_map
+
+    async with _logit_bias_lock:
+        if _registry.logit_bias_map is not None:
+            return _registry.logit_bias_map
+
+        loop = asyncio.get_running_loop()
+        blocked_terms = await loop.run_in_executor(None, _load_blocked_terms)
+        token_ids = await loop.run_in_executor(None, _token_ids_for_blocklist, blocked_terms)
+        _registry.logit_bias_map = {str(token_id): -100 for token_id in token_ids}
+        return _registry.logit_bias_map
 
 
 def prepare_completion_payload(
@@ -355,15 +417,13 @@ def prepare_completion_payload(
     messages: list[dict[str, str]],
     temperature: float = 0.78,
     max_tokens: int = 1200,
-) -> dict[str, object]:
+) -> CompletionPayload:
     """Construct completion payload with active logit-bias suppression."""
-    payload: dict[str, object] = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
     logit_bias = build_logit_bias_map()
-    if logit_bias:
-        payload["logit_bias"] = logit_bias
-    return payload
+    return CompletionPayload(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        logit_bias=logit_bias or None,
+    )

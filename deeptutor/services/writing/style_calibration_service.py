@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import Literal
 
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deeptutor.models.user_stylometric_profile import UserStylometricProfile
 
+
 type PreferenceSignal = Literal["cadence_a", "cadence_b"]
 type WeightUpdateMap = dict[str, float]
 
 
-@dataclass(frozen=True)
-class ContrastPair:
-    """One contrastive pair for a single style metric target."""
+class ContrastPair(BaseModel):
+    """Strict Pydantic contract for a single style metric contrast pair."""
 
     pair_id: str
     metric_target: Literal["sentence_variance", "passive_ratio", "lexical_density"]

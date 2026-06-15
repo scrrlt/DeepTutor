@@ -3,41 +3,48 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from statistics import median
 
+from pydantic import BaseModel, Field
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deeptutor.models.rubric_assessment import RubricAssessment
 
 
-@dataclass(frozen=True)
-class RubricAssessmentRecord:
-    """Typed projection for one rubric assessment row."""
+class RubricCriterion(BaseModel):
+    """Strict Pydantic contract for a single rubric criterion score."""
+
+    key: str
+    score: float
+    label: str | None = None
+    feedback: str | None = None
+
+
+class RubricAssessmentRecord(BaseModel):
+    """Strict Pydantic contract for one rubric assessment entry."""
 
     id: int
     user_id: str
-    unit_id: str | None
-    topic: str | None
-    grade_level: str | None
-    cohort: str | None
+    unit_id: str | None = None
+    topic: str | None = None
+    grade_level: str | None = None
+    cohort: str | None = None
     template_id: str
-    comparison_group_id: str | None
+    comparison_group_id: str | None = None
     is_improved_version: bool
     weighted_total: float
     raw_total: int
     raw_max: int
     grade_descriptor: str
-    criteria: list[dict[str, object]]
+    criteria: list[RubricCriterion]
     improvement_suggestions: list[str]
     assessor_notes: str
     created_at_iso: str
 
 
-@dataclass(frozen=True)
-class RubricDashboardSummary:
-    """Aggregate metrics for rubric dashboard views."""
+class RubricDashboardSummary(BaseModel):
+    """Strict Pydantic contract for aggregate metrics for rubric dashboard views."""
 
     total_assessments: int
     average_weighted_score: float
@@ -47,9 +54,8 @@ class RubricDashboardSummary:
     raw_scores: list[float]
 
 
-@dataclass(frozen=True)
-class PeerComparisonSummary:
-    """Anonymized cohort comparison result for one assessment."""
+class PeerComparisonSummary(BaseModel):
+    """Strict Pydantic contract for anonymized cohort comparison result."""
 
     assessment_id: int
     cohort_size: int
@@ -62,15 +68,15 @@ class PeerComparisonSummary:
 
 
 def _to_record(row: RubricAssessment) -> RubricAssessmentRecord:
-    """Convert ORM row to strongly typed record."""
+    """Convert ORM row to strongly typed Pydantic record."""
     criteria_obj = json.loads(row.criteria_json)
     suggestions_obj = json.loads(row.improvement_suggestions_json)
 
-    criteria: list[dict[str, object]] = []
+    criteria: list[RubricCriterion] = []
     if isinstance(criteria_obj, list):
         for item in criteria_obj:
             if isinstance(item, dict):
-                criteria.append(item)
+                criteria.append(RubricCriterion.model_validate(item))
 
     improvement_suggestions: list[str] = []
     if isinstance(suggestions_obj, list):
@@ -114,7 +120,7 @@ async def create_rubric_assessment(
     raw_total: int,
     raw_max: int,
     grade_descriptor: str,
-    criteria: list[dict[str, object]],
+    criteria: list[RubricCriterion],
     improvement_suggestions: list[str],
     assessor_notes: str,
     auto_commit: bool = True,
@@ -133,7 +139,7 @@ async def create_rubric_assessment(
         raw_total=raw_total,
         raw_max=raw_max,
         grade_descriptor=grade_descriptor,
-        criteria_json=json.dumps(criteria),
+        criteria_json=json.dumps([c.model_dump() for c in criteria]),
         improvement_suggestions_json=json.dumps(improvement_suggestions),
         assessor_notes=assessor_notes,
     )
