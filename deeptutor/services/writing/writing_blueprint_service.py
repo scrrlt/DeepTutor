@@ -12,13 +12,15 @@ from typing import Literal
 from yaml import safe_load
 
 
-type TokenArray = list[str]
-type PatternDictionary = dict[str, str]
-type PromptInstructionList = list[dict[str, str]]
-type BiasPayloadMap = dict[str, int]
-type Vector = list[float]
-type VocabularyFrequencyMap = dict[str, int]
-type SubstitutionDictionary = dict[str, str]
+from deeptutor.services.writing.types import (
+    BiasPayloadMap,
+    PatternDictionary,
+    PromptInstructionList,
+    SubstitutionDictionary,
+    TokenArray,
+    Vector,
+    VocabularyFrequencyMap,
+)
 
 
 class StylometricProfile(BaseModel):

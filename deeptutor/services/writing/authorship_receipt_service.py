@@ -12,8 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deeptutor.models.text_mutation_receipt import TextMutationReceipt
-
-type EditSource = Literal["manual_typing", "api_scrub", "context_expansion"]
+from deeptutor.services.writing.types import EditSource
 
 _MAX_APPEND_RETRIES = 3
 _ALLOWED_EDIT_SOURCES: set[str] = {"manual_typing", "api_scrub", "context_expansion"}

@@ -10,10 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deeptutor.models.user_stylometric_profile import UserStylometricProfile
-
-
-type PreferenceSignal = Literal["cadence_a", "cadence_b"]
-type WeightUpdateMap = dict[str, float]
+from deeptutor.services.writing.types import PreferenceSignal, WeightUpdateMap
 
 
 class ContrastPair(BaseModel):

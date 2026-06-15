@@ -20,21 +20,7 @@ except ImportError:
     class ConfigurationValidationError(Exception):
         """Fallback for missing ConfigurationValidationError."""
 
-# PEP 695 type aliases for provider identifiers
-type ProviderName = Literal[
-    "openai",
-    "gemini",
-    "openrouter",
-    "groq",
-    "together",
-    "deepseek",
-    "xai",
-    "mistral",
-    "ollama",
-    "custom",
-]
-
-type ClientKind = Literal["llm", "embedding"]
+from deeptutor.services.writing.types import ClientKind, ProviderName
 
 
 def get_settings() -> object:
